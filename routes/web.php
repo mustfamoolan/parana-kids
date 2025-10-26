@@ -18,11 +18,10 @@ use App\Http\Controllers\Admin\BulkReturnController;
 use App\Http\Controllers\Admin\ProductMovementController as AdminProductMovementController;
 use App\Http\Controllers\Delegate\OrderController as DelegateOrderController;
 
-// Public routes
-Route::view('/', 'index');
-Route::view('/analytics', 'analytics');
-Route::view('/finance', 'finance');
-Route::view('/crypto', 'crypto');
+// Redirect root to delegate login
+Route::get('/', function () {
+    return redirect()->route('delegate.login');
+});
 
 // Admin/Supplier Authentication Routes
 Route::prefix('admin')->group(function () {
