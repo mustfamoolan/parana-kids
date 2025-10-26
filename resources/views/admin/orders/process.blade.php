@@ -23,21 +23,20 @@
                         <label for="customer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             اسم الزبون <span class="text-red-500">*</span>
                         </label>
-                        <div class="relative">
-                            <input
-                                type="text"
-                                id="customer_name"
-                                name="customer_name"
-                                class="form-input pr-10 @error('customer_name') border-red-500 @enderror"
-                                value="{{ old('customer_name', $order->customer_name) }}"
-                                required
-                            >
-                            <button type="button" onclick="copyToClipboard('customer_name')" class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="نسخ">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                        <input
+                            type="text"
+                            id="customer_name"
+                            name="customer_name"
+                            class="form-input @error('customer_name') border-red-500 @enderror"
+                            value="{{ old('customer_name', $order->customer_name) }}"
+                            required
+                        >
+                        <button type="button" onclick="copyToClipboard('customer_name')" class="btn btn-sm btn-outline-secondary mt-2">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            نسخ
+                        </button>
                         @error('customer_name')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -47,21 +46,20 @@
                         <label for="customer_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             رقم الهاتف <span class="text-red-500">*</span>
                         </label>
-                        <div class="relative">
-                            <input
-                                type="text"
-                                id="customer_phone"
-                                name="customer_phone"
-                                class="form-input pr-10 @error('customer_phone') border-red-500 @enderror"
-                                value="{{ old('customer_phone', $order->customer_phone) }}"
-                                required
-                            >
-                            <button type="button" onclick="copyToClipboard('customer_phone')" class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="نسخ">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                        <input
+                            type="text"
+                            id="customer_phone"
+                            name="customer_phone"
+                            class="form-input @error('customer_phone') border-red-500 @enderror"
+                            value="{{ old('customer_phone', $order->customer_phone) }}"
+                            required
+                        >
+                        <button type="button" onclick="copyToClipboard('customer_phone')" class="btn btn-sm btn-outline-secondary mt-2">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            نسخ
+                        </button>
                         @error('customer_phone')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -71,20 +69,19 @@
                         <label for="customer_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             العنوان <span class="text-red-500">*</span>
                         </label>
-                        <div class="relative">
-                            <textarea
-                                id="customer_address"
-                                name="customer_address"
-                                rows="3"
-                                class="form-textarea pr-10 @error('customer_address') border-red-500 @enderror"
-                                required
-                            >{{ old('customer_address', $order->customer_address) }}</textarea>
-                            <button type="button" onclick="copyToClipboard('customer_address')" class="absolute left-2 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="نسخ">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                        <textarea
+                            id="customer_address"
+                            name="customer_address"
+                            rows="3"
+                            class="form-textarea @error('customer_address') border-red-500 @enderror"
+                            required
+                        >{{ old('customer_address', $order->customer_address) }}</textarea>
+                        <button type="button" onclick="copyToClipboard('customer_address')" class="btn btn-sm btn-outline-secondary mt-2">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            نسخ
+                        </button>
                         @error('customer_address')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -94,24 +91,26 @@
                         <label for="customer_social_link" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             رابط السوشل ميديا <span class="text-red-500">*</span>
                         </label>
-                        <div class="relative">
-                            <input
-                                type="url"
-                                id="customer_social_link"
-                                name="customer_social_link"
-                                class="form-input pr-20 @error('customer_social_link') border-red-500 @enderror"
-                                value="{{ old('customer_social_link', $order->customer_social_link) }}"
-                                required
-                            >
-                            <button type="button" onclick="openLink('customer_social_link')" class="absolute left-8 top-1/2 transform -translate-y-1/2 text-blue-400 hover:text-blue-600 dark:hover:text-blue-300" title="فتح الرابط">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <input
+                            type="url"
+                            id="customer_social_link"
+                            name="customer_social_link"
+                            class="form-input @error('customer_social_link') border-red-500 @enderror"
+                            value="{{ old('customer_social_link', $order->customer_social_link) }}"
+                            required
+                        >
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="openLink('customer_social_link')" class="btn btn-sm btn-outline-info">
+                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                 </svg>
+                                فتح
                             </button>
-                            <button type="button" onclick="copyToClipboard('customer_social_link')" class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="نسخ">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button type="button" onclick="copyToClipboard('customer_social_link')" class="btn btn-sm btn-outline-secondary">
+                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                 </svg>
+                                نسخ
                             </button>
                         </div>
                         @error('customer_social_link')
@@ -123,20 +122,19 @@
                         <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             ملاحظات
                         </label>
-                        <div class="relative">
-                            <textarea
-                                id="notes"
-                                name="notes"
-                                rows="3"
-                                class="form-textarea pr-10 @error('notes') border-red-500 @enderror"
-                                placeholder="ملاحظات إضافية..."
-                            >{{ old('notes', $order->notes) }}</textarea>
-                            <button type="button" onclick="copyToClipboard('notes')" class="absolute left-2 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="نسخ">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                        <textarea
+                            id="notes"
+                            name="notes"
+                            rows="3"
+                            class="form-textarea @error('notes') border-red-500 @enderror"
+                            placeholder="ملاحظات إضافية..."
+                        >{{ old('notes', $order->notes) }}</textarea>
+                        <button type="button" onclick="copyToClipboard('notes')" class="btn btn-sm btn-outline-secondary mt-2">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            نسخ
+                        </button>
                         @error('notes')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -274,21 +272,20 @@
             <!-- كود التوصيل -->
             <div class="panel mb-5">
                 <h6 class="text-lg font-semibold mb-4">كود التوصيل (كود الوسيط)</h6>
-                <div class="relative">
-                    <input
-                        type="text"
-                        x-model="deliveryCode"
-                        name="delivery_code"
-                        class="form-input pr-10"
-                        placeholder="أدخل كود شركة التوصيل"
-                        required
-                    >
-                    <button type="button" onclick="copyToClipboard('deliveryCode')" class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="نسخ">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                        </svg>
-                    </button>
-                </div>
+                <input
+                    type="text"
+                    x-model="deliveryCode"
+                    name="delivery_code"
+                    class="form-input"
+                    placeholder="أدخل كود شركة التوصيل"
+                    required
+                >
+                <button type="button" onclick="copyToClipboard('deliveryCode')" class="btn btn-sm btn-outline-secondary mt-2">
+                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    نسخ
+                </button>
             </div>
 
             <!-- ملخص وأزرار -->

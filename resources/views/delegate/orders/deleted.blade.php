@@ -24,9 +24,17 @@
                            placeholder="إلى تاريخ" class="form-input">
                 </div>
                 <div>
+                    <input type="time" name="time_from" value="{{ request('time_from') }}"
+                           placeholder="من الساعة" class="form-input">
+                </div>
+                <div>
+                    <input type="time" name="time_to" value="{{ request('time_to') }}"
+                           placeholder="إلى الساعة" class="form-input">
+                </div>
+                <div>
                     <button type="submit" class="btn btn-primary">بحث</button>
                 </div>
-                @if(request()->hasAny(['search', 'date_from', 'date_to']))
+                @if(request()->hasAny(['search', 'date_from', 'date_to', 'time_from', 'time_to']))
                     <div>
                         <a href="{{ route('delegate.orders.deleted') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
                     </div>

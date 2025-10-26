@@ -121,6 +121,21 @@ class WarehouseController extends Controller
     {
         $this->authorize('delete', $warehouse);
 
+        // تسجيل حركات الحذف لجميع المنتجات والقياسات قبل الحذف
+        foreach ($warehouse->products as $product) {
+            foreach ($product->sizes as $size) {
+                \App\Models\ProductMovement::record([
+                    'product_id' => $product->id,
+                    'size_id' => $size->id,
+                    'warehouse_id' => $warehouse->id,
+                    'movement_type' => 'delete',
+                    'quantity' => -$size->quantity,
+                    'balance_after' => 0,
+                    'notes' => "حذف مخزن: {$warehouse->name} - منتج: {$product->name} - قياس: {$size->size_name} (كان الرصيد: {$size->quantity})",
+                ]);
+            }
+        }
+
         $warehouse->delete();
 
         return redirect()->route('admin.warehouses.index')

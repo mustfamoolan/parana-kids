@@ -14,6 +14,7 @@ use App\Http\Controllers\Delegate\CartItemController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\TransferController;
+use App\Http\Controllers\Admin\BulkReturnController;
 use App\Http\Controllers\Admin\ProductMovementController as AdminProductMovementController;
 use App\Http\Controllers\Delegate\OrderController as DelegateOrderController;
 
@@ -128,6 +129,11 @@ Route::prefix('admin')->group(function () {
         Route::get('transfers', [TransferController::class, 'index'])->name('admin.transfers.index');
         Route::get('transfers/search-products', [TransferController::class, 'searchProducts'])->name('admin.transfers.search');
         Route::post('transfers', [TransferController::class, 'transfer'])->name('admin.transfers.store');
+
+        // Bulk Return routes
+        Route::get('bulk-returns', [BulkReturnController::class, 'index'])->name('admin.bulk-returns.index');
+        Route::get('bulk-returns/search', [BulkReturnController::class, 'searchProducts'])->name('admin.bulk-returns.search');
+        Route::post('bulk-returns', [BulkReturnController::class, 'returnProducts'])->name('admin.bulk-returns.store');
     });
 });
 

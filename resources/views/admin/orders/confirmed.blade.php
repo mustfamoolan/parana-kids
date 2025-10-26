@@ -44,6 +44,24 @@
                                 value="{{ request('date_to') }}"
                             >
                         </div>
+                        <div class="sm:w-32">
+                            <input
+                                type="time"
+                                name="time_from"
+                                class="form-input"
+                                placeholder="من الساعة"
+                                value="{{ request('time_from') }}"
+                            >
+                        </div>
+                        <div class="sm:w-32">
+                            <input
+                                type="time"
+                                name="time_to"
+                                class="form-input"
+                                placeholder="إلى الساعة"
+                                value="{{ request('time_to') }}"
+                            >
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +69,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('date_from') || request('date_to') || request('confirmed_from') || request('confirmed_to'))
+                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('confirmed_from') || request('confirmed_to'))
                                 <a href="{{ route('admin.orders.confirmed') }}" class="btn btn-outline-secondary">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -86,7 +104,7 @@
             </div>
 
             <!-- نتائج البحث -->
-            @if(request('search') || request('date_from') || request('date_to') || request('confirmed_from') || request('confirmed_to'))
+            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('confirmed_from') || request('confirmed_to'))
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div class="flex items-center gap-2">
                         <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,11 +178,11 @@
                                     </td>
                                     <td>
                                         <div class="text-sm">{{ $order->created_at->format('Y-m-d') }}</div>
-                                        <div class="text-xs text-gray-500">{{ $order->created_at->format('H:i') }}</div>
+                                        <div class="text-xs text-gray-500">{{ $order->created_at->format('h:i A') }}</div>
                                     </td>
                                     <td>
                                         <div class="text-sm">{{ $order->confirmed_at->format('Y-m-d') }}</div>
-                                        <div class="text-xs text-gray-500">{{ $order->confirmed_at->format('H:i') }}</div>
+                                        <div class="text-xs text-gray-500">{{ $order->confirmed_at->format('h:i A') }}</div>
                                     </td>
                                     <td>
                                         <div class="text-sm">{{ $order->confirmedBy->name ?? 'غير محدد' }}</div>

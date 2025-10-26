@@ -58,6 +58,17 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
         $orders = $query->with(['delegate', 'items.product.primaryImage'])
                        ->latest()
                        ->paginate(15);
@@ -268,13 +279,17 @@ class OrderController extends Controller
                 $size->decrement('quantity', $itemData['quantity']);
 
                 // تسجيل حركة البيع
-                ProductMovement::record(
-                    $size,
-                    'sale',
-                    -$itemData['quantity'],
-                    $order,
-                    "بيع من طلب #{$order->order_number}"
-                );
+                ProductMovement::record([
+                    'product_id' => $product->id,
+                    'size_id' => $size->id,
+                    'warehouse_id' => $product->warehouse_id,
+                    'order_id' => $order->id,
+                    'movement_type' => 'sale',
+                    'quantity' => -$itemData['quantity'],
+                    'balance_after' => $size->refresh()->quantity,
+                    'order_status' => $order->status,
+                    'notes' => "بيع من طلب #{$order->order_number}"
+                ]);
 
                 $totalAmount += $subtotal;
             }
@@ -375,12 +390,34 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        // فلتر حسب الوقت للطلب
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
         if ($request->filled('confirmed_from')) {
             $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
         }
 
         if ($request->filled('confirmed_to')) {
             $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        }
+
+        // فلتر حسب الوقت للتقييد
+        if ($request->filled('confirmed_time_from')) {
+            $confirmedDateFrom = $request->confirmed_from ?? now()->format('Y-m-d');
+            $query->where('confirmed_at', '>=', $confirmedDateFrom . ' ' . $request->confirmed_time_from . ':00');
+        }
+
+        if ($request->filled('confirmed_time_to')) {
+            $confirmedDateTo = $request->confirmed_to ?? now()->format('Y-m-d');
+            $query->where('confirmed_at', '<=', $confirmedDateTo . ' ' . $request->confirmed_time_to . ':00');
         }
 
         $orders = $query->with(['delegate', 'confirmedBy', 'items.product.primaryImage'])
@@ -397,7 +434,8 @@ class OrderController extends Controller
     {
         $this->authorize('update', $order);
 
-        if (!$order->canBeEdited()) {
+        // السماح بالتعديل للطلبات pending أو المقيدة خلال 5 ساعات
+        if ($order->status !== 'pending' && !$order->canBeEdited()) {
             return back()->withErrors(['error' => 'لا يمكن تعديل هذا الطلب (مر أكثر من 5 ساعات على التقييد)']);
         }
 
@@ -405,10 +443,14 @@ class OrderController extends Controller
             'delegate',
             'items.product.primaryImage',
             'items.product.warehouse',
+            'items.size',
             'cart'
         ]);
 
-        return view('admin.orders.edit', compact('order'));
+        // تحميل جميع المنتجات للبحث والإضافة
+        $products = Product::with(['sizes', 'primaryImage'])->get();
+
+        return view('admin.orders.edit', compact('order', 'products'));
     }
 
     /**
@@ -418,29 +460,119 @@ class OrderController extends Controller
     {
         $this->authorize('update', $order);
 
-        if (!$order->canBeEdited()) {
+        // السماح بالتعديل للطلبات pending أو المقيدة خلال 5 ساعات
+        if ($order->status !== 'pending' && !$order->canBeEdited()) {
             return back()->withErrors(['error' => 'لا يمكن تعديل هذا الطلب (مر أكثر من 5 ساعات على التقييد)']);
         }
 
         $request->validate([
-            'delivery_code' => 'required|string|max:255',
+            'delivery_code' => 'nullable|string|max:255',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
             'customer_address' => 'required|string',
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.size_id' => 'required|exists:product_sizes,id',
+            'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        $order->update($request->only([
-            'delivery_code',
-            'customer_name',
-            'customer_phone',
-            'customer_address',
-            'customer_social_link',
-            'notes',
-        ]));
+        try {
+            DB::transaction(function() use ($request, $order) {
+                // تحميل العناصر القديمة قبل الحذف
+                $oldItems = $order->items()->get();
 
-        return back()->with('success', 'تم تحديث الطلب بنجاح');
+                // تحديث معلومات الطلب
+                $order->update($request->only([
+                    'delivery_code',
+                    'customer_name',
+                    'customer_phone',
+                    'customer_address',
+                    'customer_social_link',
+                    'notes',
+                ]));
+
+                // إذا كان الطلب مقيد (confirmed)، نرجع المنتجات القديمة للمخزن أولاً
+                if ($order->status === 'confirmed') {
+                    foreach ($oldItems as $oldItem) {
+                        if ($oldItem->size) {
+                            $oldItem->size->increment('quantity', $oldItem->quantity);
+
+                            // تسجيل حركة الإرجاع
+                            ProductMovement::record([
+                                'product_id' => $oldItem->product_id,
+                                'size_id' => $oldItem->size_id,
+                                'warehouse_id' => $oldItem->product->warehouse_id,
+                                'order_id' => $order->id,
+                                'movement_type' => 'cancel',
+                                'quantity' => $oldItem->quantity,
+                                'balance_after' => $oldItem->size->quantity,
+                                'order_status' => $order->status,
+                                'notes' => "تعديل طلب #{$order->order_number} - إرجاع المنتجات القديمة"
+                            ]);
+                        }
+                    }
+                }
+
+                // حذف المنتجات القديمة
+                $order->items()->delete();
+
+                // إضافة المنتجات الجديدة
+                $totalAmount = 0;
+                foreach ($request->items as $item) {
+                    $product = Product::findOrFail($item['product_id']);
+                    $size = ProductSize::findOrFail($item['size_id']);
+
+                    // التحقق من توفر الكمية (للطلبات المقيدة فقط)
+                    if ($order->status === 'confirmed') {
+                        if ($size->quantity < $item['quantity']) {
+                            throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$size->quantity}");
+                        }
+                    }
+
+                    $subtotal = $product->selling_price * $item['quantity'];
+                    $totalAmount += $subtotal;
+
+                    $order->items()->create([
+                        'product_id' => $item['product_id'],
+                        'size_id' => $item['size_id'],
+                        'product_code' => $product->code,
+                        'product_name' => $product->name,
+                        'size_name' => $size->size_name,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $product->selling_price,
+                        'subtotal' => $subtotal,
+                    ]);
+
+                    // خصم من المخزن (للطلبات المقيدة فقط)
+                    if ($order->status === 'confirmed') {
+                        $size->decrement('quantity', $item['quantity']);
+
+                        // تسجيل حركة البيع الجديدة
+                        ProductMovement::record([
+                            'product_id' => $item['product_id'],
+                            'size_id' => $item['size_id'],
+                            'warehouse_id' => $product->warehouse_id,
+                            'order_id' => $order->id,
+                            'movement_type' => 'sell',
+                            'quantity' => -$item['quantity'],
+                            'balance_after' => $size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "تعديل طلب #{$order->order_number} - إضافة منتج جديد"
+                        ]);
+                    }
+                }
+
+                // تحديث المبلغ الإجمالي
+                $order->update(['total_amount' => $totalAmount]);
+            });
+
+            return redirect()->route('admin.orders.show', $order)
+                            ->with('success', 'تم تحديث الطلب بنجاح');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'حدث خطأ أثناء تحديث الطلب: ' . $e->getMessage()])->withInput();
+        }
     }
 
     /**
@@ -614,12 +746,34 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        // فلتر حسب الوقت للطلب
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
         if ($request->filled('cancelled_from')) {
             $query->whereDate('cancelled_at', '>=', $request->cancelled_from);
         }
 
         if ($request->filled('cancelled_to')) {
             $query->whereDate('cancelled_at', '<=', $request->cancelled_to);
+        }
+
+        // فلتر حسب الوقت للإلغاء
+        if ($request->filled('cancelled_time_from')) {
+            $cancelledDateFrom = $request->cancelled_from ?? now()->format('Y-m-d');
+            $query->where('cancelled_at', '>=', $cancelledDateFrom . ' ' . $request->cancelled_time_from . ':00');
+        }
+
+        if ($request->filled('cancelled_time_to')) {
+            $cancelledDateTo = $request->cancelled_to ?? now()->format('Y-m-d');
+            $query->where('cancelled_at', '<=', $cancelledDateTo . ' ' . $request->cancelled_time_to . ':00');
         }
 
         $orders = $query->with(['delegate', 'processedBy', 'items.product.primaryImage'])
@@ -670,12 +824,34 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        // فلتر حسب الوقت للطلب
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
         if ($request->filled('returned_from')) {
             $query->whereDate('returned_at', '>=', $request->returned_from);
         }
 
         if ($request->filled('returned_to')) {
             $query->whereDate('returned_at', '<=', $request->returned_to);
+        }
+
+        // فلتر حسب الوقت للاسترجاع
+        if ($request->filled('returned_time_from')) {
+            $returnedDateFrom = $request->returned_from ?? now()->format('Y-m-d');
+            $query->where('returned_at', '>=', $returnedDateFrom . ' ' . $request->returned_time_from . ':00');
+        }
+
+        if ($request->filled('returned_time_to')) {
+            $returnedDateTo = $request->returned_to ?? now()->format('Y-m-d');
+            $query->where('returned_at', '<=', $returnedDateTo . ' ' . $request->returned_time_to . ':00');
         }
 
         $orders = $query->with(['delegate', 'processedBy', 'items.product.primaryImage', 'returnItems'])
@@ -725,12 +901,34 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        // فلتر حسب الوقت للطلب
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
         if ($request->filled('exchanged_from')) {
             $query->whereDate('exchanged_at', '>=', $request->exchanged_from);
         }
 
         if ($request->filled('exchanged_to')) {
             $query->whereDate('exchanged_at', '<=', $request->exchanged_to);
+        }
+
+        // فلتر حسب الوقت للاستبدال
+        if ($request->filled('exchanged_time_from')) {
+            $exchangedDateFrom = $request->exchanged_from ?? now()->format('Y-m-d');
+            $query->where('exchanged_at', '>=', $exchangedDateFrom . ' ' . $request->exchanged_time_from . ':00');
+        }
+
+        if ($request->filled('exchanged_time_to')) {
+            $exchangedDateTo = $request->exchanged_to ?? now()->format('Y-m-d');
+            $query->where('exchanged_at', '<=', $exchangedDateTo . ' ' . $request->exchanged_time_to . ':00');
         }
 
         $orders = $query->with(['delegate', 'processedBy', 'items.product.primaryImage', 'exchangeItems'])
@@ -790,13 +988,17 @@ class OrderController extends Controller
                         $item->size->increment('quantity', $item->quantity);
 
                         // تسجيل حركة الاسترجاع
-                        ProductMovement::record(
-                            $item->size,
-                            'return',
-                            $item->quantity,
-                            $order,
-                            "استرجاع من طلب #{$order->order_number}"
-                        );
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'order_id' => $order->id,
+                            'movement_type' => 'return',
+                            'quantity' => $item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "استرجاع من طلب #{$order->order_number}"
+                        ]);
                     }
                 }
 
@@ -840,13 +1042,17 @@ class OrderController extends Controller
                         $item->size->increment('quantity', $item->quantity);
 
                         // تسجيل حركة الحذف
-                        ProductMovement::record(
-                            $item->size,
-                            'delete',
-                            $item->quantity,
-                            $order,
-                            "حذف طلب #{$order->order_number}"
-                        );
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'order_id' => $order->id,
+                            'movement_type' => 'delete',
+                            'quantity' => $item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "حذف طلب #{$order->order_number}"
+                        ]);
                     }
                 }
 
@@ -904,6 +1110,17 @@ class OrderController extends Controller
 
         if ($request->filled('date_to')) {
             $query->whereDate('deleted_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
         $orders = $query->with(['delegate', 'deletedBy', 'items.product.primaryImage'])
@@ -994,13 +1211,17 @@ class OrderController extends Controller
                         $item->size->decrement('quantity', $item->quantity);
 
                         // تسجيل حركة الاسترجاع من الحذف
-                        ProductMovement::record(
-                            $item->size,
-                            'restore',
-                            -$item->quantity,
-                            $order,
-                            "استرجاع من حذف طلب #{$order->order_number}"
-                        );
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'order_id' => $order->id,
+                            'movement_type' => 'restore',
+                            'quantity' => -$item->quantity,
+                            'balance_after' => $item->size->refresh()->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "استرجاع من حذف طلب #{$order->order_number}"
+                        ]);
                     }
                 }
 

@@ -48,22 +48,27 @@ class ProductController extends Controller
         $this->authorize('create', Product::class);
 
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255|unique:products,code',
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'link_1688' => 'nullable|url|max:500',
+            'image_urls' => 'nullable|array',
+            'image_urls.*' => 'url|max:1000',
             'sizes' => 'required|array|min:1',
             'sizes.*.size_name' => 'required|string|max:50',
             'sizes.*.quantity' => 'required|integer|min:0',
-            'images' => 'nullable|array|max:1',
-            'images.*' => 'image|mimes:jpeg,png,jpg|max:5120',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
+
+        // استخدام الكود كاسم افتراضي إذا لم يتم إدخال اسم
+        $productName = $request->name ?: $request->code;
 
         $product = Product::create([
             'warehouse_id' => $warehouse->id,
-            'name' => $request->name,
+            'name' => $productName,
             'code' => $request->code,
             'purchase_price' => $request->purchase_price,
             'selling_price' => $request->selling_price,
@@ -81,25 +86,62 @@ class ProductController extends Controller
             ]);
 
             // تسجيل حركة الإضافة
-            ProductMovement::record(
-                $size,
-                'add',
-                $sizeData['quantity'],
-                null, // لا يوجد order_id
-                "إضافة منتج جديد: {$product->name}"
-            );
+            ProductMovement::record([
+                'product_id' => $product->id,
+                'size_id' => $size->id,
+                'warehouse_id' => $product->warehouse_id,
+                'movement_type' => 'add',
+                'quantity' => $sizeData['quantity'],
+                'balance_after' => $sizeData['quantity'],
+                'notes' => "إضافة منتج جديد: {$product->name}",
+            ]);
         }
 
-        // رفع الصورة إن وجدت
+        // رفع الصور إن وجدت - دعم صور متعددة
+        $imageIndex = 0;
         if ($request->hasFile('images')) {
-            $image = $request->file('images')[0]; // أخذ الصورة الأولى فقط
-            $path = $image->store('products', 'public');
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('products', 'public');
 
-            ProductImage::create([
-                'product_id' => $product->id,
-                'image_path' => $path,
-                'is_primary' => true,
-            ]);
+                ProductImage::create([
+                    'product_id' => $product->id,
+                    'image_path' => $path,
+                    'is_primary' => $imageIndex === 0, // أول صورة = primary
+                ]);
+                $imageIndex++;
+            }
+        }
+
+        // تحميل الصور من URLs
+        if ($request->filled('image_urls')) {
+            foreach ($request->image_urls as $imageUrl) {
+                if (empty($imageUrl)) continue;
+
+                try {
+                    $imageContent = file_get_contents($imageUrl);
+
+                    if ($imageContent !== false) {
+                        $extension = pathinfo(parse_url($imageUrl, PHP_URL_PATH), PATHINFO_EXTENSION);
+                        if (empty($extension) || !in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                            $extension = 'jpg';
+                        }
+
+                        $filename = 'product_' . time() . '_' . uniqid() . '.' . $extension;
+                        $path = 'products/' . $filename;
+
+                        Storage::disk('public')->put($path, $imageContent);
+
+                        ProductImage::create([
+                            'product_id' => $product->id,
+                            'image_path' => $path,
+                            'is_primary' => $imageIndex === 0,
+                        ]);
+                        $imageIndex++;
+                    }
+                } catch (\Exception $e) {
+                    // تجاهل الخطأ والاستمرار مع الصور الأخرى
+                }
+            }
         }
 
         return redirect()->route('admin.warehouses.products.index', $warehouse)
@@ -150,24 +192,55 @@ class ProductController extends Controller
         $this->authorize('update', $product);
 
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255|unique:products,code,' . $product->id,
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'link_1688' => 'nullable|url|max:500',
+            'image_urls' => 'nullable|array',
+            'image_urls.*' => 'url|max:1000',
+            'keep_images' => 'nullable|array',
+            'keep_images.*' => 'exists:product_images,id',
             'sizes' => 'required|array|min:1',
             'sizes.*.size_name' => 'required|string|max:50',
             'sizes.*.quantity' => 'required|integer|min:0',
-            'images' => 'nullable|array|max:1',
-            'images.*' => 'image|mimes:jpeg,png,jpg|max:5120',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
-        $product->update($request->only([
-            'name', 'code', 'purchase_price', 'selling_price', 'description', 'link_1688'
-        ]));
+        // استخدام الكود كاسم افتراضي إذا لم يتم إدخال اسم
+        $productName = $request->name ?: $request->code;
 
-        // Update sizes
+        $product->update([
+            'name' => $productName,
+            'code' => $request->code,
+            'purchase_price' => $request->purchase_price,
+            'selling_price' => $request->selling_price,
+            'description' => $request->description,
+            'link_1688' => $request->link_1688,
+        ]);
+
+        // حفظ القياسات القديمة لمقارنتها
+        $oldSizes = $product->sizes->keyBy('size_name');
+        $newSizes = collect($request->sizes)->keyBy('size_name');
+
+        // تسجيل القياسات المحذوفة قبل الحذف
+        foreach ($oldSizes as $sizeName => $oldSize) {
+            if (!isset($newSizes[$sizeName])) {
+                ProductMovement::record([
+                    'product_id' => $product->id,
+                    'size_id' => $oldSize->id,
+                    'warehouse_id' => $product->warehouse_id,
+                    'movement_type' => 'delete',
+                    'quantity' => -$oldSize->quantity,
+                    'balance_after' => 0,
+                    'notes' => "حذف القياس - المنتج: {$product->name} - القياس: {$sizeName} (كان الرصيد: {$oldSize->quantity})",
+                ]);
+            }
+        }
+
+        // Update sizes - الآن يمكن حذفها بأمان
         $product->sizes()->delete();
         foreach ($request->sizes as $sizeData) {
             $size = ProductSize::create([
@@ -176,33 +249,112 @@ class ProductController extends Controller
                 'quantity' => $sizeData['quantity'],
             ]);
 
-            // تسجيل حركة التعديل
-            ProductMovement::record(
-                $size,
-                'add',
-                $sizeData['quantity'],
-                null, // لا يوجد order_id
-                "تعديل منتج: {$product->name}"
-            );
+            // تسجيل حركة التعديل عند تغيير الكمية
+            if (isset($oldSizes[$sizeData['size_name']])) {
+                $oldSize = $oldSizes[$sizeData['size_name']];
+                $quantityDifference = $sizeData['quantity'] - $oldSize->quantity;
+
+                if ($quantityDifference > 0) {
+                    // زيادة الكمية
+                    ProductMovement::record([
+                        'product_id' => $product->id,
+                        'size_id' => $size->id,
+                        'warehouse_id' => $product->warehouse_id,
+                        'movement_type' => 'increase',
+                        'quantity' => $quantityDifference,
+                        'balance_after' => $sizeData['quantity'],
+                        'notes' => "زيادة كمية - المنتج: {$product->name} - القياس: {$sizeData['size_name']} (+{$quantityDifference})",
+                    ]);
+                } elseif ($quantityDifference < 0) {
+                    // نقص الكمية
+                    ProductMovement::record([
+                        'product_id' => $product->id,
+                        'size_id' => $size->id,
+                        'warehouse_id' => $product->warehouse_id,
+                        'movement_type' => 'decrease',
+                        'quantity' => $quantityDifference,
+                        'balance_after' => $sizeData['quantity'],
+                        'notes' => "نقص كمية - المنتج: {$product->name} - القياس: {$sizeData['size_name']} ({$quantityDifference})",
+                    ]);
+                }
+            } else {
+                // إذا كان القياس جديد، سجله كإضافة
+                ProductMovement::record([
+                    'product_id' => $product->id,
+                    'size_id' => $size->id,
+                    'warehouse_id' => $product->warehouse_id,
+                    'movement_type' => 'add',
+                    'quantity' => $sizeData['quantity'],
+                    'balance_after' => $sizeData['quantity'],
+                    'notes' => "إضافة قياس جديد - المنتج: {$product->name} - القياس: {$sizeData['size_name']}",
+                ]);
+            }
         }
 
-        // رفع صورة جديدة إن وجدت
-        if ($request->hasFile('images')) {
-            // حذف الصورة القديمة
-            foreach ($product->images as $oldImage) {
+        // معالجة الصور
+        // حذف الصور التي لم يتم الاحتفاظ بها
+        $keepImageIds = $request->keep_images ?? [];
+        foreach ($product->images as $oldImage) {
+            if (!in_array($oldImage->id, $keepImageIds)) {
                 Storage::disk('public')->delete($oldImage->image_path);
                 $oldImage->delete();
             }
+        }
 
-            // رفع الصورة الجديدة
-            $image = $request->file('images')[0];
-            $path = $image->store('products', 'public');
+        // إعادة تعيين primary للصورة الأولى المتبقية
+        $remainingImages = $product->images()->get();
+        if ($remainingImages->count() > 0) {
+            $remainingImages->each(function($img) { $img->update(['is_primary' => false]); });
+            $remainingImages->first()->update(['is_primary' => true]);
+        }
 
-            ProductImage::create([
-                'product_id' => $product->id,
-                'image_path' => $path,
-                'is_primary' => true,
-            ]);
+        // حساب عدد الصور الحالية
+        $imageIndex = $remainingImages->count();
+
+        // رفع صور جديدة من الملفات
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('products', 'public');
+
+                ProductImage::create([
+                    'product_id' => $product->id,
+                    'image_path' => $path,
+                    'is_primary' => $imageIndex === 0,
+                ]);
+                $imageIndex++;
+            }
+        }
+
+        // تحميل صور من URLs
+        if ($request->filled('image_urls')) {
+            foreach ($request->image_urls as $imageUrl) {
+                if (empty($imageUrl)) continue;
+
+                try {
+                    $imageContent = file_get_contents($imageUrl);
+
+                    if ($imageContent !== false) {
+                        $extension = pathinfo(parse_url($imageUrl, PHP_URL_PATH), PATHINFO_EXTENSION);
+                        if (empty($extension) || !in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                            $extension = 'jpg';
+                        }
+
+                        $filename = 'product_' . time() . '_' . uniqid() . '.' . $extension;
+                        $path = 'products/' . $filename;
+
+                        Storage::disk('public')->put($path, $imageContent);
+
+                        ProductImage::create([
+                            'product_id' => $product->id,
+                            'image_path' => $path,
+                            'is_primary' => $imageIndex === 0,
+                        ]);
+                        $imageIndex++;
+                    }
+                } catch (\Exception $e) {
+                    // تجاهل الخطأ والاستمرار
+                }
+            }
         }
 
         return redirect()->route('admin.warehouses.products.show', [$warehouse, $product])
@@ -216,6 +368,19 @@ class ProductController extends Controller
     {
         $this->authorize('view', $warehouse);
         $this->authorize('delete', $product);
+
+        // تسجيل حركات الحذف لجميع القياسات قبل الحذف
+        foreach ($product->sizes as $size) {
+            ProductMovement::record([
+                'product_id' => $product->id,
+                'size_id' => $size->id,
+                'warehouse_id' => $product->warehouse_id,
+                'movement_type' => 'delete',
+                'quantity' => -$size->quantity,
+                'balance_after' => 0,
+                'notes' => "حذف منتج: {$product->name} - القياس: {$size->size_name} (كان الرصيد: {$size->quantity})",
+            ]);
+        }
 
         // Delete images from storage
         foreach ($product->images as $image) {

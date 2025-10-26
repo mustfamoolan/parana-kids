@@ -59,6 +59,17 @@ class ProductMovementController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
         // فلتر حسب المخازن المخصصة للمستخدم
         if (auth()->user()->isSupplier()) {
             $warehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
@@ -168,6 +179,15 @@ class ProductMovementController extends Controller
             $query->bySize($request->size_id);
         }
 
+        // فلتر حسب البحث بالاسم أو الكود
+        if ($request->filled('product_search')) {
+            $productSearch = $request->product_search;
+            $query->whereHas('product', function($q) use ($productSearch) {
+                $q->where('name', 'like', '%' . $productSearch . '%')
+                  ->orWhere('code', 'like', '%' . $productSearch . '%');
+            });
+        }
+
         // فلتر حسب نوع الحركة
         if ($request->filled('movement_type')) {
             $query->byMovementType($request->movement_type);
@@ -199,6 +219,17 @@ class ProductMovementController extends Controller
 
         if ($request->filled('date_to')) {
             $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
         // فلتر حسب المخازن المخصصة للمستخدم

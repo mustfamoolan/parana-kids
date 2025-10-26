@@ -199,6 +199,16 @@
                                 </div>
                             </a>
                         </li>
+                        <li>
+                            <a href="{{ route('admin.bulk-returns.index') }}" class="nav-link group">
+                                <div class="flex items-center">
+                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                        <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إرجاع طلبات</span>
+                                </div>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 @endif

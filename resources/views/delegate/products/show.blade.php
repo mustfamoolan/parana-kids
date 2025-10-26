@@ -15,11 +15,51 @@
         <!-- معرض الصور -->
         @if($product->images->count() > 0)
             <div class="panel mb-5">
-                <div class="max-w-3xl mx-auto">
-                    <img src="{{ $product->images->first()->image_url }}"
-                         class="w-full max-h-80 object-cover rounded-lg"
-                         alt="{{ $product->name }}" />
+                <div class="swiper max-w-3xl mx-auto" id="productSliderDelegate">
+                    <div class="swiper-wrapper">
+                        @foreach($product->images as $image)
+                        <div class="swiper-slide">
+                            <img src="{{ $image->image_url }}"
+                                 class="w-full h-96 object-cover rounded-lg"
+                                 alt="{{ $product->name }}">
+                        </div>
+                        @endforeach
+                    </div>
+
+                    <!-- أزرار التنقل -->
+                    <a href="javascript:;" class="swiper-button-prev-delegate-product grid place-content-center ltr:left-2 rtl:right-2 p-1 transition text-primary hover:text-white border border-primary hover:border-primary hover:bg-primary rounded-full absolute z-[999] top-1/2 -translate-y-1/2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 rtl:rotate-180">
+                            <path d="M15 5L9 12L15 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                    <a href="javascript:;" class="swiper-button-next-delegate-product grid place-content-center ltr:right-2 rtl:left-2 p-1 transition text-primary hover:text-white border border-primary hover:border-primary hover:bg-primary rounded-full absolute z-[999] top-1/2 -translate-y-1/2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 ltr:rotate-180">
+                            <path d="M15 5L9 12L15 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+
+                    <!-- Pagination -->
+                    <div class="swiper-pagination"></div>
                 </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const productSwiperDelegate = new Swiper("#productSliderDelegate", {
+                            slidesPerView: 1,
+                            spaceBetween: 30,
+                            loop: {{ $product->images->count() > 1 ? 'true' : 'false' }},
+                            pagination: {
+                                el: ".swiper-pagination",
+                                clickable: true,
+                                type: "fraction",
+                            },
+                            navigation: {
+                                nextEl: '.swiper-button-next-delegate-product',
+                                prevEl: '.swiper-button-prev-delegate-product',
+                            },
+                        });
+                    });
+                </script>
             </div>
         @else
             <div class="panel mb-5">

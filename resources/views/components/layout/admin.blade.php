@@ -7,6 +7,7 @@
     <title>{{ $title ?? 'Paraná Kids' }}</title>
 
     <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/svg" href="/assets/images/favicon.svg" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />

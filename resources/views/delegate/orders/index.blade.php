@@ -137,6 +137,24 @@
                                 value="{{ request('date_to') }}"
                             >
                         </div>
+                        <div class="sm:w-32">
+                            <input
+                                type="time"
+                                name="time_from"
+                                class="form-input"
+                                placeholder="من الساعة"
+                                value="{{ request('time_from') }}"
+                            >
+                        </div>
+                        <div class="sm:w-32">
+                            <input
+                                type="time"
+                                name="time_to"
+                                class="form-input"
+                                placeholder="إلى الساعة"
+                                value="{{ request('time_to') }}"
+                            >
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +162,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('status') || request('date_from') || request('date_to'))
+                            @if(request('search') || request('status') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
                                 <a href="{{ route('delegate.orders.index') }}" class="btn btn-outline-secondary">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -158,7 +176,7 @@
             </div>
 
             <!-- نتائج البحث -->
-            @if(request('search') || request('status') || request('date_from') || request('date_to'))
+            @if(request('search') || request('status') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div class="flex items-center gap-2">
                         <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

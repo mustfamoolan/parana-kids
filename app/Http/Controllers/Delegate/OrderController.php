@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\ProductSize;
 use App\Models\ProductMovement;
 use Illuminate\Http\Request;
@@ -50,6 +51,17 @@ class OrderController extends Controller
 
         if ($request->filled('date_to')) {
             $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
         $orders = $query->latest()->paginate(10);
@@ -165,54 +177,32 @@ class OrderController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Show the form for editing the order.
      */
     public function edit(Order $order)
     {
-        // التأكد من أن الطلب يخص المندوب الحالي
+        // التحقق من ملكية الطلب
         if ($order->delegate_id !== auth()->id()) {
             abort(403);
         }
 
-        // التحقق من أن الطلب غير مقيد
+        // التحقق من أن الطلب pending فقط
         if ($order->status !== 'pending') {
-            return redirect()->route('delegate.orders.show', $order)
-                            ->withErrors(['order' => 'لا يمكن تعديل الطلبات المقيدة']);
+            return back()->withErrors(['error' => 'يمكن تعديل الطلبات غير المقيدة فقط']);
         }
 
-        // تحويل الطلب إلى سلة مؤقتة للتعديل
-        $cart = Cart::create([
-            'delegate_id' => auth()->id(),
-            'cart_name' => 'تعديل الطلب ' . $order->order_number,
-            'status' => 'active',
-            'expires_at' => now()->addHour(),
+        $order->load([
+            'delegate',
+            'items.product.primaryImage',
+            'items.product.warehouse',
+            'items.size',
+            'cart'
         ]);
 
-        // نسخ منتجات الطلب إلى السلة المؤقتة
-        foreach ($order->items as $orderItem) {
-            // البحث عن القياس المناسب للمنتج
-            $size = null;
-            if ($orderItem->size_id) {
-                $size = ProductSize::find($orderItem->size_id);
-            } else {
-                // إذا لم يكن هناك size_id، ابحث عن القياس بالاسم
-                $size = ProductSize::where('product_id', $orderItem->product_id)
-                                  ->where('size_name', $orderItem->size_name)
-                                  ->first();
-            }
+        // تحميل جميع المنتجات للبحث والإضافة
+        $products = Product::with(['sizes', 'primaryImage'])->get();
 
-            if ($size) {
-                $cart->items()->create([
-                    'product_id' => $orderItem->product_id,
-                    'size_id' => $size->id,
-                    'quantity' => $orderItem->quantity,
-                    'price' => $orderItem->unit_price,
-                ]);
-            }
-        }
-
-        return redirect()->route('delegate.carts.show', $cart)
-                        ->with('success', 'تم تحويل الطلب إلى سلة للتعديل');
+        return view('delegate.orders.edit', compact('order', 'products'));
     }
 
     /**
@@ -238,64 +228,73 @@ class OrderController extends Controller
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.id' => 'required|exists:order_items,id',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.size_id' => 'required|exists:product_sizes,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        DB::transaction(function() use ($order, $request) {
-            // تحديث معلومات الزبون
-            $order->update([
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_address' => $request->customer_address,
-                'customer_social_link' => $request->customer_social_link,
-                'notes' => $request->notes,
-            ]);
+        try {
+            DB::transaction(function() use ($request, $order) {
+                // تحميل العناصر القديمة
+                $oldItems = $order->items()->get();
 
-            $totalAmount = 0;
-
-            // تحديث منتجات الطلب
-            foreach ($request->items as $itemData) {
-                $orderItem = OrderItem::findOrFail($itemData['id']);
-
-                // التحقق من أن العنصر يخص هذا الطلب
-                if ($orderItem->order_id !== $order->id) {
-                    continue;
-                }
-
-                $oldQuantity = $orderItem->quantity;
-                $newQuantity = $itemData['quantity'];
-
-                // تحديث الكمية والمجموع
-                $orderItem->update([
-                    'quantity' => $newQuantity,
-                    'subtotal' => $newQuantity * $orderItem->unit_price,
-                ]);
-
-                // تحديث المخزون إذا تغيرت الكمية
-                if ($oldQuantity !== $newQuantity) {
-                    $size = ProductSize::find($orderItem->size_id);
-                    if ($size) {
-                        $difference = $newQuantity - $oldQuantity;
-                        if ($difference > 0) {
-                            // زيادة الكمية - خصم من المخزون
-                            $size->decrement('quantity', $difference);
-                        } else {
-                            // تقليل الكمية - إرجاع للمخزون
-                            $size->increment('quantity', abs($difference));
-                        }
+                // إرجاع المنتجات القديمة للمخزون
+                foreach ($oldItems as $oldItem) {
+                    if ($oldItem->size) {
+                        $oldItem->size->increment('quantity', $oldItem->quantity);
                     }
                 }
 
-                $totalAmount += $orderItem->subtotal;
-            }
+                // حذف المنتجات القديمة
+                $order->items()->delete();
 
-            // تحديث إجمالي الطلب
-            $order->update(['total_amount' => $totalAmount]);
-        });
+                // تحديث معلومات الزبون
+                $order->update($request->only([
+                    'customer_name',
+                    'customer_phone',
+                    'customer_address',
+                    'customer_social_link',
+                    'notes',
+                ]));
 
-        return redirect()->route('delegate.orders.show', $order)
-                        ->with('success', 'تم تحديث الطلب بنجاح');
+                // إضافة المنتجات الجديدة
+                $totalAmount = 0;
+                foreach ($request->items as $item) {
+                    $product = Product::findOrFail($item['product_id']);
+                    $size = ProductSize::findOrFail($item['size_id']);
+
+                    // التحقق من توفر الكمية
+                    if ($size->quantity < $item['quantity']) {
+                        throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$size->quantity}");
+                    }
+
+                    $subtotal = $product->selling_price * $item['quantity'];
+                    $totalAmount += $subtotal;
+
+                    $order->items()->create([
+                        'product_id' => $item['product_id'],
+                        'size_id' => $item['size_id'],
+                        'product_code' => $product->code,
+                        'product_name' => $product->name,
+                        'size_name' => $size->size_name,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $product->selling_price,
+                        'subtotal' => $subtotal,
+                    ]);
+
+                    // خصم من المخزون
+                    $size->decrement('quantity', $item['quantity']);
+                }
+
+                // تحديث المبلغ الإجمالي
+                $order->update(['total_amount' => $totalAmount]);
+            });
+
+            return redirect()->route('delegate.orders.show', $order)
+                            ->with('success', 'تم تحديث الطلب بنجاح');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'حدث خطأ أثناء تحديث الطلب: ' . $e->getMessage()])->withInput();
+        }
     }
 
     /**
@@ -416,6 +415,17 @@ class OrderController extends Controller
 
         if ($request->filled('date_to')) {
             $query->whereDate('deleted_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
         $orders = $query->with(['items.product.primaryImage'])

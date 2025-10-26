@@ -39,7 +39,7 @@
                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
                     <div>
                         <label for="name" class="mb-3 block text-sm font-medium text-black dark:text-white">
-                            اسم المنتج <span class="text-danger">*</span>
+                            اسم المنتج (اختياري)
                         </label>
                         <input
                             type="text"
@@ -47,8 +47,7 @@
                             name="name"
                             value="{{ old('name') }}"
                             class="form-input @error('name') border-danger @enderror"
-                            placeholder="أدخل اسم المنتج"
-                            required
+                            placeholder="أدخل اسم المنتج (سيستخدم الكود كاسم افتراضي إذا ترك فارغاً)"
                         >
                         @error('name')
                             <div class="mt-1 text-danger">{{ $message }}</div>
@@ -147,29 +146,21 @@
                 </div>
             </div>
 
-            <!-- صورة المنتج -->
+            <!-- صور المنتج (متعددة) -->
             <div class="panel">
                 <div class="mb-5">
-                    <h6 class="text-lg font-semibold dark:text-white-light">صورة المنتج</h6>
-                    <p class="text-gray-500 dark:text-gray-400">يمكنك رفع صورة واحدة للمنتج</p>
+                    <h6 class="text-lg font-semibold dark:text-white-light">صور المنتج</h6>
+                    <p class="text-gray-500 dark:text-gray-400">يمكنك رفع عدة صور للمنتج (غير محدود)</p>
                 </div>
 
-                <div>
-                    <label for="images" class="mb-3 block text-sm font-medium text-black dark:text-white">
-                        صورة المنتج
-                    </label>
-                    <input
-                        type="file"
-                        id="images"
-                        name="images[]"
-                        class="form-input"
-                        accept="image/*"
-                    >
-                    <p class="mt-2 text-sm text-gray-500">أنواع الصور المدعومة: JPG, PNG, GIF. الحد الأقصى: 5MB</p>
-                    @error('images')
-                        <div class="mt-1 text-danger">{{ $message }}</div>
-                    @enderror
-                </div>
+                <!-- حاوية الصور المضافة -->
+                <div id="addedImagesContainer" class="mb-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+
+                <!-- حاوية مناطق رفع الصور الديناميكية -->
+                <div id="uploadSlotsContainer"></div>
+
+                <!-- File input مخفي للاستخدام الداخلي -->
+                <input type="file" id="hiddenFileInput" name="images[]" accept="image/*" style="display: none;" multiple>
             </div>
 
             <!-- القياسات -->
@@ -237,6 +228,214 @@
 
     <script>
         let sizeIndex = 1;
+        let uploadedImages = []; // Array of uploaded image data
+        let imageSlotIndex = 0;
+
+        // تهيئة أول منطقة رفع
+        document.addEventListener('DOMContentLoaded', function() {
+            addUploadSlot();
+        });
+
+        function addUploadSlot() {
+            const slotId = `slot-${imageSlotIndex}`;
+            const container = document.getElementById('uploadSlotsContainer');
+
+            const slotHTML = `
+                <div id="${slotId}" class="upload-slot border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 mb-4">
+                    <div class="text-center">
+                        <h6 class="font-semibold mb-3">إضافة صورة ${uploadedImages.length + 1}</h6>
+
+                        <!-- منطقة اللصق -->
+                        <div class="paste-zone-${slotId} border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg p-8 mb-3 cursor-pointer hover:border-primary hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+                            <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">انقر أو الصق صورة (Ctrl+V)</p>
+                        </div>
+
+                        <!-- زر اللصق -->
+                        <button type="button" class="paste-btn-${slotId} btn btn-outline-primary btn-sm mb-3">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                            لصق من الحافظة
+                        </button>
+
+                        <!-- حقل URL -->
+                        <input type="url" class="url-input-${slotId} form-input mb-3" placeholder="أو الصق رابط الصورة">
+
+                        <!-- زر اختيار ملف -->
+                        <button type="button" class="file-btn-${slotId} btn btn-outline-secondary btn-sm">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            اختر ملف
+                        </button>
+                        <input type="file" class="file-input-${slotId}" style="display:none;" accept="image/*">
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = slotHTML;
+            initializeSlotEvents(slotId);
+            imageSlotIndex++;
+        }
+
+        // Global paste handler (once only)
+        let globalPasteHandlerAdded = false;
+
+        function initializeSlotEvents(slotId) {
+            const pasteZone = document.querySelector(`.paste-zone-${slotId}`);
+            const pasteBtn = document.querySelector(`.paste-btn-${slotId}`);
+            const urlInput = document.querySelector(`.url-input-${slotId}`);
+            const fileBtn = document.querySelector(`.file-btn-${slotId}`);
+            const fileInput = document.querySelector(`.file-input-${slotId}`);
+
+            // اللصق من الحافظة عبر Ctrl+V (مرة واحدة فقط)
+            if (!globalPasteHandlerAdded) {
+                document.addEventListener('paste', function(e) {
+                    const items = e.clipboardData.items;
+                    for (let item of items) {
+                        if (item.type.indexOf('image') !== -1) {
+                            e.preventDefault();
+                            const file = item.getAsFile();
+                            const currentSlot = document.querySelector('[id^="slot-"]:last-of-type');
+                            if (currentSlot) {
+                                addImage(file, currentSlot.id);
+                            }
+                            break;
+                        }
+                    }
+                });
+                globalPasteHandlerAdded = true;
+            }
+
+            // زر اللصق - استخدام execCommand بدلاً من clipboard API
+            pasteBtn.addEventListener('click', function() {
+                // محاولة trigger paste event
+                const pasteEvent = new ClipboardEvent('paste', {
+                    bubbles: true,
+                    cancelable: true,
+                    clipboardData: new DataTransfer()
+                });
+
+                // نطلب من المستخدم استخدام Ctrl+V مباشرة
+                alert('الرجاء الضغط على Ctrl+V لللصق من الحافظة');
+            });
+
+            // السحب والإفلات
+            pasteZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('border-primary');
+            });
+
+            pasteZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('border-primary');
+            });
+
+            pasteZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('border-primary');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.indexOf('image') !== -1) {
+                    addImage(file, slotId);
+                }
+            });
+
+            // حقل URL
+            urlInput.addEventListener('change', function() {
+                if (this.value) {
+                    addImage(this.value, slotId, 'url');
+                }
+            });
+
+            // زر اختيار ملف
+            fileBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    addImage(this.files[0], slotId);
+                }
+            });
+        }
+
+        function addImage(source, slotId, type = 'file') {
+            const imageData = {
+                id: Date.now(),
+                source: source,
+                type: type
+            };
+
+            uploadedImages.push(imageData);
+            displayAddedImage(imageData);
+
+            // إزالة منطقة الرفع الحالية
+            document.getElementById(slotId).remove();
+
+            // إضافة منطقة رفع جديدة
+            addUploadSlot();
+
+            // تحديث file input المخفي
+            updateHiddenFileInput();
+        }
+
+        function displayAddedImage(imageData) {
+            const container = document.getElementById('addedImagesContainer');
+            const imageCard = document.createElement('div');
+            imageCard.className = 'relative border rounded-lg overflow-hidden';
+            imageCard.id = `image-${imageData.id}`;
+
+            if (imageData.type === 'file') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imageCard.innerHTML = `
+                        <img src="${e.target.result}" class="w-full h-48 object-cover">
+                        <button type="button" onclick="removeImage(${imageData.id})" class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                        ${uploadedImages.length === 1 ? '<span class="absolute top-2 left-2 bg-primary text-white px-2 py-1 rounded text-xs">الصورة الرئيسية</span>' : ''}
+                    `;
+                };
+                reader.readAsDataURL(imageData.source);
+            } else {
+                imageCard.innerHTML = `
+                    <img src="${imageData.source}" class="w-full h-48 object-cover">
+                    <button type="button" onclick="removeImage(${imageData.id})" class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                    ${uploadedImages.length === 1 ? '<span class="absolute top-2 left-2 bg-primary text-white px-2 py-1 rounded text-xs">الصورة الرئيسية</span>' : ''}
+                    <input type="hidden" name="image_urls[]" value="${imageData.source}">
+                `;
+            }
+
+            container.appendChild(imageCard);
+        }
+
+        function removeImage(imageId) {
+            uploadedImages = uploadedImages.filter(img => img.id !== imageId);
+            document.getElementById(`image-${imageId}`).remove();
+            updateHiddenFileInput();
+        }
+
+        function updateHiddenFileInput() {
+            const fileInput = document.getElementById('hiddenFileInput');
+            const dataTransfer = new DataTransfer();
+
+            uploadedImages.forEach(img => {
+                if (img.type === 'file') {
+                    dataTransfer.items.add(img.source);
+                }
+            });
+
+            fileInput.files = dataTransfer.files;
+        }
 
         document.getElementById('addSize').addEventListener('click', function() {
             const container = document.getElementById('sizesContainer');

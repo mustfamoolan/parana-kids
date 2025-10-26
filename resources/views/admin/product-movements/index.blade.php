@@ -6,7 +6,7 @@
 
         <!-- فلاتر البحث -->
         <div class="mb-5">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <div>
                     <label class="form-label">المخزن</label>
                     <select name="warehouse_id" class="form-select">
@@ -20,15 +20,8 @@
                 </div>
 
                 <div>
-                    <label class="form-label">المنتج</label>
-                    <select name="product_id" class="form-select">
-                        <option value="">جميع المنتجات</option>
-                        @foreach($products as $product)
-                            <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>
-                                {{ $product->name }} ({{ $product->code }})
-                            </option>
-                        @endforeach
-                    </select>
+                    <label class="form-label">اسم المنتج أو الكود</label>
+                    <input type="text" name="product_search" value="{{ request('product_search') }}" class="form-input" placeholder="ابحث بالاسم أو الكود...">
                 </div>
 
                 <div>
@@ -91,19 +84,31 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="form-label">من تاريخ</label>
-                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-input">
+                <div class="col-span-full border-t pt-4">
+                    <h6 class="font-semibold mb-3 text-lg">التاريخ والوقت</h6>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label class="form-label">من تاريخ</label>
+                            <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">إلى تاريخ</label>
+                            <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">من وقت</label>
+                            <input type="time" name="time_from" value="{{ request('time_from') }}" class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">إلى وقت</label>
+                            <input type="time" name="time_to" value="{{ request('time_to') }}" class="form-input">
+                        </div>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="form-label">إلى تاريخ</label>
-                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-input">
-                </div>
-
-                <div class="flex gap-2">
+                <div class="col-span-full flex gap-2">
                     <button type="submit" class="btn btn-primary">بحث</button>
-                    @if(request()->hasAny(['warehouse_id', 'product_id', 'size_id', 'movement_type', 'source_type', 'user_id', 'order_status', 'date_from', 'date_to']))
+                    @if(request()->hasAny(['warehouse_id', 'product_id', 'size_id', 'movement_type', 'source_type', 'user_id', 'order_status', 'date_from', 'date_to', 'time_from', 'time_to', 'product_search']))
                         <a href="{{ route('admin.product-movements.index') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
                     @endif
                 </div>
@@ -131,7 +136,7 @@
                             <tr>
                                 <td>
                                     <div>{{ $movement->created_at->format('Y-m-d') }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->created_at->format('H:i:s') }}</div>
+                                    <div class="text-xs text-gray-500">{{ $movement->created_at->format('h:i A') }}</div>
                                 </td>
                                 <td>
                                     <span class="badge bg-{{ $movement->movement_color }}">

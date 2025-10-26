@@ -136,7 +136,7 @@
                             <tr>
                                 <td>
                                     <div>{{ $movement->created_at->format('Y-m-d') }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->created_at->format('H:i:s') }}</div>
+                                    <div class="text-xs text-gray-500">{{ $movement->created_at->format('h:i A') }}</div>
                                 </td>
                                 <td>
                                     <span class="badge bg-{{ $movement->movement_color }}">

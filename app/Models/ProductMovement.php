@@ -16,6 +16,7 @@ class ProductMovement extends Model
         'warehouse_id',
         'order_id',
         'user_id',
+        'delegate_id',
         'movement_type',
         'quantity',
         'balance_after',
@@ -52,6 +53,11 @@ class ProductMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function delegate(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delegate_id');
     }
 
     // Scopes للفلترة
@@ -111,6 +117,9 @@ class ProductMovement extends Model
             'restore' => 'استرجاع من الحذف',
             'transfer_out' => 'نقل - خروج',
             'transfer_in' => 'نقل - دخول',
+            'return_bulk' => 'إرجاع طلبات',
+            'increase' => 'زيادة',
+            'decrease' => 'نقصان',
             default => $this->movement_type,
         };
     }
@@ -128,6 +137,9 @@ class ProductMovement extends Model
             'restore' => 'success',
             'transfer_out' => 'purple',
             'transfer_in' => 'indigo',
+            'return_bulk' => 'info',
+            'increase' => 'success',
+            'decrease' => 'warning',
             default => 'secondary',
         };
     }
