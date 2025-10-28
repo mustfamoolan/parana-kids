@@ -459,7 +459,11 @@
             </div>
 
             <!-- Pagination -->
-            <x-pagination :items="$orders" />
+            @if($orders->hasPages())
+                <div class="mt-6">
+                    {{ $orders->links() }}
+                </div>
+            @endif
     </div>
 
     <script>

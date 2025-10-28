@@ -80,4 +80,21 @@ class Cart extends Model
     {
         return $query->where('expires_at', '<', now());
     }
+
+    /**
+     * Get or create active cart for delegate
+     */
+    public static function getOrCreateActiveCart($delegateId)
+    {
+        return self::firstOrCreate(
+            [
+                'delegate_id' => $delegateId,
+                'status' => 'active',
+            ],
+            [
+                'cart_name' => 'طلب مؤقت - ' . now()->format('Y-m-d H:i'),
+                'expires_at' => now()->addHours(24),
+            ]
+        );
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Delegate;
 
 use App\Http\Controllers\Controller;
+use App\Models\ArchivedOrder;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -19,10 +20,107 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Order::where('delegate_id', auth()->id())->with(['items']);
+        // التحقق من طلب الطلبات المحذوفة
+        if ($request->status === 'deleted') {
+            $query = Order::onlyTrashed()->where('delegate_id', auth()->id())->with(['items', 'deletedByUser']);
+        }
+        // التحقق من طلب الطلبات المؤرشفة
+        elseif ($request->status === 'archived') {
+            $archivedOrders = ArchivedOrder::where('delegate_id', auth()->id());
 
-        // البحث في جميع الحقول المطلوبة
-        if ($request->filled('search')) {
+            // البحث في الطلبات المؤرشفة
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $archivedOrders->where(function($q) use ($searchTerm) {
+                    $q->where('customer_name', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                      ->orWhere('notes', 'like', "%{$searchTerm}%")
+                      ->orWhere('items', 'like', "%{$searchTerm}%"); // البحث في JSON
+                });
+            }
+
+            // فلتر حسب التاريخ
+            if ($request->filled('date_from')) {
+                $archivedOrders->whereDate('archived_at', '>=', $request->date_from);
+            }
+
+            if ($request->filled('date_to')) {
+                $archivedOrders->whereDate('archived_at', '<=', $request->date_to);
+            }
+
+            // فلتر حسب الوقت
+            if ($request->filled('time_from')) {
+                $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                $archivedOrders->where('archived_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+            }
+
+            if ($request->filled('time_to')) {
+                $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                $archivedOrders->where('archived_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+            }
+
+            $perPage = $request->input('per_page', 15);
+            $orders = $archivedOrders->latest('archived_at')->paginate($perPage)->appends($request->except('page'));
+
+            return view('delegate.orders.index', compact('orders'));
+        }
+        // عند البحث في كل الطلبات
+        elseif ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            // البحث في الطلبات النشطة والمحذوفة
+            $regularOrders = Order::withTrashed()
+                ->where('delegate_id', auth()->id())
+                ->with(['items', 'deletedByUser'])
+                ->where(function($q) use ($searchTerm) {
+                    $q->where('order_number', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                      ->orWhere('notes', 'like', "%{$searchTerm}%")
+                      ->orWhereHas('items', function($itemQuery) use ($searchTerm) {
+                          $itemQuery->where('product_name', 'like', "%{$searchTerm}%")
+                                   ->orWhere('product_code', 'like', "%{$searchTerm}%")
+                                   ->orWhere('size_name', 'like', "%{$searchTerm}%");
+                      });
+                })
+                ->get();
+
+            // البحث في الطلبات المؤرشفة
+            $archivedOrders = ArchivedOrder::where('delegate_id', auth()->id())
+                ->where(function($q) use ($searchTerm) {
+                    $q->where('customer_name', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                      ->orWhere('notes', 'like', "%{$searchTerm}%")
+                      ->orWhere('items', 'like', "%{$searchTerm}%");
+                })
+                ->get();
+
+            // دمج النتائج
+            $allOrders = $regularOrders->concat($archivedOrders)->sortByDesc('created_at');
+
+            // تطبيق pagination يدوياً
+            $currentPage = $request->get('page', 1);
+            $perPage = 10;
+            $orders = new \Illuminate\Pagination\LengthAwarePaginator(
+                $allOrders->forPage($currentPage, $perPage),
+                $allOrders->count(),
+                $perPage,
+                $currentPage,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+
+            return view('delegate.orders.index', compact('orders'));
+        }
+        else {
+            $query = Order::where('delegate_id', auth()->id())->with(['items']);
+        }
+
+        // البحث في جميع الحقول المطلوبة (فقط للطلبات النشطة)
+        if ($request->filled('search') && $request->status !== 'archived') {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
@@ -39,8 +137,8 @@ class OrderController extends Controller
             });
         }
 
-        // فلتر حسب الحالة
-        if ($request->filled('status')) {
+        // فلتر حسب الحالة (فقط إذا لم يكن deleted أو archived وليس هناك بحث نصي)
+        if ($request->filled('status') && !in_array($request->status, ['deleted', 'archived']) && !$request->filled('search')) {
             $query->where('status', $request->status);
         }
 
@@ -64,7 +162,8 @@ class OrderController extends Controller
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
-        $orders = $query->latest()->paginate(10);
+        $perPage = $request->input('per_page', 15);
+        $orders = $query->latest()->paginate($perPage)->appends($request->except('page'));
 
         return view('delegate.orders.index', compact('orders'));
     }
@@ -298,9 +397,9 @@ class OrderController extends Controller
     }
 
     /**
-     * Cancel the specified order.
+     * Cancel the specified order (old system).
      */
-    public function cancel(Order $order)
+    public function cancelOld(Order $order)
     {
         // التأكد من أن الطلب يخص المندوب الحالي
         if ($order->delegate_id !== auth()->id()) {
@@ -364,13 +463,16 @@ class OrderController extends Controller
                         $item->size->increment('quantity', $item->quantity);
 
                         // تسجيل حركة الحذف
-                        ProductMovement::record(
-                            $item->size,
-                            'delete',
-                            $item->quantity,
-                            $order,
-                            "حذف طلب #{$order->order_number}"
-                        );
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'movement_type' => 'delete',
+                            'quantity' => $item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "حذف طلب #{$order->order_number}"
+                        ]);
                     }
                 }
 
@@ -428,9 +530,11 @@ class OrderController extends Controller
             $query->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
+        $perPage = $request->input('per_page', 15);
         $orders = $query->with(['items.product.primaryImage'])
                        ->latest('deleted_at')
-                       ->paginate(15);
+                       ->paginate($perPage)
+                       ->appends($request->except('page'));
 
         return view('delegate.orders.deleted', compact('orders'));
     }
@@ -481,13 +585,16 @@ class OrderController extends Controller
                         $item->size->decrement('quantity', $item->quantity);
 
                         // تسجيل حركة الاسترجاع من الحذف
-                        ProductMovement::record(
-                            $item->size,
-                            'restore',
-                            -$item->quantity,
-                            $order,
-                            "استرجاع من حذف طلب #{$order->order_number}"
-                        );
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'movement_type' => 'restore',
+                            'quantity' => -$item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "استرجاع من حذف طلب #{$order->order_number}"
+                        ]);
                     }
                 }
 
@@ -504,5 +611,165 @@ class OrderController extends Controller
             return redirect()->back()
                             ->withErrors(['error' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Start a new order - show customer info form
+     */
+    public function start()
+    {
+        return view('delegate.orders.start');
+    }
+
+    /**
+     * Initialize new order with customer info
+     */
+    public function initialize(Request $request)
+    {
+        $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'customer_address' => 'required|string',
+            'customer_social_link' => 'required|string|max:255',
+            'notes' => 'nullable|string',
+        ]);
+
+        // حذف أي سلة نشطة قديمة للمندوب (لتجنب التكرار)
+        Cart::where('delegate_id', auth()->id())
+            ->where('status', 'active')
+            ->get()
+            ->each(function($cart) {
+                // إرجاع الحجوزات
+                foreach ($cart->items as $item) {
+                    if ($item->stockReservation) {
+                        $item->stockReservation->delete();
+                    }
+                }
+                $cart->delete();
+            });
+
+        // إنشاء سلة جديدة
+        $cart = Cart::create([
+            'delegate_id' => auth()->id(),
+            'cart_name' => 'طلب: ' . $request->customer_name,
+            'status' => 'active',
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        // حفظ معلومات الزبون في session
+        session([
+            'current_cart_id' => $cart->id,
+            'customer_data' => $request->only([
+                'customer_name',
+                'customer_phone',
+                'customer_address',
+                'customer_social_link',
+                'notes'
+            ])
+        ]);
+
+        // التوجيه لصفحة المنتجات
+        return redirect()->route('delegate.products.all')
+                        ->with('success', 'تم بدء الطلب! الآن اختر المنتجات');
+    }
+
+    /**
+     * Submit the current order
+     */
+    public function submit()
+    {
+        $cartId = session('current_cart_id');
+        $customerData = session('customer_data');
+
+        if (!$cartId || !$customerData) {
+            return redirect()->route('delegate.orders.start')
+                           ->with('error', 'لا يوجد طلب نشط');
+        }
+
+        $cart = Cart::with('items.product', 'items.size')->findOrFail($cartId);
+
+        // التأكد من أن السلة تخص المندوب الحالي
+        if ($cart->delegate_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if ($cart->items->count() === 0) {
+            return back()->withErrors(['cart' => 'أضف منتجات أولاً']);
+        }
+
+        // إنشاء الطلب
+        $order = DB::transaction(function() use ($cart, $customerData) {
+            $order = Order::create([
+                'cart_id' => $cart->id,
+                'delegate_id' => $cart->delegate_id,
+                'customer_name' => $customerData['customer_name'],
+                'customer_phone' => $customerData['customer_phone'],
+                'customer_address' => $customerData['customer_address'],
+                'customer_social_link' => $customerData['customer_social_link'],
+                'notes' => $customerData['notes'] ?? null,
+                'status' => 'pending',
+                'total_amount' => $cart->total_amount,
+            ]);
+
+            // نسخ المنتجات وخصم المخزون
+            foreach ($cart->items as $cartItem) {
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $cartItem->product_id,
+                    'size_id' => $cartItem->size_id,
+                    'product_name' => $cartItem->product->name,
+                    'product_code' => $cartItem->product->code,
+                    'size_name' => $cartItem->size->size_name,
+                    'quantity' => $cartItem->quantity,
+                    'unit_price' => $cartItem->price,
+                    'subtotal' => $cartItem->subtotal,
+                ]);
+
+                // تحديث المخزون الفعلي (خصم الكمية)
+                $cartItem->size->decrement('quantity', $cartItem->quantity);
+
+                // حذف الحجز
+                if ($cartItem->stockReservation) {
+                    $cartItem->stockReservation->delete();
+                }
+            }
+
+            // تحديث حالة السلة
+            $cart->update(['status' => 'completed']);
+
+            return $order;
+        });
+
+        // مسح session
+        session()->forget(['current_cart_id', 'customer_data']);
+
+        return redirect()->route('delegate.orders.show', $order)
+                        ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number);
+    }
+
+    /**
+     * Cancel the current order
+     */
+    public function cancel()
+    {
+        $cartId = session('current_cart_id');
+
+        if ($cartId) {
+            $cart = Cart::with('items.stockReservation')->find($cartId);
+            if ($cart && $cart->delegate_id === auth()->id()) {
+                // إرجاع الحجوزات
+                foreach ($cart->items as $item) {
+                    if ($item->stockReservation) {
+                        $item->stockReservation->delete();
+                    }
+                }
+                $cart->delete();
+            }
+        }
+
+        session()->forget(['current_cart_id', 'customer_data']);
+
+        return redirect()->route('delegate.products.all')
+                        ->with('info', 'تم إلغاء الطلب');
     }
 }

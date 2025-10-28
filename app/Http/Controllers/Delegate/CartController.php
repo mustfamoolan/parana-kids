@@ -4,27 +4,48 @@ namespace App\Http\Controllers\Delegate;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class CartController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * عرض السلة الحالية (النظام الجديد)
      */
-    public function index()
+    public function view()
     {
-        $carts = auth()->user()->carts()
-            ->where('status', 'active')
-            ->where('expires_at', '>', now()) // Only show non-expired carts
-            ->with(['items.product', 'items.size'])
-            ->get();
+        $cartId = session('current_cart_id');
 
-        return view('delegate.carts.index', compact('carts'));
+        if (!$cartId) {
+            return redirect()->route('delegate.orders.start')
+                           ->with('info', 'لا يوجد طلب نشط حالياً');
+        }
+
+        try {
+            $cart = Cart::with(['items.product.primaryImage', 'items.size'])
+                       ->findOrFail($cartId);
+
+            // التأكد من أن السلة تخص المندوب الحالي
+            if ($cart->delegate_id !== auth()->id()) {
+                abort(403);
+            }
+
+            $customerData = session('customer_data');
+
+            // التحقق من وجود بيانات الزبون
+            if (!$customerData) {
+                return redirect()->route('delegate.orders.start')
+                               ->with('error', 'بيانات الزبون غير موجودة. يرجى إنشاء طلب جديد');
+            }
+
+            return view('delegate.carts.view', compact('cart', 'customerData'));
+        } catch (\Exception $e) {
+            \Log::error('Error in CartController@view: ' . $e->getMessage());
+            return redirect()->route('delegate.products.all')
+                           ->with('error', 'حدث خطأ أثناء عرض السلة: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Display the specified resource.
+     * عرض تفاصيل سلة محددة (النظام القديم)
      */
     public function show(Cart $cart)
     {
@@ -33,48 +54,42 @@ class CartController extends Controller
             abort(403);
         }
 
-        // التحقق من انتهاء صلاحية السلة
-        if ($cart->isExpired()) {
-            return redirect()->route('delegate.carts.index')
-                            ->withErrors(['cart' => 'انتهت صلاحية هذه السلة']);
-        }
-
         $cart->load(['items.product.primaryImage', 'items.size']);
 
         return view('delegate.carts.show', compact('cart'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * عرض قائمة السلات (النظام القديم)
      */
-    public function store(Request $request)
+    public function index()
     {
-        $request->validate([
-            'cart_name' => 'required|string|max:255',
-        ]);
+        $carts = Cart::where('delegate_id', auth()->id())
+                    ->with('items')
+                    ->latest()
+                    ->paginate(15);
 
+        return view('delegate.carts.index', compact('carts'));
+    }
+
+    /**
+     * إنشاء سلة جديدة (النظام القديم)
+     */
+    public function store()
+    {
         $cart = Cart::create([
             'delegate_id' => auth()->id(),
-            'cart_name' => $request->cart_name,
+            'cart_name' => 'سلة ' . now()->format('Y-m-d H:i'),
             'status' => 'active',
-            'expires_at' => now()->addHour(), // Set expiration to 1 hour from now
+            'expires_at' => now()->addHours(24),
         ]);
-
-        // إذا كان AJAX request
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'cart' => $cart,
-                'message' => 'تم إنشاء السلة بنجاح'
-            ]);
-        }
 
         return redirect()->route('delegate.carts.show', $cart)
                         ->with('success', 'تم إنشاء السلة بنجاح');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * حذف سلة (النظام القديم)
      */
     public function destroy(Cart $cart)
     {
@@ -83,24 +98,20 @@ class CartController extends Controller
             abort(403);
         }
 
-        DB::transaction(function() use ($cart) {
-            // إرجاع جميع المنتجات للمخزون
-            foreach ($cart->items as $item) {
-                if ($item->stockReservation) {
-                    $item->stockReservation->delete();
-                }
-            }
+        // حذف الحجوزات أولاً
+        foreach ($cart->items as $item) {
+            $item->stockReservation()->delete();
+        }
 
-            // حذف السلة
-            $cart->delete();
-        });
+        // حذف السلة
+        $cart->delete();
 
         return redirect()->route('delegate.carts.index')
                         ->with('success', 'تم حذف السلة بنجاح');
     }
 
     /**
-     * Extend cart expiration
+     * تمديد صلاحية السلة (النظام القديم)
      */
     public function extend(Cart $cart)
     {
@@ -109,15 +120,10 @@ class CartController extends Controller
             abort(403);
         }
 
-        // التحقق من أن السلة نشطة وغير منتهية الصلاحية
-        if ($cart->status !== 'active' || $cart->isExpired()) {
-            return redirect()->route('delegate.carts.index')
-                            ->withErrors(['cart' => 'لا يمكن تمديد صلاحية هذه السلة']);
-        }
+        $cart->update([
+            'expires_at' => now()->addHours(24)
+        ]);
 
-        $cart->extendExpiration();
-
-        return redirect()->route('delegate.carts.show', $cart)
-                        ->with('success', 'تم تمديد صلاحية السلة بنجاح');
+        return back()->with('success', 'تم تمديد صلاحية السلة لـ 24 ساعة');
     }
 }

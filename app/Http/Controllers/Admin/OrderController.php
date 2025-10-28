@@ -19,19 +19,46 @@ use Illuminate\Support\Facades\DB;
 class OrderController extends Controller
 {
     /**
-     * Display a listing of pending orders.
+     * صفحة إدارة الطلبات الموحدة (pending + confirmed فقط كبداية)
      */
-    public function index(Request $request)
+    public function management(Request $request)
     {
         $this->authorize('viewAny', Order::class);
 
-        $query = Order::where('status', 'pending');
+        // جلب قائمة المخازن حسب الصلاحيات
+        if (Auth::user()->isSupplier()) {
+            $warehouses = Auth::user()->warehouses;
+        } else {
+            $warehouses = \App\Models\Warehouse::all();
+        }
+
+        // Base query
+        $query = Order::query();
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
         if (Auth::user()->isSupplier()) {
-            $query->whereHas('items.product.warehouse.users', function($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
+        }
+
+        // فلتر الحالة
+        if ($request->status === 'deleted') {
+            // عرض الطلبات المحذوفة فقط
+            $query->onlyTrashed()->with(['deletedByUser']);
+        } elseif ($request->filled('status') && in_array($request->status, ['pending', 'confirmed', 'returned'])) {
+            $query->where('status', $request->status);
+        } else {
+            // افتراضياً: عرض pending و confirmed و returned معاً (بدون المحذوفة)
+            $query->whereIn('status', ['pending', 'confirmed', 'returned']);
+        }
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
             });
         }
 
@@ -43,6 +70,7 @@ class OrderController extends Controller
                   ->orWhere('customer_name', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
                   ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
                       $delegateQuery->where('name', 'like', "%{$searchTerm}%");
                   });
@@ -69,11 +97,140 @@ class OrderController extends Controller
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
-        $orders = $query->with(['delegate', 'items.product.primaryImage'])
+        // فلتر حسب تاريخ التقييد (للطلبات المقيدة)
+        if ($request->filled('confirmed_from')) {
+            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
+        }
+
+        if ($request->filled('confirmed_to')) {
+            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        }
+
+        // فلتر حسب تاريخ الإرجاع (للطلبات المسترجعة)
+        if ($request->filled('returned_from')) {
+            $query->whereDate('returned_at', '>=', $request->returned_from);
+        }
+
+        if ($request->filled('returned_to')) {
+            $query->whereDate('returned_at', '<=', $request->returned_to);
+        }
+
+        $perPage = $request->input('per_page', 15);
+        $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
+                       ->latest()
+                       ->paginate($perPage)
+                       ->appends($request->except('page'));
+
+        return view('admin.orders.management', compact('orders', 'warehouses'));
+    }
+
+    /**
+     * Display a unified listing of all orders with filters.
+     */
+    public function index(Request $request)
+    {
+        $this->authorize('viewAny', Order::class);
+
+        // جلب قائمة المخازن حسب الصلاحيات
+        if (Auth::user()->isSupplier()) {
+            $warehouses = Auth::user()->warehouses;
+        } else {
+            $warehouses = \App\Models\Warehouse::all();
+        }
+
+        // Base query
+        $query = Order::query();
+
+        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
+        }
+
+        // فلتر الحالة
+        if ($request->status === 'deleted') {
+            $query->onlyTrashed()->with(['deletedByUser']);
+        } elseif ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        // البحث في الطلبات
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        // فلتر حسب التاريخ
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
+        // فلتر حسب تاريخ التقييد (للطلبات المقيدة)
+        if ($request->filled('confirmed_from')) {
+            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
+        }
+
+        if ($request->filled('confirmed_to')) {
+            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        }
+
+        // فلتر حسب تاريخ الإرجاع (للطلبات المسترجعة)
+        if ($request->filled('returned_from')) {
+            $query->whereDate('returned_at', '>=', $request->returned_from);
+        }
+
+        if ($request->filled('returned_to')) {
+            $query->whereDate('returned_at', '<=', $request->returned_to);
+        }
+
+        // فلتر حسب تاريخ الاستبدال (للطلبات المستبدلة)
+        if ($request->filled('exchanged_from')) {
+            $query->whereDate('exchanged_at', '>=', $request->exchanged_from);
+        }
+
+        if ($request->filled('exchanged_to')) {
+            $query->whereDate('exchanged_at', '<=', $request->exchanged_to);
+        }
+
+        $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
                        ->latest()
                        ->paginate(15);
 
-        return view('admin.orders.index', compact('orders'));
+        return view('admin.orders.index', compact('orders', 'warehouses'));
     }
 
     /**
@@ -138,6 +295,77 @@ class OrderController extends Controller
     }
 
     /**
+     * Get materials list for management page with warehouse filter support.
+     */
+    public function getMaterialsListManagement(Request $request)
+    {
+        $this->authorize('viewAny', Order::class);
+
+        // Base query
+        $query = Order::query();
+
+        // فلتر الصلاحيات
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
+        }
+
+        // فلتر الحالة (pending بشكل افتراضي)
+        if ($request->filled('status')) {
+            if ($request->status === 'deleted') {
+                $query->onlyTrashed();
+            } else {
+                $query->where('status', $request->status);
+            }
+        } else {
+            $query->where('status', 'pending');
+        }
+
+        // فلتر المخزن ⭐ الميزة الجديدة
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        $orders = $query->with([
+            'delegate',
+            'items.product.primaryImage',
+            'items.product.warehouse'
+        ])->get();
+
+        // تجميع المواد
+        $materials = [];
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                if (!$item->product) continue;
+
+                $key = $item->product_id . '_' . $item->size_name;
+
+                if (!isset($materials[$key])) {
+                    $materials[$key] = [
+                        'product' => $item->product,
+                        'size_name' => $item->size_name,
+                        'total_quantity' => 0,
+                        'orders' => []
+                    ];
+                }
+
+                $materials[$key]['total_quantity'] += $item->quantity;
+                $materials[$key]['orders'][] = [
+                    'order_number' => $order->order_number,
+                    'quantity' => $item->quantity,
+                    'order_id' => $order->id
+                ];
+            }
+        }
+
+        return view('admin.orders.materials-list', compact('materials'));
+    }
+
+    /**
      * Get orders accessible by current user.
      */
     private function getAccessibleOrders()
@@ -146,9 +374,10 @@ class OrderController extends Controller
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
         if (Auth::user()->isSupplier()) {
-            $query->whereHas('items.product.warehouse.users', function($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
@@ -311,7 +540,7 @@ class OrderController extends Controller
         }
 
         if (Auth::user()->isSupplier()) {
-            return Auth::user()->warehouses()->with('warehouse')->get()->pluck('warehouse');
+            return Auth::user()->warehouses;
         }
 
         return collect();
@@ -360,9 +589,10 @@ class OrderController extends Controller
 
         // للمجهز: عرض الطلبات من مخازنه فقط
         if (Auth::user()->isSupplier()) {
-            $query->whereHas('items.product.warehouse.users', function($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
@@ -716,9 +946,10 @@ class OrderController extends Controller
 
         // للمجهز: عرض الطلبات من مخازنه فقط
         if (Auth::user()->isSupplier()) {
-            $query->whereHas('items.product.warehouse.users', function($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
@@ -794,9 +1025,10 @@ class OrderController extends Controller
 
         // للمجهز: عرض الطلبات من مخازنه فقط
         if (Auth::user()->isSupplier()) {
-            $query->whereHas('items.product.warehouse.users', function($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
@@ -872,9 +1104,10 @@ class OrderController extends Controller
 
         // للمجهز: عرض الطلبات من مخازنه فقط
         if (Auth::user()->isSupplier()) {
-            $query->whereHas('items.product.warehouse.users', function($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
@@ -1237,6 +1470,35 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()
                             ->withErrors(['error' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * الحذف النهائي للطلب (لا يمكن استرجاعه)
+     */
+    public function forceDelete($id)
+    {
+        try {
+            $order = Order::withTrashed()->findOrFail($id);
+
+            $this->authorize('forceDelete', $order);
+
+            DB::transaction(function () use ($order) {
+                // حذف حركات المنتجات المرتبطة بالطلب
+                ProductMovement::where('order_id', $order->id)->delete();
+
+                // حذف عناصر الطلب
+                $order->items()->forceDelete();
+
+                // الحذف النهائي للطلب
+                $order->forceDelete();
+            });
+
+            return redirect()->route('admin.orders.management', ['status' => 'deleted'])
+                            ->with('success', 'تم حذف الطلب نهائياً بنجاح');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                            ->withErrors(['error' => 'حدث خطأ أثناء الحذف النهائي: ' . $e->getMessage()]);
         }
     }
 }

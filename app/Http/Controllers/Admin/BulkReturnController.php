@@ -24,7 +24,13 @@ class BulkReturnController extends Controller
             abort(403, 'غير مصرح لك بالوصول لهذه الصفحة');
         }
 
-        $warehouses = Warehouse::all();
+        // تحميل المخازن حسب الصلاحيات
+        if (Auth::user()->isAdmin()) {
+            $warehouses = Warehouse::all();
+        } else {
+            $warehouses = Auth::user()->warehouses;
+        }
+
         $delegates = User::where('role', 'delegate')->get();
 
         return view('admin.bulk-returns.index', compact('warehouses', 'delegates'));
@@ -40,6 +46,12 @@ class BulkReturnController extends Controller
         }
 
         $query = Product::with(['sizes']);
+
+        // فلتر حسب صلاحيات المجهز
+        if (Auth::user()->isSupplier()) {
+            $warehouseIds = Auth::user()->warehouses()->pluck('warehouses.id');
+            $query->whereIn('warehouse_id', $warehouseIds);
+        }
 
         // فلتر حسب المخزن (اختياري)
         if ($request->filled('warehouse_id')) {

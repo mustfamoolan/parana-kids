@@ -21,29 +21,49 @@ class ProductController extends Controller
 
         // بناء الاستعلام الأساسي
         $query = Product::whereIn('warehouse_id', $warehouseIds)
-                        ->with(['primaryImage', 'sizes', 'warehouse']);
+                        ->with(['primaryImage', 'images', 'sizes.reservations', 'warehouse']);
 
-        // البحث بالكود أو الاسم فقط
+        $searchedSize = null; // لتمرير القياس المبحوث للـ view
+
+        // البحث بالكود أو القياس
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
             \Log::info('Search applied', ['search_term' => $search]);
-            $query->where(function($q) use ($search) {
-                $q->where('code', 'LIKE', "%{$search}%")
-                  ->orWhere('name', 'LIKE', "%{$search}%");
-            });
+
+            // البحث في كود المنتج أولاً
+            $codeMatches = Product::whereIn('warehouse_id', $warehouseIds)
+                                  ->where('code', 'LIKE', "%{$search}%")
+                                  ->exists();
+
+            if ($codeMatches) {
+                // إذا كان البحث عن كود منتج، أظهر المنتج بكل قياساته
+                $query->where('code', 'LIKE', "%{$search}%");
+            } else {
+                // إذا لم يكن كود منتج، ابحث في القياسات المتوفرة فقط
+                // نستخدم whereRaw لحساب available_quantity في SQL مباشرة
+                $query->whereHas('sizes', function($q) use ($search) {
+                    $q->where('size_name', 'LIKE', "%{$search}%")
+                      ->whereRaw('quantity > (
+                          SELECT COALESCE(SUM(quantity_reserved), 0)
+                          FROM stock_reservations
+                          WHERE product_size_id = product_sizes.id
+                      )');
+                });
+                $searchedSize = $search; // حفظ القياس المبحوث
+            }
         }
 
         $products = $query->latest()->paginate(30);
 
         if ($request->ajax()) {
             return response()->json([
-                'products' => view('delegate.products.partials.product-cards', compact('products'))->render(),
+                'products' => view('delegate.products.partials.product-cards', compact('products', 'searchedSize'))->render(),
                 'has_more' => $products->hasMorePages(),
                 'total' => $products->total()
             ]);
         }
 
-        return view('delegate.products.all', compact('products'));
+        return view('delegate.products.all', compact('products', 'searchedSize'));
     }
 
     /**
@@ -98,5 +118,35 @@ class ProductController extends Controller
         }
 
         return view('delegate.products.show', compact('product', 'activeCarts', 'selectedCart'));
+    }
+
+    /**
+     * Get product data for modal (API endpoint)
+     */
+    public function getProductData($id)
+    {
+        $product = Product::with(['sizes', 'primaryImage', 'warehouse'])
+                         ->findOrFail($id);
+
+        // التحقق من صلاحية الوصول للمخزن
+        if (!Auth::user()->canAccessWarehouse($product->warehouse_id)) {
+            return response()->json(['error' => 'ليس لديك صلاحية للوصول إلى هذا المنتج'], 403);
+        }
+
+        return response()->json([
+            'id' => $product->id,
+            'name' => $product->name,
+            'code' => $product->code,
+            'selling_price' => $product->selling_price,
+            'image' => $product->primaryImage ? $product->primaryImage->image_url : null,
+            'sizes' => $product->sizes->map(function($size) {
+                return [
+                    'id' => $size->id,
+                    'size_name' => $size->size_name,
+                    'available_quantity' => $size->available_quantity,
+                    'quantity' => $size->quantity,
+                ];
+            })
+        ]);
     }
 }

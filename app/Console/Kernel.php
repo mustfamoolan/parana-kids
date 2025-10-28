@@ -17,6 +17,9 @@ class Kernel extends ConsoleKernel
     {
         // Expire carts every minute
         $schedule->command('carts:expire')->everyMinute();
+
+        // أرشفة السلات المنتهية كل 5 دقائق
+        $schedule->command('carts:archive-expired')->everyFiveMinutes();
     }
 
     /**

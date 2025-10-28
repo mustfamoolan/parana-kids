@@ -18,18 +18,54 @@ class CartItemController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'cart_id' => 'required|exists:carts,id',
-            'product_id' => 'required|exists:products,id',
-            'items' => 'required|array|min:1',
-            'items.*.size_id' => 'required|exists:product_sizes,id',
-            'items.*.quantity' => 'required|integer|min:1',
-        ]);
+        // تحديد إذا كان الطلب AJAX
+        $isAjax = $request->expectsJson() || $request->wantsJson() || $request->ajax();
 
-        $cart = Cart::findOrFail($request->cart_id);
+        // إذا لم يُرسل cart_id، استخدم السلة النشطة من session
+        $cartId = $request->cart_id ?? session('current_cart_id');
+
+        if (!$cartId) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ابدأ طلباً جديداً أولاً'
+                ], 400);
+            }
+            return redirect()->route('delegate.orders.start')
+                           ->with('info', 'ابدأ طلباً جديداً أولاً');
+        }
+
+        $request->merge(['cart_id' => $cartId]);
+
+        try {
+            $request->validate([
+                'cart_id' => 'required|exists:carts,id',
+                'product_id' => 'required|exists:products,id',
+                'items' => 'required|array|min:1',
+                'items.*.size_id' => 'required|exists:product_sizes,id',
+                'items.*.quantity' => 'required|integer|min:1',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'خطأ في البيانات المدخلة',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
+        }
+
+        $cart = Cart::findOrFail($cartId);
 
         // التأكد من أن السلة تخص المندوب الحالي
         if ($cart->delegate_id !== auth()->id()) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بالوصول إلى هذه السلة'
+                ], 403);
+            }
             abort(403);
         }
 
@@ -41,13 +77,27 @@ class CartItemController extends Controller
 
             // التأكد من أن القياس يخص المنتج المحدد
             if ($size->product_id !== $product->id) {
-                return back()->withErrors(['size_id' => 'القياس المحدد لا يخص هذا المنتج']);
+                $errorMsg = 'القياس المحدد لا يخص هذا المنتج';
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMsg
+                    ], 400);
+                }
+                return back()->withErrors(['size_id' => $errorMsg]);
             }
 
             // التحقق من توفر الكمية
             $availableQuantity = $size->available_quantity;
             if ($availableQuantity < $item['quantity']) {
-                return back()->withErrors(['quantity' => 'الكمية المطلوبة غير متوفرة للقياس ' . $size->size_name . '. المتوفر: ' . $availableQuantity]);
+                $errorMsg = 'الكمية المطلوبة غير متوفرة للقياس ' . $size->size_name . '. المتوفر: ' . $availableQuantity;
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMsg
+                    ], 400);
+                }
+                return back()->withErrors(['quantity' => $errorMsg]);
             }
 
             // التحقق من وجود نفس المنتج والقياس في السلة
@@ -61,7 +111,14 @@ class CartItemController extends Controller
                 // تحديث الكمية الموجودة
                 $newQuantity = $existingItem->quantity + $item['quantity'];
                 if ($availableQuantity < $newQuantity) {
-                    return back()->withErrors(['quantity' => 'الكمية الإجمالية المطلوبة غير متوفرة للقياس ' . $size->size_name . '. المتوفر: ' . $availableQuantity]);
+                    $errorMsg = 'الكمية الإجمالية المطلوبة غير متوفرة للقياس ' . $size->size_name . '. المتوفر: ' . $availableQuantity;
+                    if ($isAjax) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $errorMsg
+                        ], 400);
+                    }
+                    return back()->withErrors(['quantity' => $errorMsg]);
                 }
 
                 $existingItem->update(['quantity' => $newQuantity]);
@@ -97,6 +154,14 @@ class CartItemController extends Controller
             }
         }
 
+        // إرجاع JSON للطلبات AJAX
+        if ($isAjax) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إضافة المنتجات إلى السلة بنجاح'
+            ]);
+        }
+
         return back()->with('success', 'تم إضافة المنتجات إلى السلة بنجاح');
     }
 
@@ -105,12 +170,21 @@ class CartItemController extends Controller
      */
     public function update(Request $request, CartItem $cartItem)
     {
+        // تحديد إذا كان الطلب AJAX
+        $isAjax = $request->expectsJson() || $request->wantsJson() || $request->ajax();
+
         $request->validate([
             'quantity' => 'required|integer|min:1',
         ]);
 
         // التأكد من أن العنصر يخص المندوب الحالي
         if ($cartItem->cart->delegate_id !== auth()->id()) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بالوصول'
+                ], 403);
+            }
             abort(403);
         }
 
@@ -120,7 +194,14 @@ class CartItemController extends Controller
         $availableQuantity = $size->available_quantity + $cartItem->quantity; // إضافة الكمية المحجوزة حالياً
 
         if ($availableQuantity < $request->quantity) {
-            return back()->withErrors(['quantity' => 'الكمية المطلوبة غير متوفرة. المتوفر: ' . $availableQuantity]);
+            $errorMsg = 'الكمية المطلوبة غير متوفرة. المتوفر: ' . $availableQuantity;
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMsg
+                ], 400);
+            }
+            return back()->withErrors(['quantity' => $errorMsg]);
         }
 
         DB::transaction(function() use ($cartItem, $request) {
@@ -139,6 +220,13 @@ class CartItemController extends Controller
             }
         });
 
+        if ($isAjax) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث الكمية بنجاح'
+            ]);
+        }
+
         return back()->with('success', 'تم تحديث الكمية بنجاح');
     }
 
@@ -147,8 +235,17 @@ class CartItemController extends Controller
      */
     public function destroy(CartItem $cartItem)
     {
+        // تحديد إذا كان الطلب AJAX
+        $isAjax = request()->expectsJson() || request()->wantsJson() || request()->ajax();
+
         // التأكد من أن العنصر يخص المندوب الحالي
         if ($cartItem->cart->delegate_id !== auth()->id()) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح لك بالوصول'
+                ], 403);
+            }
             abort(403);
         }
 
@@ -159,6 +256,13 @@ class CartItemController extends Controller
             // حذف المنتج من السلة
             $cartItem->delete();
         });
+
+        if ($isAjax) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف المنتج بنجاح'
+            ]);
+        }
 
         return back()->with('success', 'تم حذف المنتج من السلة بنجاح');
     }

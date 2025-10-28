@@ -23,6 +23,88 @@
             </div>
         @endif
 
+        <!-- كروت الإحصائيات -->
+        <div class="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ $totalWarehouses }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">إجمالي المخازن</div>
+                    </div>
+                    <div class="rounded-full bg-primary/10 p-3">
+                        <svg class="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ number_format($totalProducts) }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">إجمالي المنتجات</div>
+                    </div>
+                    <div class="rounded-full bg-success/10 p-3">
+                        <svg class="h-8 w-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ number_format($totalPieces) }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">إجمالي القطع</div>
+                    </div>
+                    <div class="rounded-full bg-info/10 p-3">
+                        <svg class="h-8 w-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- فلتر البحث -->
+        <div class="panel mb-5">
+            <form method="GET" action="{{ route('admin.warehouses.index') }}" class="flex flex-col gap-4 sm:flex-row sm:items-end">
+                <div class="flex-1">
+                    <label for="warehouse_id" class="mb-2 block text-sm font-medium">فلترة حسب المخزن</label>
+                    <select name="warehouse_id" id="warehouse_id" class="form-select">
+                        <option value="">جميع المخازن</option>
+                        @foreach($warehousesList as $wh)
+                            <option value="{{ $wh->id }}" {{ request('warehouse_id') == $wh->id ? 'selected' : '' }}>
+                                {{ $wh->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="flex-1">
+                    <label for="product_search" class="mb-2 block text-sm font-medium">بحث عن منتج</label>
+                    <input type="text" name="product_search" id="product_search" value="{{ request('product_search') }}" placeholder="اسم أو كود المنتج" class="form-input">
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <svg class="h-4 w-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        بحث
+                    </button>
+
+                    @if(request()->hasAny(['warehouse_id', 'product_search']))
+                        <a href="{{ route('admin.warehouses.index') }}" class="btn btn-outline-secondary">
+                            إعادة تعيين
+                        </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
         <div class="table-responsive">
             <table class="table-hover">
                 <thead>
@@ -116,10 +198,7 @@
             </table>
         </div>
 
-        @if($warehouses->hasPages())
-            <div class="mt-4">
-                {{ $warehouses->links() }}
-            </div>
-        @endif
+        <!-- Pagination -->
+        <x-pagination :items="$warehouses" />
     </div>
 </x-layout.admin>

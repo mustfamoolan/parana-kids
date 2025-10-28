@@ -43,7 +43,13 @@ class WarehousePolicy
      */
     public function update(User $user, Warehouse $warehouse): bool
     {
-        return $user->isAdmin();
+        // Admin can update all warehouses
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Suppliers can update warehouses they have access to
+        return $warehouse->canUserAccess($user);
     }
 
     /**

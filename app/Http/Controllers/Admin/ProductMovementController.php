@@ -76,7 +76,8 @@ class ProductMovementController extends Controller
             $query->whereIn('warehouse_id', $warehouseIds);
         }
 
-        $movements = $query->latest()->paginate(20);
+        $perPage = $request->input('per_page', 20);
+        $movements = $query->latest()->paginate($perPage)->appends($request->except('page'));
 
         // البيانات للفلاتر
         $warehouses = Warehouse::all();
@@ -119,14 +120,16 @@ class ProductMovementController extends Controller
     /**
      * عرض حركات قياس معين
      */
-    public function show(Warehouse $warehouse, ProductSize $size)
+    public function show(Request $request, Warehouse $warehouse, ProductSize $size)
     {
         $this->authorize('view', $size);
 
+        $perPage = $request->input('per_page', 20);
         $movements = ProductMovement::with(['product', 'order', 'user'])
             ->where('size_id', $size->id)
             ->latest()
-            ->paginate(20);
+            ->paginate($perPage)
+            ->appends($request->except('page'));
 
         $product = $size->product;
         $movementTypes = [
@@ -238,10 +241,15 @@ class ProductMovementController extends Controller
             $query->whereIn('warehouse_id', $warehouseIds);
         }
 
-        $movements = $query->latest()->paginate(20);
+        $perPage = $request->input('per_page', 20);
+        $movements = $query->latest()->paginate($perPage)->appends($request->except('page'));
 
         // البيانات للفلاتر
-        $warehouses = Warehouse::all();
+        if (auth()->user()->isAdmin()) {
+            $warehouses = Warehouse::all();
+        } else {
+            $warehouses = auth()->user()->warehouses;
+        }
         $users = User::all();
         $movementTypes = [
             'add' => 'إضافة',

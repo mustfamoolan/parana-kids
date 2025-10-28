@@ -13,18 +13,64 @@ class WarehouseController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
+        // تحديد المخازن المتاحة أولاً
         if ($user->isAdmin()) {
-            $warehouses = Warehouse::with('creator')->paginate(10);
+            $query = Warehouse::with('creator');
         } else {
-            // For suppliers, show only warehouses they can manage
-            $warehouses = $user->manageableWarehouses()->with('creator')->paginate(10);
+            // للمجهزين: جميع المخازن المصرح لهم بها
+            $query = $user->warehouses()->with('creator');
         }
 
-        return view('admin.warehouses.index', compact('warehouses'));
+        // الفلترة
+        $warehouseId = $request->get('warehouse_id');
+        $productSearch = $request->get('product_search');
+
+        if ($warehouseId) {
+            $query->where('id', $warehouseId);
+        }
+
+        if ($productSearch) {
+            $query->whereHas('products', function($q) use ($productSearch) {
+                $q->where('name', 'LIKE', "%{$productSearch}%")
+                  ->orWhere('code', 'LIKE', "%{$productSearch}%");
+            });
+        }
+
+        $perPage = $request->input('per_page', 15);
+        $warehouses = $query->withCount('products')->paginate($perPage)->appends($request->except('page'));
+
+        // حساب الإحصائيات الكلية
+        if ($user->isAdmin()) {
+            $totalWarehouses = Warehouse::count();
+            $totalProducts = \App\Models\Product::count();
+            $totalPieces = \App\Models\ProductSize::sum('quantity');
+        } else {
+            $totalWarehouses = $user->warehouses()->count();
+            $totalProducts = \App\Models\Product::whereIn('warehouse_id',
+                            $user->warehouses()->pluck('warehouses.id'))->count();
+            $totalPieces = \App\Models\ProductSize::whereIn('product_id',
+                          \App\Models\Product::whereIn('warehouse_id',
+                          $user->warehouses()->pluck('warehouses.id'))->pluck('id'))->sum('quantity');
+        }
+
+        // قائمة المخازن للفلترة - فقط المخازن المصرح بها
+        if ($user->isAdmin()) {
+            $warehousesList = Warehouse::select('id', 'name')->get();
+        } else {
+            $warehousesList = $user->warehouses()->select('warehouses.id', 'warehouses.name')->get();
+        }
+
+        return view('admin.warehouses.index', compact(
+            'warehouses',
+            'totalWarehouses',
+            'totalProducts',
+            'totalPieces',
+            'warehousesList'
+        ));
     }
 
     /**
@@ -72,6 +118,11 @@ class WarehouseController extends Controller
         $totalSellingPrice = 0;
         $totalPurchasePrice = 0;
 
+        // حساب إجمالي القطع
+        $totalPieces = $warehouse->products->sum(function($product) {
+            return $product->sizes->sum('quantity');
+        });
+
         if (auth()->user()->isAdmin()) {
             foreach ($warehouse->products as $product) {
                 $totalQuantity = $product->sizes->sum('quantity');
@@ -83,7 +134,7 @@ class WarehouseController extends Controller
             }
         }
 
-        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice'));
+        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces'));
     }
 
     /**

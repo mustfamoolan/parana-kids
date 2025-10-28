@@ -15,17 +15,29 @@ class TransferController extends Controller
     public function index()
     {
         // التحقق من الصلاحيات
-        if (!auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin() && !auth()->user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول لهذه الصفحة');
         }
 
-        $warehouses = Warehouse::all();
+        // تحميل المخازن حسب الصلاحيات
+        if (auth()->user()->isAdmin()) {
+            $warehouses = Warehouse::all();
+        } else {
+            $warehouses = auth()->user()->warehouses;
+        }
+
         return view('admin.transfers.index', compact('warehouses'));
     }
 
     public function searchProducts(Request $request)
     {
         $query = Product::with(['sizes', 'warehouse']);
+
+        // فلتر حسب صلاحيات المجهز
+        if (auth()->user()->isSupplier()) {
+            $warehouseIds = auth()->user()->warehouses()->pluck('warehouses.id');
+            $query->whereIn('warehouse_id', $warehouseIds);
+        }
 
         if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
@@ -44,7 +56,7 @@ class TransferController extends Controller
     public function transfer(Request $request)
     {
         // التحقق من الصلاحيات
-        if (!auth()->user()->isAdmin()) {
+        if (!auth()->user()->isAdmin() && !auth()->user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول لهذه الصفحة');
         }
 

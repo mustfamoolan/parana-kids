@@ -50,7 +50,29 @@ class Order extends Model
         parent::boot();
 
         static::creating(function ($order) {
-            $order->order_number = 'ORD-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            // البحث عن آخر رقم طلب في نفس اليوم (بما فيه المحذوف)
+            $lastOrder = Order::withTrashed()
+                ->whereDate('created_at', today())
+                ->orderBy('order_number', 'desc')
+                ->first();
+
+            if ($lastOrder) {
+                // استخراج الرقم الأخير وزيادته
+                preg_match('/ORD-\d{8}-(\d{4})/', $lastOrder->order_number, $matches);
+                $lastNumber = isset($matches[1]) ? (int)$matches[1] : 0;
+                $newNumber = $lastNumber + 1;
+            } else {
+                // أول طلب في هذا اليوم
+                $newNumber = 1;
+            }
+
+            $order->order_number = 'ORD-' . date('Ymd') . '-' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+
+            // التأكد من عدم وجود تكرار (safety check)
+            while (Order::withTrashed()->where('order_number', $order->order_number)->exists()) {
+                $newNumber++;
+                $order->order_number = 'ORD-' . date('Ymd') . '-' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+            }
         });
     }
 
@@ -77,6 +99,11 @@ class Order extends Model
     public function processedBy()
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function deletedByUser()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function returnItems()

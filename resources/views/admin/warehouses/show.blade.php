@@ -55,27 +55,27 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">اسم المخزن:</span>
-                            <span class="font-medium">{{ $warehouse->name }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->name }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">الموقع:</span>
-                            <span class="font-medium">{{ $warehouse->location }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->location }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">المنشئ:</span>
-                            <span class="font-medium">{{ $warehouse->creator->name }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->creator->name }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">تاريخ الإنشاء:</span>
-                            <span class="font-medium">{{ $warehouse->created_at->format('Y-m-d H:i') }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->created_at->format('Y-m-d H:i') }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">آخر تحديث:</span>
-                            <span class="font-medium">{{ $warehouse->updated_at->format('Y-m-d H:i') }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->updated_at->format('Y-m-d H:i') }}</span>
                         </div>
                     </div>
                 </div>
@@ -91,12 +91,17 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">عدد المنتجات:</span>
-                            <span class="badge badge-primary">{{ $warehouse->products->count() }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->products->count() }} منتج</span>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">إجمالي القطع:</span>
+                            <span class="font-medium text-black dark:text-white">{{ number_format($totalPieces) }} قطعة</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">المستخدمين المصرح لهم:</span>
-                            <span class="badge badge-success">{{ $warehouse->users->count() }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->users->count() }}</span>
                         </div>
 
                         @if(auth()->user()->isAdmin())
@@ -105,9 +110,9 @@
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-gray-500 dark:text-gray-400">السعر الكلي للبيع:</span>
                                     </div>
-                                    <div class="text-2xl font-bold text-success">
+                                    <div class="text-2xl font-bold text-black dark:text-white">
                                         {{ number_format($totalSellingPrice, 0) }}
-                                        <span class="text-sm font-normal text-gray-500">دينار عراقي</span>
+                                        <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
                                     </div>
                                 </div>
 
@@ -115,9 +120,9 @@
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-gray-500 dark:text-gray-400">السعر الكلي للشراء:</span>
                                     </div>
-                                    <div class="text-2xl font-bold text-info">
+                                    <div class="text-2xl font-bold text-black dark:text-white">
                                         {{ number_format($totalPurchasePrice, 0) }}
-                                        <span class="text-sm font-normal text-gray-500">دينار عراقي</span>
+                                        <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
                                     </div>
                                 </div>
 
@@ -126,9 +131,9 @@
                                         <div class="flex items-center justify-between mb-2">
                                             <span class="text-gray-500 dark:text-gray-400">الربح المتوقع:</span>
                                         </div>
-                                        <div class="text-2xl font-bold text-warning">
+                                        <div class="text-2xl font-bold text-black dark:text-white">
                                             {{ number_format($totalSellingPrice - $totalPurchasePrice, 0) }}
-                                            <span class="text-sm font-normal text-gray-500">دينار عراقي</span>
+                                            <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
                                         </div>
                                     </div>
                                 @endif

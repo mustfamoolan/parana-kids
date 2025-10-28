@@ -17,13 +17,15 @@ class ProductController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Warehouse $warehouse)
+    public function index(Request $request, Warehouse $warehouse)
     {
         $this->authorize('view', $warehouse);
 
+        $perPage = $request->input('per_page', 15);
         $products = $warehouse->products()
                               ->with(['images', 'sizes', 'creator'])
-                              ->paginate(10);
+                              ->paginate($perPage)
+                              ->appends($request->except('page'));
 
         return view('admin.products.index', compact('warehouse', 'products'));
     }

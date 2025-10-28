@@ -62,6 +62,16 @@
                                 value="{{ request('time_to') }}"
                             >
                         </div>
+                        <div class="sm:w-48">
+                            <select name="warehouse_id" class="form-select" id="warehouseFilter">
+                                <option value="">كل المخازن</option>
+                                @foreach($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
+                                        {{ $warehouse->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,7 +79,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
+                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id'))
                                 <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-secondary">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -117,6 +127,7 @@
                                 <th>رقم الطلب</th>
                                 <th>اسم الزبون</th>
                                 <th>المندوب</th>
+                                <th>المخزن</th>
                                 <th>التاريخ</th>
                                 <th>عدد المنتجات</th>
                                 <th>الإجمالي</th>
@@ -157,6 +168,15 @@
                                             <div class="text-sm text-gray-500">{{ $order->delegate->code }}</div>
                                         </div>
                                     </td>
+                                    <td class="whitespace-nowrap">
+                                        @php
+                                            $orderWarehouses = $order->items->pluck('product.warehouse')->unique()->filter();
+                                        @endphp
+                                        @foreach($orderWarehouses as $warehouse)
+                                            <span class="badge badge-outline-info mb-1">{{ $warehouse->name }}</span>
+                                            @if(!$loop->last)<br>@endif
+                                        @endforeach
+                                    </td>
                                     <td>
                                         <div class="text-sm">{{ $order->created_at->format('Y-m-d') }}</div>
                                         <div class="text-xs text-gray-500">{{ $order->created_at->format('H:i') }}</div>
@@ -182,14 +202,6 @@
                                                 </svg>
                                                 تجهيز
                                             </a>
-                                            @can('delete', $order)
-                                                <button onclick="deleteOrder({{ $order->id }})" class="btn btn-sm btn-danger">
-                                                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                    </svg>
-                                                    حذف
-                                                </button>
-                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
@@ -236,6 +248,30 @@
     </div>
 
     <script>
+        // Local Storage للمخزن
+        document.addEventListener('DOMContentLoaded', function() {
+            const warehouseFilter = document.getElementById('warehouseFilter');
+
+            if (warehouseFilter) {
+                // استرجاع الفلتر من Local Storage عند التحميل
+                const savedWarehouse = localStorage.getItem('selectedWarehouse_orders');
+                if (savedWarehouse && !warehouseFilter.value) {
+                    warehouseFilter.value = savedWarehouse;
+                    // تطبيق الفلتر تلقائياً
+                    warehouseFilter.form.submit();
+                }
+
+                // حفظ الفلتر في Local Storage عند التغيير
+                warehouseFilter.addEventListener('change', function() {
+                    if (this.value) {
+                        localStorage.setItem('selectedWarehouse_orders', this.value);
+                    } else {
+                        localStorage.removeItem('selectedWarehouse_orders');
+                    }
+                });
+            }
+        });
+
         function deleteOrder(orderId) {
             if (confirm('هل أنت متأكد من حذف هذا الطلب؟ سيتم إرجاع جميع المنتجات للمخزن.')) {
                 // إنشاء form وإرساله

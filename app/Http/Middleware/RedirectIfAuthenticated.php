@@ -23,6 +23,13 @@ class RedirectIfAuthenticated
 
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
+                $user = Auth::guard($guard)->user();
+
+                // المجهز يذهب مباشرة لصفحة إدارة الطلبات
+                if ($user && $user->role === 'supplier') {
+                    return redirect()->route('admin.orders.management');
+                }
+
                 return redirect(RouteServiceProvider::HOME);
             }
         }

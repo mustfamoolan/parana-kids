@@ -69,8 +69,13 @@ Route::prefix('admin')->group(function () {
         ]);
         // Order routes
         Route::get('orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
+
+        // إدارة الطلبات (الصفحة الجديدة الموحدة)
+        Route::get('orders-management', [AdminOrderController::class, 'management'])->name('admin.orders.management');
+
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
         Route::get('orders/materials/list', [AdminOrderController::class, 'getMaterialsList'])->name('admin.orders.materials');
+        Route::get('orders/materials/management', [AdminOrderController::class, 'getMaterialsListManagement'])->name('admin.orders.materials.management');
 
         // تجهيز وتقييد الطلبات
         Route::get('orders/{order}/process', [AdminOrderController::class, 'showProcess'])->name('admin.orders.process');
@@ -109,6 +114,7 @@ Route::prefix('admin')->group(function () {
         Route::delete('orders/{order}', [AdminOrderController::class, 'destroy'])->name('admin.orders.destroy');
         Route::get('orders-deleted', [AdminOrderController::class, 'deleted'])->name('admin.orders.deleted');
         Route::post('orders/{order}/restore', [AdminOrderController::class, 'restore'])->name('admin.orders.restore');
+        Route::delete('orders/{order}/force', [AdminOrderController::class, 'forceDelete'])->name('admin.orders.forceDelete');
         Route::get('orders/{order}/check-restore', [AdminOrderController::class, 'checkRestoreAvailability'])->name('admin.orders.check-restore');
 
         // كشف حركة الطلبات
@@ -156,6 +162,9 @@ Route::prefix('delegate')->group(function () {
         Route::get('warehouses/{warehouse}/products', [DelegateProductController::class, 'index'])->name('delegate.warehouses.products.index');
         Route::get('warehouses/{warehouse}/products/{product}', [DelegateProductController::class, 'show'])->name('delegate.warehouses.products.show');
 
+        // Product API for modal
+        Route::get('api/products/{product}', [DelegateProductController::class, 'getProductData'])->name('delegate.products.data');
+
         // Cart routes
         Route::resource('carts', CartController::class)->only(['index', 'show', 'store', 'destroy'])->names([
             'index' => 'delegate.carts.index',
@@ -171,18 +180,34 @@ Route::prefix('delegate')->group(function () {
         Route::delete('cart-items/{cartItem}', [CartItemController::class, 'destroy'])->name('delegate.cart-items.destroy');
 
         // Order routes
+        // نظام الطلبات الجديد (المبسط)
+        Route::get('orders/start', [DelegateOrderController::class, 'start'])->name('delegate.orders.start');
+        Route::post('orders/initialize', [DelegateOrderController::class, 'initialize'])->name('delegate.orders.initialize');
+        Route::post('orders/submit', [DelegateOrderController::class, 'submit'])->name('delegate.orders.submit');
+        Route::post('orders/cancel-current', [DelegateOrderController::class, 'cancel'])->name('delegate.orders.cancel-current');
+        Route::post('orders/archive-current', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'archiveCurrent'])->name('delegate.orders.archive-current');
+
+        // عرض السلة الحالية
+        Route::get('carts/view', [\App\Http\Controllers\Delegate\CartController::class, 'view'])->name('delegate.carts.view');
+
+        // نظام الطلبات القديم (عبر السلات)
         Route::get('carts/{cart}/checkout', [DelegateOrderController::class, 'create'])->name('delegate.orders.create');
         Route::post('orders', [DelegateOrderController::class, 'store'])->name('delegate.orders.store');
         Route::get('orders', [DelegateOrderController::class, 'index'])->name('delegate.orders.index');
         Route::get('orders/{order}', [DelegateOrderController::class, 'show'])->name('delegate.orders.show');
         Route::get('orders/{order}/edit', [DelegateOrderController::class, 'edit'])->name('delegate.orders.edit');
         Route::put('orders/{order}', [DelegateOrderController::class, 'update'])->name('delegate.orders.update');
-        Route::delete('orders/{order}/cancel', [DelegateOrderController::class, 'cancel'])->name('delegate.orders.cancel');
+        Route::delete('orders/{order}/cancel', [DelegateOrderController::class, 'cancelOld'])->name('delegate.orders.cancel');
 
         // حذف واسترجاع الطلبات للمندوب
         Route::delete('orders/{order}', [DelegateOrderController::class, 'destroy'])->name('delegate.orders.destroy');
         Route::get('orders-deleted', [DelegateOrderController::class, 'deleted'])->name('delegate.orders.deleted');
         Route::post('orders/{order}/restore', [DelegateOrderController::class, 'restore'])->name('delegate.orders.restore');
+
+        // Archived orders routes
+        Route::get('archived', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'index'])->name('delegate.archived.index');
+        Route::post('archived/{archived}/restore', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'restore'])->name('delegate.archived.restore');
+        Route::delete('archived/{archived}', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'destroy'])->name('delegate.archived.destroy');
     });
 });
 
