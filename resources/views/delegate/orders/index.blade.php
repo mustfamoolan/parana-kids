@@ -242,7 +242,21 @@
             <!-- قائمة الطلبات -->
             <div class="space-y-4">
                 @foreach($orders as $order)
-                    <div class="panel {{ $order instanceof \App\Models\ArchivedOrder ? 'border-2 border-secondary' : '' }}">
+                    <div id="order-{{ $order->id }}" class="panel
+                        @if($order instanceof \App\Models\ArchivedOrder)
+                            border-2 border-gray-500 dark:border-gray-600
+                        @elseif($order->trashed())
+                            border-2 border-red-500 dark:border-red-600
+                        @elseif($order->status === 'pending')
+                            border-2 border-yellow-500 dark:border-yellow-600
+                        @elseif($order->status === 'confirmed')
+                            border-2 border-green-500 dark:border-green-600
+                        @elseif($order->status === 'returned')
+                            border-2 border-blue-500 dark:border-blue-600
+                        @else
+                            border-2 border-gray-300 dark:border-gray-600
+                        @endif
+                    ">
                         <!-- Header: رقم الطلب والحالة -->
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                             <div class="flex items-center justify-between sm:justify-start gap-3">
@@ -260,6 +274,10 @@
                                     <span class="badge badge-outline-secondary shrink-0">
                                         مؤرشف
                                     </span>
+                                @elseif($order->trashed())
+                                    <span class="badge badge-outline-danger shrink-0">
+                                        محذوف
+                                    </span>
                                 @else
                                     <span class="badge {{ $order->status === 'pending' ? 'badge-outline-warning' : 'badge-outline-success' }} shrink-0">
                                         {{ $order->status === 'pending' ? 'غير مقيد' : 'مقيد' }}
@@ -267,7 +285,6 @@
                                 @endif
                             </div>
                             <div class="text-left sm:text-right">
-                                <div class="text-lg font-semibold text-success">{{ number_format($order->total_amount, 0) }} دينار عراقي</div>
                                 <div class="text-sm text-gray-500 dark:text-gray-400">
                                     @if($order instanceof \App\Models\ArchivedOrder)
                                         {{ $order->archived_at->format('Y-m-d H:i') }}
@@ -278,16 +295,8 @@
                             </div>
                         </div>
 
-                        <!-- معلومات الزبون - محسنة للجوال -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                            <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">الهاتف</span>
-                                <p class="font-medium text-sm">{{ $order->customer_phone }}</p>
-                            </div>
-                            <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">العنوان</span>
-                                <p class="font-medium text-sm">{{ Str::limit($order->customer_address, 25) }}</p>
-                            </div>
+                        <!-- معلومات الزبون - مبسطة -->
+                        <div class="mb-4">
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">السوشل ميديا</span>
                                 <p class="font-medium text-sm">
@@ -296,62 +305,6 @@
                                     </a>
                                 </p>
                             </div>
-                            <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">تاريخ الطلب</span>
-                                <p class="font-medium text-sm">{{ $order->created_at->format('Y-m-d H:i') }}</p>
-                            </div>
-                        </div>
-
-
-                        <!-- منتجات الطلب - محسنة للجوال -->
-                        <div class="mb-4">
-                            @if($order instanceof \App\Models\ArchivedOrder)
-                                @php
-                                    $items = is_array($order->items) ? $order->items : (is_string($order->items) ? json_decode($order->items, true) : []);
-                                    $itemsCount = count($items);
-                                @endphp
-                                <h6 class="text-sm font-semibold dark:text-white-light mb-3">منتجات الطلب ({{ $itemsCount }} منتج)</h6>
-                                <div class="space-y-2">
-                                    @foreach(array_slice($items, 0, 3) as $item)
-                                        <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
-                                            <div class="flex-1">
-                                                <p class="text-sm font-medium">{{ $item['product_name'] }}</p>
-                                                <p class="text-xs text-gray-500">{{ $item['product_code'] }} - {{ $item['size_name'] }}</p>
-                                            </div>
-                                            <div class="text-right">
-                                                <p class="text-sm font-semibold">{{ $item['quantity'] }} قطعة</p>
-                                                <p class="text-xs text-gray-500">{{ number_format($item['subtotal'], 0) }} دينار</p>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                    @if($itemsCount > 3)
-                                        <div class="text-center">
-                                            <span class="text-xs text-gray-500">+{{ $itemsCount - 3 }} منتج آخر</span>
-                                        </div>
-                                    @endif
-                                </div>
-                            @else
-                                <h6 class="text-sm font-semibold dark:text-white-light mb-3">منتجات الطلب ({{ $order->items->count() }} منتج)</h6>
-                                <div class="space-y-2">
-                                    @foreach($order->items->take(3) as $item)
-                                        <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
-                                            <div class="flex-1">
-                                                <p class="text-sm font-medium">{{ $item->product_name }}</p>
-                                                <p class="text-xs text-gray-500">{{ $item->product_code }} - {{ $item->size_name }}</p>
-                                            </div>
-                                            <div class="text-right">
-                                                <p class="text-sm font-semibold">{{ $item->quantity }} قطعة</p>
-                                                <p class="text-xs text-gray-500">{{ number_format($item->subtotal, 0) }} دينار</p>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                    @if($order->items->count() > 3)
-                                        <div class="text-center">
-                                            <span class="text-xs text-gray-500">+{{ $order->items->count() - 3 }} منتج آخر</span>
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
                         </div>
 
                         <!-- ملاحظات -->
@@ -415,9 +368,8 @@
                                     </button>
                                 </form>
 
-                                <form method="POST" action="{{ route('delegate.orders.destroy', $order) }}" class="flex-1 sm:flex-none">
+                                <form method="POST" action="{{ route('delegate.orders.forceDelete', $order->id) }}" class="flex-1 sm:flex-none">
                                     @csrf
-                                    @method('DELETE')
                                     <button type="submit" class="btn btn-danger btn-sm w-full" onclick="return confirm('هل أنت متأكد من الحذف النهائي؟ لن يمكن استرجاع هذا الطلب!')">
                                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -444,14 +396,6 @@
                                     </a>
                                 @endif
 
-                                @if(in_array($order->status, ['pending', 'confirmed']))
-                                    <button onclick="deleteOrder({{ $order->id }})" class="btn btn-outline-danger btn-sm flex-1 sm:flex-none">
-                                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                        </svg>
-                                        حذف
-                                    </button>
-                                @endif
                             @endif
                         </div>
                     </div>
@@ -485,5 +429,33 @@
                 form.submit();
             }
         }
+    </script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إذا كان هناك anchor في الرابط (#order-123)
+        if (window.location.hash) {
+            const target = document.querySelector(window.location.hash);
+            if (target) {
+                setTimeout(() => {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+        }
+        // وإلا إذا كان هناك موضع محفوظ
+        else if (sessionStorage.getItem('delegateOrdersScroll')) {
+            const scrollPos = sessionStorage.getItem('delegateOrdersScroll');
+            window.scrollTo(0, parseInt(scrollPos));
+            sessionStorage.removeItem('delegateOrdersScroll');
+        }
+
+        // حفظ موضع التمرير قبل الانتقال لصفحة أخرى
+        const orderLinks = document.querySelectorAll('a[href*="/orders/"]');
+        orderLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                sessionStorage.setItem('delegateOrdersScroll', window.scrollY);
+            });
+        });
+    });
     </script>
 </x-layout.default>

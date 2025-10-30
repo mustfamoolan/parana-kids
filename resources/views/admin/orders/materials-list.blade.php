@@ -3,7 +3,7 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">قائمة المواد المطلوبة</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-secondary">
+                <a href="{{ route('admin.orders.management', array_filter(['warehouse_id' => request('warehouse_id'), 'status' => request('status') ?: 'pending'])) }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>

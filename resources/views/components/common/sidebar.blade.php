@@ -122,105 +122,25 @@
                 </li>
 
                 <li class="menu nav-item">
-                    <button type="button" class="nav-link group w-full" @click="toggleMenu('orders')">
+                    <a href="{{ route('admin.order-movements.index') }}" class="nav-link group">
                         <div class="flex items-center">
                             <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2"/>
                             </svg>
-                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">تفاصيل الطلبات</span>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">كشف حركة الطلبات</span>
                         </div>
-                        <div>
-                            <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </a>
+                </li>
+
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.bulk-returns.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="2"/>
                             </svg>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إرجاع طلبات</span>
                         </div>
-                    </button>
-                    <ul x-show="openMenu === 'orders'" class="sub-menu">
-                        <li>
-                            <a href="{{ route('admin.orders.index') }}" class="nav-link group">
-                                <div class="flex items-center">
-                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الطلبات الغير مقيدة</span>
-                                    @php
-                                        $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
-                                    @endphp
-                                    @if($pendingOrdersCount > 0)
-                                        <span class="badge badge-warning ltr:ml-auto rtl:mr-auto">{{ $pendingOrdersCount }}</span>
-                                    @endif
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('admin.orders.confirmed') }}" class="nav-link group">
-                                <div class="flex items-center">
-                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الطلبات المقيدة</span>
-                                    @php
-                                        $confirmedOrdersCount = \App\Models\Order::where('status', 'confirmed')->count();
-                                    @endphp
-                                    @if($confirmedOrdersCount > 0)
-                                        <span class="badge badge-success ltr:ml-auto rtl:mr-auto">{{ $confirmedOrdersCount }}</span>
-                                    @endif
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('admin.orders.returned') }}" class="nav-link group">
-                                <div class="flex items-center">
-                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الطلبات المسترجعة</span>
-                                    @php
-                                        $returnedOrdersCount = \App\Models\Order::where('status', 'returned')->count();
-                                    @endphp
-                                    @if($returnedOrdersCount > 0)
-                                        <span class="badge badge-warning ltr:ml-auto rtl:mr-auto">{{ $returnedOrdersCount }}</span>
-                                    @endif
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('admin.orders.deleted') }}" class="nav-link group">
-                                <div class="flex items-center">
-                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الطلبات المحذوفة</span>
-                                    @php
-                                        $deletedOrdersCount = \App\Models\Order::onlyTrashed()->count();
-                                    @endphp
-                                    @if($deletedOrdersCount > 0)
-                                        <span class="badge badge-danger ltr:ml-auto rtl:mr-auto">{{ $deletedOrdersCount }}</span>
-                                    @endif
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('admin.order-movements.index') }}" class="nav-link group">
-                                <div class="flex items-center">
-                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">كشف حركة الطلبات</span>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ route('admin.bulk-returns.index') }}" class="nav-link group">
-                                <div class="flex items-center">
-                                    <svg class="group-hover:!text-primary shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                    <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إرجاع طلبات</span>
-                                </div>
-                            </a>
-                        </li>
-                    </ul>
+                    </a>
                 </li>
                 @endif
 

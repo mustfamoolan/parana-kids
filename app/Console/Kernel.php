@@ -20,6 +20,9 @@ class Kernel extends ConsoleKernel
 
         // أرشفة السلات المنتهية كل 5 دقائق
         $schedule->command('carts:archive-expired')->everyFiveMinutes();
+
+        // حذف الطلبات المحذوفة القديمة كل يوم الساعة 2 صباحاً
+        $schedule->command('orders:delete-old-trashed')->daily()->at('02:00');
     }
 
     /**

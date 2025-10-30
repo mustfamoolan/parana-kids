@@ -3,7 +3,7 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('delegate.orders.index') }}" class="btn btn-outline-secondary">
+                <a href="{{ route('delegate.orders.index') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -181,66 +181,62 @@
                 <h6 class="text-lg font-semibold dark:text-white-light">منتجات الطلب</h6>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead>
-                        <tr class="border-b border-gray-200 dark:border-gray-700">
-                            <th class="text-right py-3 px-4 font-semibold dark:text-white-light">المنتج</th>
-                            <th class="text-right py-3 px-4 font-semibold dark:text-white-light">القياس</th>
-                            <th class="text-right py-3 px-4 font-semibold dark:text-white-light">الكمية</th>
-                            <th class="text-right py-3 px-4 font-semibold dark:text-white-light">سعر الوحدة</th>
-                            <th class="text-right py-3 px-4 font-semibold dark:text-white-light">المجموع الفرعي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($order->items as $item)
-                            <tr class="border-b border-gray-200 dark:border-gray-700">
-                                <td class="py-3 px-4">
-                                    <div class="flex items-center gap-3">
-                                        <!-- صورة المنتج -->
-                                        <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden flex-shrink-0">
-                                            @if($item->product && $item->product->primaryImage)
-                                                <img src="{{ $item->product->primaryImage->image_url }}"
-                                                     alt="{{ $item->product_name }}"
-                                                     class="w-full h-full object-cover">
-                                            @else
-                                                <div class="w-full h-full flex items-center justify-center">
-                                                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                    </svg>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <div>
-                                            <div class="font-medium dark:text-white-light">{{ $item->product_name }}</div>
-                                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ $item->product_code }}</div>
-                                        </div>
+            <div class="space-y-4">
+                @foreach($order->items as $item)
+                    <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                        <!-- كارت لكل منتج -->
+                        <div class="flex gap-4">
+                            <!-- صورة المنتج -->
+                            <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden flex-shrink-0">
+                                @if($item->product && $item->product->primaryImage)
+                                    <img src="{{ $item->product->primaryImage->image_url }}"
+                                         alt="{{ $item->product_name }}"
+                                         class="w-full h-full object-cover">
+                                @else
+                                    <div class="w-full h-full flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
                                     </div>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <span class="badge badge-outline-primary">{{ $item->size_name }}</span>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <span class="font-medium">{{ $item->quantity }}</span>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <span class="font-medium">{{ number_format($item->unit_price, 0) }} دينار عراقي</span>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <span class="font-medium text-success">{{ number_format($item->subtotal, 0) }} دينار عراقي</span>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot>
-                        <tr class="border-t-2 border-gray-300 dark:border-gray-600">
-                            <td colspan="4" class="py-3 px-4 text-right font-semibold dark:text-white-light">الإجمالي:</td>
-                            <td class="py-3 px-4">
-                                <span class="text-xl font-bold text-success">{{ number_format($order->total_amount, 0) }} دينار عراقي</span>
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
+                                @endif
+                            </div>
+
+                            <div class="flex-1">
+                                <!-- اسم المنتج + الكود -->
+                                <h3 class="font-semibold dark:text-white-light text-lg">{{ $item->product_name }}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $item->product_code }}</p>
+
+                                <!-- معلومات المنتج في grid -->
+                                <div class="grid grid-cols-2 gap-3 mt-3">
+                                    <div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">القياس</span>
+                                        <span class="badge badge-outline-primary">{{ $item->size_name }}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">الكمية</span>
+                                        <p class="font-medium text-lg">{{ $item->quantity }}</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">سعر الوحدة</span>
+                                        <p class="font-medium">{{ number_format($item->unit_price, 0) }} د.ع</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المجموع</span>
+                                        <p class="font-medium text-success text-lg">{{ number_format($item->subtotal, 0) }} د.ع</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+                <!-- كارت الإجمالي -->
+                <div class="bg-primary/10 dark:bg-primary/20 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-semibold dark:text-white-light">الإجمالي:</span>
+                        <span class="text-2xl font-bold text-success">{{ number_format($order->total_amount, 0) }} دينار عراقي</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -272,21 +268,11 @@
                             تعديل الطلب
                         </a>
 
-                        <form method="POST" action="{{ route('delegate.orders.cancel', $order) }}" class="flex-1 sm:flex-none" onsubmit="return confirm('هل أنت متأكد من إلغاء هذا الطلب؟ سيتم إرجاع جميع المنتجات للمخزن وحذف الطلب نهائياً.')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-lg w-full">
-                                <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                </svg>
-                                إلغاء الطلب
-                            </button>
-                        </form>
                     </div>
                 </div>
             @endif
 
-            @if(in_array($order->status, ['pending', 'confirmed']))
+            @if($order->status === 'pending')
                 <!-- زر حذف الطلب -->
                 <div class="panel mt-6">
                     <div class="flex justify-center">

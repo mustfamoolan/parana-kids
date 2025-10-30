@@ -3,7 +3,7 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-secondary">
+                <a href="{{ route('admin.orders.management') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -23,7 +23,7 @@
                         تجهيز الطلب
                     </a>
                 @elseif($order->status === 'confirmed')
-                    <a href="{{ route('admin.orders.confirmed') }}" class="btn btn-outline-success">
+                    <a href="{{ route('admin.orders.management', ['status' => 'confirmed']) }}" class="btn btn-outline-success">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
@@ -39,21 +39,21 @@
                     @endif
 
                 @elseif($order->status === 'cancelled')
-                    <a href="{{ route('admin.orders.cancelled') }}" class="btn btn-outline-danger">
+                    <a href="{{ route('admin.orders.management', ['status' => 'cancelled']) }}" class="btn btn-outline-danger">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                         الطلبات الملغية
                     </a>
                 @elseif($order->status === 'returned')
-                    <a href="{{ route('admin.orders.returned') }}" class="btn btn-outline-warning">
+                    <a href="{{ route('admin.orders.management', ['status' => 'returned']) }}" class="btn btn-outline-warning">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                         </svg>
                         الطلبات المسترجعة
                     </a>
                 @elseif($order->status === 'exchanged')
-                    <a href="{{ route('admin.orders.exchanged') }}" class="btn btn-outline-info">
+                    <a href="{{ route('admin.orders.management', ['status' => 'exchanged']) }}" class="btn btn-outline-info">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                         </svg>
@@ -295,67 +295,59 @@
             <div class="mb-5">
                 <h6 class="text-lg font-semibold dark:text-white-light">منتجات الطلب ({{ $order->items->count() }} منتج)</h6>
             </div>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>المنتج</th>
-                            <th>الكود</th>
-                            <th>القياس</th>
-                            <th>الكمية</th>
-                            <th>سعر الوحدة</th>
-                            <th>الإجمالي</th>
-                            <th>المخزن</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($order->items as $item)
-                            <tr>
-                                <td>
-                                    <div class="flex items-center gap-3">
-                                        @if($item->product->primaryImage)
-                                            <img src="{{ $item->product->primaryImage->image_url }}"
-                                                 class="w-12 h-12 object-cover rounded-lg"
-                                                 alt="{{ $item->product->name }}">
-                                        @else
-                                            <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                </svg>
-                                            </div>
-                                        @endif
-                                        <div>
-                                            <div class="font-medium">{{ $item->product_name }}</div>
-                                        </div>
+            <div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach($order->items as $item)
+                        <div class="panel">
+                            <div class="flex items-center gap-3 mb-3">
+                                @if(optional($item->product)->primaryImage)
+                                    <button type="button" class="w-14 h-14 rounded overflow-hidden" onclick="openImageZoomModal('{{ optional($item->product->primaryImage)->image_url }}','{{ optional($item->product)->name ?? $item->product_name }}')">
+                                        <img src="{{ optional($item->product->primaryImage)->image_url }}" class="w-full h-full object-cover hover:opacity-90" alt="{{ optional($item->product)->name ?? $item->product_name }}">
+                                    </button>
+                                @else
+                                    <div class="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                        <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
                                     </div>
-                                </td>
-                                <td>{{ $item->product_code }}</td>
-                                <td>
-                                    <span class="badge badge-outline-primary">{{ $item->size_name }}</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="font-semibold">{{ $item->quantity }}</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="font-medium">{{ number_format($item->unit_price, 0) }} دينار</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="font-bold text-success">{{ number_format($item->subtotal, 0) }} دينار</span>
-                                </td>
-                                <td>
-                                    <span class="text-sm text-gray-500">{{ $item->product->warehouse->name }}</span>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th colspan="5" class="text-right">الإجمالي الكلي:</th>
-                            <th class="text-center">{{ number_format($order->total_amount, 0) }} دينار عراقي</th>
-                            <th></th>
-                        </tr>
-                    </tfoot>
-                </table>
+                                @endif
+                                <div>
+                                    <div class="font-semibold">{{ optional($item->product)->name ?? $item->product_name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ optional($item->product)->code ?? $item->product_code }}</div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">القياس</span>
+                                    <div><span class="badge badge-outline-primary">{{ optional($item->size)->size_name ?? $item->size_name }}</span></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">الكمية</span>
+                                    <div class="font-semibold">{{ $item->quantity }}</div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">سعر الوحدة (مباشر)</span>
+                                    <div class="font-medium">{{ number_format(optional($item->product)->selling_price ?? $item->unit_price, 0) }} دينار</div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">الإجمالي (مباشر)</span>
+                                    @php $liveSubtotal = (optional($item->product)->selling_price ?? $item->unit_price) * $item->quantity; @endphp
+                                    <div class="font-bold text-success">{{ number_format($liveSubtotal, 0) }} دينار</div>
+                                </div>
+                                <div class="col-span-2 bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">المخزن</span>
+                                    <div class="text-gray-700 dark:text-gray-300">{{ optional(optional($item->product)->warehouse)->name ?? '-' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="mt-4 panel flex items-center justify-between">
+                    <div class="font-semibold">الإجمالي الكلي:</div>
+                    <div class="text-lg font-bold">{{ number_format($order->total_amount, 0) }} دينار عراقي</div>
+                </div>
             </div>
         </div>
     </div>
@@ -467,5 +459,37 @@
                 form.submit();
             }
         }
+    </script>
+
+    <!-- Modal لتكبير الصورة -->
+    <div id="imgZoomModal" class="fixed inset-0 z-[100] hidden bg-black/60 p-4">
+        <div class="h-full w-full flex items-center justify-center">
+            <img id="imgZoomEl" class="max-h-full max-w-full rounded-lg shadow-2xl" src="" alt="">
+        </div>
+    </div>
+
+    <script>
+        function openImageZoomModal(src, altText) {
+            const modal = document.getElementById('imgZoomModal');
+            const imgEl = document.getElementById('imgZoomEl');
+            if (!src) return;
+            imgEl.src = src;
+            imgEl.alt = altText || '';
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        (function initImageZoomModal(){
+            const modal = document.getElementById('imgZoomModal');
+            const imgEl = document.getElementById('imgZoomEl');
+            if (!modal || !imgEl) return;
+            const close = () => {
+                modal.classList.add('hidden');
+                imgEl.src = '';
+                document.body.style.overflow = 'auto';
+            };
+            modal.addEventListener('click', (e)=>{ if(e.target === modal) close(); });
+            document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+        })();
     </script>
 </x-layout.admin>

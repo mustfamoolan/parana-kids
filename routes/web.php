@@ -68,7 +68,6 @@ Route::prefix('admin')->group(function () {
             'destroy' => 'admin.warehouses.products.destroy',
         ]);
         // Order routes
-        Route::get('orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
 
         // إدارة الطلبات (الصفحة الجديدة الموحدة)
         Route::get('orders-management', [AdminOrderController::class, 'management'])->name('admin.orders.management');
@@ -82,8 +81,6 @@ Route::prefix('admin')->group(function () {
         Route::post('orders/{order}/process', [AdminOrderController::class, 'processOrder'])->name('admin.orders.process.submit');
         Route::post('orders/{order}/confirm', [AdminOrderController::class, 'confirm'])->name('admin.orders.confirm');
 
-        // الطلبات المقيدة
-        Route::get('orders-confirmed', [AdminOrderController::class, 'confirmed'])->name('admin.orders.confirmed');
 
         // تعديل الطلب المقيد
         Route::get('orders/{order}/edit', [AdminOrderController::class, 'edit'])->name('admin.orders.edit');
@@ -107,12 +104,10 @@ Route::prefix('admin')->group(function () {
 
         // صفحات القوائم
         Route::get('orders-cancelled', [AdminOrderController::class, 'cancelled'])->name('admin.orders.cancelled');
-        Route::get('orders-returned', [AdminOrderController::class, 'returned'])->name('admin.orders.returned');
         Route::get('orders-exchanged', [AdminOrderController::class, 'exchanged'])->name('admin.orders.exchanged');
 
         // حذف واسترجاع الطلبات
         Route::delete('orders/{order}', [AdminOrderController::class, 'destroy'])->name('admin.orders.destroy');
-        Route::get('orders-deleted', [AdminOrderController::class, 'deleted'])->name('admin.orders.deleted');
         Route::post('orders/{order}/restore', [AdminOrderController::class, 'restore'])->name('admin.orders.restore');
         Route::delete('orders/{order}/force', [AdminOrderController::class, 'forceDelete'])->name('admin.orders.forceDelete');
         Route::get('orders/{order}/check-restore', [AdminOrderController::class, 'checkRestoreAvailability'])->name('admin.orders.check-restore');
@@ -201,6 +196,7 @@ Route::prefix('delegate')->group(function () {
 
         // حذف واسترجاع الطلبات للمندوب
         Route::delete('orders/{order}', [DelegateOrderController::class, 'destroy'])->name('delegate.orders.destroy');
+        Route::post('orders/{id}/force-delete', [DelegateOrderController::class, 'forceDelete'])->name('delegate.orders.forceDelete');
         Route::get('orders-deleted', [DelegateOrderController::class, 'deleted'])->name('delegate.orders.deleted');
         Route::post('orders/{order}/restore', [DelegateOrderController::class, 'restore'])->name('delegate.orders.restore');
 

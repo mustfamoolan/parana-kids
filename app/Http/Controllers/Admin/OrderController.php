@@ -127,111 +127,6 @@ class OrderController extends Controller
     /**
      * Display a unified listing of all orders with filters.
      */
-    public function index(Request $request)
-    {
-        $this->authorize('viewAny', Order::class);
-
-        // جلب قائمة المخازن حسب الصلاحيات
-        if (Auth::user()->isSupplier()) {
-            $warehouses = Auth::user()->warehouses;
-        } else {
-            $warehouses = \App\Models\Warehouse::all();
-        }
-
-        // Base query
-        $query = Order::query();
-
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
-        }
-
-        // فلتر الحالة
-        if ($request->status === 'deleted') {
-            $query->onlyTrashed()->with(['deletedByUser']);
-        } elseif ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // فلتر المخزن
-        if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
-                $q->where('warehouse_id', $request->warehouse_id);
-            });
-        }
-
-        // البحث في الطلبات
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
-            });
-        }
-
-        // فلتر حسب التاريخ
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        // فلتر حسب الوقت
-        if ($request->filled('time_from')) {
-            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-        }
-
-        if ($request->filled('time_to')) {
-            $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-        }
-
-        // فلتر حسب تاريخ التقييد (للطلبات المقيدة)
-        if ($request->filled('confirmed_from')) {
-            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
-        }
-
-        if ($request->filled('confirmed_to')) {
-            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
-        }
-
-        // فلتر حسب تاريخ الإرجاع (للطلبات المسترجعة)
-        if ($request->filled('returned_from')) {
-            $query->whereDate('returned_at', '>=', $request->returned_from);
-        }
-
-        if ($request->filled('returned_to')) {
-            $query->whereDate('returned_at', '<=', $request->returned_to);
-        }
-
-        // فلتر حسب تاريخ الاستبدال (للطلبات المستبدلة)
-        if ($request->filled('exchanged_from')) {
-            $query->whereDate('exchanged_at', '>=', $request->exchanged_from);
-        }
-
-        if ($request->filled('exchanged_to')) {
-            $query->whereDate('exchanged_at', '<=', $request->exchanged_to);
-        }
-
-        $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
-                       ->latest()
-                       ->paginate(15);
-
-        return view('admin.orders.index', compact('orders', 'warehouses'));
-    }
 
     /**
      * Display the specified order.
@@ -341,6 +236,21 @@ class OrderController extends Controller
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
                 if (!$item->product) continue;
+
+                // فلتر المخزن: عرض فقط منتجات المخزن المحدد
+                if ($request->filled('warehouse_id')) {
+                    if ($item->product->warehouse_id != $request->warehouse_id) {
+                        continue; // تجاهل المنتجات من مخازن أخرى
+                    }
+                }
+
+                // فلتر صلاحيات المجهز
+                if (Auth::user()->isSupplier()) {
+                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+                    if (!in_array($item->product->warehouse_id, $accessibleWarehouseIds)) {
+                        continue; // تجاهل المنتجات من مخازن ليس لديه صلاحية عليها
+                    }
+                }
 
                 $key = $item->product_id . '_' . $item->size_name;
 
@@ -458,7 +368,37 @@ class OrderController extends Controller
         ]);
 
         DB::transaction(function() use ($order, $request) {
-            // تحديث معلومات الطلب
+            // التحقق المسبق وتجهيز العناصر الجديدة قبل أي تعديل على القديمة
+            $preparedItems = [];
+            $totalAmount = 0;
+            foreach ($request->items as $itemData) {
+                $product = Product::findOrFail($itemData['product_id']);
+                $size = ProductSize::findOrFail($itemData['size_id']);
+
+                if ($size->quantity < $itemData['quantity']) {
+                    throw new \Exception("الكمية غير متوفرة للقياس {$size->size_name}");
+                }
+
+                $subtotal = $itemData['quantity'] * $product->selling_price;
+                $preparedItems[] = [
+                    'product' => $product,
+                    'size' => $size,
+                    'data' => [
+                        'order_id' => $order->id,
+                        'product_id' => $product->id,
+                        'size_id' => $size->id,
+                        'product_name' => $product->name,
+                        'product_code' => $product->code,
+                        'size_name' => $size->size_name,
+                        'quantity' => $itemData['quantity'],
+                        'unit_price' => $product->selling_price,
+                        'subtotal' => $subtotal,
+                    ],
+                ];
+                $totalAmount += $subtotal;
+            }
+
+            // تحديث معلومات الطلب أولاً
             $order->update([
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
@@ -471,56 +411,24 @@ class OrderController extends Controller
                 'confirmed_by' => auth()->id(),
             ]);
 
-            // حذف جميع المنتجات القديمة وإرجاعها للمخزون
-            foreach ($order->items as $item) {
-                if ($item->size) {
-                    $item->size->increment('quantity', $item->quantity);
-                }
-            }
+            // الآن نحذف القديمة بعد ضمان صلاحية الجديدة
             $order->items()->delete();
 
-            // إضافة المنتجات الجديدة
-            $totalAmount = 0;
-            foreach ($request->items as $itemData) {
-                $product = Product::findOrFail($itemData['product_id']);
-                $size = ProductSize::findOrFail($itemData['size_id']);
-
-                // التحقق من التوفر
-                if ($size->quantity < $itemData['quantity']) {
-                    throw new \Exception("الكمية غير متوفرة للقياس {$size->size_name}");
-                }
-
-                $subtotal = $itemData['quantity'] * $product->selling_price;
-
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $product->id,
-                    'size_id' => $size->id,
-                    'product_name' => $product->name,
-                    'product_code' => $product->code,
-                    'size_name' => $size->size_name,
-                    'quantity' => $itemData['quantity'],
-                    'unit_price' => $product->selling_price,
-                    'subtotal' => $subtotal,
-                ]);
-
-                // خصم من المخزون
-                $size->decrement('quantity', $itemData['quantity']);
-
-                // تسجيل حركة البيع
+            // إضافة العناصر الجديدة مع خصم المخزون وتسجيل الحركة
+            foreach ($preparedItems as $pi) {
+                OrderItem::create($pi['data']);
+                $pi['size']->decrement('quantity', $pi['data']['quantity']);
                 ProductMovement::record([
-                    'product_id' => $product->id,
-                    'size_id' => $size->id,
-                    'warehouse_id' => $product->warehouse_id,
+                    'product_id' => $pi['product']->id,
+                    'size_id' => $pi['size']->id,
+                    'warehouse_id' => $pi['product']->warehouse_id,
                     'order_id' => $order->id,
                     'movement_type' => 'sale',
-                    'quantity' => -$itemData['quantity'],
-                    'balance_after' => $size->refresh()->quantity,
+                    'quantity' => -$pi['data']['quantity'],
+                    'balance_after' => $pi['size']->refresh()->quantity,
                     'order_status' => $order->status,
                     'notes' => "بيع من طلب #{$order->order_number}"
                 ]);
-
-                $totalAmount += $subtotal;
             }
 
             $order->update(['total_amount' => $totalAmount]);
@@ -578,84 +486,6 @@ class OrderController extends Controller
                         ->with('success', 'تم تقييد الطلب بنجاح');
     }
 
-    /**
-     * Display confirmed orders.
-     */
-    public function confirmed(Request $request)
-    {
-        $this->authorize('viewAny', Order::class);
-
-        $query = Order::where('status', 'confirmed');
-
-        // للمجهز: عرض الطلبات من مخازنه فقط
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
-        }
-
-        // فلاتر البحث
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
-            });
-        }
-
-        // فلاتر التاريخ
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        // فلتر حسب الوقت للطلب
-        if ($request->filled('time_from')) {
-            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-        }
-
-        if ($request->filled('time_to')) {
-            $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-        }
-
-        if ($request->filled('confirmed_from')) {
-            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
-        }
-
-        if ($request->filled('confirmed_to')) {
-            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
-        }
-
-        // فلتر حسب الوقت للتقييد
-        if ($request->filled('confirmed_time_from')) {
-            $confirmedDateFrom = $request->confirmed_from ?? now()->format('Y-m-d');
-            $query->where('confirmed_at', '>=', $confirmedDateFrom . ' ' . $request->confirmed_time_from . ':00');
-        }
-
-        if ($request->filled('confirmed_time_to')) {
-            $confirmedDateTo = $request->confirmed_to ?? now()->format('Y-m-d');
-            $query->where('confirmed_at', '<=', $confirmedDateTo . ' ' . $request->confirmed_time_to . ':00');
-        }
-
-        $orders = $query->with(['delegate', 'confirmedBy', 'items.product.primaryImage'])
-                       ->latest('confirmed_at')
-                       ->paginate(15);
-
-        return view('admin.orders.confirmed', compact('orders'));
-    }
 
     /**
      * Show the form for editing the order.
@@ -1017,81 +847,6 @@ class OrderController extends Controller
     /**
      * عرض الطلبات المسترجعة
      */
-    public function returned(Request $request)
-    {
-        $this->authorize('viewAny', Order::class);
-
-        $query = Order::where('status', 'returned');
-
-        // للمجهز: عرض الطلبات من مخازنه فقط
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
-        }
-
-        // فلاتر البحث
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('return_notes', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
-            });
-        }
-
-        // فلاتر التاريخ
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        // فلتر حسب الوقت للطلب
-        if ($request->filled('time_from')) {
-            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-        }
-
-        if ($request->filled('time_to')) {
-            $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-        }
-
-        if ($request->filled('returned_from')) {
-            $query->whereDate('returned_at', '>=', $request->returned_from);
-        }
-
-        if ($request->filled('returned_to')) {
-            $query->whereDate('returned_at', '<=', $request->returned_to);
-        }
-
-        // فلتر حسب الوقت للاسترجاع
-        if ($request->filled('returned_time_from')) {
-            $returnedDateFrom = $request->returned_from ?? now()->format('Y-m-d');
-            $query->where('returned_at', '>=', $returnedDateFrom . ' ' . $request->returned_time_from . ':00');
-        }
-
-        if ($request->filled('returned_time_to')) {
-            $returnedDateTo = $request->returned_to ?? now()->format('Y-m-d');
-            $query->where('returned_at', '<=', $returnedDateTo . ' ' . $request->returned_time_to . ':00');
-        }
-
-        $orders = $query->with(['delegate', 'processedBy', 'items.product.primaryImage', 'returnItems'])
-                       ->latest('returned_at')
-                       ->paginate(15);
-
-        return view('admin.orders.returned', compact('orders'));
-    }
 
     /**
      * عرض الطلبات المستبدلة
@@ -1305,63 +1060,6 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * عرض الطلبات المحذوفة
-     */
-    public function deleted(Request $request)
-    {
-        $this->authorize('viewAny', Order::class);
-
-        $query = Order::onlyTrashed();
-
-        // للمجهز والمندوب: عرض الطلبات من مخازنهم فقط
-        if (Auth::user()->isSupplier() || Auth::user()->isDelegate()) {
-            $warehouseIds = Auth::user()->warehouses()->pluck('warehouse_id');
-            $query->whereHas('items.product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
-            });
-        }
-
-        // البحث في الطلبات
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
-            });
-        }
-
-        // فلتر حسب التاريخ
-        if ($request->filled('date_from')) {
-            $query->whereDate('deleted_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('deleted_at', '<=', $request->date_to);
-        }
-
-        // فلتر حسب الوقت
-        if ($request->filled('time_from')) {
-            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-        }
-
-        if ($request->filled('time_to')) {
-            $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-        }
-
-        $orders = $query->with(['delegate', 'deletedBy', 'items.product.primaryImage'])
-                       ->latest('deleted_at')
-                       ->paginate(15);
-
-        return view('admin.orders.deleted', compact('orders'));
-    }
 
     /**
      * التحقق من توفر المنتجات للاسترجاع

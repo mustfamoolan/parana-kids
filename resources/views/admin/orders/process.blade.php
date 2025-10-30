@@ -145,49 +145,53 @@
             <!-- المنتجات الحالية -->
             <div class="panel mb-5">
                 <h6 class="text-lg font-semibold mb-4">منتجات الطلب</h6>
-                <template x-for="(item, index) in items" :key="index">
-                    <div class="flex items-center gap-4 p-4 border rounded mb-3">
-                        <!-- صورة المنتج -->
-                        <div class="w-16 h-16 flex-shrink-0">
-                            <img :src="item.product_image" :alt="item.product_name" class="w-full h-full object-cover rounded cursor-pointer hover:opacity-80" @click="openImageModal(item.product_image, item.product_name)">
-                        </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="(item, index) in items" :key="index">
+                        <div class="panel">
+                            <div class="flex items-center gap-3 mb-3">
+                                <button type="button" @click="openImageModal(item.product_image, item.product_name)" class="w-14 h-14 flex-shrink-0 rounded overflow-hidden">
+                                    <img :src="item.product_image" :alt="item.product_name" class="w-full h-full object-cover hover:opacity-90">
+                                </button>
+                                <div class="flex-1">
+                                    <div class="font-semibold" x-text="item.product_name"></div>
+                                    <div class="text-xs text-gray-500" x-text="item.product_code"></div>
+                                </div>
+                                <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                            </div>
 
-                        <!-- اسم المنتج -->
-                        <div class="flex-1">
-                            <div class="font-semibold" x-text="item.product_name"></div>
-                            <div class="text-sm text-gray-500" x-text="item.product_code"></div>
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">القياس</label>
+                                    <select @change="changeItemSize(index, $event.target.value)" class="form-select text-sm">
+                                        <template x-for="size in getProductSizes(item.product_id)" :key="size.id">
+                                            <option :value="size.id" :selected="size.id == item.size_id" x-text="size.size_name + ' (' + size.available_quantity + ')' "></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</label>
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" @click="item.quantity = Math.floor(Number(item.quantity)||1) - 1; normalizeAndUpdate(index)" class="btn btn-sm btn-outline-danger">-</button>
+                                        <input type="number" x-model="item.quantity" @input="normalizeAndUpdate(index)" class="form-input w-16 text-center text-sm" min="1" :max="item.max_quantity">
+                                        <button type="button" @click="item.quantity = Math.floor(Number(item.quantity)||1) + 1; normalizeAndUpdate(index)" class="btn btn-sm btn-outline-success">+</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">سعر الوحدة</label>
+                                    <div class="font-medium" x-text="formatPrice(item.unit_price)"></div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الإجمالي</label>
+                                    <div class="font-bold text-success" x-text="formatPrice(item.subtotal)"></div>
+                                </div>
+                            </div>
                         </div>
-
-                        <!-- القياس (قابل للتغيير) -->
-                        <div class="w-32">
-                            <select @change="changeItemSize(index, $event.target.value)" class="form-select text-sm">
-                                <template x-for="size in getProductSizes(item.product_id)" :key="size.id">
-                                    <option :value="size.id" :selected="size.id == item.size_id" x-text="size.size_name + ' (' + size.available_quantity + ')'"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- الكمية (قابلة للتعديل) -->
-                        <div class="flex items-center gap-2 w-24">
-                            <button type="button" @click="item.quantity > 1 ? item.quantity-- : null" class="btn btn-sm btn-outline-danger">-</button>
-                            <input type="number" x-model="item.quantity" @change="updateItemQuantity(index)" class="form-input w-16 text-center text-sm" min="1" :max="item.max_quantity">
-                            <button type="button" @click="item.quantity < item.max_quantity ? item.quantity++ : null" class="btn btn-sm btn-outline-success">+</button>
-                        </div>
-
-                        <!-- السعر والمجموع -->
-                        <div class="text-right w-32">
-                            <div class="text-sm text-gray-500" x-text="formatPrice(item.unit_price) + ' × ' + item.quantity"></div>
-                            <div class="font-bold text-success" x-text="formatPrice(item.subtotal)"></div>
-                        </div>
-
-                        <!-- زر الحذف -->
-                        <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </template>
+                    </template>
+                </div>
 
                 <div x-show="items.length === 0" class="text-center py-8 text-gray-500">
                     <p>لا توجد منتجات في هذا الطلب.</p>
@@ -288,6 +292,18 @@
                 </button>
             </div>
 
+            <!-- صندوق أسماء المنتجات للنص الجاهز + زر النسخ -->
+            <div class="panel mb-5">
+                <h6 class="text-lg font-semibold mb-4">أسماء المنتجات</h6>
+                <div class="flex gap-2 items-start">
+                    <textarea class="form-textarea w-full overflow-auto" rows="2" wrap="off" readonly x-text="productNamesText"></textarea>
+                    <button type="button" class="btn btn-outline-secondary whitespace-nowrap"
+                        @click="navigator.clipboard.writeText(productNamesText).then(()=>showCopyNotification('تم نسخ النص بنجاح!'))">
+                        نسخ
+                    </button>
+                </div>
+            </div>
+
             <!-- ملخص وأزرار -->
             <div class="panel">
                 <div class="flex justify-between items-center mb-4">
@@ -340,14 +356,14 @@
                     return [
                         'product_id' => $item->product_id,
                         'size_id' => $item->size_id,
-                        'product_name' => $item->product_name,
-                        'product_code' => $item->product_code,
-                        'size_name' => $item->size_name,
+                        'product_name' => optional($item->product)->name ?? $item->product_name,
+                        'product_code' => optional($item->product)->code ?? $item->product_code,
+                        'size_name' => optional($item->size)->size_name ?? $item->size_name,
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'subtotal' => $item->subtotal,
                         'max_quantity' => $item->size ? $item->size->quantity : 0,
-                        'product_image' => $item->product->primaryImage ? $item->product->primaryImage->image_url : '/assets/images/no-image.png'
+                        'product_image' => optional(optional($item->product)->primaryImage)->image_url ?? '/assets/images/no-image.png'
                     ];
                 })) !!},
                 products: {!! json_encode($products->map(function($product) {
@@ -373,7 +389,32 @@
                 deliveryCode: '{{ $order->delivery_code ?? '' }}',
 
                 get totalAmount() {
-                    return this.items.reduce((sum, item) => sum + item.subtotal, 0);
+                    return this.items.reduce((sum, item) => Number(sum) + Number(item?.subtotal ?? 0), 0);
+                },
+
+                get productNamesText() {
+                    const parts = this.items
+                        .map(i => {
+                            const rawName = (i?.product_name || '');
+                            const name = rawName.includes('(') ? rawName.split('(')[0].trim() : rawName.trim();
+                            if (!name) return '';
+                            const qty = Number(i?.quantity || 0);
+                            // إذا الكمية >1: الاسم ثم "عدد N" ثم علامة + ، وإلا: الاسم ثم + فقط
+                            return qty > 1 ? `${name}عدد ${qty}+` : `${name}+`;
+                        })
+                        .filter(Boolean);
+                    const joined = parts.join('');
+                    const prefix = 'فتح وتصوير الطلب امام الزبون قبل التسليم عند القياس';
+
+                    // الإجماليات
+                    const totalQty = this.items.reduce((s, it) => s + Number(it?.quantity || 0), 0);
+                    // حساب مباشر: كمية × سعر للوحدة لكل عنصر لضمان الدقة حتى مع تأخير تحديث subtotal
+                    const totalAmount = this.items.reduce((s, it) => s + (Number(it?.quantity || 0) * Number(it?.unit_price || 0)), 0);
+                    const totalAmountWithFee = totalAmount + 5000; // إضافة 5000 تلقائياً
+                    const totalAmountTxt = new Intl.NumberFormat('en-US').format(totalAmountWithFee);
+                    const totals = ` (اجمالي العدد:${totalQty} | اجمالي المبلغ:${totalAmountTxt})`;
+
+                    return joined ? `${prefix}\n${joined}${totals}` : `${prefix}\n${totals}`;
                 },
 
                 get filteredProducts() {
@@ -391,7 +432,17 @@
 
                 updateItemQuantity(index) {
                     const item = this.items[index];
-                    item.subtotal = item.quantity * item.unit_price;
+                    const max = Number(item?.max_quantity || 1);
+                    let q = Math.floor(Number(item?.quantity || 1));
+                    if (q < 1) q = 1;
+                    if (q > max) q = max;
+                    item.quantity = q;
+                    item.subtotal = q * Number(item.unit_price || 0);
+                },
+
+                normalizeAndUpdate(index) {
+                    // توحيد معالجة الكمية لضمان عدم التعليق مع النصوص والأرقام
+                    this.updateItemQuantity(index);
                 },
 
                 changeItemSize(index, newSizeId) {
@@ -402,14 +453,8 @@
                     if (newSize) {
                         item.size_id = newSize.id;
                         item.size_name = newSize.size_name;
-                        item.max_quantity = newSize.available_quantity;
-
-                        // تحديث الكمية إذا كانت أكبر من المتوفر
-                        if (item.quantity > newSize.available_quantity) {
-                            item.quantity = newSize.available_quantity;
-                        }
-
-                        this.updateItemQuantity(index);
+                        item.max_quantity = Number(newSize.available_quantity);
+                        this.normalizeAndUpdate(index);
                     }
                 },
 
@@ -481,8 +526,9 @@
                 },
 
                 formatPrice(price) {
-                    return new Intl.NumberFormat('ar-IQ').format(price) + ' د.ع';
-                }
+                    return new Intl.NumberFormat('en-US').format(price) + ' د.ع';
+                },
+
             }));
         });
 
@@ -575,6 +621,60 @@
                     document.body.removeChild(notification);
                 }, 300);
             }, 3000);
+        }
+
+        // تحويل الأرقام إلى كلمات عربية (مبسطة للأعداد الصحيحة حتى المليار)
+        function toArabicWords(num) {
+            num = Math.floor(Number(num) || 0);
+            if (num === 0) return 'صفر';
+            const units = ['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة'];
+            const teens = ['عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'];
+            const tens = ['','عشرة','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'];
+            const hundreds = ['','مائة','مائتان','ثلاثمائة','أربعمائة','خمسمائة','ستمائة','سبعمائة','ثمانمائة','تسعمائة'];
+            const scales = [
+                { value: 1_000_000_000, singular: 'مليار', dual: 'ملياران', plural: 'مليارات' },
+                { value: 1_000_000, singular: 'مليون', dual: 'مليونان', plural: 'ملايين' },
+                { value: 1_000, singular: 'ألف', dual: 'ألفان', plural: 'آلاف' },
+            ];
+
+            function twoDigits(n){
+                if (n === 0) return '';
+                if (n < 10) return units[n];
+                if (n < 20) return teens[n-10];
+                const t = Math.floor(n/10), u = n%10;
+                if (u === 0) return tens[t];
+                // "ثلاثة وعشرون"
+                return units[u] + ' و' + tens[t];
+            }
+
+            function threeDigits(n){
+                const h = Math.floor(n/100), r = n%100;
+                const parts = [];
+                if (h) parts.push(hundreds[h]);
+                if (r) parts.push(twoDigits(r));
+                return parts.join(' و');
+            }
+
+            function pluralize(count, s){
+                if (count === 1) return s.singular;
+                if (count === 2) return s.dual;
+                return s.plural;
+            }
+
+            let n = num;
+            const words = [];
+            for (const s of scales){
+                if (n >= s.value){
+                    const q = Math.floor(n / s.value);
+                    n = n % s.value;
+                    const qWords = q < 100 ? twoDigits(q) : threeDigits(q);
+                    words.push(qWords + ' ' + pluralize(q, s));
+                }
+            }
+            if (n > 0){
+                words.push(n < 100 ? twoDigits(n) : threeDigits(n));
+            }
+            return words.join(' و');
         }
     </script>
 </x-layout.admin>
