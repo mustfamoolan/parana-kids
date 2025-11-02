@@ -29,9 +29,10 @@ class OrderPolicy
 
         if ($user->isSupplier()) {
             // التحقق من أن المجهز له صلاحية الوصول لمخازن المنتجات في هذا الطلب
-            return $order->items()->whereHas('product.warehouse.users', function($q) use ($user) {
-                $q->where('user_id', $user->id)
-                  ->where('can_manage', true);
+            // استخدام نفس المنطق المستخدم في management page
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
@@ -57,9 +58,9 @@ class OrderPolicy
 
         if ($user->isSupplier()) {
             // نفس منطق view
-            return $order->items()->whereHas('product.warehouse.users', function($q) use ($user) {
-                $q->where('user_id', $user->id)
-                  ->where('can_manage', true);
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
