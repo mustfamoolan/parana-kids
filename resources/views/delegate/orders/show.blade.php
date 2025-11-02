@@ -3,7 +3,11 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('delegate.orders.index') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
+                @if($order->trashed())
+                    <a href="{{ route('delegate.orders.index', ['status' => 'deleted']) }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
+                @else
+                    <a href="{{ route('delegate.orders.index') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
+                @endif
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -11,6 +15,46 @@
                 </a>
             </div>
         </div>
+
+        <!-- كارد سبب الحذف - للطلبات المحذوفة فقط -->
+        @if($order->trashed() && $order->deletion_reason)
+            <div class="panel mb-5 border-2 border-red-500 dark:border-red-600">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h6 class="text-xl font-bold text-red-600 dark:text-red-400 mb-3">سبب الحذف</h6>
+                        <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 mb-3">
+                            <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed">{{ $order->deletion_reason }}</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500 dark:text-gray-400">تاريخ الحذف:</span>
+                                <span class="font-semibold text-gray-800 dark:text-gray-200 rtl:mr-2 ltr:ml-2">
+                                    {{ $order->deleted_at->locale('ar')->translatedFormat('l') }}،
+                                    {{ $order->deleted_at->format('d/m/Y') }}
+                                    <span class="rtl:mr-1 ltr:ml-1">{{ $order->deleted_at->format('g:i A') }}</span>
+                                </span>
+                            </div>
+                            @if($order->deletedByUser)
+                                <div>
+                                    <span class="text-gray-500 dark:text-gray-400">حذف بواسطة:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-gray-200 rtl:mr-2 ltr:ml-2">
+                                        {{ $order->deletedByUser->name }}
+                                        <span class="text-xs text-gray-500">({{ $order->deletedByUser->role === 'admin' ? 'مدير' : 'مجهز' }})</span>
+                                    </span>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <!-- معلومات الطلب الأساسية -->
         <div class="panel mb-5">
@@ -20,9 +64,15 @@
                     <div class="text-sm text-gray-500 dark:text-gray-400">رقم الطلب</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold {{ $order->status === 'pending' ? 'text-warning' : 'text-success' }}">
-                        {{ $order->status === 'pending' ? 'غير مقيد' : 'مقيد' }}
-                    </div>
+                    @if($order->trashed())
+                        <div class="text-2xl font-bold text-danger">
+                            محذوف
+                        </div>
+                    @else
+                        <div class="text-2xl font-bold {{ $order->status === 'pending' ? 'text-warning' : 'text-success' }}">
+                            {{ $order->status === 'pending' ? 'غير مقيد' : 'مقيد' }}
+                        </div>
+                    @endif
                     <div class="text-sm text-gray-500 dark:text-gray-400">حالة الطلب</div>
                 </div>
                 <div class="text-center">
@@ -241,51 +291,53 @@
         </div>
 
         <!-- ملاحظة مهمة -->
-        <div class="panel mt-6">
-            <div class="flex items-start gap-3">
-                <svg class="w-6 h-6 text-blue-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <div>
-                    <h6 class="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2">معلومات مهمة</h6>
-                    <div class="space-y-2 text-sm text-blue-600 dark:text-blue-400">
-                        <p>• تم خصم جميع المنتجات من المخزون عند إرسال الطلب</p>
-                        <p>• الطلب في حالة "{{ $order->status === 'pending' ? 'غير مقيد' : 'مقيد' }}" حالياً</p>
-                        <p>• يمكنك التواصل مع الإدارة لتأكيد أو تعديل حالة الطلب</p>
-                        <p>• جميع المعلومات محفوظة ويمكن الرجوع إليها في أي وقت</p>
+        @if(!$order->trashed())
+            <div class="panel mt-6">
+                <div class="flex items-start gap-3">
+                    <svg class="w-6 h-6 text-blue-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <h6 class="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2">معلومات مهمة</h6>
+                        <div class="space-y-2 text-sm text-blue-600 dark:text-blue-400">
+                            <p>• تم خصم جميع المنتجات من المخزون عند إرسال الطلب</p>
+                            <p>• الطلب في حالة "{{ $order->status === 'pending' ? 'غير مقيد' : 'مقيد' }}" حالياً</p>
+                            <p>• يمكنك التواصل مع الإدارة لتأكيد أو تعديل حالة الطلب</p>
+                            <p>• جميع المعلومات محفوظة ويمكن الرجوع إليها في أي وقت</p>
+                        </div>
                     </div>
                 </div>
+
+                @if($order->status === 'pending')
+                    <!-- أزرار العمل للطلبات غير المقيدة -->
+                    <div class="panel mt-6">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <a href="{{ route('delegate.orders.edit', $order) }}" class="btn btn-warning btn-lg flex-1 sm:flex-none">
+                                <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                                تعديل الطلب
+                            </a>
+
+                        </div>
+                    </div>
+                @endif
+
+                @if($order->status === 'pending')
+                    <!-- زر حذف الطلب -->
+                    <div class="panel mt-6">
+                        <div class="flex justify-center">
+                            <button onclick="deleteOrder({{ $order->id }})" class="btn btn-outline-danger btn-lg">
+                                <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                                حذف الطلب
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
-
-            @if($order->status === 'pending')
-                <!-- أزرار العمل للطلبات غير المقيدة -->
-                <div class="panel mt-6">
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <a href="{{ route('delegate.orders.edit', $order) }}" class="btn btn-warning btn-lg flex-1 sm:flex-none">
-                            <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                            </svg>
-                            تعديل الطلب
-                        </a>
-
-                    </div>
-                </div>
-            @endif
-
-            @if($order->status === 'pending')
-                <!-- زر حذف الطلب -->
-                <div class="panel mt-6">
-                    <div class="flex justify-center">
-                        <button onclick="deleteOrder({{ $order->id }})" class="btn btn-outline-danger btn-lg">
-                            <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            حذف الطلب
-                        </button>
-                    </div>
-                </div>
-            @endif
-        </div>
+        @endif
     </div>
 
     <script>

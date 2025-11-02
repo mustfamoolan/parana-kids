@@ -34,6 +34,7 @@ class Order extends Model
         'is_partial_return',
         'is_partial_exchange',
         'deleted_by',
+        'deletion_reason',
     ];
 
     protected $casts = [

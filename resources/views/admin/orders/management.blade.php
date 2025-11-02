@@ -72,49 +72,102 @@
                         </div>
                     </div>
                 </div>
-                <div class="panel p-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الطلبات المسترجعة</h6>
-                            @php
-                                $returnedQuery = App\Models\Order::where('status', 'returned');
-                                if (Auth::user()->isSupplier()) {
-                                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                                    $returnedQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                                    });
-                                }
-                                // فلتر المخزن
-                                if (request()->filled('warehouse_id')) {
-                                    $returnedQuery->whereHas('items.product', function($q) {
-                                        $q->where('warehouse_id', request('warehouse_id'));
-                                    });
-                                }
-                                $returnedCount = $returnedQuery->count();
-                            @endphp
-                            <p class="text-xl font-bold text-info">{{ $returnedCount }}</p>
-                        </div>
-                        <div class="p-2 bg-info/10 rounded-lg">
-                            <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
             </div>
+
+            <!-- كاردات المبلغ الإجمالي للمدير فقط -->
+            @if(auth()->user()->isAdmin())
+                <div class="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @if(!request()->filled('status') || request('status') === 'pending')
+                        <div class="panel p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المبلغ الإجمالي للطلبات غير المقيدة</h6>
+                                    <p class="text-xl font-bold text-warning">{{ number_format($pendingTotalAmount, 0, '.', ',') }} دينار</p>
+                                </div>
+                                <div class="p-2 bg-warning/10 rounded-lg">
+                                    <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(!request()->filled('status') || request('status') === 'confirmed')
+                        <div class="panel p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المبلغ الإجمالي للطلبات المقيدة</h6>
+                                    <p class="text-xl font-bold text-success">{{ number_format($confirmedTotalAmount, 0, '.', ',') }} دينار</p>
+                                </div>
+                                <div class="p-2 bg-success/10 rounded-lg">
+                                    <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            <!-- كاردات الأرباح المتوقعة للمدير فقط -->
+            @if(auth()->user()->isAdmin())
+                @php
+                    $pendingProfitAmount = $pendingProfitAmount ?? 0;
+                    $confirmedProfitAmount = $confirmedProfitAmount ?? 0;
+                @endphp
+                <div class="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @if(!request()->filled('status') || request('status') === 'pending')
+                        <div class="panel p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الأرباح المتوقعة - غير مقيد</h6>
+                                    <p class="text-xl font-bold text-primary">{{ number_format($pendingProfitAmount, 0, '.', ',') }} دينار</p>
+                                </div>
+                                <div class="p-2 bg-primary/10 rounded-lg">
+                                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(!request()->filled('status') || request('status') === 'confirmed')
+                        <div class="panel p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الأرباح المتوقعة - مقيد</h6>
+                                    <p class="text-xl font-bold text-success">{{ number_format($confirmedProfitAmount, 0, '.', ',') }} دينار</p>
+                                </div>
+                                <div class="p-2 bg-success/10 rounded-lg">
+                                    <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
 
             <!-- روابط سريعة - محسنة للجوال -->
             <div class="mb-5">
                 <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-                    <a href="{{ route('admin.orders.management') }}"
-                       class="btn {{ !request('status') && !request('date_from') && !request('created_today') && !request('created_last_7_days') ? 'btn-primary' : 'btn-outline-primary' }} btn-sm">
+                    @php
+                        // الحفاظ على جميع الفلاتر الحالية عدا status
+                        $allFilters = request()->except(['status', 'page']);
+                    @endphp
+                    <a href="{{ route('admin.orders.management', array_filter($allFilters)) }}"
+                       class="btn {{ !request('status') ? 'btn-primary' : 'btn-outline-primary' }} btn-sm">
                         <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                         <span class="hidden sm:inline">جميع الطلبات</span>
                         <span class="sm:hidden">الكل</span>
                     </a>
-                    <a href="{{ route('admin.orders.management', ['status' => 'pending']) }}"
+                    <a href="{{ route('admin.orders.management', array_filter(array_merge($allFilters, ['status' => 'pending']))) }}"
                        class="btn {{ request('status') === 'pending' ? 'btn-warning' : 'btn-outline-warning' }} btn-sm">
                         <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -122,7 +175,7 @@
                         <span class="hidden sm:inline">الطلبات غير المقيدة</span>
                         <span class="sm:hidden">غير مقيد</span>
                     </a>
-                    <a href="{{ route('admin.orders.management', ['status' => 'confirmed']) }}"
+                    <a href="{{ route('admin.orders.management', array_filter(array_merge($allFilters, ['status' => 'confirmed']))) }}"
                        class="btn {{ request('status') === 'confirmed' ? 'btn-success' : 'btn-outline-success' }} btn-sm">
                         <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -130,37 +183,13 @@
                         <span class="hidden sm:inline">الطلبات المقيدة</span>
                         <span class="sm:hidden">مقيد</span>
                     </a>
-                    <a href="{{ route('admin.orders.management', ['status' => 'deleted']) }}"
+                    <a href="{{ route('admin.orders.management', array_filter(array_merge($allFilters, ['status' => 'deleted']))) }}"
                        class="btn {{ request('status') === 'deleted' ? 'btn-danger' : 'btn-outline-danger' }} btn-sm">
                         <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
                         <span class="hidden sm:inline">الطلبات المحذوفة</span>
                         <span class="sm:hidden">محذوف</span>
-                    </a>
-                    <a href="{{ route('admin.orders.management', ['status' => 'returned']) }}"
-                       class="btn {{ request('status') === 'returned' ? 'btn-info' : 'btn-outline-info' }} btn-sm">
-                        <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                        </svg>
-                        <span class="hidden sm:inline">الطلبات المسترجعة</span>
-                        <span class="sm:hidden">مسترجع</span>
-                    </a>
-                    <a href="{{ route('admin.orders.management', ['created_today' => 1]) }}"
-                       class="btn {{ request('created_today') ? 'btn-secondary' : 'btn-outline-secondary' }} btn-sm">
-                        <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <span class="hidden sm:inline">طلبات اليوم</span>
-                        <span class="sm:hidden">اليوم</span>
-                    </a>
-                    <a href="{{ route('admin.orders.management', ['created_last_7_days' => 1]) }}"
-                       class="btn {{ request('created_last_7_days') ? 'btn-secondary' : 'btn-outline-secondary' }} btn-sm">
-                        <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <span class="hidden sm:inline">آخر 7 أيام</span>
-                        <span class="sm:hidden">أسبوع</span>
                     </a>
                 </div>
             </div>
@@ -179,18 +208,43 @@
                                 value="{{ request('search') }}"
                             >
                         </div>
+                    </div>
+
+                    <!-- الصف الثاني: المخزن والمجهز والمندوب -->
+                    <div class="flex flex-col sm:flex-row gap-4">
                         <div class="sm:w-48">
-                            <select name="status" class="form-select">
-                                <option value="">جميع الحالات</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>غير مقيد</option>
-                                <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>مقيد</option>
-                                <option value="returned" {{ request('status') == 'returned' ? 'selected' : '' }}>مسترجع</option>
-                                <option value="deleted" {{ request('status') == 'deleted' ? 'selected' : '' }}>محذوف</option>
+                            <select name="warehouse_id" class="form-select" id="warehouseFilterManagement">
+                                <option value="">كل المخازن</option>
+                                @foreach($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
+                                        {{ $warehouse->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sm:w-48">
+                            <select name="confirmed_by" class="form-select">
+                                <option value="">كل المجهزين والمديرين</option>
+                                @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}" {{ request('confirmed_by') == $supplier->id ? 'selected' : '' }}>
+                                        {{ $supplier->name }} ({{ $supplier->code }}) - {{ $supplier->role === 'admin' ? 'مدير' : 'مجهز' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sm:w-48">
+                            <select name="delegate_id" class="form-select">
+                                <option value="">كل المندوبين</option>
+                                @foreach($delegates as $delegate)
+                                    <option value="{{ $delegate->id }}" {{ request('delegate_id') == $delegate->id ? 'selected' : '' }}>
+                                        {{ $delegate->name }} ({{ $delegate->code }})
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
 
-                    <!-- الصف الثاني: التاريخ -->
+                    <!-- الصف الثالث: التاريخ -->
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="sm:w-48">
                             <input
@@ -228,16 +282,6 @@
                                 value="{{ request('time_to') }}"
                             >
                         </div>
-                        <div class="sm:w-48">
-                            <select name="warehouse_id" class="form-select" id="warehouseFilterManagement">
-                                <option value="">كل المخازن</option>
-                                @foreach($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
-                                        {{ $warehouse->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,7 +289,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('status') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id'))
+                            @if(request('search') || request('status') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id') || request('confirmed_by') || request('delegate_id'))
                                 <a href="{{ route('admin.orders.management') }}" class="btn btn-outline-secondary">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -355,6 +399,36 @@
                                 </div>
                             </div>
 
+                            <!-- معلومات التقييد للطلبات المقيدة -->
+                            @if($order->status === 'confirmed' && $order->confirmed_at)
+                                <div class="mb-4">
+                                    <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-lg">
+                                        <span class="text-xs font-semibold text-green-700 dark:text-green-400 block mb-1">
+                                            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            معلومات التقييد
+                                        </span>
+                                        <p class="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                            <span class="font-medium">تاريخ التقييد:</span>
+                                            {{ $order->confirmed_at->locale('ar')->translatedFormat('l، d/m/Y') }}
+                                            <span class="text-gray-500">في الساعة {{ $order->confirmed_at->format('H:i') }}</span>
+                                        </p>
+                                        @if($order->confirmedBy)
+                                            <p class="text-sm text-gray-700 dark:text-gray-300">
+                                                <span class="font-medium">المقيد من:</span>
+                                                {{ $order->confirmedBy->name }}
+                                                @if($order->confirmedBy->code)
+                                                    <span class="text-gray-500">({{ $order->confirmedBy->code }})</span>
+                                                @endif
+                                            </p>
+                                        @else
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">غير محدد</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- الملاحظات -->
                             @if($order->notes)
                                 <div class="mb-4">
@@ -370,6 +444,51 @@
                                 </div>
                             @endif
 
+                            <!-- معلومات الحذف للطلبات المحذوفة -->
+                            @if($order->trashed() && $order->deleted_at)
+                                <div class="mb-4">
+                                    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-lg">
+                                        <span class="text-xs font-semibold text-red-700 dark:text-red-400 block mb-1">
+                                            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                            معلومات الحذف
+                                        </span>
+                                        <p class="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                                            <span class="font-medium">تاريخ الحذف:</span>
+                                            {{ $order->deleted_at->locale('ar')->translatedFormat('l، d/m/Y') }}
+                                            <span class="text-gray-500">في الساعة {{ $order->deleted_at->format('H:i') }}</span>
+                                        </p>
+                                        @if($order->deletedBy)
+                                            <p class="text-sm text-gray-700 dark:text-gray-300">
+                                                <span class="font-medium">المحذوف من:</span>
+                                                {{ $order->deletedBy->name }}
+                                                @if($order->deletedBy->code)
+                                                    <span class="text-gray-500">({{ $order->deletedBy->code }})</span>
+                                                @endif
+                                            </p>
+                                        @else
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">غير محدد</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- سبب الحذف للطلبات المحذوفة -->
+                            @if($order->trashed() && $order->deletion_reason)
+                                <div class="mb-4">
+                                    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-lg">
+                                        <span class="text-xs font-semibold text-red-700 dark:text-red-400 block mb-1">
+                                            <svg class="w-4 h-4 inline-block" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                            </svg>
+                                            سبب الحذف
+                                        </span>
+                                        <p class="text-sm text-gray-700 dark:text-gray-300">{{ $order->deletion_reason }}</p>
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- أزرار الإجراءات -->
                             <div class="flex gap-2 flex-wrap">
                                 @if($order->trashed())
@@ -381,19 +500,10 @@
                                         </svg>
                                         عرض
                                     </a>
-                                    <form method="POST" action="{{ route('admin.orders.restore', $order) }}" class="flex-1">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-success w-full" onclick="return confirm('هل تريد استرجاع هذا الطلب؟')" title="استرجاع">
-                                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                            </svg>
-                                            استرجاع
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="{{ route('admin.orders.forceDelete', $order) }}" class="flex-1">
+                                    <form method="POST" action="{{ route('admin.orders.forceDelete', $order->id) }}" class="flex-1" id="forceDeleteForm-{{ $order->id }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger w-full" onclick="return confirm('هل أنت متأكد من الحذف النهائي؟ لن يمكن استرجاع هذا الطلب!')" title="حذف نهائي">
+                                        <button type="button" class="btn btn-sm btn-danger w-full" onclick="confirmForceDelete({{ $order->id }})" title="حذف نهائي">
                                             <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                             </svg>
@@ -411,18 +521,31 @@
                                     </a>
 
                                     @if($order->status === 'pending')
-                                        <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
-                                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                            تعديل
-                                        </a>
-                                        <a href="{{ route('admin.orders.process', $order) }}" class="btn btn-sm btn-success flex-1" title="تجهيز">
-                                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                            تجهيز
-                                        </a>
+                                        @can('update', $order)
+                                            <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
+                                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                                تعديل
+                                            </a>
+                                        @endcan
+                                        @can('process', $order)
+                                            <a href="{{ route('admin.orders.process', $order) }}" class="btn btn-sm btn-success flex-1" title="تجهيز">
+                                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                تجهيز
+                                            </a>
+                                        @endcan
+                                    @elseif($order->status === 'confirmed' && $order->canBeEdited())
+                                        @can('update', $order)
+                                            <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
+                                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                                تعديل
+                                            </a>
+                                        @endcan
                                     @endif
                                 @endif
                             </div>
@@ -471,25 +594,51 @@
         });
 
         function deleteOrder(orderId) {
-            if (confirm('هل أنت متأكد من حذف هذا الطلب؟ سيتم إرجاع جميع المنتجات للمخزن.')) {
-                const form = document.createElement('form');
-                form.method = 'POST';
+            // إظهار modal لطلب سبب الحذف
+            const modal = document.getElementById('deleteOrderModal');
+            const form = document.getElementById('deleteOrderForm');
+            const reasonInput = document.getElementById('deletion_reason');
+            const orderIdInput = document.getElementById('delete_order_id');
+
+            if (modal && form && reasonInput && orderIdInput) {
+                orderIdInput.value = orderId;
+                reasonInput.value = '';
                 form.action = `/admin/orders/${orderId}`;
+                modal.classList.remove('hidden');
+            }
+        }
 
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'DELETE';
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteOrderModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
 
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
+        function submitDeleteOrder() {
+            const form = document.getElementById('deleteOrderForm');
+            const reasonInput = document.getElementById('deletion_reason');
 
-                form.appendChild(methodField);
-                form.appendChild(csrfToken);
-                document.body.appendChild(form);
+            if (!reasonInput || !reasonInput.value || reasonInput.value.trim().length < 3) {
+                alert('يجب كتابة سبب الحذف (3 أحرف على الأقل)');
+                return;
+            }
+
+            if (form) {
                 form.submit();
+            }
+        }
+
+        function confirmForceDelete(orderId) {
+            if (confirm('هل أنت متأكد من الحذف النهائي؟ لن يمكن استرجاع هذا الطلب!')) {
+                const form = document.getElementById('forceDeleteForm-' + orderId);
+                if (form) {
+                    console.log('إرسال form للحذف النهائي:', form.action);
+                    form.submit();
+                } else {
+                    console.error('لم يتم العثور على form للحذف النهائي:', 'forceDeleteForm-' + orderId);
+                    alert('حدث خطأ: لم يتم العثور على نموذج الحذف');
+                }
             }
         }
     </script>
@@ -521,4 +670,54 @@
         });
     });
     </script>
+
+    <!-- Modal لطلب سبب الحذف -->
+    <div id="deleteOrderModal" class="fixed inset-0 z-[9999] hidden bg-black/60 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold dark:text-white-light">حذف الطلب</h3>
+                <button type="button" onclick="closeDeleteModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="deleteOrderForm" method="POST" action="">
+                @csrf
+                @method('DELETE')
+                <input type="hidden" id="delete_order_id" name="order_id" value="">
+
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        سيتم إرجاع جميع المنتجات للمخزن. هل أنت متأكد من حذف هذا الطلب؟
+                    </p>
+
+                    <label for="deletion_reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        سبب الحذف <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        id="deletion_reason"
+                        name="deletion_reason"
+                        rows="4"
+                        class="form-textarea w-full"
+                        placeholder="اكتب سبب حذف الطلب (3 أحرف على الأقل)"
+                        required
+                        minlength="3"
+                        maxlength="1000"
+                    ></textarea>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">يجب كتابة سبب الحذف (3-1000 حرف)</p>
+                </div>
+
+                <div class="flex gap-3 justify-end">
+                    <button type="button" onclick="closeDeleteModal()" class="btn btn-outline-secondary">
+                        إلغاء
+                    </button>
+                    <button type="button" onclick="submitDeleteOrder()" class="btn btn-danger">
+                        حذف الطلب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </x-layout.default>

@@ -160,49 +160,53 @@
             <!-- المنتجات الحالية -->
             <div class="panel mb-5">
                 <h6 class="text-lg font-semibold mb-4">منتجات الطلب</h6>
-                <template x-for="(item, index) in items" :key="index">
-                    <div class="flex items-center gap-4 p-4 border rounded mb-3">
-                        <!-- صورة المنتج -->
-                        <div class="w-16 h-16 flex-shrink-0">
-                            <img :src="item.product_image" :alt="item.product_name" class="w-full h-full object-cover rounded cursor-pointer hover:opacity-80" @click="openImageModal(item.product_image, item.product_name)">
-                        </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="(item, index) in items" :key="index">
+                        <div class="panel">
+                            <div class="flex items-center gap-3 mb-3">
+                                <button type="button" @click="openImageModal(item.product_image, item.product_name)" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+                                    <img :src="item.product_image" :alt="item.product_name" class="w-full h-full object-cover hover:opacity-90 cursor-pointer">
+                                </button>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-sm" x-text="item.product_name"></div>
+                                    <div class="text-xs text-gray-500" x-text="item.product_code"></div>
+                                </div>
+                                <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                            </div>
 
-                        <!-- اسم المنتج -->
-                        <div class="flex-1">
-                            <div class="font-semibold" x-text="item.product_name"></div>
-                            <div class="text-sm text-gray-500" x-text="item.product_code"></div>
+                            <div class="space-y-2">
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">القياس:</span>
+                                    <select @change="changeItemSize(index, $event.target.value)" class="form-select text-sm mt-1">
+                                        <template x-for="size in getProductSizes(item.product_id)" :key="size.id">
+                                            <option :value="size.id" :selected="size.id == item.size_id" x-text="size.size_name + ' (' + size.available_quantity + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 mb-2 block">الكمية:</span>
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" @click="if(item.quantity > 1){ item.quantity--; normalizeAndUpdate(index); }" class="btn btn-sm btn-outline-danger">-</button>
+                                        <input type="number" x-model="item.quantity" @input="normalizeAndUpdate(index)" class="form-input w-20 text-center text-sm" min="1" :max="item.max_quantity">
+                                        <button type="button" @click="if(item.quantity < item.max_quantity){ item.quantity++; normalizeAndUpdate(index); }" class="btn btn-sm btn-outline-success">+</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">سعر الوحدة:</span>
+                                    <div class="font-medium" x-text="formatPrice(item.unit_price)"></div>
+                                </div>
+                                <div class="border-t pt-2 mt-2">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">الإجمالي:</span>
+                                    <div class="font-bold text-success" x-text="formatPrice(item.subtotal)"></div>
+                                </div>
+                            </div>
                         </div>
-
-                        <!-- القياس (قابل للتغيير) -->
-                        <div class="w-32">
-                            <select @change="changeItemSize(index, $event.target.value)" class="form-select text-sm">
-                                <template x-for="size in getProductSizes(item.product_id)" :key="size.id">
-                                    <option :value="size.id" :selected="size.id == item.size_id" x-text="size.size_name + ' (' + size.available_quantity + ')'"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- الكمية (قابلة للتعديل) -->
-                        <div class="flex items-center gap-2 w-24">
-                            <button type="button" @click="item.quantity > 1 ? item.quantity-- : null" class="btn btn-sm btn-outline-danger">-</button>
-                            <input type="number" x-model="item.quantity" @change="updateItemQuantity(index)" class="form-input w-16 text-center text-sm" min="1" :max="item.max_quantity">
-                            <button type="button" @click="item.quantity < item.max_quantity ? item.quantity++ : null" class="btn btn-sm btn-outline-success">+</button>
-                        </div>
-
-                        <!-- السعر والمجموع -->
-                        <div class="text-right w-32">
-                            <div class="text-sm text-gray-500" x-text="formatPrice(item.unit_price) + ' × ' + item.quantity"></div>
-                            <div class="font-bold text-success" x-text="formatPrice(item.subtotal)"></div>
-                        </div>
-
-                        <!-- زر الحذف -->
-                        <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </template>
+                    </template>
+                </div>
 
                 <div x-show="items.length === 0" class="text-center py-8 text-gray-500">
                     <p>لا توجد منتجات في هذا الطلب.</p>
@@ -313,7 +317,7 @@
     </div>
 
     <!-- Modal لتكبير الصورة -->
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+    <div id="imageModal" class="fixed inset-0 bg-black/80 z-[9999] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg max-w-4xl max-h-full overflow-hidden">
             <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 id="modalTitle" class="text-lg font-semibold dark:text-white-light">صورة المنتج</h3>
@@ -393,7 +397,17 @@
 
                 updateItemQuantity(index) {
                     const item = this.items[index];
-                    item.subtotal = item.quantity * item.unit_price;
+                    const max = Number(item?.max_quantity || 1);
+                    let q = Math.floor(Number(item?.quantity || 1));
+                    if (q < 1) q = 1;
+                    if (q > max) q = max;
+                    item.quantity = q;
+                    item.subtotal = q * Number(item.unit_price || 0);
+                },
+
+                normalizeAndUpdate(index) {
+                    // توحيد معالجة الكمية لضمان عدم التعليق مع النصوص والأرقام
+                    this.updateItemQuantity(index);
                 },
 
                 changeItemSize(index, newSizeId) {
@@ -402,16 +416,10 @@
                     const newSize = product.sizes.find(s => s.id == newSizeId);
 
                     if (newSize) {
-                        item.size_id = newSize.id;
+                        item.size_id = Number(newSize.id);
                         item.size_name = newSize.size_name;
-                        item.max_quantity = newSize.available_quantity;
-
-                        // تحديث الكمية إذا كانت أكبر من المتوفر
-                        if (item.quantity > newSize.available_quantity) {
-                            item.quantity = newSize.available_quantity;
-                        }
-
-                        this.updateItemQuantity(index);
+                        item.max_quantity = Number(newSize.available_quantity);
+                        this.normalizeAndUpdate(index);
                     }
                 },
 
@@ -486,23 +494,29 @@
                 },
 
                 formatPrice(price) {
-                    return new Intl.NumberFormat('ar-IQ').format(price) + ' د.ع';
+                    return new Intl.NumberFormat('en-US').format(price) + ' د.ع';
                 }
             }));
         });
 
         function openImageModal(imageUrl, productName) {
+            const modal = document.getElementById('imageModal');
+            if (!modal) return;
+
             document.getElementById('modalImage').src = imageUrl;
-            document.getElementById('modalImage').alt = productName;
-            document.getElementById('modalTitle').textContent = productName;
-            document.getElementById('imageModal').classList.remove('hidden');
-            document.getElementById('imageModal').classList.add('flex');
+            document.getElementById('modalImage').alt = productName || 'صورة المنتج';
+            document.getElementById('modalTitle').textContent = productName || 'صورة المنتج';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
             document.body.style.overflow = 'hidden';
         }
 
         function closeImageModal() {
-            document.getElementById('imageModal').classList.add('hidden');
-            document.getElementById('imageModal').classList.remove('flex');
+            const modal = document.getElementById('imageModal');
+            if (!modal) return;
+
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
             document.body.style.overflow = 'auto';
         }
 

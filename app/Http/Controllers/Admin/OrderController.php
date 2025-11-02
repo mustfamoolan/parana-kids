@@ -32,6 +32,10 @@ class OrderController extends Controller
             $warehouses = \App\Models\Warehouse::all();
         }
 
+        // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+        $delegates = \App\Models\User::where('role', 'delegate')->get();
+
         // Base query
         $query = Order::query();
 
@@ -48,11 +52,11 @@ class OrderController extends Controller
         if ($request->status === 'deleted') {
             // عرض الطلبات المحذوفة فقط
             $query->onlyTrashed()->with(['deletedByUser']);
-        } elseif ($request->filled('status') && in_array($request->status, ['pending', 'confirmed', 'returned'])) {
+        } elseif ($request->filled('status') && in_array($request->status, ['pending', 'confirmed'])) {
             $query->where('status', $request->status);
         } else {
-            // افتراضياً: عرض pending و confirmed و returned معاً (بدون المحذوفة)
-            $query->whereIn('status', ['pending', 'confirmed', 'returned']);
+            // افتراضياً: عرض pending و confirmed معاً (بدون المحذوفة)
+            $query->whereIn('status', ['pending', 'confirmed']);
         }
 
         // فلتر المخزن
@@ -60,6 +64,16 @@ class OrderController extends Controller
             $query->whereHas('items.product', function($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
+        }
+
+        // فلتر المجهز (الطلبات التي قيدها المجهز)
+        if ($request->filled('confirmed_by')) {
+            $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المندوب (الطلبات التي أنشأها المندوب)
+        if ($request->filled('delegate_id')) {
+            $query->where('delegate_id', $request->delegate_id);
         }
 
         // البحث في الطلبات
@@ -116,12 +130,126 @@ class OrderController extends Controller
         }
 
         $perPage = $request->input('per_page', 15);
+
+        // ترتيب الطلبات: للطلبات المحذوفة استخدم deleted_at، وإلا استخدم created_at
+        if ($request->status === 'deleted') {
         $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
-                       ->latest()
+                           ->latest('deleted_at')
                        ->paginate($perPage)
                        ->appends($request->except('page'));
+        } else {
+            $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
+                           ->latest('created_at')
+                           ->paginate($perPage)
+                           ->appends($request->except('page'));
+        }
 
-        return view('admin.orders.management', compact('orders', 'warehouses'));
+        // حساب المبالغ الإجمالية والأرباح للمدير فقط
+        $pendingTotalAmount = 0;
+        $confirmedTotalAmount = 0;
+        $pendingProfitAmount = 0;
+        $confirmedProfitAmount = 0;
+
+        if (Auth::user()->isAdmin()) {
+            $accessibleWarehouseIdsForTotal = null;
+            if (Auth::user()->isSupplier()) {
+                $accessibleWarehouseIdsForTotal = Auth::user()->warehouses->pluck('id')->toArray();
+            }
+
+            // دالة مساعدة لتطبيق نفس الفلاتر
+            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+                // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+                if ($accessibleWarehouseIdsForTotal !== null) {
+                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
+                    });
+                }
+
+                // فلتر المخزن
+                if ($request->filled('warehouse_id')) {
+                    $query->whereHas('items.product', function($q) use ($request) {
+                        $q->where('warehouse_id', $request->warehouse_id);
+                    });
+                }
+
+                // البحث في الطلبات
+                if ($request->filled('search')) {
+                    $searchTerm = $request->search;
+                    $query->where(function($q) use ($searchTerm) {
+                        $q->where('order_number', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                          });
+                    });
+                }
+
+                // فلتر حسب التاريخ
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+
+                // فلتر حسب الوقت
+                if ($request->filled('time_from')) {
+                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                    $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                }
+
+                if ($request->filled('time_to')) {
+                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                    $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                }
+
+                return $query;
+            };
+
+            // حساب المبلغ الإجمالي والأرباح للطلبات غير المقيدة (pending)
+            $pendingProfitAmount = 0;
+            if (!$request->filled('status') || $request->status === 'pending') {
+                $pendingQuery = Order::where('status', 'pending');
+                $pendingQuery = $applyFilters($pendingQuery);
+                $pendingTotalAmount = $pendingQuery->sum('total_amount');
+
+                // حساب الأرباح المتوقعة للطلبات غير المقيدة باستخدام DB query محسّن
+                $pendingOrderIds = $pendingQuery->pluck('id');
+                if ($pendingOrderIds->count() > 0) {
+                    $pendingProfitAmount = DB::table('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('order_items.order_id', $pendingOrderIds)
+                        ->whereNotNull('products.purchase_price')
+                        ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                        ->value('total_profit') ?? 0;
+                }
+            }
+
+            // حساب المبلغ الإجمالي والأرباح للطلبات المقيدة (confirmed)
+            $confirmedProfitAmount = 0;
+            if (!$request->filled('status') || $request->status === 'confirmed') {
+                $confirmedQuery = Order::where('status', 'confirmed');
+                $confirmedQuery = $applyFilters($confirmedQuery);
+                $confirmedTotalAmount = $confirmedQuery->sum('total_amount');
+
+                // حساب الأرباح المتوقعة للطلبات المقيدة باستخدام DB query محسّن
+                $confirmedOrderIds = $confirmedQuery->pluck('id');
+                if ($confirmedOrderIds->count() > 0) {
+                    $confirmedProfitAmount = DB::table('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('order_items.order_id', $confirmedOrderIds)
+                        ->whereNotNull('products.purchase_price')
+                        ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                        ->value('total_profit') ?? 0;
+                }
+            }
+        }
+
+        return view('admin.orders.management', compact('orders', 'warehouses', 'suppliers', 'delegates', 'pendingTotalAmount', 'confirmedTotalAmount', 'pendingProfitAmount', 'confirmedProfitAmount'));
     }
 
     /**
@@ -361,44 +489,10 @@ class OrderController extends Controller
             'customer_social_link' => 'required|string|max:255',
             'delivery_code' => 'required|string|max:100',
             'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.size_id' => 'required|exists:product_sizes,id',
-            'items.*.quantity' => 'required|integer|min:1',
         ]);
 
         DB::transaction(function() use ($order, $request) {
-            // التحقق المسبق وتجهيز العناصر الجديدة قبل أي تعديل على القديمة
-            $preparedItems = [];
-            $totalAmount = 0;
-            foreach ($request->items as $itemData) {
-                $product = Product::findOrFail($itemData['product_id']);
-                $size = ProductSize::findOrFail($itemData['size_id']);
-
-                if ($size->quantity < $itemData['quantity']) {
-                    throw new \Exception("الكمية غير متوفرة للقياس {$size->size_name}");
-                }
-
-                $subtotal = $itemData['quantity'] * $product->selling_price;
-                $preparedItems[] = [
-                    'product' => $product,
-                    'size' => $size,
-                    'data' => [
-                        'order_id' => $order->id,
-                        'product_id' => $product->id,
-                        'size_id' => $size->id,
-                        'product_name' => $product->name,
-                        'product_code' => $product->code,
-                        'size_name' => $size->size_name,
-                        'quantity' => $itemData['quantity'],
-                        'unit_price' => $product->selling_price,
-                        'subtotal' => $subtotal,
-                    ],
-                ];
-                $totalAmount += $subtotal;
-            }
-
-            // تحديث معلومات الطلب أولاً
+            // تحديث معلومات الطلب فقط (بدون تعديل المنتجات لأن التعديل يتم من صفحة التعديل)
             $order->update([
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
@@ -411,30 +505,28 @@ class OrderController extends Controller
                 'confirmed_by' => auth()->id(),
             ]);
 
-            // الآن نحذف القديمة بعد ضمان صلاحية الجديدة
-            $order->items()->delete();
-
-            // إضافة العناصر الجديدة مع خصم المخزون وتسجيل الحركة
-            foreach ($preparedItems as $pi) {
-                OrderItem::create($pi['data']);
-                $pi['size']->decrement('quantity', $pi['data']['quantity']);
+            // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب (فقط للتسجيل، بدون خصم من المخزن)
+            $order->load('items.product', 'items.size');
+            foreach ($order->items as $item) {
                 ProductMovement::record([
-                    'product_id' => $pi['product']->id,
-                    'size_id' => $pi['size']->id,
-                    'warehouse_id' => $pi['product']->warehouse_id,
+                    'product_id' => $item->product_id,
+                    'size_id' => $item->size_id,
+                    'warehouse_id' => $item->product->warehouse_id,
                     'order_id' => $order->id,
-                    'movement_type' => 'sale',
-                    'quantity' => -$pi['data']['quantity'],
-                    'balance_after' => $pi['size']->refresh()->quantity,
-                    'order_status' => $order->status,
-                    'notes' => "بيع من طلب #{$order->order_number}"
+                    'movement_type' => 'confirm',
+                    'quantity' => 0, // لا خصم، فقط تسجيل الحركة
+                    'balance_after' => $item->size ? $item->size->quantity : 0, // الرصيد الحالي (لم يتغير)
+                    'order_status' => 'confirmed',
+                    'notes' => "تقييد/تجهيز طلب #{$order->order_number}"
                 ]);
             }
 
-            $order->update(['total_amount' => $totalAmount]);
+            // ملاحظة: المنتجات لا يتم تعديلها هنا لأنها سبق خصمها من المخزن عند رفع المندوب للطلب
+            // حركات المواد تسجل عند رفع المندوب للطلب وليس عند التجهيز
+            // التعديل على المنتجات يتم من صفحة التعديل (admin.orders.edit)
         });
 
-        return redirect()->route('admin.orders.confirmed')
+        return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
                         ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
     }
 
@@ -482,7 +574,7 @@ class OrderController extends Controller
             'confirmed_by' => auth()->id(),
         ]);
 
-        return redirect()->route('admin.orders.confirmed')
+        return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
                         ->with('success', 'تم تقييد الطلب بنجاح');
     }
 
@@ -507,8 +599,17 @@ class OrderController extends Controller
             'cart'
         ]);
 
-        // تحميل جميع المنتجات للبحث والإضافة
-        $products = Product::with(['sizes', 'primaryImage'])->get();
+        // جلب المنتجات حسب صلاحيات المستخدم
+        $productsQuery = Product::with(['sizes', 'primaryImage']);
+
+        // للمجهز: فقط منتجات المخازن المسموح له بها
+        if (Auth::user()->isSupplier()) {
+            $warehouseIds = Auth::user()->warehouses()->pluck('warehouses.id');
+            $productsQuery->whereIn('warehouse_id', $warehouseIds);
+        }
+        // للمدير: كل المنتجات (لا حاجة للفلترة)
+
+        $products = $productsQuery->get();
 
         return view('admin.orders.edit', compact('order', 'products'));
     }
@@ -540,8 +641,8 @@ class OrderController extends Controller
 
         try {
             DB::transaction(function() use ($request, $order) {
-                // تحميل العناصر القديمة قبل الحذف
-                $oldItems = $order->items()->get();
+                // تحميل العناصر القديمة مع العلاقات
+                $oldItems = $order->items()->with(['size', 'product'])->get();
 
                 // تحديث معلومات الطلب
                 $order->update($request->only([
@@ -553,8 +654,120 @@ class OrderController extends Controller
                     'notes',
                 ]));
 
-                // إذا كان الطلب مقيد (confirmed)، نرجع المنتجات القديمة للمخزن أولاً
-                if ($order->status === 'confirmed') {
+                // للطلبات غير المقيدة (pending) أو المقيدة التي لم يمر عليها 5 ساعات: مقارنة القديمة والجديدة وتطبيق التغييرات على المخزن
+                if ($order->status === 'pending' || ($order->status === 'confirmed' && $order->canBeEdited())) {
+                    // إنشاء خريطة للعناصر القديمة: key = product_id_size_id
+                    $oldItemsMap = [];
+                    foreach ($oldItems as $oldItem) {
+                        $key = $oldItem->product_id . '_' . $oldItem->size_id;
+                        $oldItemsMap[$key] = $oldItem;
+                    }
+
+                    // معالجة العناصر القديمة
+                    foreach ($oldItemsMap as $key => $oldItem) {
+                        if (!$oldItem->size) continue;
+
+                        // البحث عن العنصر في الطلب الجديد
+                        $foundNewItem = null;
+                        foreach ($request->items as $newItem) {
+                            $newKey = $newItem['product_id'] . '_' . $newItem['size_id'];
+                            if ($newKey === $key) {
+                                $foundNewItem = $newItem;
+                                break;
+                            }
+                        }
+
+                        if ($foundNewItem === null) {
+                            // المنتج محذوف → إرجاع كامل للمخزن
+                            $oldItem->size->increment('quantity', $oldItem->quantity);
+                            ProductMovement::record([
+                                'product_id' => $oldItem->product_id,
+                                'size_id' => $oldItem->size_id,
+                                'warehouse_id' => $oldItem->product->warehouse_id,
+                                'order_id' => $order->id,
+                                'movement_type' => 'order_edit_remove',
+                                'quantity' => $oldItem->quantity,
+                                'balance_after' => $oldItem->size->refresh()->quantity,
+                                'order_status' => $order->status,
+                                'notes' => "تعديل طلب #{$order->order_number} - إرجاع منتج: {$oldItem->product_name} ({$oldItem->size_name})"
+                            ]);
+                        } else {
+                            // المنتج موجود → مقارنة الكميات
+                            $quantityDiff = $foundNewItem['quantity'] - $oldItem->quantity;
+
+                            if ($quantityDiff > 0) {
+                                // زيادة الكمية → خصم الفرق من المخزن
+                                // للطلبات المقيدة: الكمية المتاحة = الكمية في المخزن (لأن المنتج كان محجوزاً)
+                                // للطلبات pending: الكمية المتاحة = الكمية في المخزن
+                                $availableQuantity = $oldItem->size->quantity;
+
+                                if ($availableQuantity < $quantityDiff) {
+                                    throw new \Exception("الكمية المتوفرة من {$oldItem->product->name} - {$oldItem->size->size_name} غير كافية. المطلوب: {$quantityDiff}، المتوفر: {$availableQuantity}");
+                                }
+                                $oldItem->size->decrement('quantity', $quantityDiff);
+                                ProductMovement::record([
+                                    'product_id' => $oldItem->product_id,
+                                    'size_id' => $oldItem->size_id,
+                                    'warehouse_id' => $oldItem->product->warehouse_id,
+                                    'order_id' => $order->id,
+                                    'movement_type' => 'order_edit_increase',
+                                    'quantity' => -$quantityDiff,
+                                    'balance_after' => $oldItem->size->refresh()->quantity,
+                                    'order_status' => $order->status,
+                                    'notes' => "تعديل طلب #{$order->order_number} - زيادة كمية: {$oldItem->product_name} ({$oldItem->size_name}) من {$oldItem->quantity} إلى {$foundNewItem['quantity']}"
+                                ]);
+                            } elseif ($quantityDiff < 0) {
+                                // إنقاص الكمية → إرجاع الفرق للمخزن
+                                $oldItem->size->increment('quantity', abs($quantityDiff));
+                                ProductMovement::record([
+                                    'product_id' => $oldItem->product_id,
+                                    'size_id' => $oldItem->size_id,
+                                    'warehouse_id' => $oldItem->product->warehouse_id,
+                                    'order_id' => $order->id,
+                                    'movement_type' => 'order_edit_decrease',
+                                    'quantity' => abs($quantityDiff),
+                                    'balance_after' => $oldItem->size->refresh()->quantity,
+                                    'order_status' => $order->status,
+                                    'notes' => "تعديل طلب #{$order->order_number} - إنقاص كمية: {$oldItem->product_name} ({$oldItem->size_name}) من {$oldItem->quantity} إلى {$foundNewItem['quantity']}"
+                                ]);
+                            }
+                            // إذا كانت الكمية نفسها، لا حاجة لتغيير
+                        }
+                    }
+
+                    // معالجة المنتجات الجديدة (غير موجودة في القديمة)
+                    foreach ($request->items as $newItem) {
+                        $newKey = $newItem['product_id'] . '_' . $newItem['size_id'];
+                        if (!isset($oldItemsMap[$newKey])) {
+                            // منتج جديد → خصم الكمية من المخزن
+                            $product = Product::findOrFail($newItem['product_id']);
+                            $size = ProductSize::findOrFail($newItem['size_id']);
+
+                            // التحقق من توفر الكمية
+                            // للطلبات المقيدة: الكمية المتاحة = الكمية في المخزن (لأن المنتج محجوز)
+                            // للطلبات pending: الكمية المتاحة = الكمية في المخزن
+                            $availableQuantity = $size->quantity;
+
+                            if ($availableQuantity < $newItem['quantity']) {
+                                throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$availableQuantity}");
+                            }
+
+                            $size->decrement('quantity', $newItem['quantity']);
+                            ProductMovement::record([
+                                'product_id' => $newItem['product_id'],
+                                'size_id' => $newItem['size_id'],
+                                'warehouse_id' => $product->warehouse_id,
+                                'order_id' => $order->id,
+                                'movement_type' => 'order_edit_add',
+                                'quantity' => -$newItem['quantity'],
+                                'balance_after' => $size->refresh()->quantity,
+                                'order_status' => $order->status,
+                                'notes' => "تعديل طلب #{$order->order_number} - إضافة منتج جديد: {$product->name} ({$size->size_name})"
+                            ]);
+                        }
+                    }
+                } elseif ($order->status === 'confirmed' && !$order->canBeEdited()) {
+                    // للطلبات المقيدة التي مر عليها أكثر من 5 ساعات: نرجع المنتجات القديمة للمخزن أولاً
                     foreach ($oldItems as $oldItem) {
                         if ($oldItem->size) {
                             $oldItem->size->increment('quantity', $oldItem->quantity);
@@ -567,10 +780,20 @@ class OrderController extends Controller
                                 'order_id' => $order->id,
                                 'movement_type' => 'cancel',
                                 'quantity' => $oldItem->quantity,
-                                'balance_after' => $oldItem->size->quantity,
+                                'balance_after' => $oldItem->size->refresh()->quantity,
                                 'order_status' => $order->status,
                                 'notes' => "تعديل طلب #{$order->order_number} - إرجاع المنتجات القديمة"
                             ]);
+                        }
+                    }
+
+                    // التحقق من توفر الكمية قبل إضافة المنتجات الجديدة
+                    foreach ($request->items as $item) {
+                        $product = Product::findOrFail($item['product_id']);
+                        $size = ProductSize::findOrFail($item['size_id']);
+
+                        if ($size->quantity < $item['quantity']) {
+                            throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$size->quantity}");
                         }
                     }
                 }
@@ -583,13 +806,6 @@ class OrderController extends Controller
                 foreach ($request->items as $item) {
                     $product = Product::findOrFail($item['product_id']);
                     $size = ProductSize::findOrFail($item['size_id']);
-
-                    // التحقق من توفر الكمية (للطلبات المقيدة فقط)
-                    if ($order->status === 'confirmed') {
-                        if ($size->quantity < $item['quantity']) {
-                            throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$size->quantity}");
-                        }
-                    }
 
                     $subtotal = $product->selling_price * $item['quantity'];
                     $totalAmount += $subtotal;
@@ -605,8 +821,8 @@ class OrderController extends Controller
                         'subtotal' => $subtotal,
                     ]);
 
-                    // خصم من المخزن (للطلبات المقيدة فقط)
-                    if ($order->status === 'confirmed') {
+                    // خصم من المخزن (للطلبات المقيدة التي مر عليها أكثر من 5 ساعات فقط - لأن pending والقابلة للتعديل تم معالجتها أعلاه)
+                    if ($order->status === 'confirmed' && !$order->canBeEdited()) {
                         $size->decrement('quantity', $item['quantity']);
 
                         // تسجيل حركة البيع الجديدة
@@ -617,7 +833,7 @@ class OrderController extends Controller
                             'order_id' => $order->id,
                             'movement_type' => 'sell',
                             'quantity' => -$item['quantity'],
-                            'balance_after' => $size->quantity,
+                            'balance_after' => $size->refresh()->quantity,
                             'order_status' => $order->status,
                             'notes' => "تعديل طلب #{$order->order_number} - إضافة منتج جديد"
                         ]);
@@ -961,7 +1177,7 @@ class OrderController extends Controller
         $this->authorize('update', $order);
 
         if ($order->status !== 'confirmed') {
-            return redirect()->route('admin.orders.confirmed')
+            return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
                             ->withErrors(['error' => 'لا يمكن استرجاع هذا الطلب']);
         }
 
@@ -998,10 +1214,10 @@ class OrderController extends Controller
                 ]);
             });
 
-            return redirect()->route('admin.orders.confirmed')
+            return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
                             ->with('success', 'تم استرجاع الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
         } catch (\Exception $e) {
-            return redirect()->route('admin.orders.confirmed')
+            return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
                             ->withErrors(['error' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage()]);
         }
     }
@@ -1009,7 +1225,7 @@ class OrderController extends Controller
     /**
      * حذف الطلب (soft delete) مع إرجاع المنتجات للمخزن
      */
-    public function destroy(Order $order)
+    public function destroy(Request $request, Order $order)
     {
         $this->authorize('delete', $order);
 
@@ -1019,8 +1235,17 @@ class OrderController extends Controller
                             ->withErrors(['error' => 'لا يمكن حذف هذا الطلب']);
         }
 
+        // التحقق من وجود سبب الحذف
+        $request->validate([
+            'deletion_reason' => 'required|string|min:3|max:1000',
+        ], [
+            'deletion_reason.required' => 'يجب كتابة سبب الحذف',
+            'deletion_reason.min' => 'سبب الحذف يجب أن يكون على الأقل 3 أحرف',
+            'deletion_reason.max' => 'سبب الحذف يجب أن يكون أقل من 1000 حرف',
+        ]);
+
         try {
-            DB::transaction(function() use ($order) {
+            DB::transaction(function() use ($order, $request) {
                 // تحميل العلاقات المطلوبة
                 $order->load('items.size');
 
@@ -1044,15 +1269,16 @@ class OrderController extends Controller
                     }
                 }
 
-                // تسجيل من قام بالحذف
+                // تسجيل من قام بالحذف وسبب الحذف
                 $order->deleted_by = auth()->id();
+                $order->deletion_reason = $request->deletion_reason;
                 $order->save();
 
                 // soft delete للطلب
                 $order->delete();
             });
 
-            return redirect()->back()
+            return redirect()->route('admin.orders.management', ['status' => 'deleted'])
                             ->with('success', 'تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
         } catch (\Exception $e) {
             return redirect()->back()
@@ -1061,123 +1287,23 @@ class OrderController extends Controller
     }
 
 
-    /**
-     * التحقق من توفر المنتجات للاسترجاع
-     */
-    public function checkRestoreAvailability(Order $order)
-    {
-        $this->authorize('restore', $order);
-
-        $order->load('items.size');
-
-        $availability = [];
-        $allAvailable = true;
-
-        foreach ($order->items as $item) {
-            $available = $item->size ? $item->size->quantity : 0;
-            $needed = $item->quantity;
-            $shortage = max(0, $needed - $available);
-
-            $availability[] = [
-                'product_name' => $item->product->name,
-                'size' => $item->size ? $item->size->size : 'غير محدد',
-                'needed' => $needed,
-                'available' => $available,
-                'shortage' => $shortage,
-                'is_available' => $available >= $needed
-            ];
-
-            if ($available < $needed) {
-                $allAvailable = false;
-            }
-        }
-
-        return response()->json([
-            'order' => $order,
-            'availability' => $availability,
-            'all_available' => $allAvailable
-        ]);
-    }
-
-    /**
-     * استرجاع الطلب مع خصم المنتجات من المخزن
-     */
-    public function restore(Order $order)
-    {
-        $this->authorize('restore', $order);
-
-        try {
-            // التحقق من التوفر أولاً
-            $order->load('items.size');
-            $allAvailable = true;
-
-            foreach ($order->items as $item) {
-                $available = $item->size ? $item->size->quantity : 0;
-                if ($available < $item->quantity) {
-                    $allAvailable = false;
-                    break;
-                }
-            }
-
-            if (!$allAvailable) {
-                // جمع تفاصيل النواقص
-                $shortages = [];
-                foreach ($order->items as $item) {
-                    $available = $item->size ? $item->size->quantity : 0;
-                    if ($available < $item->quantity) {
-                        $shortages[] = "{$item->product->name} ({$item->size->size}): المطلوب {$item->quantity}، المتوفر {$available}";
-                    }
-                }
-
-                $errorMessage = 'لا يمكن استرجاع الطلب - المنتجات التالية غير متوفرة بالكمية المطلوبة: ' . implode(' | ', $shortages);
-
-                return redirect()->back()
-                                ->withErrors(['error' => $errorMessage]);
-            }
-
-            DB::transaction(function() use ($order) {
-                // خصم المنتجات من المخزن
-                foreach ($order->items as $item) {
-                    if ($item->size) {
-                        $item->size->decrement('quantity', $item->quantity);
-
-                        // تسجيل حركة الاسترجاع من الحذف
-                        ProductMovement::record([
-                            'product_id' => $item->product_id,
-                            'size_id' => $item->size_id,
-                            'warehouse_id' => $item->product->warehouse_id,
-                            'order_id' => $order->id,
-                            'movement_type' => 'restore',
-                            'quantity' => -$item->quantity,
-                            'balance_after' => $item->size->refresh()->quantity,
-                            'order_status' => $order->status,
-                            'notes' => "استرجاع من حذف طلب #{$order->order_number}"
-                        ]);
-                    }
-                }
-
-                // استرجاع الطلب
-                $order->restore();
-                $order->status = 'pending';
-                $order->deleted_by = null;
-                $order->save();
-            });
-
-            return redirect()->route('admin.orders.index')
-                            ->with('success', 'تم استرجاع الطلب بنجاح وخصم المنتجات من المخزن');
-        } catch (\Exception $e) {
-            return redirect()->back()
-                            ->withErrors(['error' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage()]);
-        }
-    }
 
     /**
      * الحذف النهائي للطلب (لا يمكن استرجاعه)
      */
-    public function forceDelete($id)
+    public function forceDelete(Request $request, $order)
     {
         try {
-            $order = Order::withTrashed()->findOrFail($id);
+            // جلب الطلب مع soft deleted (لأن Route Model Binding لا يعمل بشكل صحيح مع soft deleted في بعض الحالات)
+            // $order قد يكون ID (string) من الـ route
+            $orderId = is_numeric($order) ? (int)$order : ($order instanceof Order ? $order->id : $order);
+            $order = Order::withTrashed()->findOrFail($orderId);
+
+            // التأكد من أن الطلب محذوف (soft deleted)
+            if (!$order->trashed()) {
+                return redirect()->back()
+                            ->withErrors(['error' => 'يمكن حذف الطلبات المحذوفة فقط نهائياً']);
+            }
 
             $this->authorize('forceDelete', $order);
 

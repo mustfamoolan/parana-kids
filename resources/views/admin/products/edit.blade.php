@@ -65,7 +65,15 @@
                             name="code"
                             value="{{ old('code', $product->code) }}"
                             class="form-input @error('code') border-danger @enderror"
-                            placeholder="أدخل كود المنتج"
+                            placeholder="أدخل كود المنتج (إنجليزية فقط)"
+                            inputmode="latin"
+                            pattern="[A-Za-z0-9_-]*"
+                            lang="en"
+                            dir="ltr"
+                            autocapitalize="off"
+                            autocomplete="off"
+                            autocorrect="off"
+                            spellcheck="false"
                             required
                         >
                         @error('code')
@@ -84,8 +92,9 @@
                                 name="purchase_price"
                                 value="{{ old('purchase_price', $product->purchase_price) }}"
                                 class="form-input @error('purchase_price') border-danger @enderror"
-                                placeholder="أدخل سعر الشراء"
+                                placeholder="أدخل سعر الشراء (سيتم إضافة 000 تلقائياً)"
                                 min="0"
+                                step="1"
                             >
                             @error('purchase_price')
                                 <div class="mt-1 text-danger">{{ $message }}</div>
@@ -103,8 +112,9 @@
                             name="selling_price"
                             value="{{ old('selling_price', $product->selling_price) }}"
                             class="form-input @error('selling_price') border-danger @enderror"
-                            placeholder="أدخل سعر البيع"
+                            placeholder="أدخل سعر البيع (سيتم إضافة 000 تلقائياً)"
                             min="0"
+                            step="1"
                             required
                         >
                         @error('selling_price')
@@ -354,17 +364,43 @@
                 globalPasteHandlerAdded = true;
             }
 
-            // زر اللصق - استخدام execCommand بدلاً من clipboard API
-            pasteBtn.addEventListener('click', function() {
-                // محاولة trigger paste event
-                const pasteEvent = new ClipboardEvent('paste', {
-                    bubbles: true,
-                    cancelable: true,
-                    clipboardData: new DataTransfer()
-                });
+            // زر اللصق - استخدام Clipboard API
+            pasteBtn.addEventListener('click', async function() {
+                try {
+                    // التحقق من توفر Clipboard API
+                    if (!navigator.clipboard || !navigator.clipboard.read) {
+                        // Fallback: الطلب من المستخدم استخدام Ctrl+V
+                        alert('هذا المتصفح لا يدعم لصق الصور من الحافظة مباشرة. الرجاء استخدام Ctrl+V');
+                        return;
+                    }
 
-                // نطلب من المستخدم استخدام Ctrl+V مباشرة
-                alert('الرجاء الضغط على Ctrl+V لللصق من الحافظة');
+                    // قراءة clipboard
+                    const clipboardItems = await navigator.clipboard.read();
+
+                    // البحث عن صورة في clipboard
+                    for (const clipboardItem of clipboardItems) {
+                        // البحث عن نوع صورة في أنواع clipboard item
+                        for (const type of clipboardItem.types) {
+                            if (type.startsWith('image/')) {
+                                const blob = await clipboardItem.getType(type);
+                                const file = new File([blob], `pasted-image-${Date.now()}.${type.split('/')[1]}`, { type: type });
+                                addImage(file, slotId);
+                                return; // نجحنا في لصق الصورة
+                            }
+                        }
+                    }
+
+                    // إذا لم نجد صورة
+                    alert('لا توجد صورة في الحافظة. يرجى نسخ صورة أولاً ثم الضغط على زر اللصق.');
+                } catch (error) {
+                    console.error('خطأ في لصق الصورة:', error);
+                    // في حالة رفض الإذن أو خطأ آخر
+                    if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
+                        alert('تم رفض الوصول إلى الحافظة. يرجى السماح للموقع بالوصول إلى الحافظة أو استخدم Ctrl+V بدلاً من ذلك.');
+                    } else {
+                        alert('حدث خطأ أثناء محاولة لصق الصورة. يرجى المحاولة باستخدام Ctrl+V بدلاً من ذلك.');
+                    }
+                }
             });
 
             // السحب والإفلات
@@ -533,5 +569,83 @@
                 e.target.closest('.size-row').remove();
             }
         });
+
+        // إجبار الكتابة بالإنجليزية فقط في حقل الكود وتحويل لوحة المفاتيح
+        const codeInput = document.getElementById('code');
+        if (codeInput) {
+            // عند التركيز: تحويل إلى إنجليزية
+            codeInput.addEventListener('focus', function() {
+                this.setAttribute('lang', 'en');
+                this.setAttribute('dir', 'ltr');
+                this.style.textAlign = 'left';
+                // محاولة تغيير لغة لوحة المفاتيح (يعمل على بعض الأجهزة)
+                if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+                    this.setAttribute('inputmode', 'latin');
+                }
+            });
+
+            // عند فقدان التركيز: إرجاع إلى الوضع الطبيعي
+            codeInput.addEventListener('blur', function() {
+                // إبقاء lang="en" و dir="ltr" لأن الحقل يحتوي على كود إنجليزي
+            });
+
+            codeInput.addEventListener('input', function(e) {
+                // السماح فقط بالأحرف الإنجليزية والأرقام والشرطة السفلية والشرطة
+                this.value = this.value.replace(/[^A-Za-z0-9_-]/g, '');
+            });
+
+            codeInput.addEventListener('keypress', function(e) {
+                // منع الأحرف العربية والأحرف الخاصة
+                const char = String.fromCharCode(e.which);
+                if (!/[A-Za-z0-9_-]/.test(char)) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // إضافة 000 تلقائياً في حقول الأسعار (مع استخدام الفاصلة لتقليل الأصفار)
+        function addZerosToPrice(input) {
+            if (!input) return;
+
+            input.addEventListener('blur', function() {
+                let inputValue = this.value.trim();
+                if (!inputValue || inputValue === '0') return;
+
+                // التحقق من وجود فاصلة عشرية (نقطة)
+                const hasDecimal = inputValue.includes('.');
+
+                if (hasDecimal) {
+                    // إذا كان هناك فاصلة → أضف 00 فقط (الفاصلة تقلل صفر واحد)
+                    // نحول الرقم إلى صحيح (نزيل الفاصلة) ثم نضرب في 100
+                    const parts = inputValue.split('.');
+                    const integerPart = parts[0] || '0';
+                    const decimalPart = parts[1] || '';
+                    // دمج الأجزاء بدون فاصلة
+                    const combinedValue = integerPart + decimalPart;
+                    const numericValue = parseFloat(combinedValue);
+                    if (!isNaN(numericValue)) {
+                        this.value = numericValue * 100; // 2 صفر فقط
+                    }
+                } else {
+                    // إذا لم يكن هناك فاصلة → أضف 000 (3 أصفار)
+                    let value = parseFloat(inputValue);
+                    if (!isNaN(value) && value > 0) {
+                        this.value = Math.floor(value) * 1000;
+                    }
+                }
+            });
+        }
+
+        // تطبيق على حقول الأسعار
+        const purchasePriceInput = document.getElementById('purchase_price');
+        const sellingPriceInput = document.getElementById('selling_price');
+
+        if (purchasePriceInput) {
+            addZerosToPrice(purchasePriceInput);
+        }
+
+        if (sellingPriceInput) {
+            addZerosToPrice(sellingPriceInput);
+        }
     </script>
 </x-layout.admin>

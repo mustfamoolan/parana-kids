@@ -105,98 +105,93 @@
             </form>
         </div>
 
-        <div class="table-responsive">
-            <table class="table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>اسم المخزن</th>
-                        <th>الموقع</th>
-                        <th>المنشئ</th>
-                        <th>عدد المنتجات</th>
-                        <th>تاريخ الإنشاء</th>
-                        <th>الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($warehouses as $warehouse)
-                        <tr>
-                            <td>{{ $warehouse->id }}</td>
-                            <td>
-                                <div class="whitespace-nowrap font-medium">{{ $warehouse->name }}</div>
-                            </td>
-                            <td>
-                                <div class="whitespace-nowrap">{{ $warehouse->location }}</div>
-                            </td>
-                            <td>
-                                <div class="whitespace-nowrap">{{ $warehouse->creator->name }}</div>
-                            </td>
-                            <td>
-                                <span class="badge badge-outline-primary">{{ $warehouse->products_count ?? $warehouse->products->count() }}</span>
-                            </td>
-                            <td>
-                                <div class="whitespace-nowrap">{{ $warehouse->created_at->format('Y-m-d') }}</div>
-                            </td>
-                            <td>
-                                <div class="flex items-center gap-2">
-                                    @can('view', $warehouse)
-                                        <a href="{{ route('admin.warehouses.show', $warehouse) }}" class="btn btn-sm btn-outline-primary" title="عرض التفاصيل">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                            </svg>
-                                        </a>
-                                    @endcan
-
-                                    <a href="{{ route('admin.warehouses.products.index', $warehouse) }}" class="btn btn-sm btn-outline-info" title="عرض المنتجات">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                                        </svg>
-                                    </a>
-
-                                    @can('update', $warehouse)
-                                        <a href="{{ route('admin.warehouses.edit', $warehouse) }}" class="btn btn-sm btn-outline-warning">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                        </a>
-                                    @endcan
-
-                                    @can('manage', $warehouse)
-                                        <a href="{{ route('admin.warehouses.assign-users', $warehouse) }}" class="btn btn-sm btn-outline-info">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                            </svg>
-                                        </a>
-                                    @endcan
-
-                                    @can('delete', $warehouse)
-                                        <form method="POST" action="{{ route('admin.warehouses.destroy', $warehouse) }}" class="inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا المخزن؟')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    @endcan
+        <!-- كاردات المخازن -->
+        @if($warehouses->count() > 0)
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($warehouses as $warehouse)
+                    <div class="panel">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-4 pb-4 border-b">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                    </svg>
                                 </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-500">
-                                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div>
+                                    <div class="font-semibold text-lg">{{ $warehouse->name }}</div>
+                                    <div class="text-xs text-gray-500">#{{ $warehouse->id }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="space-y-3">
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">الموقع:</span>
+                                <div class="font-medium">{{ $warehouse->location }}</div>
+                            </div>
+
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">المنشئ:</span>
+                                <div class="font-medium">{{ $warehouse->creator->name }}</div>
+                            </div>
+
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">عدد المنتجات:</span>
+                                <div><span class="badge badge-outline-primary">{{ $warehouse->products_count ?? $warehouse->products->count() }}</span></div>
+                            </div>
+
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">تاريخ الإنشاء:</span>
+                                <div class="text-sm">{{ $warehouse->created_at->format('Y-m-d') }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                            @can('view', $warehouse)
+                                <a href="{{ route('admin.warehouses.show', $warehouse) }}" class="btn btn-sm btn-outline-primary flex-1" title="عرض التفاصيل">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </a>
+                            @endcan
+
+                            <a href="{{ route('admin.warehouses.products.index', $warehouse) }}" class="btn btn-sm btn-outline-info flex-1" title="عرض المنتجات">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                                 </svg>
-                                لا توجد مخازن متاحة
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                            </a>
+
+                            @can('update', $warehouse)
+                                <a href="{{ route('admin.warehouses.edit', $warehouse) }}" class="btn btn-sm btn-outline-warning flex-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                </a>
+                            @endcan
+
+                            @can('manage', $warehouse)
+                                <a href="{{ route('admin.warehouses.assign-users', $warehouse) }}" class="btn btn-sm btn-outline-info flex-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                    </svg>
+                                </a>
+                            @endcan
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="text-center py-12">
+                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                <p class="text-lg font-medium text-gray-500">لا توجد مخازن متاحة</p>
+            </div>
+        @endif
 
         <!-- Pagination -->
         <x-pagination :items="$warehouses" />

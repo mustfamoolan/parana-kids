@@ -17,6 +17,18 @@
                         تعديل
                     </a>
                 @endcan
+                @if(auth()->user()->isAdmin())
+                    <form method="POST" action="{{ route('admin.warehouses.destroy', $warehouse) }}" class="inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا المخزن؟ سيتم حذف جميع المنتجات والبيانات المرتبطة به')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            حذف المخزن
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
 
@@ -99,11 +111,6 @@
                             <span class="font-medium text-black dark:text-white">{{ number_format($totalPieces) }} قطعة</span>
                         </div>
 
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-500 dark:text-gray-400">المستخدمين المصرح لهم:</span>
-                            <span class="font-medium text-black dark:text-white">{{ $warehouse->users->count() }}</span>
-                        </div>
-
                         @if(auth()->user()->isAdmin())
                             <div class="border-t pt-4 mt-4">
                                 <div class="mb-4">
@@ -144,64 +151,6 @@
             </div>
         </div>
 
-        <!-- المستخدمين المصرح لهم -->
-        @if($warehouse->users->count() > 0)
-            <div class="panel mt-5">
-                <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <h6 class="text-lg font-semibold dark:text-white-light">المستخدمين المصرح لهم</h6>
-                    @can('manage', $warehouse)
-                        <a href="{{ route('admin.warehouses.assign-users', $warehouse) }}" class="btn btn-outline-info">
-                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                            </svg>
-                            إدارة المستخدمين
-                        </a>
-                    @endcan
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table-hover">
-                        <thead>
-                            <tr>
-                                <th>الاسم</th>
-                                <th>الدور</th>
-                                <th>رقم الهاتف</th>
-                                <th>صلاحية الإدارة</th>
-                                <th>تاريخ التعيين</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($warehouse->users as $user)
-                                <tr>
-                                    <td>{{ $user->name }}</td>
-                                    <td>
-                                        <span class="badge badge-outline-{{ $user->role === 'admin' ? 'danger' : ($user->role === 'supplier' ? 'warning' : 'info') }}">
-                                            @if($user->role === 'admin')
-                                                مدير
-                                            @elseif($user->role === 'supplier')
-                                                مجهز
-                                            @else
-                                                مندوب
-                                            @endif
-                                        </span>
-                                    </td>
-                                    <td>{{ $user->phone }}</td>
-                                    <td>
-                                        @if($user->pivot->can_manage)
-                                            <span class="badge badge-success">نعم</span>
-                                        @else
-                                            <span class="badge badge-secondary">لا</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ $user->pivot->created_at->format('Y-m-d') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        @endif
-
         <!-- المنتجات -->
         <div class="panel mt-5">
             <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -217,89 +166,138 @@
             </div>
 
             @if($warehouse->products->count() > 0)
-                <div class="table-responsive">
-                    <table class="table-hover">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>الصورة</th>
-                                <th>اسم المنتج</th>
-                                <th>الكود</th>
-                                @if(auth()->user()->isAdmin())
-                                    <th>سعر الشراء</th>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach($warehouse->products as $product)
+                        <div class="panel">
+                            <div class="flex items-center gap-3 mb-3">
+                                @if($product->primaryImage)
+                                    <button type="button" onclick="openImageModal('{{ $product->primaryImage->image_url }}', '{{ $product->name }}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+                                        <img src="{{ $product->primaryImage->image_url }}" alt="{{ $product->name }}" class="w-full h-full object-cover hover:opacity-90 cursor-pointer">
+                                    </button>
+                                @else
+                                    <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0">
+                                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
                                 @endif
-                                <th>سعر البيع</th>
-                                <th>الكمية الإجمالية</th>
-                                <th>المنشئ</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($warehouse->products as $product)
-                                <tr>
-                                    <td>{{ $product->id }}</td>
-                                    <td>
-                                        @if($product->primaryImage)
-                                            <img src="{{ $product->primaryImage->image_url }}" alt="{{ $product->name }}" class="w-10 h-10 object-cover rounded border border-gray-200 dark:border-gray-700">
-                                        @else
-                                            <div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 flex items-center justify-center">
-                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                </svg>
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td>{{ $product->name }}</td>
-                                    <td>
-                                        <span class="badge badge-outline-primary">{{ $product->code }}</span>
-                                    </td>
-                                    @if(auth()->user()->isAdmin())
-                                        <td>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-sm truncate">{{ $product->name }}</div>
+                                    <div class="text-xs text-gray-500">#{{ $product->id }}</div>
+                                    <div class="mt-1"><span class="badge badge-outline-primary text-xs">{{ $product->code }}</span></div>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                @if(auth()->user()->isAdmin())
+                                    <div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">سعر الشراء:</span>
+                                        <div>
                                             @if($product->purchase_price)
-                                                <span class="font-medium text-info">{{ number_format($product->purchase_price, 0) }} دينار عراقي</span>
+                                                <span class="font-medium text-info text-sm">{{ number_format($product->purchase_price, 0) }} د.ع</span>
                                             @else
-                                                <span class="text-gray-400">غير محدد</span>
+                                                <span class="text-gray-400 text-sm">غير محدد</span>
                                             @endif
-                                        </td>
-                                    @endif
-                                    <td>{{ number_format($product->selling_price, 0) }} دينار عراقي</td>
-                                    <td>
-                                        <span class="badge badge-outline-success">{{ $product->total_quantity }}</span>
-                                    </td>
-                                    <td>{{ $product->creator->name }}</td>
-                                    <td>
-                                        <div class="flex items-center gap-2">
-                                            @can('view', $product)
-                                                <a href="{{ route('admin.warehouses.products.show', [$warehouse, $product]) }}" class="btn btn-sm btn-outline-primary">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                                    </svg>
-                                                </a>
-                                            @endcan
-
-                                            @can('update', $product)
-                                                <a href="{{ route('admin.warehouses.products.edit', [$warehouse, $product]) }}" class="btn btn-sm btn-outline-warning">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                                    </svg>
-                                                </a>
-                                            @endcan
                                         </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                    </div>
+                                @endif
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">سعر البيع:</span>
+                                    <div class="font-medium text-sm">{{ number_format($product->selling_price, 0) }} د.ع</div>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">الكمية الإجمالية:</span>
+                                    <div><span class="badge badge-outline-success">{{ $product->total_quantity }}</span></div>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">المنشئ:</span>
+                                    <div class="text-sm">{{ $product->creator->name }}</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-3 pt-3 border-t">
+                                @can('view', $product)
+                                    <a href="{{ route('admin.warehouses.products.show', [$warehouse, $product]) }}" class="btn btn-sm btn-outline-primary flex-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </a>
+                                @endcan
+                                @can('update', $product)
+                                    <a href="{{ route('admin.warehouses.products.edit', [$warehouse, $product]) }}" class="btn btn-sm btn-outline-warning flex-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                        </svg>
+                                    </a>
+                                @endcan
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             @else
-                <div class="text-center py-8 text-gray-500">
+                <div class="text-center py-12">
                     <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                     </svg>
-                    لا توجد منتجات في هذا المخزن
+                    <p class="text-lg font-medium text-gray-500">لا توجد منتجات في هذا المخزن</p>
                 </div>
             @endif
         </div>
     </div>
+
+    <!-- Modal لتكبير الصورة -->
+    <div id="imageModal" class="fixed inset-0 bg-black/80 z-[9999] hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-4xl max-h-full overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="modalTitle" class="text-lg font-semibold dark:text-white-light">صورة المنتج</h3>
+                <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <img id="modalImage" src="" alt="" class="max-w-full max-h-[70vh] mx-auto object-contain rounded">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openImageModal(imageUrl, productName) {
+            const modal = document.getElementById('imageModal');
+            if (!modal) return;
+
+            document.getElementById('modalImage').src = imageUrl;
+            document.getElementById('modalImage').alt = productName || 'صورة المنتج';
+            document.getElementById('modalTitle').textContent = productName || 'صورة المنتج';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            if (!modal) return;
+
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('imageModal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeImageModal();
+                    }
+                });
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                        closeImageModal();
+                    }
+                });
+            }
+        });
+    </script>
 </x-layout.admin>

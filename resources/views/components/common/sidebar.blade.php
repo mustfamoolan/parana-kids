@@ -188,22 +188,6 @@
     </a>
 </li>
 
-<li class="menu nav-item">
-    <a href="{{ route('delegate.archived.index') }}" class="nav-link group">
-        <div class="flex items-center">
-            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الأرشفة</span>
-            @php
-                $archivedCount = auth()->check() ? \App\Models\ArchivedOrder::where('delegate_id', auth()->id())->count() : 0;
-            @endphp
-            @if($archivedCount > 0)
-                <span class="badge badge-secondary ltr:ml-auto rtl:mr-auto">{{ $archivedCount }}</span>
-            @endif
-        </div>
-    </a>
-</li>
 
 <li class="menu nav-item">
     <a href="{{ route('delegate.orders.deleted') }}" class="nav-link group">

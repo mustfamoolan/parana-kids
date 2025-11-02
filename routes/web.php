@@ -106,11 +106,9 @@ Route::prefix('admin')->group(function () {
         Route::get('orders-cancelled', [AdminOrderController::class, 'cancelled'])->name('admin.orders.cancelled');
         Route::get('orders-exchanged', [AdminOrderController::class, 'exchanged'])->name('admin.orders.exchanged');
 
-        // حذف واسترجاع الطلبات
+        // حذف الطلبات
         Route::delete('orders/{order}', [AdminOrderController::class, 'destroy'])->name('admin.orders.destroy');
-        Route::post('orders/{order}/restore', [AdminOrderController::class, 'restore'])->name('admin.orders.restore');
-        Route::delete('orders/{order}/force', [AdminOrderController::class, 'forceDelete'])->name('admin.orders.forceDelete');
-        Route::get('orders/{order}/check-restore', [AdminOrderController::class, 'checkRestoreAvailability'])->name('admin.orders.check-restore');
+        Route::delete('orders/{order}/force', [AdminOrderController::class, 'forceDelete'])->name('admin.orders.forceDelete')->where('order', '[0-9]+');
 
         // كشف حركة الطلبات
         Route::get('order-movements', [AdminProductMovementController::class, 'orderMovements'])->name('admin.order-movements.index');

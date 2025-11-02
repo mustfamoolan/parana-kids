@@ -123,4 +123,13 @@ class OrderPolicy
         // نفس منطق الحذف
         return $this->delete($user, $order);
     }
+
+    /**
+     * Determine whether the user can force delete the order.
+     */
+    public function forceDelete(User $user, Order $order): bool
+    {
+        // فقط Admin يمكنه الحذف النهائي
+        return $user->isAdmin();
+    }
 }

@@ -63,67 +63,77 @@
             </div>
 
             <!-- قائمة المواد -->
-            <div class="panel">
-                <div class="mb-5">
-                    <h6 class="text-lg font-semibold dark:text-white-light">تفاصيل المواد المطلوبة</h6>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">جميع المواد المطلوبة من الطلبات الغير مقيدة</p>
-                </div>
+            <div class="mb-5">
+                <h6 class="text-lg font-semibold dark:text-white-light mb-2">تفاصيل المواد المطلوبة</h6>
+                <p class="text-sm text-gray-500 dark:text-gray-400">جميع المواد المطلوبة من الطلبات الغير مقيدة</p>
+            </div>
 
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>الصورة</th>
-                                <th>القياس</th>
-                                <th>العدد الإجمالي</th>
-                                <th>كود المنتج</th>
-                                <th>اسم المنتج</th>
-                                <th>المخزن</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($materials as $material)
-                                @if($material['product'])
-                                    <tr>
-                                        <td>
-                                            @if($material['product']->primaryImage)
-                                                <img src="{{ $material['product']->primaryImage->image_url }}"
-                                                     class="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                                                     alt="{{ $material['product']->name }}"
-                                                     onclick="openImageModal('{{ $material['product']->primaryImage->image_url }}', '{{ $material['product']->name }}')">
-                                            @else
-                                                <div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                    </svg>
-                                                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($materials as $index => $material)
+                    @if($material['product'])
+                        <div class="panel relative">
+                            <!-- رقم تسلسلي -->
+                            <div class="absolute top-2 left-2 bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg">
+                                {{ (int)$loop->iteration }}
+                            </div>
+                            <!-- الصورة والقياس -->
+                            <div class="flex items-start gap-4 mb-4">
+                                <div class="flex-shrink-0">
+                                    @if($material['product']->primaryImage)
+                                        <img src="{{ $material['product']->primaryImage->image_url }}"
+                                             class="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                             alt="{{ $material['product']->name }}"
+                                             onclick="openImageModal('{{ $material['product']->primaryImage->image_url }}', '{{ $material['product']->name }}')">
+                                    @else
+                                        <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="flex-1">
+                                    <h6 class="font-semibold text-base dark:text-white-light mb-1">{{ $material['product']->name }}</h6>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 font-mono mb-2">{{ $material['product']->code }}</p>
+                                    @if($material['size_name'])
+                                        <span class="badge badge-outline-primary">{{ $material['size_name'] }}</span>
+                                    @else
+                                        <span class="text-xs text-gray-400">-</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- التفاصيل -->
+                            <div class="space-y-2 border-t pt-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500 dark:text-gray-400">العدد الإجمالي:</span>
+                                    <span class="text-xl font-bold text-success">{{ number_format((int)($material['total_quantity'] ?? 0), 0, '.', ',') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500 dark:text-gray-400">المخزن:</span>
+                                    <span class="text-sm font-medium">{{ $material['product']->warehouse->name ?? 'غير محدد' }}</span>
+                                </div>
+                                @if(!empty($material['orders']))
+                                    <div class="flex items-start justify-between pt-2 border-t">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">الطلبات:</span>
+                                        <div class="text-left">
+                                            @foreach(array_slice($material['orders'], 0, 3) as $order)
+                                                <a href="{{ route('admin.orders.show', $order['order_id']) }}"
+                                                   class="block text-xs text-primary hover:underline mb-1"
+                                                   title="عرض الطلب">
+                                                    {{ $order['order_number'] }} ({{ $order['quantity'] }})
+                                                </a>
+                                            @endforeach
+                                            @if(count($material['orders']) > 3)
+                                                <span class="text-xs text-gray-400">+ {{ count($material['orders']) - 3 }} طلبات أخرى</span>
                                             @endif
-                                        </td>
-                                        <td>
-                                            @if($material['size_name'])
-                                                <span class="badge badge-outline-primary">{{ $material['size_name'] }}</span>
-                                            @else
-                                                <span class="text-gray-400">-</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="text-xl font-bold text-success">{{ $material['total_quantity'] }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="font-mono text-sm text-primary">{{ $material['product']->code }}</span>
-                                        </td>
-                                        <td>
-                                            <div class="font-medium">{{ $material['product']->name }}</div>
-                                        </td>
-                                        <td>
-                                            <span class="text-sm text-gray-500">{{ $material['product']->warehouse->name ?? 'غير محدد' }}</span>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                    </div>
                                 @endif
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
             </div>
         @else
             <!-- لا توجد مواد -->
@@ -133,7 +143,7 @@
                 </svg>
                 <h6 class="text-lg font-semibold dark:text-white-light mb-2">لا توجد مواد مطلوبة</h6>
                 <p class="text-gray-500 dark:text-gray-400 mb-4">لا توجد طلبات غير مقيدة حالياً</p>
-                <a href="{{ route('admin.orders.index') }}" class="btn btn-primary">
+                <a href="{{ route('admin.orders.management', array_filter(['warehouse_id' => request('warehouse_id'), 'status' => request('status') ?: 'pending'])) }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -144,7 +154,7 @@
     </div>
 
     <!-- Modal لتكبير الصورة -->
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-[9999] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg max-w-4xl max-h-full overflow-hidden">
             <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 id="modalTitle" class="text-lg font-semibold dark:text-white-light">صورة المنتج</h3>

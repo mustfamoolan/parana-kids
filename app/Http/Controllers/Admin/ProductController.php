@@ -51,7 +51,7 @@ class ProductController extends Controller
 
         $request->validate([
             'name' => 'nullable|string|max:255',
-            'code' => 'required|string|max:255|unique:products,code',
+            'code' => 'required|string|max:255',
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
@@ -195,7 +195,7 @@ class ProductController extends Controller
 
         $request->validate([
             'name' => 'nullable|string|max:255',
-            'code' => 'required|string|max:255|unique:products,code,' . $product->id,
+            'code' => 'required|string|max:255',
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',

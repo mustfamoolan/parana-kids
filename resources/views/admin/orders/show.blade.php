@@ -3,72 +3,51 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.management') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
-                    <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    العودة للطلبات
-                </a>
-                @if($order->status === 'pending')
-                    <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-warning">
+                @if($order->trashed())
+                    <!-- للطلبات المحذوفة: زر العودة فقط -->
+                    <a href="{{ route('admin.orders.management', ['status' => 'deleted']) }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
-                        تعديل الطلب
+                        العودة للطلبات المحذوفة
                     </a>
-                    <a href="{{ route('admin.orders.process', $order) }}" class="btn btn-success">
+                @else
+                    <!-- للطلبات غير المحذوفة: جميع الأزرار -->
+                    <a href="{{ route('admin.orders.management') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
-                        تجهيز الطلب
+                        العودة للطلبات
                     </a>
-                @elseif($order->status === 'confirmed')
-                    <a href="{{ route('admin.orders.management', ['status' => 'confirmed']) }}" class="btn btn-outline-success">
-                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        الطلبات المقيدة
-                    </a>
-                    @if($order->canBeEdited())
-                        <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-warning">
+                    @if($order->status === 'confirmed')
+                        <a href="{{ route('admin.orders.management', ['status' => 'confirmed']) }}" class="btn btn-outline-success">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            تعديل الطلب
+                            الطلبات المقيدة
+                        </a>
+                    @elseif($order->status === 'cancelled')
+                        <a href="{{ route('admin.orders.management', ['status' => 'cancelled']) }}" class="btn btn-outline-danger">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            الطلبات الملغية
+                        </a>
+                    @elseif($order->status === 'returned')
+                        <a href="{{ route('admin.orders.management', ['status' => 'returned']) }}" class="btn btn-outline-warning">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                            </svg>
+                            الطلبات المسترجعة
+                        </a>
+                    @elseif($order->status === 'exchanged')
+                        <a href="{{ route('admin.orders.management', ['status' => 'exchanged']) }}" class="btn btn-outline-info">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                            الطلبات المستبدلة
                         </a>
                     @endif
-
-                @elseif($order->status === 'cancelled')
-                    <a href="{{ route('admin.orders.management', ['status' => 'cancelled']) }}" class="btn btn-outline-danger">
-                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                        الطلبات الملغية
-                    </a>
-                @elseif($order->status === 'returned')
-                    <a href="{{ route('admin.orders.management', ['status' => 'returned']) }}" class="btn btn-outline-warning">
-                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                        </svg>
-                        الطلبات المسترجعة
-                    </a>
-                @elseif($order->status === 'exchanged')
-                    <a href="{{ route('admin.orders.management', ['status' => 'exchanged']) }}" class="btn btn-outline-info">
-                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                        </svg>
-                        الطلبات المستبدلة
-                    </a>
-                @endif
-                @if(in_array($order->status, ['pending', 'confirmed']))
-                    @can('delete', $order)
-                        <button onclick="deleteOrder({{ $order->id }})" class="btn btn-danger">
-                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            حذف الطلب
-                        </button>
-                    @endcan
                 @endif
             </div>
         </div>
@@ -188,6 +167,25 @@
                                 <p>تم استبدال الطلب في: {{ $order->exchanged_at->format('Y-m-d H:i') }}</p>
                                 <p>بواسطة: {{ $order->processedBy->name ?? 'غير محدد' }}</p>
                                 <p>نوع الاستبدال: {{ $order->is_partial_exchange ? 'جزئي' : 'كلي' }}</p>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($order->trashed() && $order->deletion_reason)
+                        <div class="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                                <span class="font-semibold text-red-800 dark:text-red-200">الطلب محذوف</span>
+                            </div>
+                            <div class="text-sm text-red-700 dark:text-red-300">
+                                <p>تم حذف الطلب في: {{ $order->deleted_at->format('Y-m-d H:i') }}</p>
+                                @if($order->deletedBy)
+                                    <p>بواسطة: {{ $order->deletedBy->name }}</p>
+                                @endif
+                                <p class="mt-2 font-medium">سبب الحذف:</p>
+                                <p class="mt-1">{{ $order->deletion_reason }}</p>
                             </div>
                         </div>
                     @endif
@@ -350,6 +348,20 @@
                 </div>
             </div>
         </div>
+
+        <!-- زر الحذف -->
+        @if(!$order->trashed() && in_array($order->status, ['pending', 'confirmed']))
+            @can('delete', $order)
+                <div class="mt-6 flex justify-center">
+                    <button onclick="deleteOrder({{ $order->id }})" class="btn btn-danger">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        حذف الطلب
+                    </button>
+                </div>
+            @endcan
+        @endif
     </div>
 
 
@@ -437,25 +449,37 @@
 
         // دالة حذف الطلب
         function deleteOrder(orderId) {
-            if (confirm('هل أنت متأكد من حذف هذا الطلب؟ سيتم إرجاع جميع المنتجات للمخزن.')) {
-                // إنشاء form وإرساله
-                const form = document.createElement('form');
-                form.method = 'POST';
+            // إظهار modal لطلب سبب الحذف
+            const modal = document.getElementById('deleteOrderModal');
+            const form = document.getElementById('deleteOrderForm');
+            const reasonInput = document.getElementById('deletion_reason');
+            const orderIdInput = document.getElementById('delete_order_id');
+
+            if (modal && form && reasonInput && orderIdInput) {
+                orderIdInput.value = orderId;
+                reasonInput.value = '';
                 form.action = `/admin/orders/${orderId}`;
+                modal.classList.remove('hidden');
+            }
+        }
 
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'DELETE';
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteOrderModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
 
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
+        function submitDeleteOrder() {
+            const form = document.getElementById('deleteOrderForm');
+            const reasonInput = document.getElementById('deletion_reason');
 
-                form.appendChild(methodField);
-                form.appendChild(csrfToken);
-                document.body.appendChild(form);
+            if (!reasonInput || !reasonInput.value || reasonInput.value.trim().length < 3) {
+                alert('يجب كتابة سبب الحذف (3 أحرف على الأقل)');
+                return;
+            }
+
+            if (form) {
                 form.submit();
             }
         }
@@ -492,4 +516,54 @@
             document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
         })();
     </script>
+
+    <!-- Modal لطلب سبب الحذف -->
+    <div id="deleteOrderModal" class="fixed inset-0 z-[9999] hidden bg-black/60 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold dark:text-white-light">حذف الطلب</h3>
+                <button type="button" onclick="closeDeleteModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="deleteOrderForm" method="POST" action="">
+                @csrf
+                @method('DELETE')
+                <input type="hidden" id="delete_order_id" name="order_id" value="">
+
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        سيتم إرجاع جميع المنتجات للمخزن. هل أنت متأكد من حذف هذا الطلب؟
+                    </p>
+
+                    <label for="deletion_reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        سبب الحذف <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        id="deletion_reason"
+                        name="deletion_reason"
+                        rows="4"
+                        class="form-textarea w-full"
+                        placeholder="اكتب سبب حذف الطلب (3 أحرف على الأقل)"
+                        required
+                        minlength="3"
+                        maxlength="1000"
+                    ></textarea>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">يجب كتابة سبب الحذف (3-1000 حرف)</p>
+                </div>
+
+                <div class="flex gap-3 justify-end">
+                    <button type="button" onclick="closeDeleteModal()" class="btn btn-outline-secondary">
+                        إلغاء
+                    </button>
+                    <button type="button" onclick="submitDeleteOrder()" class="btn btn-danger">
+                        حذف الطلب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </x-layout.admin>

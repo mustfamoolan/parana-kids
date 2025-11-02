@@ -120,9 +120,26 @@ class ProductMovementController extends Controller
     /**
      * عرض حركات قياس معين
      */
-    public function show(Request $request, Warehouse $warehouse, ProductSize $size)
+    public function show(Request $request, Warehouse $warehouse, Product $product)
     {
-        $this->authorize('view', $size);
+        // التحقق من أن المنتج يخص المخزن
+        if ($product->warehouse_id !== $warehouse->id) {
+            abort(404);
+        }
+
+        // التحقق من الصلاحيات
+        $this->authorize('view', $warehouse);
+        $this->authorize('view', $product);
+
+        // الحصول على size من query parameter
+        $sizeId = $request->input('size');
+        if (!$sizeId) {
+            abort(404, 'القياس مطلوب');
+        }
+
+        $size = ProductSize::where('id', $sizeId)
+            ->where('product_id', $product->id)
+            ->firstOrFail();
 
         $perPage = $request->input('per_page', 20);
         $movements = ProductMovement::with(['product', 'order', 'user'])
@@ -131,7 +148,6 @@ class ProductMovementController extends Controller
             ->paginate($perPage)
             ->appends($request->except('page'));
 
-        $product = $size->product;
         $movementTypes = [
             'add' => 'إضافة',
             'sale' => 'بيع',

@@ -59,15 +59,8 @@ class ProductPolicy
      */
     public function delete(User $user, Product $product): bool
     {
-        if ($user->isAdmin()) {
-            return true;
-        }
-
-        if ($user->isSupplier()) {
-            return $product->warehouse->canUserManage($user);
-        }
-
-        return false;
+        // حذف المنتجات مسموح فقط للمدير
+        return $user->isAdmin();
     }
 
     /**

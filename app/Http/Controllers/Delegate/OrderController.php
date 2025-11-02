@@ -22,7 +22,12 @@ class OrderController extends Controller
     {
         // 1. تحديد نوع الطلبات المطلوبة بناءً على status
         if ($request->status === 'deleted') {
-            $query = Order::onlyTrashed()->where('delegate_id', auth()->id())->with(['items', 'deletedByUser']);
+            // عرض فقط الطلبات المحذوفة التي حذفها المجهز (لها deleted_by و deletion_reason)
+            $query = Order::onlyTrashed()
+                ->where('delegate_id', auth()->id())
+                ->whereNotNull('deleted_by')
+                ->whereNotNull('deletion_reason')
+                ->with(['items', 'deletedByUser']);
 
             // تطبيق البحث في الطلبات المحذوفة
             if ($request->filled('search')) {
@@ -34,6 +39,7 @@ class OrderController extends Controller
                       ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
                       ->orWhere('customer_address', 'like', "%{$searchTerm}%")
                       ->orWhere('notes', 'like', "%{$searchTerm}%")
+                      ->orWhere('deletion_reason', 'like', "%{$searchTerm}%")
                       ->orWhereHas('items', function($itemQuery) use ($searchTerm) {
                           $itemQuery->where('product_name', 'like', "%{$searchTerm}%")
                                    ->orWhere('product_code', 'like', "%{$searchTerm}%")
@@ -67,50 +73,9 @@ class OrderController extends Controller
 
             return view('delegate.orders.index', compact('orders'));
         }
-        // التحقق من طلب الطلبات المؤرشفة
-        elseif ($request->status === 'archived') {
-            $archivedOrders = ArchivedOrder::where('delegate_id', auth()->id());
-
-            // تطبيق البحث في الطلبات المؤرشفة
-            if ($request->filled('search')) {
-                $searchTerm = $request->search;
-                $archivedOrders->where(function($q) use ($searchTerm) {
-                    $q->where('customer_name', 'like', "%{$searchTerm}%")
-                      ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                      ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                      ->orWhere('notes', 'like', "%{$searchTerm}%")
-                      ->orWhere('items', 'like', "%{$searchTerm}%"); // البحث في JSON
-                });
-            }
-
-            // فلتر حسب التاريخ (للطلبات المؤرشفة)
-            if ($request->filled('date_from')) {
-                $archivedOrders->whereDate('archived_at', '>=', $request->date_from);
-            }
-
-            if ($request->filled('date_to')) {
-                $archivedOrders->whereDate('archived_at', '<=', $request->date_to);
-            }
-
-            // فلتر حسب الوقت (للطلبات المؤرشفة)
-            if ($request->filled('time_from')) {
-                $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                $archivedOrders->where('archived_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-            }
-
-            if ($request->filled('time_to')) {
-                $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                $archivedOrders->where('archived_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-            }
-
-            $perPage = $request->input('per_page', 15);
-            $orders = $archivedOrders->latest('archived_at')->paginate($perPage)->appends($request->except('page'));
-
-            return view('delegate.orders.index', compact('orders'));
-        }
-        // الطلبات العادية (pending/confirmed) أو الكل
+        // الطلبات العادية (pending/confirmed) فقط (بدون الأرشفة)
         else {
-            // إذا لم يكن هناك فلتر status، نجلب كل الطلبات (نشطة + محذوفة + مؤرشفة)
+            // إذا لم يكن هناك فلتر status، نجلب كل الطلبات النشطة فقط
             if (!$request->filled('status')) {
                 // 1. جلب الطلبات النشطة
                 $activeOrders = Order::where('delegate_id', auth()->id())
@@ -152,92 +117,10 @@ class OrderController extends Controller
 
                 $activeOrdersList = $activeOrders->get();
 
-                // 2. جلب الطلبات المحذوفة
-                $deletedOrders = Order::onlyTrashed()
-                    ->where('delegate_id', auth()->id())
-                    ->with(['items', 'deletedByUser']);
-
-                // تطبيق البحث على الطلبات المحذوفة
-                if ($request->filled('search')) {
-                    $searchTerm = $request->search;
-                    $deletedOrders->where(function($q) use ($searchTerm) {
-                        $q->where('order_number', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                          ->orWhere('notes', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('items', function($itemQuery) use ($searchTerm) {
-                              $itemQuery->where('product_name', 'like', "%{$searchTerm}%")
-                                       ->orWhere('product_code', 'like', "%{$searchTerm}%")
-                                       ->orWhere('size_name', 'like', "%{$searchTerm}%");
-                          });
-                    });
-                }
-
-                // تطبيق فلاتر التاريخ على الطلبات المحذوفة
-                if ($request->filled('date_from')) {
-                    $deletedOrders->whereDate('deleted_at', '>=', $request->date_from);
-                }
-                if ($request->filled('date_to')) {
-                    $deletedOrders->whereDate('deleted_at', '<=', $request->date_to);
-                }
-                if ($request->filled('time_from')) {
-                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $deletedOrders->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-                }
-                if ($request->filled('time_to')) {
-                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $deletedOrders->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-                }
-
-                $deletedOrdersList = $deletedOrders->get();
-
-                // 3. جلب الطلبات المؤرشفة
-                $archivedOrders = ArchivedOrder::where('delegate_id', auth()->id());
-
-                // تطبيق البحث على الطلبات المؤرشفة
-                if ($request->filled('search')) {
-                    $searchTerm = $request->search;
-                    $archivedOrders->where(function($q) use ($searchTerm) {
-                        $q->where('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('notes', 'like', "%{$searchTerm}%")
-                          ->orWhere('items', 'like', "%{$searchTerm}%");
-                    });
-                }
-
-                // تطبيق فلاتر التاريخ على الطلبات المؤرشفة
-                if ($request->filled('date_from')) {
-                    $archivedOrders->whereDate('archived_at', '>=', $request->date_from);
-                }
-                if ($request->filled('date_to')) {
-                    $archivedOrders->whereDate('archived_at', '<=', $request->date_to);
-                }
-                if ($request->filled('time_from')) {
-                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $archivedOrders->where('archived_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-                }
-                if ($request->filled('time_to')) {
-                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $archivedOrders->where('archived_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-                }
-
-                $archivedOrdersList = $archivedOrders->get();
-
-                // 4. دمج جميع الطلبات وترتيبها
+                // 2. دمج الطلبات وترتيبها (فقط النشطة)
                 $allOrders = $activeOrdersList
-                    ->concat($deletedOrdersList)
-                    ->concat($archivedOrdersList)
                     ->sortByDesc(function($order) {
-                        if ($order instanceof \App\Models\ArchivedOrder) {
-                            return $order->archived_at;
-                        } elseif ($order->trashed()) {
-                            return $order->deleted_at;
-                        } else {
-                            return $order->created_at;
-                        }
+                        return $order->created_at;
                     });
 
                 // 5. تطبيق pagination يدوياً
@@ -404,11 +287,12 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         // التأكد من أن الطلب يخص المندوب الحالي
+        // resolveRouteBinding في Order model يستخدم withTrashed() تلقائياً
         if ($order->delegate_id !== auth()->id()) {
             abort(403);
         }
 
-        $order->load(['items.product', 'cart']);
+        $order->load(['items.product', 'cart', 'deletedByUser']);
 
         return view('delegate.orders.show', compact('order'));
     }
@@ -622,10 +506,10 @@ class OrderController extends Controller
                 $order->delete();
             });
 
-            return redirect()->back()
+            return redirect()->route('delegate.orders.index')
                             ->with('success', 'تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
         } catch (\Exception $e) {
-            return redirect()->back()
+            return redirect()->route('delegate.orders.index')
                             ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage()]);
         }
     }
@@ -866,6 +750,19 @@ class OrderController extends Controller
                 // تحديث المخزون الفعلي (خصم الكمية)
                 $cartItem->size->decrement('quantity', $cartItem->quantity);
 
+                // تسجيل حركة المواد عند رفع المندوب للطلب
+                ProductMovement::record([
+                    'product_id' => $cartItem->product_id,
+                    'size_id' => $cartItem->size_id,
+                    'warehouse_id' => $cartItem->product->warehouse_id,
+                    'order_id' => $order->id,
+                    'movement_type' => 'sell',
+                    'quantity' => -$cartItem->quantity,
+                    'balance_after' => $cartItem->size->refresh()->quantity,
+                    'order_status' => 'pending',
+                    'notes' => "بيع من طلب #{$order->order_number}"
+                ]);
+
                 // حذف الحجز
                 if ($cartItem->stockReservation) {
                     $cartItem->stockReservation->delete();
@@ -881,7 +778,7 @@ class OrderController extends Controller
         // مسح session
         session()->forget(['current_cart_id', 'customer_data']);
 
-        return redirect()->route('delegate.orders.show', $order)
+        return redirect()->route('delegate.dashboard')
                         ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number);
     }
 
@@ -907,7 +804,7 @@ class OrderController extends Controller
 
         session()->forget(['current_cart_id', 'customer_data']);
 
-        return redirect()->route('delegate.products.all')
+        return redirect()->route('delegate.dashboard')
                         ->with('info', 'تم إلغاء الطلب');
     }
 

@@ -69,11 +69,15 @@ class TransferController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
+        // تحميل أسماء المخازن لتجنب استدعاءات متعددة
+        $fromWarehouse = Warehouse::find($validated['from_warehouse_id']);
+        $toWarehouse = Warehouse::find($validated['to_warehouse_id']);
+
         DB::beginTransaction();
         try {
             foreach ($validated['items'] as $item) {
-                // التحقق من الكمية المتاحة مع تحميل العلاقة
-                $sourceSize = ProductSize::with('product')
+                // التحقق من الكمية المتاحة مع تحميل العلاقات (المنتج والصور)
+                $sourceSize = ProductSize::with(['product.images'])
                     ->where('id', $item['size_id'])
                     ->where('product_id', $item['product_id'])
                     ->first();
@@ -96,8 +100,6 @@ class TransferController extends Controller
 
                 // خصم من المخزن المصدر
                 $sourceSize->decrement('quantity', $item['quantity']);
-
-                // إعادة تحميل للحصول على القيمة المحدثة
                 $sourceSize->refresh();
 
                 // تسجيل حركة الخروج
@@ -108,25 +110,85 @@ class TransferController extends Controller
                     'movement_type' => 'transfer_out',
                     'quantity' => -$item['quantity'],
                     'balance_after' => $sourceSize->quantity,
-                    'notes' => "نقل إلى مخزن ID: {$validated['to_warehouse_id']}",
+                    'notes' => "نقل إلى مخزن: {$toWarehouse->name}",
                 ]);
 
-                // إضافة للمخزن المستهدف
-                // التحقق من وجود المنتج في المخزن المستهدف
-                $targetProduct = Product::where('id', $item['product_id'])->first();
+                // التحقق من وجود المنتج في المخزن المستهدف (باستخدام الاسم والكود)
+                $sourceProduct = $sourceSize->product;
 
-                // نقل المنتج للمخزن الجديد
-                $targetProduct->warehouse_id = $validated['to_warehouse_id'];
-                $targetProduct->save();
+                // البحث عن منتج موجود في المخزن المستهدف بنفس الاسم والكود
+                $targetProduct = Product::where('warehouse_id', $validated['to_warehouse_id'])
+                    ->where('name', $sourceProduct->name)
+                    ->where('code', $sourceProduct->code)
+                    ->first();
 
-                // البحث عن القياس (هو نفسه لأن المنتج نُقل)
-                $targetSize = ProductSize::where('id', $item['size_id'])->first();
+                if ($targetProduct) {
+                    // المنتج موجود في المخزن المستهدف - التحقق من القياس
+                    $targetSize = ProductSize::where('product_id', $targetProduct->id)
+                        ->where('size_name', $sourceSize->size_name)
+                        ->first();
 
-                // إضافة الكمية (أعد إضافتها بعد الخصم السابق)
-                $targetSize->increment('quantity', $item['quantity']);
+                    if ($targetSize) {
+                        // القياس موجود - إضافة الكمية فقط (لا إنشاء منتج جديد)
+                        $targetSize->increment('quantity', $item['quantity']);
+                        $targetSize->refresh();
+                    } else {
+                        // المنتج موجود لكن القياس غير موجود - إنشاء قياس جديد فقط
+                        $targetSize = ProductSize::create([
+                            'product_id' => $targetProduct->id,
+                            'size_name' => $sourceSize->size_name,
+                            'quantity' => $item['quantity'],
+                        ]);
+                    }
 
-                // إعادة تحميل للحصول على القيمة المحدثة
-                $targetSize->refresh();
+                    // نسخ الصور إذا لم تكن موجودة في المنتج المستهدف
+                    if ($sourceProduct->images && $sourceProduct->images->count() > 0) {
+                        $existingImages = $targetProduct->images()->pluck('image_path')->toArray();
+                        foreach ($sourceProduct->images as $image) {
+                            // التحقق من عدم وجود الصورة مسبقاً
+                            if (!in_array($image->image_path, $existingImages)) {
+                                \App\Models\ProductImage::create([
+                                    'product_id' => $targetProduct->id,
+                                    'image_path' => $image->image_path, // نفس المسار، لا نسخ الملف
+                                    'is_primary' => $image->is_primary,
+                                    'order' => $image->order,
+                                ]);
+                            }
+                        }
+                    }
+                } else {
+                    // المنتج غير موجود في المخزن المستهدف - إنشاء منتج جديد
+                    // استخدام نفس الكود والاسم والمعلومات تماماً
+                    $targetProduct = Product::create([
+                        'warehouse_id' => $validated['to_warehouse_id'],
+                        'name' => $sourceProduct->name,
+                        'code' => $sourceProduct->code, // نفس الكود تماماً
+                        'purchase_price' => $sourceProduct->purchase_price,
+                        'selling_price' => $sourceProduct->selling_price,
+                        'description' => $sourceProduct->description,
+                        'link_1688' => $sourceProduct->link_1688,
+                        'created_by' => auth()->id(),
+                    ]);
+
+                    // نسخ مسار الصور فقط (نفس المسار، لا نسخ الملف الفعلي)
+                    if ($sourceProduct->images && $sourceProduct->images->count() > 0) {
+                        foreach ($sourceProduct->images as $image) {
+                            \App\Models\ProductImage::create([
+                                'product_id' => $targetProduct->id,
+                                'image_path' => $image->image_path, // نفس المسار بالضبط
+                                'is_primary' => $image->is_primary,
+                                'order' => $image->order,
+                            ]);
+                        }
+                    }
+
+                    // إنشاء القياس المطلوب فقط (وليس جميع القياسات)
+                    $targetSize = ProductSize::create([
+                        'product_id' => $targetProduct->id,
+                        'size_name' => $sourceSize->size_name,
+                        'quantity' => $item['quantity'],
+                    ]);
+                }
 
                 // تسجيل حركة الدخول
                 ProductMovement::record([
@@ -136,7 +198,7 @@ class TransferController extends Controller
                     'movement_type' => 'transfer_in',
                     'quantity' => $item['quantity'],
                     'balance_after' => $targetSize->quantity,
-                    'notes' => "نقل من مخزن ID: {$validated['from_warehouse_id']}",
+                    'notes' => "نقل من مخزن: {$fromWarehouse->name}",
                 ]);
             }
 

@@ -142,9 +142,22 @@
                 </div>
             </div>
 
-            <!-- المنتجات الحالية -->
+            <!-- المنتجات الحالية (للقراءة فقط) -->
             <div class="panel mb-5">
-                <h6 class="text-lg font-semibold mb-4">منتجات الطلب</h6>
+                <div class="flex items-center justify-between mb-4">
+                    <h6 class="text-lg font-semibold">منتجات الطلب</h6>
+                    <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-warning btn-sm">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        تعديل المنتجات
+                    </a>
+                </div>
+                <div class="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>ملاحظة:</strong> للتعديل على المنتجات أو إضافتها، يرجى استخدام صفحة <a href="{{ route('admin.orders.edit', $order) }}" class="underline font-semibold">تعديل الطلب</a>.
+                    </p>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <template x-for="(item, index) in items" :key="index">
                         <div class="panel">
@@ -156,29 +169,16 @@
                                     <div class="font-semibold" x-text="item.product_name"></div>
                                     <div class="text-xs text-gray-500" x-text="item.product_code"></div>
                                 </div>
-                                <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                    </svg>
-                                </button>
                             </div>
 
                             <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div>
                                     <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">القياس</label>
-                                    <select @change="changeItemSize(index, $event.target.value)" class="form-select text-sm">
-                                        <template x-for="size in getProductSizes(item.product_id)" :key="size.id">
-                                            <option :value="size.id" :selected="size.id == item.size_id" x-text="size.size_name + ' (' + size.available_quantity + ')' "></option>
-                                        </template>
-                                    </select>
+                                    <div class="font-medium" x-text="item.size_name"></div>
                                 </div>
                                 <div>
                                     <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</label>
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" @click="item.quantity = Math.floor(Number(item.quantity)||1) - 1; normalizeAndUpdate(index)" class="btn btn-sm btn-outline-danger">-</button>
-                                        <input type="number" x-model="item.quantity" @input="normalizeAndUpdate(index)" class="form-input w-16 text-center text-sm" min="1" :max="item.max_quantity">
-                                        <button type="button" @click="item.quantity = Math.floor(Number(item.quantity)||1) + 1; normalizeAndUpdate(index)" class="btn btn-sm btn-outline-success">+</button>
-                                    </div>
+                                    <div class="font-medium" x-text="item.quantity"></div>
                                 </div>
                                 <div>
                                     <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">سعر الوحدة</label>
@@ -195,81 +195,6 @@
 
                 <div x-show="items.length === 0" class="text-center py-8 text-gray-500">
                     <p>لا توجد منتجات في هذا الطلب.</p>
-                </div>
-            </div>
-
-            <!-- إضافة منتجات جديدة -->
-            <div class="panel mb-5">
-                <h6 class="text-lg font-semibold mb-4">إضافة منتجات جديدة</h6>
-
-                <!-- بحث عن المنتج -->
-                <div class="mb-4">
-                    <input
-                        type="text"
-                        x-model="searchTerm"
-                        class="form-input"
-                        placeholder="ابحث بالكود أو الاسم..."
-                        @input="searchTerm = $event.target.value"
-                    >
-                </div>
-
-                <!-- نتائج البحث -->
-                <div x-show="filteredProducts.length > 0" class="mb-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <template x-for="product in filteredProducts" :key="product.id">
-                            <div class="border rounded p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" @click="selectProduct(product)">
-                                <div class="flex items-center gap-3">
-                                    <img :src="product.primary_image" :alt="product.name" class="w-12 h-12 object-cover rounded">
-                                    <div class="flex-1">
-                                        <div class="font-semibold text-sm" x-text="product.name"></div>
-                                        <div class="text-xs text-gray-500" x-text="product.code"></div>
-                                        <div class="text-xs text-primary font-bold" x-text="formatPrice(product.selling_price)"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- اختيار القياس والكمية -->
-                <div x-show="selectedProduct" class="border rounded p-4 bg-gray-50 dark:bg-gray-800">
-                    <div class="flex items-center gap-3 mb-3">
-                        <img :src="selectedProduct.primary_image" :alt="selectedProduct.name" class="w-12 h-12 object-cover rounded">
-                        <div>
-                            <div class="font-semibold" x-text="selectedProduct.name"></div>
-                            <div class="text-sm text-gray-500" x-text="selectedProduct.code"></div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">اختر القياس:</label>
-                            <select x-model="selectedSize" class="form-select">
-                                <option value="">اختر القياس</option>
-                                <template x-for="size in selectedProduct.sizes" :key="size.id">
-                                    <option :value="size.id" x-text="size.size_name + ' (' + size.available_quantity + ' متوفر)'"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-2">الكمية:</label>
-                            <div class="flex items-center gap-2">
-                                <button type="button" @click="quantity > 1 ? quantity-- : null" class="btn btn-sm btn-outline-danger">-</button>
-                                <input type="number" x-model="quantity" class="form-input w-20 text-center" min="1" :max="selectedSize ? getSelectedSizeMaxQuantity() : 1">
-                                <button type="button" @click="quantity < getSelectedSizeMaxQuantity() ? quantity++ : null" class="btn btn-sm btn-outline-success">+</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-2 mt-3">
-                        <button type="button" @click="addProduct()" class="btn btn-primary btn-sm" :disabled="!selectedSize || !quantity">
-                            إضافة للمنتجات
-                        </button>
-                        <button type="button" @click="cancelProductSelection()" class="btn btn-outline-secondary btn-sm">
-                            إلغاء
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -311,14 +236,6 @@
                     <span class="text-2xl font-bold text-success" x-text="formatPrice(totalAmount)"></span>
                 </div>
 
-                <!-- إخفاء الحقول المخفية للعناصر -->
-                <template x-for="(item, index) in items" :key="index">
-                    <div>
-                        <input type="hidden" :name="`items[${index}][product_id]`" :value="item.product_id">
-                        <input type="hidden" :name="`items[${index}][size_id]`" :value="item.size_id">
-                        <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
-                    </div>
-                </template>
 
                 <div class="flex gap-3">
                     <button type="button" @click="submitOrder()" class="btn btn-primary flex-1">
@@ -412,9 +329,13 @@
                     const totalAmount = this.items.reduce((s, it) => s + (Number(it?.quantity || 0) * Number(it?.unit_price || 0)), 0);
                     const totalAmountWithFee = totalAmount + 5000; // إضافة 5000 تلقائياً
                     const totalAmountTxt = new Intl.NumberFormat('en-US').format(totalAmountWithFee);
-                    const totals = ` (اجمالي العدد:${totalQty} | اجمالي المبلغ:${totalAmountTxt})`;
+                    // إزالة الأقواس وعلامة الـ pipe واستبدالها بمسافة
+                    const totals = ` اجمالي العدد ${totalQty} اجمالي المبلغ ${totalAmountTxt}`;
 
-                    return joined ? `${prefix}\n${joined}${totals}` : `${prefix}\n${totals}`;
+                    // استبدال السطر الجديد بمسافة وإزالة أي علامات ترقيم أخرى
+                    const fullText = joined ? `${prefix} ${joined}${totals}` : `${prefix} ${totals}`;
+                    // إزالة أي علامات ترقيم متبقية (فقط الأرقام والنص والمسافات)
+                    return fullText.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0020\u0030-\u0039\u0061-\u007A\u0041-\u005A]/g, ' ');
                 },
 
                 get filteredProducts() {
@@ -510,11 +431,6 @@
                 },
 
                 async submitOrder() {
-                    if (this.items.length === 0) {
-                        alert('يجب إضافة منتج واحد على الأقل');
-                        return;
-                    }
-
                     if (!this.deliveryCode) {
                         alert('يرجى إدخال كود التوصيل');
                         return;

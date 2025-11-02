@@ -20,7 +20,7 @@
             </div>
         @endif
 
-        <div x-data="transferForm()" class="space-y-6">
+        <div x-data="transferForm({{ json_encode($warehouses->pluck('name', 'id')) }})" class="space-y-6">
             <!-- اختيار المخزن المصدر -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -81,7 +81,7 @@
                         <h6 class="font-semibold">قياسات المنتج: <span x-text="selectedProduct?.name"></span></h6>
                         <button
                             type="button"
-                            @click="addAllSizes()"
+                            @click="confirmAddAllSizes()"
                             class="btn btn-primary btn-sm"
                         >
                             نقل الكل
@@ -90,30 +90,22 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <template x-for="size in selectedProduct?.sizes || []" :key="size.id">
-                            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <label class="flex items-center">
+                            <div class="panel" :class="{ 'opacity-60': isSizeSelected(size.id) }">
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center cursor-pointer">
                                         <input
                                             type="checkbox"
                                             :value="size.id"
                                             @change="toggleSize(size, $event.target.checked)"
                                             class="form-checkbox"
+                                            :checked="isSizeSelected(size.id)"
                                         >
-                                        <span class="ml-2 font-medium" x-text="size.size_name"></span>
+                                        <span class="mr-2 font-semibold" x-text="size.size_name"></span>
                                     </label>
-                                    <span class="text-sm text-gray-500" x-text="'متاح: ' + size.quantity"></span>
+                                    <span class="text-xs text-gray-500" x-text="'متاح: ' + size.quantity"></span>
                                 </div>
-
-                                <div x-show="isSizeSelected(size.id)">
-                                    <label class="form-label text-sm">الكمية المراد نقلها</label>
-                                    <input
-                                        type="number"
-                                        :max="size.quantity"
-                                        min="1"
-                                        @input="updateSizeQuantity(size.id, $event.target.value)"
-                                        class="form-input"
-                                        placeholder="الكمية"
-                                    >
+                                <div x-show="isSizeSelected(size.id)" class="mt-2 text-xs text-success">
+                                    تم الاختيار - يمكنك تعديل الكمية من قسم المواد المختارة أدناه
                                 </div>
                             </div>
                         </template>
@@ -121,48 +113,67 @@
                 </div>
             </div>
 
-            <!-- جدول المواد المختارة -->
+            <!-- المواد المختارة -->
             <div x-show="selectedSizes.length > 0" class="space-y-4">
                 <h6 class="font-semibold">المواد المختارة للنقل</h6>
-                <div class="table-responsive">
-                    <table class="table-hover">
-                        <thead>
-                            <tr>
-                                <th>المنتج</th>
-                                <th>القياس</th>
-                                <th>الكمية المتاحة</th>
-                                <th>الكمية المراد نقلها</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(item, index) in selectedSizes" :key="item.sizeId">
-                                <tr>
-                                    <td x-text="selectedProduct?.name"></td>
-                                    <td x-text="item.sizeName"></td>
-                                    <td x-text="item.availableQuantity"></td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            x-model="item.quantity"
-                                            :max="item.availableQuantity"
-                                            min="1"
-                                            class="form-input w-20"
-                                        >
-                                    </td>
-                                    <td>
-                                        <button
-                                            type="button"
-                                            @click="removeSize(index)"
-                                            class="btn btn-danger btn-sm"
-                                        >
-                                            حذف
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="(item, index) in selectedSizes" :key="item.sizeId">
+                        <div class="panel">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h6 class="font-semibold text-base" x-text="selectedProduct?.name"></h6>
+                                    <p class="text-sm text-gray-500 mt-1">
+                                        القياس: <span x-text="item.sizeName" class="font-medium"></span>
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        متاح: <span x-text="item.availableQuantity"></span>
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="removeSize(index)"
+                                    class="btn btn-danger btn-sm"
+                                    title="حذف"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="border-t pt-3">
+                                <label class="form-label text-xs mb-2">الكمية المراد نقلها</label>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        @click="decrementSelectedQuantity(index)"
+                                        class="btn btn-sm btn-outline-danger"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                    <input
+                                        type="number"
+                                        x-model="item.quantity"
+                                        @input="updateSelectedQuantity(index, $event.target.value, item.availableQuantity)"
+                                        :max="item.availableQuantity"
+                                        min="1"
+                                        class="form-input w-24 text-center"
+                                    >
+                                    <button
+                                        type="button"
+                                        @click="incrementSelectedQuantity(index, item.availableQuantity)"
+                                        class="btn btn-sm btn-outline-success"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- زر تنفيذ النقل -->
@@ -181,7 +192,7 @@
     </div>
 
     <script>
-        function transferForm() {
+        function transferForm(warehouses) {
             return {
                 sourceWarehouse: '',
                 targetWarehouse: '',
@@ -190,6 +201,7 @@
                 searchQuery: '',
                 searchResults: [],
                 highlightedIndex: -1,
+                warehouses: warehouses || {},
 
                 async searchProducts() {
                     if (this.searchQuery.length < 2) {
@@ -269,10 +281,29 @@
                     return this.selectedSizes.some(item => item.sizeId === sizeId);
                 },
 
-                updateSizeQuantity(sizeId, quantity) {
-                    const item = this.selectedSizes.find(item => item.sizeId === sizeId);
-                    if (item) {
-                        item.quantity = Math.min(parseInt(quantity) || 1, item.availableQuantity);
+
+                incrementSelectedQuantity(index, maxQty) {
+                    if (this.selectedSizes[index] && this.selectedSizes[index].quantity < maxQty) {
+                        this.selectedSizes[index].quantity = Math.min(this.selectedSizes[index].quantity + 1, maxQty);
+                    }
+                },
+
+                decrementSelectedQuantity(index) {
+                    if (this.selectedSizes[index] && this.selectedSizes[index].quantity > 1) {
+                        this.selectedSizes[index].quantity = Math.max(1, this.selectedSizes[index].quantity - 1);
+                    }
+                },
+
+                updateSelectedQuantity(index, quantity, maxQty) {
+                    if (this.selectedSizes[index]) {
+                        const qty = parseInt(quantity) || 1;
+                        this.selectedSizes[index].quantity = Math.max(1, Math.min(qty, maxQty));
+                    }
+                },
+
+                confirmAddAllSizes() {
+                    if (confirm('هل تريد نقل جميع القياسات المتاحة؟')) {
+                        this.addAllSizes();
                     }
                 },
 
@@ -284,8 +315,36 @@
                            this.selectedSizes.every(item => item.quantity > 0);
                 },
 
+                getSourceWarehouseName() {
+                    return this.warehouses[this.sourceWarehouse] || '';
+                },
+
+                getTargetWarehouseName() {
+                    return this.warehouses[this.targetWarehouse] || '';
+                },
+
+                getTransferSummary() {
+                    const totalQuantity = this.selectedSizes.reduce((sum, item) => sum + item.quantity, 0);
+                    let summary = `ملخص النقل:\n\n`;
+                    summary += `المخزن المصدر: ${this.getSourceWarehouseName()}\n`;
+                    summary += `المخزن المستهدف: ${this.getTargetWarehouseName()}\n`;
+                    summary += `المنتج: ${this.selectedProduct?.name}\n\n`;
+                    summary += `المواد المراد نقلها:\n`;
+                    this.selectedSizes.forEach(item => {
+                        summary += `- ${item.sizeName}: ${item.quantity} قطعة (متاح: ${item.availableQuantity})\n`;
+                    });
+                    summary += `\nإجمالي الكمية: ${totalQuantity} قطعة`;
+                    return summary;
+                },
+
                 async submitTransfer() {
                     if (!this.canSubmit()) return;
+
+                    // عرض ملخص قبل التنفيذ
+                    const summary = this.getTransferSummary();
+                    if (!confirm(summary + '\n\nهل تريد متابعة النقل؟')) {
+                        return;
+                    }
 
                     console.log('بدء عملية النقل...');
                     console.log('المخزن المصدر:', this.sourceWarehouse);

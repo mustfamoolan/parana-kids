@@ -111,82 +111,97 @@
                 <div class="flex gap-2">
                     <button type="submit" class="btn btn-primary">بحث</button>
                     @if(request()->hasAny(['warehouse_id', 'movement_type', 'user_id', 'order_status', 'date_from', 'date_to']))
-                        <a href="{{ route('admin.movements.index') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
+                        <a href="{{ route('admin.order-movements.index') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
                     @endif
                 </div>
             </form>
         </div>
 
         @if($movements->count() > 0)
-            <div class="table-responsive">
-                <table class="table-hover">
-                    <thead>
-                        <tr>
-                            <th>التاريخ والوقت</th>
-                            <th>نوع الحركة</th>
-                            <th>الكمية</th>
-                            <th>الرصيد بعد الحركة</th>
-                            <th>تفاصيل الطلب</th>
-                            <th>المستخدم</th>
-                            <th>ملاحظات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($movements as $movement)
-                            <tr>
-                                <td>
-                                    <div>{{ $movement->created_at->format('Y-m-d') }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->created_at->format('h:i A') }}</div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ $movement->movement_color }}">
-                                        {{ $movement->movement_type_name }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="font-semibold {{ $movement->quantity > 0 ? 'text-success' : 'text-danger' }}">
-                                        {{ $movement->quantity > 0 ? '+' : '' }}{{ $movement->quantity }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="font-semibold">{{ $movement->balance_after }}</span>
-                                </td>
-                                <td>
-                                    @if($movement->order)
-                                        <div>
-                                            <a href="{{ route('admin.orders.show', $movement->order) }}" class="text-primary hover:underline">
-                                                {{ $movement->order->order_number }}
-                                            </a>
+            <div class="mb-5">
+                <h6 class="text-lg font-semibold dark:text-white-light">سجل الحركات</h6>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($movements as $movement)
+                    <div class="panel">
+                        <!-- التاريخ ونوع الحركة -->
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <div class="font-semibold text-base dark:text-white-light">{{ $movement->created_at->format('Y-m-d') }}</div>
+                                <div class="text-xs text-gray-500">{{ $movement->created_at->format('H:i') }}</div>
+                            </div>
+                            <span class="badge bg-{{ $movement->movement_color }}">
+                                {{ $movement->movement_type_name }}
+                            </span>
+                        </div>
+
+                        <!-- الكمية والرصيد -->
+                        <div class="space-y-2 border-t pt-3 mb-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">الكمية:</span>
+                                <span class="font-bold text-lg {{ $movement->quantity > 0 ? 'text-success' : 'text-danger' }}">
+                                    {{ $movement->quantity > 0 ? '+' : '' }}{{ number_format($movement->quantity, 0, '.', ',') }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">الرصيد بعد الحركة:</span>
+                                <span class="font-semibold text-primary">{{ number_format($movement->balance_after, 0, '.', ',') }}</span>
+                            </div>
+                        </div>
+
+                        <!-- تفاصيل الطلب -->
+                        <div class="border-t pt-3 mb-3">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">تفاصيل الطلب:</span>
+                            @if($movement->order)
+                                <div class="space-y-1">
+                                    <div>
+                                        <a href="{{ route('admin.orders.show', $movement->order) }}" class="font-medium text-primary hover:underline text-sm">
+                                            {{ $movement->order->order_number }}
+                                        </a>
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $movement->order->customer_name }}</div>
+                                    @if($movement->order_status)
+                                        <div class="mt-1">
+                                            <span class="badge badge-outline-secondary text-xs">
+                                                {{ $orderStatuses[$movement->order_status] ?? $movement->order_status }}
+                                            </span>
                                         </div>
-                                        <div class="text-xs text-gray-500">{{ $movement->order->customer_name }}</div>
-                                        @if($movement->order_status)
-                                            <div class="text-xs">
-                                                <span class="badge badge-outline-secondary">{{ $orderStatuses[$movement->order_status] ?? $movement->order_status }}</span>
-                                            </div>
-                                        @endif
-                                    @else
-                                        <span class="text-gray-500">-</span>
                                     @endif
-                                </td>
-                                <td>
-                                    <div>{{ $movement->user->name }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->user->role }}</div>
-                                </td>
-                                <td>
-                                    @if($movement->notes)
-                                        <span class="text-sm">{{ $movement->notes }}</span>
-                                    @else
-                                        <span class="text-gray-500">-</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                                </div>
+                            @else
+                                <span class="text-gray-500 text-sm">-</span>
+                            @endif
+                        </div>
+
+                        <!-- المستخدم -->
+                        <div class="border-t pt-3 mb-3">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المستخدم:</span>
+                            <div class="font-medium text-sm">{{ $movement->user->name }}</div>
+                            <span class="badge badge-outline-secondary text-xs mt-1">
+                                @if($movement->user->role === 'admin')
+                                    مدير
+                                @elseif($movement->user->role === 'supplier')
+                                    مجهز
+                                @else
+                                    مندوب
+                                @endif
+                            </span>
+                        </div>
+
+                        <!-- الملاحظات -->
+                        @if($movement->notes)
+                            <div class="border-t pt-3">
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">ملاحظات:</span>
+                                <p class="text-sm text-gray-700 dark:text-gray-300">{{ $movement->notes }}</p>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
             </div>
 
             <!-- Pagination -->
-            <div class="mt-4">
+            <div class="mt-6">
                 {{ $movements->links() }}
             </div>
         @else

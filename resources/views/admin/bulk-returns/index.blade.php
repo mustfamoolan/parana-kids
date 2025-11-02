@@ -44,7 +44,7 @@
             </div>
 
             <!-- البحث عن المنتج -->
-            <div x-show="delegateId && warehouseId" class="space-y-4">
+            <div x-show="delegateId && warehouseId" class="space-y-4" x-init="$watch('warehouseId', () => { searchQuery = ''; searchResults = []; selectedProduct = null; selectedSizes = []; })">
                 <div>
                     <label class="form-label">البحث عن المنتج</label>
                     <div class="relative">
@@ -78,20 +78,13 @@
                 <div x-show="selectedProduct" class="space-y-4">
                     <div class="flex justify-between items-center">
                         <h6 class="font-semibold">قياسات المنتج: <span x-text="selectedProduct?.name"></span></h6>
-                        <button
-                            type="button"
-                            @click="addAllSelectedSizes()"
-                            class="btn btn-primary btn-sm"
-                        >
-                            إضافة الكل
-                        </button>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <template x-for="size in selectedProduct?.sizes || []" :key="size.id">
-                            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <label class="flex items-center">
+                            <div class="panel" :class="{ 'opacity-60': isSizeSelected(size.id) }">
+                                <div class="flex items-center justify-between mb-3">
+                                    <label class="flex items-center cursor-pointer">
                                         <input
                                             type="checkbox"
                                             :value="size.id"
@@ -99,26 +92,62 @@
                                             @change="toggleSize(size, $event.target.checked)"
                                             class="form-checkbox"
                                         >
-                                        <span class="ml-2 font-medium" x-text="size.size_name"></span>
+                                        <span class="mr-2 font-semibold" x-text="size.size_name"></span>
                                     </label>
-                                    <span class="text-sm text-gray-500" x-text="'متاح: ' + size.quantity"></span>
+                                    <span class="text-xs text-gray-500" x-text="'متاح: ' + size.quantity"></span>
                                 </div>
 
-                                <div x-show="isSizeSelected(size.id)" class="space-y-2">
-                                    <div>
-                                        <label class="form-label text-sm">الكمية المرجعة</label>
+                                <div x-show="isSizeSelected(size.id)" class="space-y-2 border-t pt-3">
+                                    <label class="form-label text-xs">الكمية المرجعة</label>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            @click="decrementSizeQuantity(size.id)"
+                                            class="btn btn-sm btn-outline-danger"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                            </svg>
+                                        </button>
                                         <input
                                             type="number"
                                             min="1"
                                             :value="getSizeQuantity(size.id)"
                                             @input="updateSizeQuantity(size.id, $event.target.value)"
-                                            class="form-input"
+                                            class="form-input w-20 text-center"
                                             placeholder="الكمية"
                                         >
+                                        <button
+                                            type="button"
+                                            @click="incrementSizeQuantity(size.id)"
+                                            class="btn btn-sm btn-outline-success"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 text-xs text-success">
+                                        تم الاختيار
                                     </div>
                                 </div>
                             </div>
                         </template>
+                    </div>
+
+                    <!-- زر إضافة الكل -->
+                    <div class="flex justify-end">
+                        <button
+                            type="button"
+                            @click="addAllSelectedSizes()"
+                            class="btn btn-primary"
+                            :disabled="selectedSizes.length === 0"
+                        >
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            إضافة الكل
+                        </button>
                     </div>
                 </div>
             </div>
@@ -149,43 +178,61 @@
                 </div>
 
                 <h6 class="font-semibold">المواد المختارة للإرجاع</h6>
-                <div class="table-responsive">
-                    <table class="table-hover">
-                        <thead>
-                            <tr>
-                                <th>المنتج</th>
-                                <th>القياس</th>
-                                <th>الكمية</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(item, index) in selectedItems" :key="index">
-                                <tr>
-                                    <td x-text="item.productName"></td>
-                                    <td x-text="item.sizeName"></td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            x-model="item.quantity"
-                                            min="1"
-                                            class="form-input w-20"
-                                            @input="updateItemQuantity(index, $event.target.value)"
-                                        >
-                                    </td>
-                                    <td>
-                                        <button
-                                            type="button"
-                                            @click="removeItem(index)"
-                                            class="btn btn-danger btn-sm"
-                                        >
-                                            حذف
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="(item, index) in selectedItems" :key="index">
+                        <div class="panel">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h6 class="font-semibold text-base" x-text="item.productName"></h6>
+                                    <p class="text-sm text-gray-500 mt-1">
+                                        القياس: <span x-text="item.sizeName" class="font-medium"></span>
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1" x-text="'السعر: ' + formatPrice(item.sellingPrice)"></p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="removeItem(index)"
+                                    class="btn btn-danger btn-sm"
+                                    title="حذف"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="border-t pt-3">
+                                <label class="form-label text-xs mb-2">الكمية المرجعة</label>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        @click="decrementItemQuantity(index)"
+                                        class="btn btn-sm btn-outline-danger"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                    <input
+                                        type="number"
+                                        x-model="item.quantity"
+                                        @input="updateItemQuantity(index, $event.target.value)"
+                                        min="1"
+                                        class="form-input w-24 text-center"
+                                    >
+                                    <button
+                                        type="button"
+                                        @click="incrementItemQuantity(index)"
+                                        class="btn btn-sm btn-outline-success"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <div class="flex justify-end">
@@ -224,8 +271,13 @@
                         return;
                     }
 
+                    if (!this.warehouseId) {
+                        this.searchResults = [];
+                        return;
+                    }
+
                     try {
-                        const response = await fetch(`{{ route('admin.bulk-returns.search') }}?search=${this.searchQuery}`);
+                        const response = await fetch(`{{ route('admin.bulk-returns.search') }}?search=${this.searchQuery}&warehouse_id=${this.warehouseId}`);
                         const data = await response.json();
                         this.searchResults = data;
                     } catch (error) {
@@ -282,7 +334,22 @@
                 updateSizeQuantity(sizeId, quantity) {
                     const size = this.selectedSizes.find(s => s.id === sizeId);
                     if (size) {
-                        size.quantity = parseInt(quantity) || 1;
+                        const qty = parseInt(quantity) || 1;
+                        size.quantity = Math.max(1, qty);
+                    }
+                },
+
+                incrementSizeQuantity(sizeId) {
+                    const size = this.selectedSizes.find(s => s.id === sizeId);
+                    if (size) {
+                        size.quantity = (parseInt(size.quantity) || 1) + 1;
+                    }
+                },
+
+                decrementSizeQuantity(sizeId) {
+                    const size = this.selectedSizes.find(s => s.id === sizeId);
+                    if (size && size.quantity > 1) {
+                        size.quantity = Math.max(1, (parseInt(size.quantity) || 1) - 1);
                     }
                 },
 
@@ -319,7 +386,24 @@
                 },
 
                 updateItemQuantity(index, quantity) {
-                    this.selectedItems[index].quantity = parseInt(quantity) || 1;
+                    const qty = parseInt(quantity) || 1;
+                    this.selectedItems[index].quantity = Math.max(1, qty);
+                },
+
+                incrementItemQuantity(index) {
+                    if (this.selectedItems[index]) {
+                        this.selectedItems[index].quantity = (parseInt(this.selectedItems[index].quantity) || 1) + 1;
+                    }
+                },
+
+                decrementItemQuantity(index) {
+                    if (this.selectedItems[index] && this.selectedItems[index].quantity > 1) {
+                        this.selectedItems[index].quantity = Math.max(1, (parseInt(this.selectedItems[index].quantity) || 1) - 1);
+                    }
+                },
+
+                formatPrice(price) {
+                    return new Intl.NumberFormat('en-US').format(price || 0) + ' د.ع';
                 },
 
                 removeItem(index) {

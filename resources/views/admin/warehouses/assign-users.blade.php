@@ -30,10 +30,10 @@
                     <p class="text-gray-500 dark:text-gray-400">اختر المستخدمين الذين تريد منحهم صلاحية الوصول لهذا المخزن</p>
                 </div>
 
-                <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($users as $user)
-                        <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                            <div class="flex items-center space-x-4 rtl:space-x-reverse">
+                        <div class="panel">
+                            <div class="flex items-center gap-3 mb-3">
                                 <input
                                     type="checkbox"
                                     id="user_{{ $user->id }}"
@@ -41,41 +41,57 @@
                                     value="{{ $user->id }}"
                                     class="form-checkbox"
                                     @if($assignedUsers->contains($user->id)) checked @endif
+                                    onchange="toggleUserCard(this)"
                                 >
-                                <div>
-                                    <label for="user_{{ $user->id }}" class="font-medium text-black dark:text-white">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                                    <span class="text-sm font-bold text-primary">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
+                                </div>
+                                <div class="flex-1">
+                                    <label for="user_{{ $user->id }}" class="font-semibold text-black dark:text-white cursor-pointer block">
                                         {{ $user->name }}
                                     </label>
-                                    <div class="text-sm text-gray-500 dark:text-gray-400">
-                                        <span class="badge badge-outline-{{ $user->role === 'admin' ? 'danger' : ($user->role === 'supplier' ? 'warning' : 'info') }}">
-                                            @if($user->role === 'admin')
-                                                مدير
-                                            @elseif($user->role === 'supplier')
-                                                مجهز
-                                            @else
-                                                مندوب
-                                            @endif
-                                        </span>
-                                        - {{ $user->phone }}
-                                    </div>
+                                    <span class="badge badge-outline-{{ $user->role === 'admin' ? 'danger' : ($user->role === 'supplier' ? 'warning' : 'info') }} text-xs">
+                                        @if($user->role === 'admin')
+                                            مدير
+                                        @elseif($user->role === 'supplier')
+                                            مجهز
+                                        @else
+                                            مندوب
+                                        @endif
+                                    </span>
                                 </div>
                             </div>
-
-                            <div class="flex items-center space-x-2 rtl:space-x-reverse">
-                                <label class="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        name="users[{{ $user->id }}][can_manage]"
-                                        value="1"
-                                        class="form-checkbox"
-                                        @if($assignedUsers->contains($user->id) && $assignedUsers->where('id', $user->id)->first()->pivot->can_manage) checked @endif
-                                    >
-                                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">صلاحية الإدارة</span>
-                                </label>
+                            <div class="space-y-2">
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">رقم الهاتف:</span>
+                                    <div class="font-medium font-mono text-sm">{{ $user->phone }}</div>
+                                </div>
+                                <div class="border-t pt-2 mt-2">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            id="can_manage_{{ $user->id }}"
+                                            name="users[{{ $user->id }}][can_manage]"
+                                            value="1"
+                                            class="form-checkbox"
+                                            @if($assignedUsers->contains($user->id) && $assignedUsers->where('id', $user->id)->first()->pivot->can_manage) checked @endif
+                                        >
+                                        <span class="mr-2 text-sm text-gray-600 dark:text-gray-400">صلاحية الإدارة</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     @endforeach
                 </div>
+                <script>
+                    function toggleUserCard(checkbox) {
+                        const card = checkbox.closest('.panel');
+                        const manageCheckbox = card.querySelector('input[name*="[can_manage]"]');
+                        if (!checkbox.checked && manageCheckbox) {
+                            manageCheckbox.checked = false;
+                        }
+                    }
+                </script>
             </div>
 
             <div class="flex items-center justify-end gap-4 pt-5">

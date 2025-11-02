@@ -110,6 +110,7 @@ class ProductMovement extends Model
         return match($this->movement_type) {
             'add' => 'إضافة',
             'sale' => 'بيع',
+            'sell' => 'بيع',
             'confirm' => 'تقييد',
             'cancel' => 'إلغاء',
             'return' => 'استرجاع',
@@ -120,6 +121,10 @@ class ProductMovement extends Model
             'return_bulk' => 'إرجاع طلبات',
             'increase' => 'زيادة',
             'decrease' => 'نقصان',
+            'order_edit_add' => 'تعديل طلب - إضافة منتج',
+            'order_edit_remove' => 'تعديل طلب - إرجاع منتج',
+            'order_edit_increase' => 'تعديل طلب - زيادة كمية',
+            'order_edit_decrease' => 'تعديل طلب - إنقاص كمية',
             default => $this->movement_type,
         };
     }
@@ -130,6 +135,7 @@ class ProductMovement extends Model
         return match($this->movement_type) {
             'add' => 'success',
             'sale' => 'primary',
+            'sell' => 'primary',
             'confirm' => 'warning',
             'cancel' => 'danger',
             'return' => 'info',
@@ -140,6 +146,10 @@ class ProductMovement extends Model
             'return_bulk' => 'info',
             'increase' => 'success',
             'decrease' => 'warning',
+            'order_edit_add' => 'primary',
+            'order_edit_remove' => 'info',
+            'order_edit_increase' => 'warning',
+            'order_edit_decrease' => 'info',
             default => 'secondary',
         };
     }

@@ -116,76 +116,93 @@
         </div>
 
         @if($movements->count() > 0)
-            <div class="table-responsive">
-                <table class="table-hover">
-                    <thead>
-                        <tr>
-                            <th>التاريخ والوقت</th>
-                            <th>نوع الحركة</th>
-                            <th>المنتج</th>
-                            <th>القياس</th>
-                            <th>الكمية</th>
-                            <th>الرصيد بعد الحركة</th>
-                            <th>نوع المصدر</th>
-                            <th>المستخدم</th>
-                            <th>ملاحظات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($movements as $movement)
-                            <tr>
-                                <td>
-                                    <div>{{ $movement->created_at->format('Y-m-d') }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->created_at->format('h:i A') }}</div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ $movement->movement_color }}">
-                                        {{ $movement->movement_type_name }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="font-medium">{{ $movement->product->name }}</div>
-                                    <div class="text-xs text-gray-500">كود: {{ $movement->product->code }}</div>
-                                    <div class="text-xs text-gray-500">المخزن: {{ $movement->warehouse->name }}</div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary">{{ $movement->size->size_name }}</span>
-                                    <div class="text-xs text-gray-500 mt-1">ID: {{ $movement->size->id }}</div>
-                                </td>
-                                <td>
-                                    <span class="font-semibold {{ $movement->quantity > 0 ? 'text-success' : 'text-danger' }}">
-                                        {{ $movement->quantity > 0 ? '+' : '' }}{{ $movement->quantity }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="font-semibold">{{ $movement->balance_after }}</span>
-                                </td>
-                                <td>
-                                    @if($movement->order_id)
-                                        <span class="badge bg-warning">طلب</span>
+            <div class="mb-5">
+                <h6 class="text-lg font-semibold dark:text-white-light">سجل الحركات</h6>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($movements as $movement)
+                    <div class="panel">
+                        <!-- التاريخ ونوع الحركة -->
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <div class="font-semibold text-base dark:text-white-light">{{ $movement->created_at->format('Y-m-d') }}</div>
+                                <div class="text-xs text-gray-500">{{ $movement->created_at->format('H:i') }}</div>
+                            </div>
+                            <span class="badge bg-{{ $movement->movement_color }}">
+                                {{ $movement->movement_type_name }}
+                            </span>
+                        </div>
+
+                        <!-- معلومات المنتج -->
+                        <div class="border-t pt-3 mb-3">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المنتج:</span>
+                            <div class="font-medium text-sm">{{ $movement->product->name }}</div>
+                            <div class="text-xs text-gray-500 mt-1">كود: {{ $movement->product->code }}</div>
+                            <div class="text-xs text-gray-500 mt-1">المخزن: {{ $movement->warehouse->name }}</div>
+                        </div>
+
+                        <!-- القياس -->
+                        <div class="border-t pt-3 mb-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-500 dark:text-gray-400">القياس:</span>
+                                <span class="badge bg-primary">{{ $movement->size->size_name }}</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">ID: {{ $movement->size->id }}</div>
+                        </div>
+
+                        <!-- الكمية والرصيد -->
+                        <div class="space-y-2 border-t pt-3 mb-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">الكمية:</span>
+                                <span class="font-bold text-lg {{ $movement->quantity > 0 ? 'text-success' : 'text-danger' }}">
+                                    {{ $movement->quantity > 0 ? '+' : '' }}{{ number_format($movement->quantity, 0, '.', ',') }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">الرصيد بعد الحركة:</span>
+                                <span class="font-semibold text-primary">{{ number_format($movement->balance_after, 0, '.', ',') }}</span>
+                            </div>
+                        </div>
+
+                        <!-- نوع المصدر والمستخدم -->
+                        <div class="border-t pt-3 mb-3 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-500 dark:text-gray-400">نوع المصدر:</span>
+                                @if($movement->order_id)
+                                    <span class="badge bg-warning">طلب</span>
+                                @else
+                                    <span class="badge bg-secondary">إدارة المخزن</span>
+                                @endif
+                            </div>
+                            <div class="border-t pt-2 mt-2">
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المستخدم:</span>
+                                <div class="font-medium text-sm">{{ $movement->user->name }}</div>
+                                <span class="badge badge-outline-secondary text-xs mt-1">
+                                    @if($movement->user->role === 'admin')
+                                        مدير
+                                    @elseif($movement->user->role === 'supplier')
+                                        مجهز
                                     @else
-                                        <span class="badge bg-secondary">إدارة المخزن</span>
+                                        مندوب
                                     @endif
-                                </td>
-                                <td>
-                                    <div>{{ $movement->user->name }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->user->role }}</div>
-                                </td>
-                                <td>
-                                    @if($movement->notes)
-                                        <span class="text-sm">{{ $movement->notes }}</span>
-                                    @else
-                                        <span class="text-gray-500">-</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- الملاحظات -->
+                        @if($movement->notes)
+                            <div class="border-t pt-3">
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">ملاحظات:</span>
+                                <p class="text-sm text-gray-700 dark:text-gray-300">{{ $movement->notes }}</p>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
             </div>
 
             <!-- Pagination -->
-            <div class="mt-4">
+            <div class="mt-6">
                 {{ $movements->links() }}
             </div>
         @else

@@ -36,21 +36,16 @@
                            // عرض مودال
                            Swal.fire({
                                title: 'لديك طلب نشط!',
-                               text: 'يجب إكمال أو إلغاء أو أرشفة الطلب الحالي أولاً',
+                               text: 'يجب إكمال أو إلغاء الطلب الحالي أولاً',
                                icon: 'warning',
                                showCancelButton: true,
-                               showDenyButton: true,
                                confirmButtonText: 'إكمال الطلب',
-                               denyButtonText: 'أرشفة',
                                cancelButtonText: 'إلغاء الطلب',
                                confirmButtonColor: '#4361ee',
-                               denyButtonColor: '#f59e0b',
                                cancelButtonColor: '#e7515a'
                            }).then((result) => {
                                if (result.isConfirmed) {
                                    window.location.href = '{{ route('delegate.products.all') }}';
-                               } else if (result.isDenied) {
-                                   archiveOrder();
                                } else if (result.dismiss === Swal.DismissReason.cancel) {
                                    cancelOrder();
                                }
@@ -105,39 +100,10 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">تصفح المنتجات</p>
             </a>
 
-            <!-- 5. الأرشفة -->
-            <a href="{{ route('delegate.archived.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 border-2 border-secondary/20">
-                <div class="w-16 h-16 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
-                    <svg class="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-bold text-secondary mb-2">الأرشفة</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                    <span class="badge bg-secondary">{{ $stats['archived_orders'] }}</span> مؤرشف
-                </p>
-            </a>
         </div>
     </div>
 
     <script>
-        function archiveOrder() {
-            fetch('{{ route('delegate.orders.archive-current') }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire('تم!', 'تم أرشفة الطلب بنجاح', 'success')
-                        .then(() => window.location.reload());
-                }
-            });
-        }
-
         function cancelOrder() {
             fetch('{{ route('delegate.orders.cancel-current') }}', {
                 method: 'POST',

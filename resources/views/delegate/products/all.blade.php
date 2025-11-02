@@ -50,12 +50,15 @@
                                     إرسال الطلب
                                 </button>
                             @endif
-                            <button type="button" onclick="archiveCurrentOrder()" class="btn btn-secondary">
-                                <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
-                                </svg>
-                                أرشفة
-                            </button>
+                            <form method="POST" action="{{ route('delegate.orders.cancel-current') }}" onsubmit="return confirmCancelOrder(event)">
+                                @csrf
+                                <button type="submit" class="btn btn-danger">
+                                    <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                    إلغاء الطلب
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -251,44 +254,14 @@
                     <!-- Products List -->
                     <div class="mb-5">
                         <h6 class="font-bold text-lg mb-3">المنتجات</h6>
-                        <div class="table-responsive">
-                            <table class="table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>المنتج</th>
-                                        <th>القياس</th>
-                                        <th>الكمية</th>
-                                        <th>السعر</th>
-                                        <th>الإجمالي</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($currentCart->items as $item)
-                                        <tr>
-                                            <td>
-                                                <div class="flex items-center gap-2">
-                                                    <img src="{{ $item->product->primaryImage->image_url ?? '/assets/images/no-image.png' }}"
-                                                         class="w-10 h-10 object-cover rounded">
-                                                    <div>
-                                                        <p class="font-medium">{{ $item->product->name }}</p>
-                                                        <p class="text-xs text-gray-500">{{ $item->product->code }}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{{ $item->size->size_name }}</td>
-                                            <td><span class="badge badge-outline-primary">{{ $item->quantity }}</span></td>
-                                            <td>{{ number_format($item->price, 0) }} د.ع</td>
-                                            <td class="font-bold">{{ number_format($item->subtotal, 0) }} د.ع</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="4" class="text-right font-bold">المجموع الكلي:</td>
-                                        <td class="font-bold text-success text-xl">{{ number_format($currentCart->total_amount, 0) }} د.ع</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                        <div id="confirmOrderItems" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- سيتم ملؤها ديناميكياً من JavaScript -->
+                        </div>
+                        <div class="mt-4 panel flex items-center justify-between">
+                            <span class="font-bold text-lg">المجموع الكلي:</span>
+                            <span class="font-bold text-success text-xl" id="confirmOrderTotal">
+                                {{ number_format($currentCart->total_amount, 0) }} د.ع
+                            </span>
                         </div>
                     </div>
 
@@ -359,64 +332,75 @@
                     <!-- Products List with Edit capabilities -->
                     <div class="mb-5">
                         <h6 class="font-bold text-lg mb-3">المنتجات في السلة</h6>
-                        <div class="table-responsive">
-                            <table class="table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>المنتج</th>
-                                        <th>القياس</th>
-                                        <th>الكمية</th>
-                                        <th>السعر</th>
-                                        <th>الإجمالي</th>
-                                        <th class="text-center">حذف</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cartModalItems">
-                                    @foreach($currentCart->items as $item)
-                                        <tr data-item-id="{{ $item->id }}">
-                                            <td>
-                                                <div class="flex items-center gap-2">
-                                                    <img src="{{ $item->product->primaryImage->image_url ?? '/assets/images/no-image.png' }}"
-                                                         class="w-10 h-10 object-cover rounded">
-                                                    <div>
-                                                        <p class="font-medium text-sm">{{ $item->product->name }}</p>
-                                                        <p class="text-xs text-gray-500">{{ $item->product->code }}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{{ $item->size->size_name }}</td>
-                                            <td>
+                        <div id="cartModalItems" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @foreach($currentCart->items as $item)
+                                <div class="panel" data-item-id="{{ $item->id }}">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <button type="button" onclick="openImageZoomModal('{{ $item->product->primaryImage->image_url ?? '/assets/images/no-image.png' }}', '{{ $item->product->name }}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+                                            <img src="{{ $item->product->primaryImage->image_url ?? '/assets/images/no-image.png' }}"
+                                                 class="w-full h-full object-cover hover:opacity-90 cursor-pointer">
+                                        </button>
+                                        <div class="flex-1">
+                                            <p class="font-medium text-sm">{{ $item->product->name }}</p>
+                                            <p class="text-xs text-gray-500">{{ $item->product->code }}</p>
+                                        </div>
+                                        <button type="button"
+                                                onclick="deleteCartItem({{ $item->id }})"
+                                                class="btn btn-sm btn-outline-danger">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <div>
+                                            <span class="text-xs text-gray-500">القياس:</span>
+                                            <p class="font-medium">{{ $item->size->size_name }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-xs text-gray-500">السعر:</span>
+                                            <p class="font-medium">{{ number_format($item->price, 0) }} د.ع</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-xs text-gray-500 mb-2 block">الكمية:</span>
+                                            <div class="flex items-center gap-2">
+                                                <button type="button"
+                                                        onclick="decrementCartQuantity({{ $item->id }}, {{ $item->size->available_quantity + $item->quantity }})"
+                                                        class="btn btn-sm btn-outline-danger">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                                    </svg>
+                                                </button>
                                                 <input type="number"
+                                                       id="cartQty-{{ $item->id }}"
                                                        value="{{ $item->quantity }}"
                                                        min="1"
                                                        max="{{ $item->size->available_quantity + $item->quantity }}"
-                                                       class="form-input w-20"
-                                                       onchange="updateCartItemQuantity({{ $item->id }}, this.value)"
+                                                       class="form-input w-20 text-center"
+                                                       onchange="updateCartItemQuantity({{ $item->id }}, this.value, {{ $item->size->available_quantity + $item->quantity }})"
                                                        data-item-price="{{ $item->price }}">
-                                            </td>
-                                            <td>{{ number_format($item->price, 0) }} د.ع</td>
-                                            <td class="font-bold item-subtotal">{{ number_format($item->subtotal, 0) }} د.ع</td>
-                                            <td class="text-center">
                                                 <button type="button"
-                                                        onclick="deleteCartItem({{ $item->id }})"
-                                                        class="btn btn-sm btn-outline-danger">
+                                                        onclick="incrementCartQuantity({{ $item->id }}, {{ $item->size->available_quantity + $item->quantity }})"
+                                                        class="btn btn-sm btn-outline-success">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                                     </svg>
                                                 </button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="4" class="text-right font-bold">المجموع الكلي:</td>
-                                        <td colspan="2" class="font-bold text-success text-xl" id="cartModalTotal">
-                                            {{ number_format($currentCart->total_amount, 0) }} د.ع
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                            </div>
+                                        </div>
+                                        <div class="border-t pt-2 mt-2">
+                                            <span class="text-xs text-gray-500">الإجمالي:</span>
+                                            <p class="font-bold text-success item-subtotal">{{ number_format($item->subtotal, 0) }} د.ع</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="mt-4 panel flex items-center justify-between">
+                            <span class="font-bold text-lg">المجموع الكلي:</span>
+                            <span class="font-bold text-success text-xl" id="cartModalTotal">
+                                {{ number_format($currentCart->total_amount, 0) }} د.ع
+                            </span>
                         </div>
                     </div>
 
@@ -593,40 +577,24 @@
             }
         });
 
-        // دالة أرشفة الطلب الحالي
-        function archiveCurrentOrder() {
+        // دالة تأكيد إلغاء الطلب
+        function confirmCancelOrder(event) {
+            event.preventDefault();
             Swal.fire({
-                title: 'أرشفة الطلب؟',
-                text: 'سيتم حفظ الطلب ويمكنك استرجاعه لاحقاً',
-                icon: 'question',
+                title: 'إلغاء الطلب؟',
+                text: 'سيتم إلغاء الطلب الحالي والعودة إلى الصفحة الرئيسية',
+                icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'نعم، أرشف',
+                confirmButtonText: 'نعم، ألغِ',
                 cancelButtonText: 'إلغاء',
-                confirmButtonColor: '#4361ee',
-                cancelButtonColor: '#e7515a'
+                confirmButtonColor: '#e7515a',
+                cancelButtonColor: '#6c757d'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    fetch('{{ route('delegate.orders.archive-current') }}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Content-Type': 'application/json',
-                        },
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire('تم!', 'تم أرشفة الطلب بنجاح', 'success')
-                                .then(() => window.location.reload());
-                        } else {
-                            Swal.fire('خطأ!', data.error || 'حدث خطأ أثناء الأرشفة', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        Swal.fire('خطأ!', 'حدث خطأ أثناء الأرشفة', 'error');
-                    });
+                    event.target.submit();
                 }
             });
+            return false;
         }
 
         // ===== Product Modal Functions =====
@@ -687,14 +655,29 @@
                                         }
                                     </span>
                                 </label>
-                                <input type="number"
-                                       id="qty-${size.id}"
-                                       min="1"
-                                       max="${size.available_quantity}"
-                                       value="1"
-                                       class="form-input w-20 ${!isAvailable ? 'hidden' : ''}"
-                                       ${!isAvailable ? 'disabled' : ''}
-                                       onchange="updateSizeQuantity(${size.id}, this.value)">
+                                <div class="flex items-center gap-2 ${!isAvailable ? 'hidden' : ''}">
+                                    <button type="button"
+                                            onclick="decrementQuantity(${size.id}, ${size.available_quantity})"
+                                            class="btn btn-sm btn-outline-danger">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                    <input type="number"
+                                           id="qty-${size.id}"
+                                           min="1"
+                                           max="${size.available_quantity}"
+                                           value="1"
+                                           class="form-input w-20 text-center"
+                                           onchange="updateSizeQuantity(${size.id}, this.value, ${size.available_quantity})">
+                                    <button type="button"
+                                            onclick="incrementQuantity(${size.id}, ${size.available_quantity})"
+                                            class="btn btn-sm btn-outline-success">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         `;
                         sizesList.insertAdjacentHTML('beforeend', sizeHtml);
@@ -721,8 +704,12 @@
         function toggleSizeSelection(sizeId, maxQty, checked) {
             if (checked) {
                 const qtyInput = document.getElementById(`qty-${sizeId}`);
+                let qty = Math.floor(Number(qtyInput.value) || 1);
+                if (qty < 1) qty = 1;
+                if (qty > maxQty) qty = maxQty;
+                qtyInput.value = qty;
                 selectedSizes[sizeId] = {
-                    quantity: parseInt(qtyInput.value) || 1,
+                    quantity: qty,
                     max_quantity: maxQty
                 };
             } else {
@@ -731,9 +718,34 @@
         }
 
         // تحديث كمية القياس
-        function updateSizeQuantity(sizeId, quantity) {
+        function updateSizeQuantity(sizeId, quantity, maxQty) {
+            const qtyInput = document.getElementById(`qty-${sizeId}`);
+            let qty = Math.floor(Number(quantity) || 1);
+            if (qty < 1) qty = 1;
+            if (qty > maxQty) qty = maxQty;
+            qtyInput.value = qty;
             if (selectedSizes[sizeId]) {
-                selectedSizes[sizeId].quantity = parseInt(quantity);
+                selectedSizes[sizeId].quantity = qty;
+            }
+        }
+
+        // زيادة الكمية
+        function incrementQuantity(sizeId, maxQty) {
+            const qtyInput = document.getElementById(`qty-${sizeId}`);
+            let currentQty = Math.floor(Number(qtyInput.value) || 1);
+            if (currentQty < maxQty) {
+                currentQty++;
+                updateSizeQuantity(sizeId, currentQty, maxQty);
+            }
+        }
+
+        // تقليل الكمية
+        function decrementQuantity(sizeId, maxQty) {
+            const qtyInput = document.getElementById(`qty-${sizeId}`);
+            let currentQty = Math.floor(Number(qtyInput.value) || 1);
+            if (currentQty > 1) {
+                currentQty--;
+                updateSizeQuantity(sizeId, currentQty, maxQty);
             }
         }
 
@@ -864,8 +876,83 @@
 
         // فتح مودال التأكيد
         function openConfirmModal() {
+            // تحديث البيانات من مودال عرض الطلب أولاً
+            updateConfirmOrderModal();
             document.getElementById('confirmOrderModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+        }
+
+        // تحديث محتوى مودال التأكيد بأحدث البيانات
+        function updateConfirmOrderModal() {
+            const itemsContainer = document.getElementById('confirmOrderItems');
+            const totalElement = document.getElementById('confirmOrderTotal');
+
+            if (!itemsContainer) return;
+
+            // جلب أحدث البيانات من مودال عرض الطلب (أو من الخادم)
+            const cartItems = document.querySelectorAll('#cartModalItems > div[data-item-id]');
+            let total = 0;
+            let itemsHTML = '';
+
+            cartItems.forEach(card => {
+                const itemId = card.getAttribute('data-item-id');
+                const qtyInput = card.querySelector('input[data-item-price]');
+                if (!qtyInput) return;
+
+                const quantity = parseInt(qtyInput.value) || 1;
+                const price = parseFloat(qtyInput.dataset.itemPrice) || 0;
+                const subtotal = price * quantity;
+                total += subtotal;
+
+                // استخراج البيانات من الكارد
+                const productNameEl = card.querySelector('.flex-1 p.font-medium.text-sm');
+                const productCodeEl = card.querySelector('.flex-1 p.text-xs.text-gray-500');
+                const sizeNameEl = card.querySelector('.space-y-2 > div:first-of-type p.font-medium');
+                const imageEl = card.querySelector('img');
+
+                const productName = productNameEl ? productNameEl.textContent.trim() : 'منتج';
+                const productCode = productCodeEl ? productCodeEl.textContent.trim() : '';
+                const sizeName = sizeNameEl ? sizeNameEl.textContent.trim() : '';
+                const imageSrc = imageEl ? imageEl.src : '/assets/images/no-image.png';
+
+                itemsHTML += `
+                    <div class="panel">
+                        <div class="flex items-center gap-3 mb-3">
+                            <button type="button" onclick="openImageZoomModal('${imageSrc}', '${productName}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+                                <img src="${imageSrc}" class="w-full h-full object-cover hover:opacity-90 cursor-pointer">
+                            </button>
+                            <div class="flex-1">
+                                <p class="font-medium text-sm">${productName}</p>
+                                <p class="text-xs text-gray-500">${productCode}</p>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <span class="text-xs text-gray-500">القياس:</span>
+                                <p class="font-medium">${sizeName}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500">السعر:</span>
+                                <p class="font-medium">${number_format(price, 0)} د.ع</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500">الكمية:</span>
+                                <p class="font-medium"><span class="badge badge-outline-primary">${quantity}</span></p>
+                            </div>
+                            <div class="border-t pt-2 mt-2">
+                                <span class="text-xs text-gray-500">الإجمالي:</span>
+                                <p class="font-bold text-success">${number_format(subtotal, 0)} د.ع</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            itemsContainer.innerHTML = itemsHTML || '<p class="text-center text-gray-500 col-span-full">لا توجد منتجات</p>';
+
+            if (totalElement) {
+                totalElement.textContent = number_format(total, 0) + ' د.ع';
+            }
         }
 
         // إغلاق مودال التأكيد
@@ -889,11 +976,12 @@
         }
 
         // تحديث كمية منتج في المودال
-        function updateCartItemQuantity(itemId, newQuantity) {
-            if (newQuantity < 1) {
-                Swal.fire('خطأ', 'الكمية يجب أن تكون 1 على الأقل', 'error');
-                return;
-            }
+        function updateCartItemQuantity(itemId, newQuantity, maxQty) {
+            const qtyInput = document.getElementById(`cartQty-${itemId}`);
+            let qty = Math.floor(Number(newQuantity) || 1);
+            if (qty < 1) qty = 1;
+            if (qty > maxQty) qty = maxQty;
+            qtyInput.value = qty;
 
             fetch(`/delegate/cart-items/${itemId}`, {
                 method: 'PUT',
@@ -902,19 +990,25 @@
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ quantity: parseInt(newQuantity) })
+                body: JSON.stringify({ quantity: qty })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    // تحديث الإجمالي الفرعي في الجدول
-                    const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
-                    const price = parseFloat(row.querySelector('input[data-item-price]').dataset.itemPrice);
-                    const subtotal = price * newQuantity;
-                    row.querySelector('.item-subtotal').textContent = number_format(subtotal, 0) + ' د.ع';
+                    // تحديث الإجمالي الفرعي في الكارد
+                    const card = document.querySelector(`div[data-item-id="${itemId}"]`);
+                    const price = parseFloat(card.querySelector('input[data-item-price]').dataset.itemPrice);
+                    const subtotal = price * qty;
+                    card.querySelector('.item-subtotal').textContent = number_format(subtotal, 0) + ' د.ع';
 
                     // تحديث الإجمالي الكلي
                     updateCartModalTotal();
+
+                    // تحديث مودال التأكيد إذا كان مفتوحاً
+                    const confirmModal = document.getElementById('confirmOrderModal');
+                    if (confirmModal && !confirmModal.classList.contains('hidden')) {
+                        updateConfirmOrderModal();
+                    }
 
                     Swal.fire({
                         icon: 'success',
@@ -925,12 +1019,38 @@
                     });
                 } else {
                     Swal.fire('خطأ', data.message || 'حدث خطأ أثناء التحديث', 'error');
+                    // إعادة تعيين القيمة القديمة
+                    const item = document.querySelector(`div[data-item-id="${itemId}"] input[data-item-price]`);
+                    qtyInput.value = item ? item.value : 1;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 Swal.fire('خطأ', 'حدث خطأ أثناء التحديث', 'error');
+                // إعادة تعيين القيمة القديمة
+                const item = document.querySelector(`div[data-item-id="${itemId}"] input[data-item-price]`);
+                qtyInput.value = item ? item.value : 1;
             });
+        }
+
+        // زيادة كمية منتج في المودال
+        function incrementCartQuantity(itemId, maxQty) {
+            const qtyInput = document.getElementById(`cartQty-${itemId}`);
+            let currentQty = Math.floor(Number(qtyInput.value) || 1);
+            if (currentQty < maxQty) {
+                currentQty++;
+                updateCartItemQuantity(itemId, currentQty, maxQty);
+            }
+        }
+
+        // تقليل كمية منتج في المودال
+        function decrementCartQuantity(itemId, maxQty) {
+            const qtyInput = document.getElementById(`cartQty-${itemId}`);
+            let currentQty = Math.floor(Number(qtyInput.value) || 1);
+            if (currentQty > 1) {
+                currentQty--;
+                updateCartItemQuantity(itemId, currentQty, maxQty);
+            }
         }
 
         // حذف منتج من السلة في المودال
@@ -956,17 +1076,25 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
-                            // حذف الصف من الجدول
-                            const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
-                            row.remove();
+                            // حذف الكارد من القائمة
+                            const card = document.querySelector(`div[data-item-id="${itemId}"]`);
+                            if (card) {
+                                card.remove();
+                            }
 
                             // تحديث الإجمالي
                             updateCartModalTotal();
 
+                            // تحديث مودال التأكيد إذا كان مفتوحاً
+                            const confirmModal = document.getElementById('confirmOrderModal');
+                            if (confirmModal && !confirmModal.classList.contains('hidden')) {
+                                updateConfirmOrderModal();
+                            }
+
                             Swal.fire('تم!', 'تم حذف المنتج', 'success');
 
                             // إذا أصبحت السلة فارغة، أعد تحميل الصفحة
-                            const remainingItems = document.querySelectorAll('#cartModalItems tr').length;
+                            const remainingItems = document.querySelectorAll('#cartModalItems > div').length;
                             if (remainingItems === 0) {
                                 setTimeout(() => window.location.reload(), 1500);
                             }
@@ -985,8 +1113,8 @@
         // تحديث الإجمالي الكلي في المودال
         function updateCartModalTotal() {
             let total = 0;
-            document.querySelectorAll('#cartModalItems tr').forEach(row => {
-                const input = row.querySelector('input[data-item-price]');
+            document.querySelectorAll('#cartModalItems > div').forEach(card => {
+                const input = card.querySelector('input[data-item-price]');
                 if (input) {
                     const price = parseFloat(input.dataset.itemPrice);
                     const quantity = parseInt(input.value);
@@ -995,6 +1123,66 @@
             });
             document.getElementById('cartModalTotal').textContent = number_format(total, 0) + ' د.ع';
         }
+
+        // ===== Image Zoom Modal =====
+        function openImageZoomModal(imageSrc, productName) {
+            const modal = document.getElementById('imageZoomModal');
+            const imgEl = document.getElementById('imageZoomImg');
+            const titleEl = document.getElementById('imageZoomTitle');
+
+            if (modal && imgEl && titleEl) {
+                imgEl.src = imageSrc;
+                imgEl.alt = productName || 'صورة المنتج';
+                titleEl.textContent = productName || 'صورة المنتج';
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeImageZoomModal() {
+            const modal = document.getElementById('imageZoomModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // إغلاق الـ modal عند الضغط على الخلفية أو Escape
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('imageZoomModal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeImageZoomModal();
+                    }
+                });
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                        closeImageZoomModal();
+                    }
+                });
+            }
+        });
     </script>
+
+    <!-- Image Zoom Modal -->
+    <div id="imageZoomModal" class="fixed inset-0 bg-black/80 z-[9999] hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-4xl max-h-full overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="imageZoomTitle" class="text-lg font-semibold dark:text-white-light">صورة المنتج</h3>
+                <button onclick="closeImageZoomModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <img id="imageZoomImg" src="" alt="" class="max-w-full max-h-[70vh] mx-auto object-contain rounded">
+            </div>
+        </div>
+    </div>
 </x-layout.default>
 

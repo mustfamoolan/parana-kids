@@ -21,7 +21,7 @@ class DeleteOldTrashedOrders extends Command
      *
      * @var string
      */
-    protected $description = 'حذف الطلبات المحذوفة التي مر عليها أكثر من 7 أيام';
+    protected $description = 'حذف الطلبات المحذوفة التي مر عليها أكثر من شهر (30 يوم)';
 
     /**
      * Execute the console command.
@@ -30,11 +30,11 @@ class DeleteOldTrashedOrders extends Command
      */
     public function handle()
     {
-        $sevenDaysAgo = Carbon::now()->subDays(7);
+        $thirtyDaysAgo = Carbon::now()->subDays(30);
 
-        // جلب الطلبات المحذوفة منذ أكثر من 7 أيام
+        // جلب الطلبات المحذوفة منذ أكثر من 30 يوم (شهر)
         $oldTrashedOrders = Order::onlyTrashed()
-            ->where('deleted_at', '<', $sevenDaysAgo)
+            ->where('deleted_at', '<', $thirtyDaysAgo)
             ->get();
 
         $count = 0;
