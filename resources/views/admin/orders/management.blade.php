@@ -582,12 +582,15 @@
             const warehouseFilter = document.getElementById('warehouseFilterManagement');
 
             if (warehouseFilter) {
-                // استرجاع الفلتر من Local Storage عند التحميل
+                // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
+                const urlParams = new URLSearchParams(window.location.search);
                 const savedWarehouse = localStorage.getItem('selectedWarehouse_management');
-                if (savedWarehouse && !warehouseFilter.value) {
+
+                // لا نقوم بتطبيق الفلتر تلقائياً إلا إذا لم تكن هناك معاملات في URL
+                if (savedWarehouse && !warehouseFilter.value && !urlParams.has('warehouse_id') && !urlParams.has('search') && !urlParams.has('status') && !urlParams.has('confirmed_by') && !urlParams.has('delegate_id') && !urlParams.has('date_from') && !urlParams.has('date_to')) {
                     warehouseFilter.value = savedWarehouse;
-                    // تطبيق الفلتر تلقائياً
-                    warehouseFilter.form.submit();
+                    // لا نقوم بإرسال الفورم تلقائياً لتجنب reload لانهائي
+                    // المستخدم يمكنه الضغط على زر البحث إذا رغب
                 }
 
                 // حفظ الفلتر في Local Storage عند التغيير
