@@ -59,6 +59,23 @@
                     <!-- الكود -->
                     <p class="text-primary text-xs mb-1.5 font-bold">{{ $product->code }}</p>
 
+                    <!-- النوع -->
+                    @if($product->gender_type)
+                        <div class="mb-2">
+                            <span class="badge {{ $product->gender_type == 'boys' ? 'badge-outline-info' : ($product->gender_type == 'girls' ? 'badge-outline-pink' : ($product->gender_type == 'boys_girls' ? 'badge-outline-primary' : 'badge-outline-warning')) }} text-xs">
+                                @if($product->gender_type == 'boys')
+                                    ولادي
+                                @elseif($product->gender_type == 'girls')
+                                    بناتي
+                                @elseif($product->gender_type == 'boys_girls')
+                                    ولادي بناتي
+                                @else
+                                    اكسسوار
+                                @endif
+                            </span>
+                        </div>
+                    @endif
+
                     <!-- الاسم -->
                     <h5 class="text-[#3b3f5c] text-[15px] font-bold mb-4 dark:text-white-light line-clamp-2">{{ $product->name }}</h5>
 

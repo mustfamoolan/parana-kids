@@ -67,13 +67,30 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">اسم المنتج:</span>
-                            <span class="font-medium">{{ $product->name }}</span>
+                            <span class="font-medium text-black dark:text-white-light">{{ $product->name }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">كود المنتج:</span>
                             <span class="badge badge-outline-primary">{{ $product->code }}</span>
                         </div>
+
+                        @if($product->gender_type)
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500 dark:text-gray-400">نوع المنتج:</span>
+                                <span class="badge {{ $product->gender_type == 'boys' ? 'badge-outline-info' : ($product->gender_type == 'girls' ? 'badge-outline-pink' : ($product->gender_type == 'boys_girls' ? 'badge-outline-primary' : 'badge-outline-warning')) }}">
+                                    @if($product->gender_type == 'boys')
+                                        ولادي
+                                    @elseif($product->gender_type == 'girls')
+                                        بناتي
+                                    @elseif($product->gender_type == 'boys_girls')
+                                        ولادي بناتي
+                                    @else
+                                        اكسسوار
+                                    @endif
+                                </span>
+                            </div>
+                        @endif
 
                         @if(auth()->user()->isAdmin())
                             <div class="flex items-center justify-between">
@@ -94,7 +111,7 @@
                         @if($product->description)
                             <div class="flex items-start justify-between">
                                 <span class="text-gray-500 dark:text-gray-400">الوصف:</span>
-                                <span class="font-medium text-right max-w-xs">{{ $product->description }}</span>
+                                <span class="font-medium text-black dark:text-white-light text-right max-w-xs">{{ $product->description }}</span>
                             </div>
                         @endif
 
@@ -126,22 +143,22 @@
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">المخزن:</span>
-                            <span class="font-medium">{{ $product->warehouse->name }}</span>
+                            <span class="font-medium text-black dark:text-white-light">{{ $product->warehouse->name }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">المنشئ:</span>
-                            <span class="font-medium">{{ $product->creator->name }}</span>
+                            <span class="font-medium text-black dark:text-white-light">{{ $product->creator->name }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">تاريخ الإنشاء:</span>
-                            <span class="font-medium">{{ $product->created_at->format('Y-m-d H:i') }}</span>
+                            <span class="font-medium text-black dark:text-white-light">{{ $product->created_at->format('Y-m-d H:i') }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">آخر تحديث:</span>
-                            <span class="font-medium">{{ $product->updated_at->format('Y-m-d H:i') }}</span>
+                            <span class="font-medium text-black dark:text-white-light">{{ $product->updated_at->format('Y-m-d H:i') }}</span>
                         </div>
                     </div>
                 </div>
@@ -157,17 +174,17 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">الكمية الإجمالية:</span>
-                            <span class="badge badge-primary">{{ $product->total_quantity }}</span>
+                            <span class="font-bold text-danger dark:text-red-400 text-lg">{{ number_format($product->total_quantity, 0, '.', ',') }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">عدد القياسات:</span>
-                            <span class="badge badge-success">{{ $product->sizes->count() }}</span>
+                            <span class="font-bold text-danger dark:text-red-400 text-lg">{{ $product->sizes->count() }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">عدد الصور:</span>
-                            <span class="badge badge-info">{{ $product->images->count() }}</span>
+                            <span class="font-bold text-danger dark:text-red-400 text-lg">{{ $product->images->count() }}</span>
                         </div>
 
                         @if(auth()->user()->isAdmin())
@@ -176,9 +193,9 @@
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-gray-500 dark:text-gray-400">السعر الكلي للبيع:</span>
                                     </div>
-                                    <div class="text-xl font-bold text-success">
+                                    <div class="text-xl font-bold text-success dark:text-white-light">
                                         {{ number_format($totalSellingPrice, 0, '.', ',') }}
-                                        <span class="text-sm font-normal text-gray-500">دينار عراقي</span>
+                                        <span class="text-sm font-normal text-gray-500 dark:text-gray-400">دينار عراقي</span>
                                     </div>
                                 </div>
 
@@ -187,9 +204,9 @@
                                         <div class="flex items-center justify-between mb-2">
                                             <span class="text-gray-500 dark:text-gray-400">السعر الكلي للشراء:</span>
                                         </div>
-                                        <div class="text-xl font-bold text-info">
+                                        <div class="text-xl font-bold text-info dark:text-white-light">
                                             {{ number_format($totalPurchasePrice, 0, '.', ',') }}
-                                            <span class="text-sm font-normal text-gray-500">دينار عراقي</span>
+                                            <span class="text-sm font-normal text-gray-500 dark:text-gray-400">دينار عراقي</span>
                                         </div>
                                     </div>
 
@@ -197,9 +214,9 @@
                                         <div class="flex items-center justify-between mb-2">
                                             <span class="text-gray-500 dark:text-gray-400">الربح المتوقع:</span>
                                         </div>
-                                        <div class="text-xl font-bold text-warning">
+                                        <div class="text-xl font-bold text-warning dark:text-white-light">
                                             {{ number_format($totalSellingPrice - $totalPurchasePrice, 0, '.', ',') }}
-                                            <span class="text-sm font-normal text-gray-500">دينار عراقي</span>
+                                            <span class="text-sm font-normal text-gray-500 dark:text-gray-400">دينار عراقي</span>
                                         </div>
                                     </div>
                                 @endif

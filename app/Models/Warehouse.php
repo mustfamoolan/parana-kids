@@ -59,4 +59,9 @@ class Warehouse extends Model
                     ->where('can_manage', true)
                     ->exists();
     }
+
+    public function profitRecords()
+    {
+        return $this->hasMany(ProfitRecord::class);
+    }
 }

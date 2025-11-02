@@ -69,34 +69,55 @@
         <div class="sticky top-0 bg-white dark:bg-gray-900 z-10 pb-4">
             <h1 class="text-2xl font-bold mb-4 text-center">المنتجات</h1>
 
-            <!-- نموذج بحث فوري -->
-            <div class="mb-4">
-                <div class="relative">
-                    <input
-                        type="text"
-                        id="searchInput"
-                        class="form-input w-full ltr:pr-10 rtl:pl-10"
-                        placeholder="ابحث بكود المنتج أو القياس..."
-                        value="{{ request('search') }}"
-                        autocomplete="off"
-                    />
-                    <div class="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2">
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                    </div>
-                    @if(request('search'))
-                        <button onclick="clearSearch()" class="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    @endif
+            <!-- الفلاتر -->
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- فلتر النوع -->
+                <div>
+                    <label for="gender_type_filter" class="block text-sm font-medium mb-2">النوع</label>
+                    <select
+                        id="gender_type_filter"
+                        class="form-select"
+                        onchange="applyFilters()"
+                    >
+                        <option value="">كل الأنواع</option>
+                        <option value="boys" {{ request('gender_type') == 'boys' ? 'selected' : '' }}>ولادي</option>
+                        <option value="girls" {{ request('gender_type') == 'girls' ? 'selected' : '' }}>بناتي</option>
+                        <option value="boys_girls" {{ request('gender_type') == 'boys_girls' ? 'selected' : '' }}>ولادي بناتي</option>
+                        <option value="accessories" {{ request('gender_type') == 'accessories' ? 'selected' : '' }}>اكسسوار</option>
+                    </select>
                 </div>
-                <p class="text-xs text-gray-500 mt-1 text-center">
-                    اكتب كود المنتج أو القياس للبحث الفوري
-                </p>
+
+                <!-- نموذج بحث فوري -->
+                <div>
+                    <label for="searchInput" class="block text-sm font-medium mb-2">البحث</label>
+                    <div class="relative">
+                        <input
+                            type="text"
+                            id="searchInput"
+                            class="form-input w-full ltr:pr-10 rtl:pl-10"
+                            placeholder="ابحث بكود المنتج أو القياس أو النوع..."
+                            value="{{ request('search') }}"
+                            autocomplete="off"
+                        />
+                        <div class="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        @if(request('search'))
+                            <button onclick="clearSearch()" class="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        @endif
+                    </div>
+                </div>
             </div>
+
+            <p class="text-xs text-gray-500 mt-1 text-center mb-2">
+                اكتب كود المنتج أو القياس أو النوع (ولادي/بناتي/اكسسوار) للبحث الفوري
+            </p>
 
             <!-- عدد النتائج -->
             <div class="text-sm text-gray-500 mb-2">
@@ -479,6 +500,12 @@
             loadProducts(true);
         };
 
+        // دالة تطبيق الفلاتر
+        window.applyFilters = function() {
+            page = 1;
+            loadProducts(true);
+        };
+
         // Infinite scroll
         window.addEventListener('scroll', function() {
             if (loading || !hasMore) return;
@@ -496,7 +523,9 @@
             if (loading) return;
             loading = true;
 
-            console.log('Loading products:', { page, search: currentSearch, reset });
+            const genderTypeFilter = document.getElementById('gender_type_filter')?.value || '';
+
+            console.log('Loading products:', { page, search: currentSearch, gender_type: genderTypeFilter, reset });
 
             if (reset) {
                 document.getElementById('productsContainer').innerHTML = '';
@@ -506,7 +535,10 @@
             document.getElementById('loadingIndicator').classList.remove('hidden');
             if (loadMoreBtn) loadMoreBtn.disabled = true;
 
-            const url = `{{ route('delegate.products.all') }}?page=${page}&search=${encodeURIComponent(currentSearch)}`;
+            let url = `{{ route('delegate.products.all') }}?page=${page}&search=${encodeURIComponent(currentSearch)}`;
+            if (genderTypeFilter) {
+                url += `&gender_type=${encodeURIComponent(genderTypeFilter)}`;
+            }
             console.log('Fetching:', url);
 
             fetch(url, {

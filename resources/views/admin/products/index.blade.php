@@ -119,6 +119,25 @@
                                 <div><span class="badge badge-outline-success">{{ $product->total_quantity }}</span></div>
                             </div>
 
+                            @if($product->gender_type)
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">نوع المنتج:</span>
+                                    <div>
+                                        <span class="badge {{ $product->gender_type == 'boys' ? 'badge-outline-info' : ($product->gender_type == 'girls' ? 'badge-outline-pink' : ($product->gender_type == 'boys_girls' ? 'badge-outline-primary' : 'badge-outline-warning')) }} text-xs">
+                                            @if($product->gender_type == 'boys')
+                                                ولادي
+                                            @elseif($product->gender_type == 'girls')
+                                                بناتي
+                                            @elseif($product->gender_type == 'boys_girls')
+                                                ولادي بناتي
+                                            @else
+                                                اكسسوار
+                                            @endif
+                                        </span>
+                                    </div>
+                                </div>
+                            @endif
+
                             @if($product->sizes->count() > 0)
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">القياسات:</span>

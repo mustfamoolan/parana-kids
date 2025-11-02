@@ -17,11 +17,17 @@ use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\BulkReturnController;
 use App\Http\Controllers\Admin\ProductMovementController as AdminProductMovementController;
 use App\Http\Controllers\Delegate\OrderController as DelegateOrderController;
+use App\Http\Controllers\Admin\ProductLinkController;
+use App\Http\Controllers\Delegate\ProductLinkController as DelegateProductLinkController;
+use App\Http\Controllers\PublicProductController;
 
 // Redirect root to delegate login
 Route::get('/', function () {
     return redirect()->route('delegate.login');
 });
+
+// Public routes (without authentication)
+Route::get('/p/{token}', [PublicProductController::class, 'show'])->name('public.products.show');
 
 // Admin/Supplier Authentication Routes
 Route::prefix('admin')->group(function () {
@@ -32,6 +38,9 @@ Route::prefix('admin')->group(function () {
     // Protected admin routes
     Route::middleware(['admin'])->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+
+        // صفحة التقارير (للمدير فقط)
+        Route::get('reports', [AdminDashboardController::class, 'reports'])->name('admin.reports');
 
         // Warehouse routes
         Route::resource('warehouses', AdminWarehouseController::class)->names([
@@ -132,6 +141,15 @@ Route::prefix('admin')->group(function () {
         Route::get('bulk-returns', [BulkReturnController::class, 'index'])->name('admin.bulk-returns.index');
         Route::get('bulk-returns/search', [BulkReturnController::class, 'searchProducts'])->name('admin.bulk-returns.search');
         Route::post('bulk-returns', [BulkReturnController::class, 'returnProducts'])->name('admin.bulk-returns.store');
+
+        // Product Links routes
+        Route::get('product-links/get-sizes', [ProductLinkController::class, 'getSizes'])->name('admin.product-links.get-sizes');
+        Route::resource('product-links', ProductLinkController::class)->names([
+            'index' => 'admin.product-links.index',
+            'create' => 'admin.product-links.create',
+            'store' => 'admin.product-links.store',
+            'destroy' => 'admin.product-links.destroy',
+        ])->except(['show', 'edit', 'update']);
     });
 });
 
@@ -202,6 +220,15 @@ Route::prefix('delegate')->group(function () {
         Route::get('archived', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'index'])->name('delegate.archived.index');
         Route::post('archived/{archived}/restore', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'restore'])->name('delegate.archived.restore');
         Route::delete('archived/{archived}', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'destroy'])->name('delegate.archived.destroy');
+
+        // Product Links routes
+        Route::get('product-links/get-sizes', [DelegateProductLinkController::class, 'getSizes'])->name('delegate.product-links.get-sizes');
+        Route::resource('product-links', DelegateProductLinkController::class)->names([
+            'index' => 'delegate.product-links.index',
+            'create' => 'delegate.product-links.create',
+            'store' => 'delegate.product-links.store',
+            'destroy' => 'delegate.product-links.destroy',
+        ])->except(['show', 'edit', 'update']);
     });
 });
 

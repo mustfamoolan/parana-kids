@@ -25,7 +25,22 @@ class ProductController extends Controller
 
         $searchedSize = null; // لتمرير القياس المبحوث للـ view
 
-        // البحث بالكود أو القياس
+        // فلتر النوع
+        if ($request->filled('gender_type')) {
+            $genderType = $request->gender_type;
+            if ($genderType == 'boys') {
+                // عرض "ولادي" و "ولادي بناتي"
+                $query->whereIn('gender_type', ['boys', 'boys_girls']);
+            } elseif ($genderType == 'girls') {
+                // عرض "بناتي" و "ولادي بناتي"
+                $query->whereIn('gender_type', ['girls', 'boys_girls']);
+            } else {
+                // عرض النوع المحدد فقط (boys_girls أو accessories)
+                $query->where('gender_type', $genderType);
+            }
+        }
+
+        // البحث بالكود أو القياس أو النوع
         if ($request->filled('search')) {
             $search = trim($request->search);
             \Log::info('Search applied', ['search_term' => $search]);
@@ -39,21 +54,47 @@ class ProductController extends Controller
                 // إذا كان البحث عن كود منتج، أظهر المنتج بكل قياساته
                 $query->where('code', 'LIKE', "%{$search}%");
             } else {
-                // إذا لم يكن كود منتج، ابحث في القياسات المتوفرة فقط
-                // نستخدم whereRaw لحساب available_quantity في SQL مباشرة
-                $query->whereHas('sizes', function($q) use ($search) {
-                    $q->where('size_name', 'LIKE', "%{$search}%")
-                      ->whereRaw('quantity > (
-                          SELECT COALESCE(SUM(quantity_reserved), 0)
-                          FROM stock_reservations
-                          WHERE product_size_id = product_sizes.id
-                      )');
-                });
-                $searchedSize = $search; // حفظ القياس المبحوث
+                // البحث في النوع
+                $genderTypeMap = [
+                    'ولادي' => ['boys', 'boys_girls'],
+                    'بناتي' => ['girls', 'boys_girls'],
+                    'ولادي بناتي' => ['boys_girls'],
+                    'اكسسوار' => ['accessories'],
+                    'boys' => ['boys', 'boys_girls'],
+                    'girls' => ['girls', 'boys_girls'],
+                    'boys_girls' => ['boys_girls'],
+                    'accessories' => ['accessories'],
+                ];
+
+                $lowerSearch = mb_strtolower($search);
+                $foundGenderType = false;
+
+                foreach ($genderTypeMap as $key => $types) {
+                    if (mb_strtolower($key) == $lowerSearch || stripos($key, $search) !== false || stripos($search, $key) !== false) {
+                        $query->whereIn('gender_type', $types);
+                        $foundGenderType = true;
+                        break;
+                    }
+                }
+
+                // إذا لم يكن البحث عن النوع، ابحث في القياسات
+                if (!$foundGenderType) {
+                    $query->whereHas('sizes', function($q) use ($search) {
+                        $q->where('size_name', 'LIKE', "%{$search}%")
+                          ->whereRaw('quantity > (
+                              SELECT COALESCE(SUM(quantity_reserved), 0)
+                              FROM stock_reservations
+                              WHERE product_size_id = product_sizes.id
+                          )');
+                    });
+                    $searchedSize = $search; // حفظ القياس المبحوث
+                }
             }
         }
 
         $products = $query->latest()->paginate(30);
+
+        $searchedSize = $searchedSize ?? null;
 
         if ($request->ajax()) {
             return response()->json([

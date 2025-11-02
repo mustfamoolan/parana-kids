@@ -13,6 +13,7 @@ class Product extends Model
         'warehouse_id',
         'name',
         'code',
+        'gender_type',
         'purchase_price',
         'selling_price',
         'description',
@@ -71,5 +72,10 @@ class Product extends Model
     public function getTotalQuantityAttribute()
     {
         return $this->sizes()->sum('quantity');
+    }
+
+    public function profitRecords()
+    {
+        return $this->hasMany(ProfitRecord::class);
     }
 }

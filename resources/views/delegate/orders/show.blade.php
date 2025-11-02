@@ -221,6 +221,32 @@
                         <span class="text-gray-500 dark:text-gray-400">السلة الأصلية:</span>
                         <span class="font-medium">{{ $order->cart->cart_name }}</span>
                     </div>
+
+                    @if($order->status === 'confirmed' && $order->delivery_code)
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-500 dark:text-gray-400">كود الوسيط:</span>
+                                <span class="font-medium text-primary text-lg">{{ $order->delivery_code }}</span>
+                            </div>
+                            <button type="button" onclick="copyToClipboard('{{ $order->delivery_code }}')" class="btn btn-sm btn-outline-primary w-full">
+                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                نسخ كود الوسيط
+                            </button>
+                        </div>
+                    @endif
+
+                    @if($order->status === 'confirmed' && $order->confirmed_at)
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-gray-500 dark:text-gray-400">تاريخ التقييد:</span>
+                            <span class="font-medium">
+                                {{ $order->confirmed_at->locale('ar')->translatedFormat('l') }}،
+                                {{ $order->confirmed_at->format('d/m/Y') }}
+                                <span class="rtl:mr-1 ltr:ml-1">{{ $order->confirmed_at->format('g:i A') }}</span>
+                            </span>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

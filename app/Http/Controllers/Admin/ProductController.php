@@ -52,6 +52,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255',
+            'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
@@ -72,6 +73,7 @@ class ProductController extends Controller
             'warehouse_id' => $warehouse->id,
             'name' => $productName,
             'code' => $request->code,
+            'gender_type' => $request->gender_type,
             'purchase_price' => $request->purchase_price,
             'selling_price' => $request->selling_price,
             'description' => $request->description,
@@ -196,6 +198,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255',
+            'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
@@ -217,6 +220,7 @@ class ProductController extends Controller
         $product->update([
             'name' => $productName,
             'code' => $request->code,
+            'gender_type' => $request->gender_type,
             'purchase_price' => $request->purchase_price,
             'selling_price' => $request->selling_price,
             'description' => $request->description,

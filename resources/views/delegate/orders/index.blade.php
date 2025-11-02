@@ -158,6 +158,7 @@
                                 <option value="">جميع الحالات</option>
                                 <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>غير مقيد</option>
                                 <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>مقيد</option>
+                                <option value="deleted" {{ request('status') == 'deleted' ? 'selected' : '' }}>محذوف</option>
                             </select>
                         </div>
                     </div>
@@ -292,31 +293,55 @@
                             </div>
                         </div>
 
-                        <!-- معلومات الزبون - مبسطة -->
-                        <div class="mb-4">
-                            <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">السوشل ميديا</span>
-                                <p class="font-medium text-sm">
-                                    <a href="{{ $order->customer_social_link }}" target="_blank" class="text-primary hover:underline">
-                                        {{ Str::limit($order->customer_social_link, 20) }}
+                        <!-- رابط السوشل ميديا -->
+                        @if($order->customer_social_link)
+                            <div class="mb-4">
+                                <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-2">رابط السوشل ميديا</span>
+                                    <a href="{{ $order->customer_social_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary w-full flex items-center justify-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                        </svg>
+                                        فتح الرابط
                                     </a>
-                                </p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{{ Str::limit($order->customer_social_link, 30) }}</p>
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
                         <!-- معلومات التقييد للطلبات المقيدة -->
                         @if($order->status === 'confirmed' && $order->confirmed_at)
                             <div class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                                <span class="text-xs font-semibold text-green-700 dark:text-green-400 block mb-1">
+                                <span class="text-xs font-semibold text-green-700 dark:text-green-400 block mb-2">
                                     <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                     تاريخ التقييد
                                 </span>
-                                <p class="text-sm text-gray-700 dark:text-gray-300">
+                                <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">
                                     {{ $order->confirmed_at->locale('ar')->translatedFormat('l') }}، {{ $order->confirmed_at->format('d/m/Y') }}
                                     <span class="rtl:mr-1 ltr:ml-1">{{ $order->confirmed_at->format('g:i A') }}</span>
                                 </p>
+
+                                @if($order->delivery_code)
+                                    <div class="pt-3 border-t border-green-200 dark:border-green-700">
+                                        <span class="text-xs text-green-600 dark:text-green-400 block mb-1">كود الوسيط:</span>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="font-bold text-lg text-green-700 dark:text-green-300">{{ $order->delivery_code }}</span>
+                                            <button
+                                                type="button"
+                                                onclick="copyToClipboard('{{ $order->delivery_code }}')"
+                                                class="btn btn-xs btn-outline-primary flex items-center gap-1"
+                                                title="نسخ كود الوسيط"
+                                            >
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                                </svg>
+                                                نسخ
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         @endif
 
@@ -412,6 +437,51 @@
     </script>
 
     <script>
+    // دالة نسخ إلى الحافظة
+    function copyToClipboard(text) {
+        // إنشاء عنصر مؤقت
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+
+        // تحديد ونسخ النص
+        textarea.select();
+        textarea.setSelectionRange(0, 99999); // للهواتف المحمولة
+
+        try {
+            document.execCommand('copy');
+            showNotification('تم نسخ كود الوسيط بنجاح!');
+        } catch (err) {
+            showNotification('حدث خطأ أثناء النسخ', 'error');
+        }
+
+        // إزالة العنصر المؤقت
+        document.body.removeChild(textarea);
+    }
+
+    // دالة عرض الإشعار
+    function showNotification(message, type = 'success') {
+        // إنشاء عنصر الإشعار
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
+        notification.textContent = message;
+
+        // إضافة الإشعار للصفحة
+        document.body.appendChild(notification);
+
+        // إزالة الإشعار بعد 3 ثوان
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // إذا كان هناك anchor في الرابط (#order-123)
         if (window.location.hash) {

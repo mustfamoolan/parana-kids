@@ -198,25 +198,6 @@
                 </div>
             </div>
 
-            <!-- كود التوصيل -->
-            <div class="panel mb-5">
-                <h6 class="text-lg font-semibold mb-4">كود التوصيل (كود الوسيط)</h6>
-                <input
-                    type="text"
-                    x-model="deliveryCode"
-                    name="delivery_code"
-                    class="form-input"
-                    placeholder="أدخل كود شركة التوصيل"
-                    required
-                >
-                <button type="button" onclick="copyToClipboard('deliveryCode')" class="btn btn-sm btn-outline-secondary mt-2">
-                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                    </svg>
-                    نسخ
-                </button>
-            </div>
-
             <!-- صندوق أسماء المنتجات للنص الجاهز + زر النسخ -->
             <div class="panel mb-5">
                 <h6 class="text-lg font-semibold mb-4">أسماء المنتجات</h6>
@@ -236,6 +217,29 @@
                     <span class="text-2xl font-bold text-success" x-text="formatPrice(totalAmount)"></span>
                 </div>
 
+                <!-- كود التوصيل -->
+                <div class="mb-4">
+                    <label for="delivery_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        كود التوصيل (كود الوسيط) <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            id="delivery_code"
+                            x-model="deliveryCode"
+                            name="delivery_code"
+                            class="form-input flex-1"
+                            placeholder="أدخل كود شركة التوصيل"
+                            required
+                        >
+                        <button type="button" onclick="copyToClipboard('deliveryCode')" class="btn btn-outline-secondary">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            نسخ
+                        </button>
+                    </div>
+                </div>
 
                 <div class="flex gap-3">
                     <button type="button" @click="submitOrder()" class="btn btn-primary flex-1">
@@ -310,32 +314,40 @@
                 },
 
                 get productNamesText() {
-                    const parts = this.items
+                    // النص الثابت
+                    const prefix = 'فتح وتصوير الطلب امام الزبون قبل التسليم عند القياس';
+
+                    // جمع أسماء المنتجات مع العدد
+                    const productParts = this.items
                         .map(i => {
                             const rawName = (i?.product_name || '');
                             const name = rawName.includes('(') ? rawName.split('(')[0].trim() : rawName.trim();
                             if (!name) return '';
                             const qty = Number(i?.quantity || 0);
-                            // إذا الكمية >1: الاسم ثم "عدد N" ثم علامة + ، وإلا: الاسم ثم + فقط
-                            return qty > 1 ? `${name}عدد ${qty}+` : `${name}+`;
+                            // اسم المنتج ثم العدد
+                            return `${name} العدد ${qty}`;
                         })
                         .filter(Boolean);
-                    const joined = parts.join('');
-                    const prefix = 'فتح وتصوير الطلب امام الزبون قبل التسليم عند القياس';
 
                     // الإجماليات
                     const totalQty = this.items.reduce((s, it) => s + Number(it?.quantity || 0), 0);
-                    // حساب مباشر: كمية × سعر للوحدة لكل عنصر لضمان الدقة حتى مع تأخير تحديث subtotal
                     const totalAmount = this.items.reduce((s, it) => s + (Number(it?.quantity || 0) * Number(it?.unit_price || 0)), 0);
                     const totalAmountWithFee = totalAmount + 5000; // إضافة 5000 تلقائياً
-                    const totalAmountTxt = new Intl.NumberFormat('en-US').format(totalAmountWithFee);
-                    // إزالة الأقواس وعلامة الـ pipe واستبدالها بمسافة
-                    const totals = ` اجمالي العدد ${totalQty} اجمالي المبلغ ${totalAmountTxt}`;
 
-                    // استبدال السطر الجديد بمسافة وإزالة أي علامات ترقيم أخرى
-                    const fullText = joined ? `${prefix} ${joined}${totals}` : `${prefix} ${totals}`;
-                    // إزالة أي علامات ترقيم متبقية (فقط الأرقام والنص والمسافات)
-                    return fullText.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0020\u0030-\u0039\u0061-\u007A\u0041-\u005A]/g, ' ');
+                    // تنسيق المبلغ بدون فواصل (أرقام فقط) لتجنب مشكلة قلب الأرقام
+                    const totalAmountTxt = String(totalAmountWithFee);
+
+                    // بناء النص الكامل: النص الثابت + المنتجات + العدد الإجمالي + المبلغ الكلي
+                    const productsText = productParts.join(' ');
+                    const totals = `العدد الإجمالي ${totalQty} المبلغ الكلي ${totalAmountTxt}`;
+
+                    // دمج كل شيء في سطر واحد مع مسافات صحيحة
+                    const fullText = `${prefix} ${productsText} ${totals}`;
+
+                    // إزالة أي علامات ترقيم أو رموز غير مرغوبة (فقط الأرقام والنص العربي/الإنجليزي والمسافات)
+                    return fullText.replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0020\u0030-\u0039\u0061-\u007A\u0041-\u005A]/g, ' ')
+                                   .replace(/\s+/g, ' ') // إزالة المسافات المتعددة واستبدالها بمسافة واحدة
+                                   .trim();
                 },
 
                 get filteredProducts() {

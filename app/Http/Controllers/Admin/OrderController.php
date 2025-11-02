@@ -11,6 +11,7 @@ use App\Models\ProductMovement;
 use App\Models\ReturnItem;
 use App\Models\ExchangeItem;
 use App\Models\OrderItem;
+use App\Services\ProfitCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -50,13 +51,29 @@ class OrderController extends Controller
 
         // فلتر الحالة
         if ($request->status === 'deleted') {
-            // عرض الطلبات المحذوفة فقط
-            $query->onlyTrashed()->with(['deletedByUser']);
+            // عرض فقط الطلبات المحذوفة التي حذفها المدير/المجهز (لها deleted_by و deletion_reason)
+            // لا نعرض الطلبات المحذوفة من المندوب لأنها حذف نهائي
+            $query->onlyTrashed()
+                  ->whereNotNull('deleted_by')
+                  ->whereNotNull('deletion_reason')
+                  ->with(['deletedByUser']);
         } elseif ($request->filled('status') && in_array($request->status, ['pending', 'confirmed'])) {
             $query->where('status', $request->status);
         } else {
-            // افتراضياً: عرض pending و confirmed معاً (بدون المحذوفة)
-            $query->whereIn('status', ['pending', 'confirmed']);
+            // افتراضياً: عرض pending و confirmed مع المحذوفة (الكل)
+            // نستخدم withTrashed() ليشمل الطلبات المحذوفة أيضاً
+            $query->withTrashed()->where(function($q) {
+                // الطلبات النشطة (pending أو confirmed) - غير محذوفة
+                $q->where(function($subQ) {
+                    $subQ->whereNull('deleted_at')
+                         ->whereIn('status', ['pending', 'confirmed']);
+                })->orWhere(function($subQ) {
+                    // الطلبات المحذوفة التي حذفها المدير/المجهز (soft deleted)
+                    $subQ->whereNotNull('deleted_at')
+                         ->whereNotNull('deleted_by')
+                         ->whereNotNull('deletion_reason');
+                });
+            });
         }
 
         // فلتر المخزن
@@ -84,6 +101,7 @@ class OrderController extends Controller
                   ->orWhere('customer_name', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
                   ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
                   ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
                       $delegateQuery->where('name', 'like', "%{$searchTerm}%");
@@ -131,15 +149,22 @@ class OrderController extends Controller
 
         $perPage = $request->input('per_page', 15);
 
+        // تحميل العلاقات المطلوبة
+        $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy']);
+
+        // إضافة deletedByUser للطلبات المحذوفة
+        if ($request->status === 'deleted' || (!$request->filled('status') || $request->status !== 'pending' && $request->status !== 'confirmed')) {
+            $query->with('deletedByUser');
+        }
+
         // ترتيب الطلبات: للطلبات المحذوفة استخدم deleted_at، وإلا استخدم created_at
         if ($request->status === 'deleted') {
-        $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
-                           ->latest('deleted_at')
+            $orders = $query->latest('deleted_at')
                        ->paginate($perPage)
                        ->appends($request->except('page'));
         } else {
-            $orders = $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy'])
-                           ->latest('created_at')
+            // ترتيب مختلط: للطلبات المحذوفة deleted_at، للباقي created_at
+            $orders = $query->orderByRaw('CASE WHEN deleted_at IS NOT NULL THEN deleted_at ELSE created_at END DESC')
                            ->paginate($perPage)
                            ->appends($request->except('page'));
         }
@@ -180,6 +205,7 @@ class OrderController extends Controller
                           ->orWhere('customer_name', 'like', "%{$searchTerm}%")
                           ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
                           ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
                           ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
                           ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
                               $delegateQuery->where('name', 'like', "%{$searchTerm}%");
@@ -210,42 +236,50 @@ class OrderController extends Controller
                 return $query;
             };
 
-            // حساب المبلغ الإجمالي والأرباح للطلبات غير المقيدة (pending)
+            // حساب المبلغ الإجمالي والأرباح للطلبات غير المقيدة (pending) - دائماً
+            $pendingQuery = Order::where('status', 'pending');
+            $pendingQuery = $applyFilters($pendingQuery);
+
+            // حساب المبلغ من order_items مباشرة لضمان الدقة
+            $pendingOrderIds = $pendingQuery->pluck('id');
+            $pendingTotalAmount = 0;
             $pendingProfitAmount = 0;
-            if (!$request->filled('status') || $request->status === 'pending') {
-                $pendingQuery = Order::where('status', 'pending');
-                $pendingQuery = $applyFilters($pendingQuery);
-                $pendingTotalAmount = $pendingQuery->sum('total_amount');
+            if ($pendingOrderIds->count() > 0) {
+                $pendingTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $pendingOrderIds)
+                    ->sum('subtotal') ?? 0;
 
                 // حساب الأرباح المتوقعة للطلبات غير المقيدة باستخدام DB query محسّن
-                $pendingOrderIds = $pendingQuery->pluck('id');
-                if ($pendingOrderIds->count() > 0) {
-                    $pendingProfitAmount = DB::table('order_items')
-                        ->join('products', 'order_items.product_id', '=', 'products.id')
-                        ->whereIn('order_items.order_id', $pendingOrderIds)
-                        ->whereNotNull('products.purchase_price')
-                        ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
-                        ->value('total_profit') ?? 0;
-                }
+                // استخدام COALESCE لمعالجة purchase_price NULL أو 0
+                $pendingProfitAmount = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $pendingOrderIds)
+                    ->selectRaw('SUM((order_items.unit_price - COALESCE(products.purchase_price, 0)) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
             }
 
-            // حساب المبلغ الإجمالي والأرباح للطلبات المقيدة (confirmed)
+            // حساب المبلغ الإجمالي والأرباح للطلبات المقيدة (confirmed) - دائماً
+            $confirmedQuery = Order::where('status', 'confirmed');
+            $confirmedQuery = $applyFilters($confirmedQuery);
+
+            // حساب المبلغ من order_items مباشرة لضمان الدقة
+            $confirmedOrderIds = $confirmedQuery->pluck('id');
+            $confirmedTotalAmount = 0;
             $confirmedProfitAmount = 0;
-            if (!$request->filled('status') || $request->status === 'confirmed') {
-                $confirmedQuery = Order::where('status', 'confirmed');
-                $confirmedQuery = $applyFilters($confirmedQuery);
-                $confirmedTotalAmount = $confirmedQuery->sum('total_amount');
+            if ($confirmedOrderIds->count() > 0) {
+                $confirmedTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $confirmedOrderIds)
+                    ->sum('subtotal') ?? 0;
 
                 // حساب الأرباح المتوقعة للطلبات المقيدة باستخدام DB query محسّن
-                $confirmedOrderIds = $confirmedQuery->pluck('id');
-                if ($confirmedOrderIds->count() > 0) {
-                    $confirmedProfitAmount = DB::table('order_items')
-                        ->join('products', 'order_items.product_id', '=', 'products.id')
-                        ->whereIn('order_items.order_id', $confirmedOrderIds)
-                        ->whereNotNull('products.purchase_price')
-                        ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
-                        ->value('total_profit') ?? 0;
-                }
+                // حساب الربح فقط للمنتجات التي لديها purchase_price
+                $confirmedProfitAmount = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $confirmedOrderIds)
+                    ->whereNotNull('products.purchase_price')
+                    ->where('products.purchase_price', '>', 0)
+                    ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
             }
         }
 
@@ -338,7 +372,10 @@ class OrderController extends Controller
         // فلتر الحالة (pending بشكل افتراضي)
         if ($request->filled('status')) {
             if ($request->status === 'deleted') {
-                $query->onlyTrashed();
+                // عرض فقط الطلبات المحذوفة التي حذفها المدير/المجهز
+                $query->onlyTrashed()
+                      ->whereNotNull('deleted_by')
+                      ->whereNotNull('deletion_reason');
             } else {
                 $query->where('status', $request->status);
             }
@@ -520,6 +557,10 @@ class OrderController extends Controller
                     'notes' => "تقييد/تجهيز طلب #{$order->order_number}"
                 ]);
             }
+
+            // تسجيل الربح عند التقييد
+            $profitCalculator = new ProfitCalculator();
+            $profitCalculator->recordOrderProfit($order);
 
             // ملاحظة: المنتجات لا يتم تعديلها هنا لأنها سبق خصمها من المخزن عند رفع المندوب للطلب
             // حركات المواد تسجل عند رفع المندوب للطلب وليس عند التجهيز
@@ -844,7 +885,7 @@ class OrderController extends Controller
                 $order->update(['total_amount' => $totalAmount]);
             });
 
-            return redirect()->route('admin.orders.show', $order)
+            return redirect()->route('admin.orders.management')
                             ->with('success', 'تم تحديث الطلب بنجاح');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'حدث خطأ أثناء تحديث الطلب: ' . $e->getMessage()])->withInput();

@@ -81,6 +81,26 @@
                         @enderror
                     </div>
 
+                    <div>
+                        <label for="gender_type" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                            نوع المنتج
+                        </label>
+                        <select
+                            id="gender_type"
+                            name="gender_type"
+                            class="form-select @error('gender_type') border-danger @enderror"
+                        >
+                            <option value="">-- اختر نوع المنتج --</option>
+                            <option value="boys" {{ old('gender_type', $product->gender_type) == 'boys' ? 'selected' : '' }}>ولادي</option>
+                            <option value="girls" {{ old('gender_type', $product->gender_type) == 'girls' ? 'selected' : '' }}>بناتي</option>
+                            <option value="boys_girls" {{ old('gender_type', $product->gender_type) == 'boys_girls' ? 'selected' : '' }}>ولادي بناتي</option>
+                            <option value="accessories" {{ old('gender_type', $product->gender_type) == 'accessories' ? 'selected' : '' }}>اكسسوار</option>
+                        </select>
+                        @error('gender_type')
+                            <div class="mt-1 text-danger">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     @if(auth()->user()->isAdmin())
                         <div>
                             <label for="purchase_price" class="mb-3 block text-sm font-medium text-black dark:text-white">

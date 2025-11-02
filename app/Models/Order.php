@@ -122,6 +122,11 @@ class Order extends Model
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
+    public function profitRecords()
+    {
+        return $this->hasMany(ProfitRecord::class);
+    }
+
     /**
      * Resolve the route binding to include soft deleted models.
      */

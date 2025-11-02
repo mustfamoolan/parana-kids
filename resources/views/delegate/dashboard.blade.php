@@ -100,6 +100,17 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">تصفح المنتجات</p>
             </a>
 
+            <!-- 5. إنشاء رابط -->
+            <a href="{{ route('delegate.product-links.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-purple/10 to-purple/5 border-2 border-purple/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-purple/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path opacity="0.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" fill="currentColor" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-purple mb-2">إنشاء رابط</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إنشاء رابط للمنتجات</p>
+            </a>
+
         </div>
     </div>
 

@@ -61,6 +61,21 @@
                         </div>
                     </a>
                 </li>
+
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.reports') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5"
+                                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    fill="currentColor" />
+                            </svg>
+                            <span
+                                class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">التقارير</span>
+                        </div>
+                    </a>
+                </li>
                 @endif
 
                 @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSupplier()))
@@ -106,6 +121,17 @@
                                 <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke="currentColor" stroke-width="2"/>
                             </svg>
                             <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">نقل المواد</span>
+                        </div>
+                    </a>
+                </li>
+
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.product-links.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" fill="currentColor" />
+                            </svg>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إنشاء رابط</span>
                         </div>
                     </a>
                 </li>
@@ -188,23 +214,17 @@
     </a>
 </li>
 
-
 <li class="menu nav-item">
-    <a href="{{ route('delegate.orders.deleted') }}" class="nav-link group">
+    <a href="{{ route('delegate.product-links.index') }}" class="nav-link group">
         <div class="flex items-center">
-            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke="currentColor" stroke-width="2"/>
+            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path opacity="0.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" fill="currentColor" />
             </svg>
-            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الطلبات المحذوفة</span>
-            @php
-                $deletedOrdersCount = auth()->check() ? \App\Models\Order::onlyTrashed()->where('delegate_id', auth()->id())->count() : 0;
-            @endphp
-            @if($deletedOrdersCount > 0)
-                <span class="badge badge-danger ltr:ml-auto rtl:mr-auto">{{ $deletedOrdersCount }}</span>
-            @endif
+            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إنشاء رابط</span>
         </div>
     </a>
 </li>
+
 @endif
             </ul>
         </div>
