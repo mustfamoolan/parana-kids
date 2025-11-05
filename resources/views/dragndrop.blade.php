@@ -1,6 +1,7 @@
 <x-layout.default>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <!-- Sortable.js - Local (replaces Cloudflare CDN to avoid ERR_CONNECTION_TIMED_OUT in Iraq) -->
+    <script src="/assets/js/Sortable.min.js"></script>
     <div x-data="basic">
         <ul class="flex space-x-2 rtl:space-x-reverse mb-6">
             <li>

@@ -1,0 +1,58 @@
+/**
+ * Nunito Font - Local Font Files
+ *
+ * IMPORTANT: You need to download Nunito font files and place them in:
+ * public/assets/fonts/nunito/
+ *
+ * Required font weights: 400, 500, 600, 700, 800
+ * Font format: woff2 (preferred) or woff
+ *
+ * Download from: https://fonts.google.com/specimen/Nunito
+ * Or use: https://google-webfonts-helper.herokuapp.com/fonts/nunito
+ */
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/assets/fonts/nunito/nunito-v25-latin-regular.woff2') format('woff2'),
+         url('/assets/fonts/nunito/nunito-v25-latin-regular.woff') format('woff');
+}
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/assets/fonts/nunito/nunito-v25-latin-500.woff2') format('woff2'),
+         url('/assets/fonts/nunito/nunito-v25-latin-500.woff') format('woff');
+}
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/assets/fonts/nunito/nunito-v25-latin-600.woff2') format('woff2'),
+         url('/assets/fonts/nunito/nunito-v25-latin-600.woff') format('woff');
+}
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/assets/fonts/nunito/nunito-v25-latin-700.woff2') format('woff2'),
+         url('/assets/fonts/nunito/nunito-v25-latin-700.woff') format('woff');
+}
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('/assets/fonts/nunito/nunito-v25-latin-800.woff2') format('woff2'),
+         url('/assets/fonts/nunito/nunito-v25-latin-800.woff') format('woff');
+}
+

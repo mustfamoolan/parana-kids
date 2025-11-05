@@ -1,6 +1,6 @@
 <x-layout.default>
-    <!-- Swiper CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <!-- Swiper CSS - Local (replaces CDN to avoid ERR_CONNECTION_TIMED_OUT in Iraq) -->
+    <link rel="stylesheet" href="/assets/css/swiper-bundle.min.css" />
 
     <div class="container mx-auto px-4 py-6 max-w-7xl">
         <!-- Banner الطلب النشط -->
@@ -448,8 +448,8 @@
         </div>
     @endif
 
-    <!-- Swiper JS -->
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <!-- Swiper JS - Local (replaces CDN to avoid ERR_CONNECTION_TIMED_OUT in Iraq) -->
+    <script src="/assets/js/swiper-bundle.min.js"></script>
 
     <script>
         let page = 1;

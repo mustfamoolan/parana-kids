@@ -10,10 +10,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/svg" href="/assets/images/favicon.svg" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet" />
+    <!-- Local Nunito Font (replaces Google Fonts to avoid ERR_CONNECTION_TIMED_OUT in Iraq) -->
+    <link rel="stylesheet" href="/assets/css/fonts.css" />
 
     <script src="/assets/js/perfect-scrollbar.min.js"></script>
     <script defer src="/assets/js/popper.min.js"></script>

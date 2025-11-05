@@ -108,23 +108,57 @@ class WarehouseController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Warehouse $warehouse)
+    public function show(Request $request, Warehouse $warehouse)
     {
         $this->authorize('view', $warehouse);
 
-        $warehouse->load(['products.images', 'products.primaryImage', 'products.sizes', 'products.creator', 'users']);
+        // بناء الاستعلام للمنتجات
+        $productsQuery = $warehouse->products()->with(['images', 'primaryImage', 'sizes', 'creator']);
 
-        // حساب السعر الكلي للبيع والشراء (للمدير فقط)
+        // فلتر حسب النوع (gender_type)
+        if ($request->filled('gender_type')) {
+            $genderType = $request->gender_type;
+            if ($genderType == 'boys') {
+                // عرض "ولادي" و "ولادي بناتي"
+                $productsQuery->whereIn('gender_type', ['boys', 'boys_girls']);
+            } elseif ($genderType == 'girls') {
+                // عرض "بناتي" و "ولادي بناتي"
+                $productsQuery->whereIn('gender_type', ['girls', 'boys_girls']);
+            } else {
+                // عرض النوع المحدد فقط (boys_girls أو accessories)
+                $productsQuery->where('gender_type', $genderType);
+            }
+        }
+
+        // البحث بكود المنتج أو اسم المنتج أو القياس
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $productsQuery->where(function($q) use ($search) {
+                $q->where('code', 'LIKE', "%{$search}%")
+                  ->orWhere('name', 'LIKE', "%{$search}%")
+                  ->orWhereHas('sizes', function($sizeQuery) use ($search) {
+                      $sizeQuery->where('size_name', 'LIKE', "%{$search}%");
+                  });
+            });
+        }
+
+        // جلب المنتجات المفلترة
+        $products = $productsQuery->get();
+
+        // تحميل العلاقات للمخزن
+        $warehouse->load(['users']);
+
+        // حساب السعر الكلي للبيع والشراء (للمدير فقط) - بناءً على المنتجات المفلترة
         $totalSellingPrice = 0;
         $totalPurchasePrice = 0;
 
-        // حساب إجمالي القطع
-        $totalPieces = $warehouse->products->sum(function($product) {
+        // حساب إجمالي القطع - بناءً على المنتجات المفلترة
+        $totalPieces = $products->sum(function($product) {
             return $product->sizes->sum('quantity');
         });
 
         if (auth()->user()->isAdmin()) {
-            foreach ($warehouse->products as $product) {
+            foreach ($products as $product) {
                 $totalQuantity = $product->sizes->sum('quantity');
                 $totalSellingPrice += $product->selling_price * $totalQuantity;
 
@@ -134,7 +168,14 @@ class WarehouseController extends Controller
             }
         }
 
-        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces'));
+        // تمرير معاملات البحث والفلترة للـ view
+        $searchTerm = $request->get('search', '');
+        $genderTypeFilter = $request->get('gender_type', '');
+
+        // تعيين المنتجات المفلترة للمخزن لعرضها في الـ view
+        $warehouse->setRelation('products', $products);
+
+        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter'));
     }
 
     /**

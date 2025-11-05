@@ -165,6 +165,58 @@
                 @endcan
             </div>
 
+            <!-- البحث والفلترة -->
+            <form method="GET" action="{{ route('admin.warehouses.show', $warehouse) }}" class="mb-5">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- حقل البحث -->
+                    <div>
+                        <label for="search" class="block text-sm font-medium mb-2">البحث</label>
+                        <input
+                            type="text"
+                            id="search"
+                            name="search"
+                            class="form-input w-full"
+                            placeholder="ابحث بكود المنتج أو القياس أو اسم المنتج..."
+                            value="{{ $searchTerm ?? '' }}"
+                        >
+                    </div>
+
+                    <!-- فلتر النوع -->
+                    <div>
+                        <label for="gender_type" class="block text-sm font-medium mb-2">نوع المنتج</label>
+                        <select
+                            id="gender_type"
+                            name="gender_type"
+                            class="form-select w-full"
+                        >
+                            <option value="">كل الأنواع</option>
+                            <option value="boys" {{ ($genderTypeFilter ?? '') == 'boys' ? 'selected' : '' }}>ولادي</option>
+                            <option value="girls" {{ ($genderTypeFilter ?? '') == 'girls' ? 'selected' : '' }}>بناتي</option>
+                            <option value="boys_girls" {{ ($genderTypeFilter ?? '') == 'boys_girls' ? 'selected' : '' }}>ولادي بناتي</option>
+                            <option value="accessories" {{ ($genderTypeFilter ?? '') == 'accessories' ? 'selected' : '' }}>اكسسوار</option>
+                        </select>
+                    </div>
+
+                    <!-- أزرار البحث والمسح -->
+                    <div class="flex items-end gap-2">
+                        <button type="submit" class="btn btn-primary flex-1">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            بحث
+                        </button>
+                        @if($searchTerm || $genderTypeFilter)
+                            <a href="{{ route('admin.warehouses.show', $warehouse) }}" class="btn btn-outline-secondary">
+                                <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                                مسح
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </form>
+
             @if($warehouse->products->count() > 0)
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($warehouse->products as $product)
@@ -238,7 +290,14 @@
                     <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                     </svg>
-                    <p class="text-lg font-medium text-gray-500">لا توجد منتجات في هذا المخزن</p>
+                    @if($searchTerm || $genderTypeFilter)
+                        <p class="text-lg font-medium text-gray-500">لا توجد منتجات تطابق معايير البحث والفلترة المحددة</p>
+                        <a href="{{ route('admin.warehouses.show', $warehouse) }}" class="btn btn-outline-primary mt-4">
+                            عرض جميع المنتجات
+                        </a>
+                    @else
+                        <p class="text-lg font-medium text-gray-500">لا توجد منتجات في هذا المخزن</p>
+                    @endif
                 </div>
             @endif
         </div>
