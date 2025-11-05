@@ -21,7 +21,7 @@ class ProductController extends Controller
 
         // بناء الاستعلام الأساسي
         $query = Product::whereIn('warehouse_id', $warehouseIds)
-                        ->with(['primaryImage', 'images', 'sizes.reservations', 'warehouse']);
+                        ->with(['primaryImage', 'images', 'sizes.reservations', 'warehouse.activePromotion']);
 
         $searchedSize = null; // لتمرير القياس المبحوث للـ view
 
@@ -118,7 +118,7 @@ class ProductController extends Controller
         }
 
         $products = $warehouse->products()
-                              ->with(['images', 'sizes'])
+                              ->with(['images', 'sizes', 'warehouse.activePromotion'])
                               ->paginate(10);
 
         return view('delegate.products.index', compact('warehouse', 'products'));
@@ -140,7 +140,7 @@ class ProductController extends Controller
         }
 
         // تحميل العلاقات بشكل صريح
-        $product->load(['warehouse', 'images', 'sizes', 'creator']);
+        $product->load(['warehouse.activePromotion', 'images', 'sizes', 'creator']);
 
         // جلب السلال النشطة للمندوب
         $activeCarts = Auth::user()->carts()

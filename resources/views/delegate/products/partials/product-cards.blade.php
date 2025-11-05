@@ -81,8 +81,17 @@
 
                     <!-- السعر -->
                     <p class="text-white-dark mb-4">
-                        <span class="text-2xl font-bold text-primary">{{ number_format($product->selling_price, 0) }}</span>
-                        <span class="text-sm text-gray-500">دينار عراقي</span>
+                        @php
+                            $activePromotion = $product->warehouse->getCurrentActivePromotion();
+                            $hasPromotion = $activePromotion && $activePromotion->isActive();
+                        @endphp
+                        @if($hasPromotion)
+                            <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                            <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                        @else
+                            <span class="text-2xl font-bold text-primary">{{ number_format($product->effective_price, 0) }}</span>
+                        @endif
+                        <span class="text-sm text-gray-500 block">دينار عراقي</span>
                     </p>
 
                     <!-- القياسات -->

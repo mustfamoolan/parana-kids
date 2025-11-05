@@ -35,6 +35,8 @@ class Order extends Model
         'is_partial_exchange',
         'deleted_by',
         'deletion_reason',
+        'size_reviewed',
+        'message_confirmed',
     ];
 
     protected $casts = [
@@ -73,6 +75,14 @@ class Order extends Model
             while (Order::withTrashed()->where('order_number', $order->order_number)->exists()) {
                 $newNumber++;
                 $order->order_number = 'ORD-' . date('Ymd') . '-' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+            }
+
+            // تعيين القيم الافتراضية
+            if (empty($order->size_reviewed)) {
+                $order->size_reviewed = 'not_reviewed';
+            }
+            if (empty($order->message_confirmed)) {
+                $order->message_confirmed = 'not_sent';
             }
         });
     }
@@ -233,5 +243,41 @@ class Order extends Model
                 'processed_by' => $userId,
             ]);
         });
+    }
+
+    public function getSizeReviewStatusTextAttribute()
+    {
+        return [
+            'not_reviewed' => 'لم يتم التدقيق',
+            'reviewed' => 'تم تدقيق القياس',
+        ][$this->size_reviewed] ?? 'غير محدد';
+    }
+
+    public function getSizeReviewStatusBadgeClassAttribute()
+    {
+        return [
+            'not_reviewed' => 'badge-outline-warning',
+            'reviewed' => 'badge-outline-success',
+        ][$this->size_reviewed] ?? 'badge-outline-secondary';
+    }
+
+    public function getMessageConfirmationStatusTextAttribute()
+    {
+        return [
+            'not_sent' => 'لم يرسل الرسالة',
+            'waiting_response' => 'تم الارسال رسالة وبالانتضار الرد',
+            'not_confirmed' => 'لم يتم التاكيد الرسالة',
+            'confirmed' => 'تم تاكيد الرسالة',
+        ][$this->message_confirmed] ?? 'غير محدد';
+    }
+
+    public function getMessageConfirmationStatusBadgeClassAttribute()
+    {
+        return [
+            'not_sent' => 'badge-outline-warning',
+            'waiting_response' => 'badge-outline-info',
+            'not_confirmed' => 'badge-outline-danger',
+            'confirmed' => 'badge-outline-success',
+        ][$this->message_confirmed] ?? 'badge-outline-secondary';
     }
 }

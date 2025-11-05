@@ -78,4 +78,30 @@ class Product extends Model
     {
         return $this->hasMany(ProfitRecord::class);
     }
+
+    /**
+     * Get the effective price (considering active promotions)
+     */
+    public function getEffectivePriceAttribute()
+    {
+        $warehouse = $this->warehouse;
+        if (!$warehouse) {
+            return $this->selling_price;
+        }
+
+        // استخدام eager loading إذا كان متاحاً
+        if ($warehouse->relationLoaded('activePromotion')) {
+            $activePromotion = $warehouse->activePromotion;
+        } else {
+            $activePromotion = WarehousePromotion::active()
+                ->forWarehouse($warehouse->id)
+                ->first();
+        }
+
+        if ($activePromotion && $activePromotion->isActive()) {
+            return $activePromotion->promotion_price;
+        }
+
+        return $this->selling_price;
+    }
 }

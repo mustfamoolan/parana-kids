@@ -105,7 +105,19 @@
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">سعر البيع:</span>
-                                <span class="font-medium text-success">{{ number_format($product->selling_price, 0, '.', ',') }} دينار عراقي</span>
+                            <div>
+                                @php
+                                    $activePromotion = $product->warehouse->getCurrentActivePromotion();
+                                    $hasPromotion = $activePromotion && $activePromotion->isActive();
+                                @endphp
+                                @if($hasPromotion)
+                                    <span class="font-medium text-success">{{ number_format($product->effective_price, 0, '.', ',') }} دينار عراقي</span>
+                                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0, '.', ',') }}</span>
+                                    <span class="badge badge-outline-success text-xs rtl:mr-2 ltr:ml-2">تخفيض</span>
+                                @else
+                                    <span class="font-medium text-success">{{ number_format($product->effective_price, 0, '.', ',') }} دينار عراقي</span>
+                                @endif
+                            </div>
                         </div>
 
                         @if($product->description)
@@ -226,7 +238,7 @@
                         @if(auth()->user()->isAdmin() && $product->purchase_price)
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-500 dark:text-gray-400">هامش الربح:</span>
-                                <span class="badge badge-warning">{{ number_format($product->selling_price - $product->purchase_price, 0, '.', ',') }} دينار عراقي</span>
+                                <span class="badge badge-warning">{{ number_format($product->effective_price - $product->purchase_price, 0, '.', ',') }} دينار عراقي</span>
                             </div>
                         @endif
                     </div>

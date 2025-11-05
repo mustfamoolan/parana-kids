@@ -23,6 +23,9 @@ class Kernel extends ConsoleKernel
 
         // حذف الطلبات المحذوفة القديمة كل يوم الساعة 2 صباحاً
         $schedule->command('orders:delete-old-trashed')->daily()->at('02:00');
+
+        // إيقاف التخفيضات المنتهية كل ساعة
+        $schedule->command('promotions:expire')->hourly();
     }
 
     /**

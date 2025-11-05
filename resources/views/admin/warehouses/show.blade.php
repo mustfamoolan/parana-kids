@@ -56,6 +56,44 @@
             </div>
         @endif
 
+        <!-- التخفيض العام للمخزن -->
+        @if(auth()->user()->isAdmin())
+        <div class="panel mb-5">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div>
+                        <h6 class="text-lg font-semibold dark:text-white-light mb-1">تخفيض عام للمخزن</h6>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">تحديد سعر موحد لجميع منتجات المخزن خلال فترة زمنية</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    @if($activePromotion)
+                        <div class="text-sm text-gray-600 dark:text-gray-400 rtl:text-left ltr:text-right">
+                            <div class="font-medium">السعر: {{ number_format($activePromotion->promotion_price, 0) }} د.ع</div>
+                            <div class="text-xs">من {{ $activePromotion->start_date->setTimezone('Asia/Baghdad')->format('Y-m-d H:i') }}</div>
+                            <div class="text-xs">إلى {{ $activePromotion->end_date->setTimezone('Asia/Baghdad')->format('Y-m-d H:i') }}</div>
+                        </div>
+                    @endif
+                    <label class="w-12 h-6 relative">
+                        <input type="checkbox"
+                               id="promotionToggle"
+                               class="custom_switch absolute w-full h-full opacity-0 z-10 cursor-pointer peer"
+                               {{ $activePromotion && $activePromotion->isActive() ? 'checked' : '' }}>
+                        <span for="promotionToggle"
+                              class="bg-[#ebedf2] dark:bg-dark block h-full rounded-full before:absolute rtl:before:right-1 ltr:before:left-1 before:bg-white dark:before:bg-white-dark dark:peer-checked:before:bg-white before:bottom-1 before:w-4 before:h-4 before:rounded-full peer-checked:rtl:before:right-7 peer-checked:ltr:before:left-7 peer-checked:bg-primary before:transition-all before:duration-300"></span>
+                    </label>
+                    <button type="button" id="editPromotionBtn"
+                            class="btn btn-sm btn-outline-primary {{ $activePromotion ? '' : 'hidden' }}">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        تعديل
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
             <!-- معلومات المخزن -->
             <div class="lg:col-span-2">
@@ -82,12 +120,12 @@
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">تاريخ الإنشاء:</span>
-                            <span class="font-medium text-black dark:text-white">{{ $warehouse->created_at->format('Y-m-d H:i') }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->created_at->setTimezone('Asia/Baghdad')->format('Y-m-d H:i') }}</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">آخر تحديث:</span>
-                            <span class="font-medium text-black dark:text-white">{{ $warehouse->updated_at->format('Y-m-d H:i') }}</span>
+                            <span class="font-medium text-black dark:text-white">{{ $warehouse->updated_at->setTimezone('Asia/Baghdad')->format('Y-m-d H:i') }}</span>
                         </div>
                     </div>
                 </div>
@@ -254,7 +292,14 @@
                                 @endif
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">سعر البيع:</span>
-                                    <div class="font-medium text-sm">{{ number_format($product->selling_price, 0) }} د.ع</div>
+                                    <div class="font-medium text-sm">
+                                        @if($activePromotion && $activePromotion->is_active && now()->between($activePromotion->start_date, $activePromotion->end_date))
+                                            <span class="text-success">{{ number_format($product->effective_price, 0) }} د.ع</span>
+                                            <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                                        @else
+                                            {{ number_format($product->effective_price, 0) }} د.ع
+                                        @endif
+                                    </div>
                                 </div>
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">الكمية الإجمالية:</span>
@@ -320,6 +365,49 @@
         </div>
     </div>
 
+    <!-- Modal للتخفيض -->
+    @if(auth()->user()->isAdmin())
+    <div id="promotionModal" class="fixed inset-0 bg-black/80 z-[9999] hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="promotionModalTitle" class="text-lg font-semibold dark:text-white-light">تخفيض عام للمخزن</h3>
+                <button onclick="closePromotionModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="promotionForm" class="p-4">
+                <div class="space-y-4">
+                    <div>
+                        <label for="promotion_price" class="block text-sm font-medium mb-2">السعر الموحد (دينار عراقي)</label>
+                        <input type="number" id="promotion_price" name="promotion_price"
+                               class="form-input w-full" min="0" step="1" required
+                               placeholder="مثال: 1000">
+                    </div>
+
+                    <div>
+                        <label for="start_date" class="block text-sm font-medium mb-2">تاريخ البداية</label>
+                        <input type="datetime-local" id="start_date" name="start_date"
+                               class="form-input w-full" required>
+                    </div>
+
+                    <div>
+                        <label for="end_date" class="block text-sm font-medium mb-2">تاريخ النهاية</label>
+                        <input type="datetime-local" id="end_date" name="end_date"
+                               class="form-input w-full" required>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mt-6">
+                    <button type="submit" class="btn btn-primary flex-1">حفظ</button>
+                    <button type="button" onclick="closePromotionModal()" class="btn btn-outline-secondary">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     <script>
         function openImageModal(imageUrl, productName) {
             const modal = document.getElementById('imageModal');
@@ -358,5 +446,174 @@
                 });
             }
         });
+
+        @if(auth()->user()->isAdmin())
+        // Promotion Management
+        const promotionToggle = document.getElementById('promotionToggle');
+        const editPromotionBtn = document.getElementById('editPromotionBtn');
+        const promotionModal = document.getElementById('promotionModal');
+        const promotionForm = document.getElementById('promotionForm');
+        const promotionModalTitle = document.getElementById('promotionModalTitle');
+        @php
+            $promotionData = null;
+            if ($activePromotion && $activePromotion->isActive()) {
+                $promotionData = [
+                    'id' => $activePromotion->id,
+                    'promotion_price' => $activePromotion->promotion_price,
+                    'start_date' => $activePromotion->start_date->setTimezone('Asia/Baghdad')->format('Y-m-d\TH:i'),
+                    'end_date' => $activePromotion->end_date->setTimezone('Asia/Baghdad')->format('Y-m-d\TH:i'),
+                    'is_active' => $activePromotion->is_active,
+                ];
+            }
+        @endphp
+        let currentPromotion = @json($promotionData);
+
+        // التأكد من أن toggle يطابق حالة التخفيض
+        if (promotionToggle && !currentPromotion) {
+            promotionToggle.checked = false;
+        }
+
+        function openPromotionModal(isEdit = false) {
+            if (isEdit && currentPromotion) {
+                promotionModalTitle.textContent = 'تعديل التخفيض';
+                document.getElementById('promotion_price').value = currentPromotion.promotion_price;
+                document.getElementById('start_date').value = currentPromotion.start_date;
+                document.getElementById('end_date').value = currentPromotion.end_date;
+            } else {
+                promotionModalTitle.textContent = 'تخفيض عام للمخزن';
+                promotionForm.reset();
+                // تعيين القيم الافتراضية
+                const now = new Date();
+                const tomorrow = new Date(now);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                document.getElementById('start_date').value = now.toISOString().slice(0, 16);
+                document.getElementById('end_date').value = tomorrow.toISOString().slice(0, 16);
+            }
+            promotionModal.classList.remove('hidden');
+            promotionModal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePromotionModal() {
+            promotionModal.classList.add('hidden');
+            promotionModal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+            promotionForm.reset();
+        }
+
+        // Toggle Promotion
+        if (promotionToggle) {
+            promotionToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    if (!currentPromotion) {
+                        // إذا كان التخفيض غير موجود، افتح modal لإنشاء واحد
+                        openPromotionModal(false);
+                    } else if (!currentPromotion.is_active) {
+                        // إذا كان التخفيض موجود لكن غير نشط، قم بتفعيله
+                        togglePromotion();
+                    }
+                } else {
+                    // إذا تم إيقاف toggle، قم بإيقاف التخفيض
+                    if (currentPromotion && currentPromotion.is_active) {
+                        togglePromotion();
+                    }
+                }
+            });
+        }
+
+        // Edit Promotion Button
+        if (editPromotionBtn) {
+            editPromotionBtn.addEventListener('click', function() {
+                openPromotionModal(true);
+            });
+        }
+
+        // Toggle Promotion (activate/deactivate)
+        function togglePromotion() {
+            fetch('{{ route("admin.warehouses.promotion.toggle", $warehouse) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء التبديل');
+                    promotionToggle.checked = !promotionToggle.checked;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء التبديل');
+                promotionToggle.checked = !promotionToggle.checked;
+            });
+        }
+
+        // Submit Promotion Form
+        if (promotionForm) {
+            promotionForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const formData = {
+                    promotion_price: document.getElementById('promotion_price').value,
+                    start_date: document.getElementById('start_date').value,
+                    end_date: document.getElementById('end_date').value,
+                };
+
+                const isEdit = currentPromotion && currentPromotion.id;
+                let url;
+                if (isEdit) {
+                    const baseUrl = '{{ route("admin.warehouses.promotion.update", [$warehouse, 0]) }}';
+                    url = baseUrl.replace('/0', '/' + currentPromotion.id);
+                } else {
+                    url = '{{ route("admin.warehouses.promotion.store", $warehouse) }}';
+                }
+                const method = isEdit ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        closePromotionModal();
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'حدث خطأ أثناء الحفظ');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('حدث خطأ أثناء الحفظ');
+                });
+            });
+        }
+
+        // Close modal on outside click
+        if (promotionModal) {
+            promotionModal.addEventListener('click', function(e) {
+                if (e.target === promotionModal) {
+                    closePromotionModal();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !promotionModal.classList.contains('hidden')) {
+                    closePromotionModal();
+                }
+            });
+        }
+        @endif
     </script>
 </x-layout.admin>

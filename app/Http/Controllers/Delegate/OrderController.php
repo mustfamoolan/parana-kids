@@ -33,41 +33,12 @@ class OrderController extends Controller
             if ($request->filled('search')) {
                 $searchTerm = trim($request->search);
                 if (!empty($searchTerm)) {
-                    // التحقق أولاً إذا كان هناك طلبات تطابق الكود في delivery_code
-                    $deliveryCodeMatches = Order::onlyTrashed()
-                        ->where('delegate_id', auth()->id())
-                        ->whereNotNull('deleted_by')
-                        ->whereNotNull('deletion_reason')
-                        ->whereNotNull('delivery_code')
-                        ->where('delivery_code', $searchTerm)
-                        ->exists();
+                    // تنظيف رقم الهاتف للبحث إذا كان البحث برقم هاتف
+                    $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
+                    $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
 
-                    if ($deliveryCodeMatches) {
-                        // إذا كان هناك تطابق في delivery_code، ابحث فقط في delivery_code
-                        $query->whereNotNull('delivery_code')
-                              ->where('delivery_code', $searchTerm);
-                    } else {
-                        // إذا لم يكن هناك تطابق في delivery_code، ابحث في جميع الحقول
-                        $query->where(function($q) use ($searchTerm) {
-                            $q->where('order_number', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                              ->orWhere(function($subQ) use ($searchTerm) {
-                                  // البحث في delivery_code بشكل دقيق (مطابقة كاملة للكود)
-                                  $subQ->whereNotNull('delivery_code')
-                                       ->where('delivery_code', $searchTerm);
-                              })
-                              ->orWhere('notes', 'like', "%{$searchTerm}%")
-                              ->orWhere('deletion_reason', 'like', "%{$searchTerm}%")
-                              ->orWhereHas('items', function($itemQuery) use ($searchTerm) {
-                                  $itemQuery->where('product_name', 'like', "%{$searchTerm}%")
-                                           ->orWhere('product_code', 'like', "%{$searchTerm}%")
-                                           ->orWhere('size_name', 'like', "%{$searchTerm}%");
-                              });
-                        });
-                    }
+                    // تطبيق البحث الدقيق على الطلبات المحذوفة
+                    $this->applyExactSearch($query, $searchTerm, $phoneSearchTerm, true);
                 }
             }
 
@@ -104,56 +75,38 @@ class OrderController extends Controller
                     ->where('delegate_id', auth()->id())
                     ->with(['items']);
 
-                // فلتر الحالة: نشطة (pending/confirmed) أو محذوفة (soft deleted)
-                $query->where(function($q) {
-                    // الطلبات النشطة (pending أو confirmed) - غير محذوفة
-                    $q->whereNull('deleted_at')
-                      ->whereIn('status', ['pending', 'confirmed']);
-                })->orWhere(function($q) {
-                    // الطلبات المحذوفة التي حذفها المجهز/المدير (soft deleted)
-                    $q->whereNotNull('deleted_at')
-                      ->whereNotNull('deleted_by')
-                      ->whereNotNull('deletion_reason');
-                });
-
-                // تطبيق البحث الشامل
-                if ($request->filled('search')) {
-                    $searchTerm = trim($request->search);
-                    if (!empty($searchTerm)) {
-                        // التحقق أولاً إذا كان هناك طلبات تطابق الكود في delivery_code
-                        $deliveryCodeMatches = Order::withTrashed()
-                            ->where('delegate_id', auth()->id())
-                            ->whereNotNull('delivery_code')
-                            ->where('delivery_code', $searchTerm)
-                            ->exists();
-
-                        if ($deliveryCodeMatches) {
-                            // إذا كان هناك تطابق في delivery_code، ابحث فقط في delivery_code
-                            $query->whereNotNull('delivery_code')
-                                  ->where('delivery_code', $searchTerm);
-                        } else {
-                            // إذا لم يكن هناك تطابق في delivery_code، ابحث في جميع الحقول
-                            $query->where(function($q) use ($searchTerm) {
-                                $q->where('order_number', 'like', "%{$searchTerm}%")
-                                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                                  ->orWhere(function($subQ) use ($searchTerm) {
-                                      // البحث في delivery_code بشكل دقيق (مطابقة كاملة للكود)
-                                      $subQ->whereNotNull('delivery_code')
-                                           ->where('delivery_code', $searchTerm);
-                                  })
-                                  ->orWhere('notes', 'like', "%{$searchTerm}%")
-                                  ->orWhereHas('items', function($itemQuery) use ($searchTerm) {
-                                      $itemQuery->where('product_name', 'like', "%{$searchTerm}%")
-                                               ->orWhere('product_code', 'like', "%{$searchTerm}%")
-                                               ->orWhere('size_name', 'like', "%{$searchTerm}%");
-                                  });
-                            });
-                        }
-                    }
+                // تنظيف رقم الهاتف للبحث إذا كان البحث برقم هاتف
+                $searchTerm = $request->filled('search') ? trim($request->search) : null;
+                $phoneSearchTerm = null;
+                if ($searchTerm && !empty($searchTerm)) {
+                    $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
+                    $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
                 }
+
+                // فلتر الحالة: نشطة (pending/confirmed) أو محذوفة (soft deleted)
+                // مع تطبيق البحث بشكل صحيح
+                $query->where(function($q) use ($searchTerm, $phoneSearchTerm) {
+                    // الطلبات النشطة (pending أو confirmed) - غير محذوفة
+                    $q->where(function($subQ) use ($searchTerm, $phoneSearchTerm) {
+                        $subQ->whereNull('deleted_at')
+                             ->whereIn('status', ['pending', 'confirmed']);
+
+                        // تطبيق البحث على الطلبات النشطة
+                        if ($searchTerm && !empty($searchTerm)) {
+                            $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm);
+                        }
+                    })->orWhere(function($subQ) use ($searchTerm, $phoneSearchTerm) {
+                        // الطلبات المحذوفة التي حذفها المجهز/المدير (soft deleted)
+                        $subQ->whereNotNull('deleted_at')
+                             ->whereNotNull('deleted_by')
+                             ->whereNotNull('deletion_reason');
+
+                        // تطبيق البحث على الطلبات المحذوفة
+                        if ($searchTerm && !empty($searchTerm)) {
+                            $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm, true);
+                        }
+                    });
+                });
 
                 // تطبيق فلاتر التاريخ
                 if ($request->filled('date_from')) {
@@ -223,37 +176,12 @@ class OrderController extends Controller
             if ($request->filled('search')) {
                 $searchTerm = trim($request->search);
                 if (!empty($searchTerm)) {
-                    // التحقق أولاً إذا كان هناك طلبات تطابق الكود في delivery_code
-                    $deliveryCodeMatches = Order::where('delegate_id', auth()->id())
-                        ->whereNotNull('delivery_code')
-                        ->where('delivery_code', $searchTerm)
-                        ->exists();
+                    // تنظيف رقم الهاتف للبحث إذا كان البحث برقم هاتف
+                    $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
+                    $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
 
-                    if ($deliveryCodeMatches) {
-                        // إذا كان هناك تطابق في delivery_code، ابحث فقط في delivery_code
-                        $query->whereNotNull('delivery_code')
-                              ->where('delivery_code', $searchTerm);
-                    } else {
-                        // إذا لم يكن هناك تطابق في delivery_code، ابحث في جميع الحقول
-                        $query->where(function($q) use ($searchTerm) {
-                            $q->where('order_number', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                              ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                              ->orWhere(function($subQ) use ($searchTerm) {
-                                  // البحث في delivery_code بشكل دقيق (مطابقة كاملة للكود)
-                                  $subQ->whereNotNull('delivery_code')
-                                       ->where('delivery_code', $searchTerm);
-                              })
-                              ->orWhere('notes', 'like', "%{$searchTerm}%")
-                              ->orWhereHas('items', function($itemQuery) use ($searchTerm) {
-                                  $itemQuery->where('product_name', 'like', "%{$searchTerm}%")
-                                           ->orWhere('product_code', 'like', "%{$searchTerm}%")
-                                           ->orWhere('size_name', 'like', "%{$searchTerm}%");
-                              });
-                        });
-                    }
+                    // تطبيق البحث الدقيق على الطلبات
+                    $this->applyExactSearch($query, $searchTerm, $phoneSearchTerm);
                 }
             }
 
@@ -488,7 +416,9 @@ class OrderController extends Controller
                         throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$size->quantity}");
                     }
 
-                    $subtotal = $product->selling_price * $item['quantity'];
+                    // استخدام effective_price (يشمل التخفيضات النشطة)
+                    $unitPrice = $product->effective_price;
+                    $subtotal = $unitPrice * $item['quantity'];
                     $totalAmount += $subtotal;
 
                     $order->items()->create([
@@ -498,7 +428,7 @@ class OrderController extends Controller
                         'product_name' => $product->name,
                         'size_name' => $size->size_name,
                         'quantity' => $item['quantity'],
-                        'unit_price' => $product->selling_price,
+                        'unit_price' => $unitPrice,
                         'subtotal' => $subtotal,
                     ]);
 
@@ -987,5 +917,42 @@ class OrderController extends Controller
             return redirect()->back()
                             ->withErrors(['error' => 'حدث خطأ أثناء الحذف النهائي: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * تطبيق البحث الدقيق على جميع مكونات الطلب
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $searchTerm
+     * @param string|null $phoneSearchTerm
+     * @param bool $includeDeletedFields - إذا كان true، يضيف البحث في deletion_reason
+     */
+    private function applyExactSearch($query, $searchTerm, $phoneSearchTerm = null, $includeDeletedFields = false)
+    {
+        // البحث في جميع الحقول (مطابقة دقيقة)
+        $query->where(function($q) use ($searchTerm, $phoneSearchTerm, $includeDeletedFields) {
+            $q->where('order_number', '=', $searchTerm)
+              ->orWhere('customer_name', '=', $searchTerm)
+              ->orWhere('customer_phone', '=', $phoneSearchTerm ?: $searchTerm)
+              ->orWhere('customer_social_link', '=', $searchTerm)
+              ->orWhere('customer_address', '=', $searchTerm)
+              ->orWhere(function($subQ) use ($searchTerm) {
+                  $subQ->whereNotNull('delivery_code')
+                       ->where('delivery_code', $searchTerm);
+              })
+              ->orWhere('notes', '=', $searchTerm);
+
+            // إضافة البحث في deletion_reason للطلبات المحذوفة
+            if ($includeDeletedFields) {
+                $q->orWhere('deletion_reason', '=', $searchTerm);
+            }
+
+            // البحث في عناصر الطلب (product_name, product_code, size_name)
+            $q->orWhereHas('items', function($itemQuery) use ($searchTerm) {
+                $itemQuery->where('product_name', '=', $searchTerm)
+                         ->orWhere('product_code', '=', $searchTerm)
+                         ->orWhere('size_name', '=', $searchTerm);
+            });
+        });
     }
 }

@@ -111,7 +111,18 @@
 
                             <div>
                                 <span class="text-xs text-gray-500 dark:text-gray-400">سعر البيع:</span>
-                                <div class="font-medium text-success text-sm">{{ number_format($product->selling_price, 0) }} د.ع</div>
+                                <div class="font-medium text-success text-sm">
+                                    @php
+                                        $activePromotion = $product->warehouse->getCurrentActivePromotion();
+                                        $hasPromotion = $activePromotion && $activePromotion->isActive();
+                                    @endphp
+                                    @if($hasPromotion)
+                                        <span class="text-success">{{ number_format($product->effective_price, 0) }} د.ع</span>
+                                        <span class="text-xs text-gray-400 line-through rtl:mr-1 ltr:ml-1">{{ number_format($product->selling_price, 0) }}</span>
+                                    @else
+                                        {{ number_format($product->effective_price, 0) }} د.ع
+                                    @endif
+                                </div>
                             </div>
 
                             <div>

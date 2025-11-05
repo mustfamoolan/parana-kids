@@ -94,13 +94,17 @@
                             رقم الهاتف <span class="text-red-500">*</span>
                         </label>
                         <input
-                            type="text"
+                            type="tel"
                             id="customer_phone"
                             name="customer_phone"
                             class="form-input @error('customer_phone') border-red-500 @enderror"
                             value="{{ old('customer_phone', $order->customer_phone) }}"
+                            placeholder="07742209251"
+                            oninput="formatPhoneNumber(this)"
+                            onpaste="handlePhonePaste(event)"
                             required
                         >
+                        <p id="phone_error" class="text-danger text-xs mt-1" style="display: none;">الرقم يجب أن يكون بالضبط 11 رقم بعد التنسيق</p>
                         <div class="flex gap-2 mt-2">
                             <button type="button" onclick="copyPhoneNumber()" class="btn btn-sm btn-outline-secondary">
                                 <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -792,6 +796,99 @@
                 window.location.href = `tel:${phone}`;
             }
         }
+
+        // دالة تحويل الأرقام العربية إلى إنجليزية
+        function convertArabicToEnglishNumbers(str) {
+            const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+            let result = str;
+            for (let i = 0; i < arabicNumbers.length; i++) {
+                result = result.replace(new RegExp(arabicNumbers[i], 'g'), englishNumbers[i]);
+            }
+            return result;
+        }
+
+        // معالجة اللصق
+        function handlePhonePaste(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const convertedText = convertArabicToEnglishNumbers(pastedText);
+            const input = e.target;
+            input.value = convertedText;
+            formatPhoneNumber(input);
+        }
+
+        function formatPhoneNumber(input) {
+            let value = input.value;
+
+            // تحويل الأرقام العربية إلى إنجليزية أولاً
+            value = convertArabicToEnglishNumbers(value);
+
+            // إزالة كل شيء غير الأرقام
+            let cleaned = value.replace(/[^0-9]/g, '');
+
+            // إزالة البادئات الدولية
+            if (cleaned.startsWith('00964')) {
+                cleaned = cleaned.substring(5); // إزالة 00964
+            } else if (cleaned.startsWith('964')) {
+                cleaned = cleaned.substring(3); // إزالة 964
+            }
+
+            // إضافة 0 في البداية إذا لم تكن موجودة
+            if (cleaned.length > 0 && !cleaned.startsWith('0')) {
+                cleaned = '0' + cleaned;
+            }
+
+            // التأكد من 11 رقم فقط - إذا كان أكثر من 11، نأخذ أول 11 رقم
+            if (cleaned.length > 11) {
+                cleaned = cleaned.substring(0, 11);
+            }
+
+            // تحديث قيمة الحقل
+            input.value = cleaned;
+
+            // التحقق من أن الرقم بالضبط 11 رقم
+            const errorElement = document.getElementById('phone_error');
+            const form = input.closest('form');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (cleaned.length > 0 && cleaned.length !== 11) {
+                if (errorElement) errorElement.style.display = 'block';
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.style.opacity = '0.5';
+                    submitButton.style.cursor = 'not-allowed';
+                }
+            } else {
+                if (errorElement) errorElement.style.display = 'none';
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.style.opacity = '1';
+                    submitButton.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        // تطبيق التنسيق عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneInput = document.getElementById('customer_phone');
+            if (phoneInput && phoneInput.value) {
+                formatPhoneNumber(phoneInput);
+            }
+        });
+
+        // التحقق من الرقم قبل الإرسال
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const phoneInput = document.getElementById('customer_phone');
+            if (phoneInput && phoneInput.value) {
+                const cleaned = phoneInput.value.replace(/[^0-9]/g, '');
+                if (cleaned.length !== 11) {
+                    e.preventDefault();
+                    alert('الرقم يجب أن يكون بالضبط 11 رقم');
+                    return false;
+                }
+            }
+        });
 
         // دالة نسخ النص إلى الحافظة
         function copyToClipboard(elementId) {

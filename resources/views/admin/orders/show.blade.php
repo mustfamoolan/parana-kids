@@ -52,6 +52,61 @@
             </div>
         </div>
 
+        <!-- حالة التدقيق والتأكيد للطلبات غير المقيدة -->
+        @if($order->status === 'pending' && auth()->user()->isAdmin())
+            <div class="panel mb-5">
+                <div class="mb-5">
+                    <h6 class="text-lg font-semibold dark:text-white-light">حالة التدقيق والتأكيد</h6>
+                </div>
+
+                <!-- حالة التدقيق -->
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">تدقيق القياس</span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" id="sizeReviewStatusText">{{ $order->size_review_status_text }}</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <select id="sizeReviewSelect" class="form-select" onchange="updateReviewStatus({{ $order->id }}, 'size_reviewed', this.value)">
+                            <option value="not_reviewed" {{ $order->size_reviewed === 'not_reviewed' ? 'selected' : '' }}>لم يتم التدقيق</option>
+                            <option value="reviewed" {{ $order->size_reviewed === 'reviewed' ? 'selected' : '' }}>تم تدقيق القياس</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- حالة الرسالة -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">حالة الرسالة</span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" id="messageConfirmStatusText">{{ $order->message_confirmation_status_text }}</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <select id="messageConfirmSelect" class="form-select" onchange="updateReviewStatus({{ $order->id }}, 'message_confirmed', this.value)">
+                            <option value="not_sent" {{ $order->message_confirmed === 'not_sent' ? 'selected' : '' }}>لم يرسل الرسالة</option>
+                            <option value="waiting_response" {{ $order->message_confirmed === 'waiting_response' ? 'selected' : '' }}>تم الارسال رسالة وبالانتضار الرد</option>
+                            <option value="not_confirmed" {{ $order->message_confirmed === 'not_confirmed' ? 'selected' : '' }}>لم يتم التاكيد الرسالة</option>
+                            <option value="confirmed" {{ $order->message_confirmed === 'confirmed' ? 'selected' : '' }}>تم تاكيد الرسالة</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        @elseif($order->status === 'pending')
+            <div class="panel mb-5">
+                <div class="mb-5">
+                    <h6 class="text-lg font-semibold dark:text-white-light">حالة التدقيق والتأكيد</h6>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">تدقيق القياس:</span>
+                        <span class="badge {{ $order->size_review_status_badge_class }}">{{ $order->size_review_status_text }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">حالة الرسالة:</span>
+                        <span class="badge {{ $order->message_confirmation_status_badge_class }}">{{ $order->message_confirmation_status_text }}</span>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <!-- معلومات الطلب -->
             <div class="panel">
@@ -566,4 +621,55 @@
             </form>
         </div>
     </div>
+
+    <script>
+    function updateReviewStatus(orderId, field, value) {
+        fetch(`/admin/orders/${orderId}/review-status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ field: field, value: value })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // تحديث النص والـ badge حسب الحقل
+                if (field === 'size_reviewed') {
+                    // تحديث نص التدقيق
+                    const sizeText = document.getElementById('sizeReviewStatusText');
+                    if (sizeText) {
+                        sizeText.textContent = data.size_review_status_text;
+                    }
+                } else {
+                    // تحديث نص حالة الرسالة
+                    const messageText = document.getElementById('messageConfirmStatusText');
+                    if (messageText) {
+                        messageText.textContent = data.message_confirmation_status_text;
+                    }
+                }
+                if (typeof showCopyNotification === 'function') {
+                    showCopyNotification(data.message);
+                } else {
+                    alert(data.message);
+                }
+            } else {
+                if (typeof showCopyNotification === 'function') {
+                    showCopyNotification('فشل في تحديث الحالة', 'error');
+                } else {
+                    alert('فشل في تحديث الحالة');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof showCopyNotification === 'function') {
+                showCopyNotification('حدث خطأ أثناء تحديث الحالة', 'error');
+            } else {
+                alert('حدث خطأ أثناء تحديث الحالة');
+            }
+        });
+    }
+    </script>
 </x-layout.admin>

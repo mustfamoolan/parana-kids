@@ -62,13 +62,17 @@
                             رقم الهاتف <span class="text-red-500">*</span>
                         </label>
                         <input
-                            type="text"
+                            type="tel"
                             id="customer_phone"
                             name="customer_phone"
                             class="form-input @error('customer_phone') border-red-500 @enderror"
                             value="{{ old('customer_phone', $order->customer_phone) }}"
+                            placeholder="07742209251"
+                            oninput="formatPhoneNumber(this)"
+                            onpaste="handlePhonePaste(event)"
                             required
                         >
+                        <p id="phone_error" class="text-danger text-xs mt-1" style="display: none;">الرقم يجب أن يكون بالضبط 11 رقم بعد التنسيق</p>
                         <button type="button" onclick="copyToClipboard('customer_phone')" class="btn btn-sm btn-outline-secondary mt-2">
                             <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
@@ -345,30 +349,30 @@
                     }
 
                     return [
-                        'product_id' => $item->product_id,
-                        'size_id' => $item->size_id,
+                        'product_id' => (int)$item->product_id,
+                        'size_id' => (int)$item->size_id,
                         'product_name' => $item->product_name,
                         'product_code' => $item->product_code,
                         'size_name' => $item->size_name,
-                        'quantity' => $item->quantity,
-                        'unit_price' => $item->unit_price,
-                        'subtotal' => $item->subtotal,
-                        'max_quantity' => $maxQuantity,
+                        'quantity' => (int)$item->quantity,
+                        'unit_price' => (float)$item->unit_price,
+                        'subtotal' => (float)$item->subtotal,
+                        'max_quantity' => (int)$maxQuantity,
                         'product_image' => $item->product->primaryImage ? $item->product->primaryImage->image_url : '/assets/images/no-image.png'
                     ];
                 })) !!},
                 products: {!! json_encode($products->map(function($product) {
                     return [
-                        'id' => $product->id,
+                        'id' => (int)$product->id,
                         'name' => $product->name,
                         'code' => $product->code,
-                        'selling_price' => $product->selling_price,
+                        'selling_price' => (float)$product->effective_price,
                         'primary_image' => $product->primaryImage ? $product->primaryImage->image_url : '/assets/images/no-image.png',
                         'sizes' => $product->sizes->map(function($size) {
                             return [
-                                'id' => $size->id,
+                                'id' => (int)$size->id,
                                 'size_name' => $size->size_name,
-                                'available_quantity' => $size->quantity
+                                'available_quantity' => (int)$size->quantity
                             ];
                         })
                     ];
@@ -379,7 +383,11 @@
                 quantity: 1,
 
                 get totalAmount() {
-                    return this.items.reduce((sum, item) => sum + item.subtotal, 0);
+                    if (!this.items || this.items.length === 0) return 0;
+                    return this.items.reduce((sum, item) => {
+                        const subtotal = Number(item.subtotal) || 0;
+                        return sum + subtotal;
+                    }, 0);
                 },
 
                 get filteredProducts() {
@@ -397,12 +405,14 @@
 
                 updateItemQuantity(index) {
                     const item = this.items[index];
+                    if (!item) return;
                     const max = Number(item?.max_quantity || 1);
                     let q = Math.floor(Number(item?.quantity || 1));
                     if (q < 1) q = 1;
                     if (q > max) q = max;
                     item.quantity = q;
-                    item.subtotal = q * Number(item.unit_price || 0);
+                    const unitPrice = Number(item?.unit_price || 0);
+                    item.subtotal = q * unitPrice;
                 },
 
                 normalizeAndUpdate(index) {
@@ -461,18 +471,20 @@
                         return;
                     }
 
-                    const subtotal = parseInt(this.quantity) * parseFloat(this.selectedProduct.selling_price);
+                    const unitPrice = parseFloat(this.selectedProduct.selling_price) || 0;
+                    const qty = parseInt(this.quantity) || 1;
+                    const subtotal = qty * unitPrice;
 
                     this.items.push({
-                        product_id: this.selectedProduct.id,
+                        product_id: parseInt(this.selectedProduct.id),
                         size_id: parseInt(this.selectedSize),
                         product_name: this.selectedProduct.name,
                         product_code: this.selectedProduct.code,
                         size_name: size.size_name,
-                        quantity: parseInt(this.quantity),
-                        unit_price: parseFloat(this.selectedProduct.selling_price),
+                        quantity: qty,
+                        unit_price: unitPrice,
                         subtotal: subtotal,
-                        max_quantity: size.available_quantity,
+                        max_quantity: parseInt(size.available_quantity) || 0,
                         product_image: this.selectedProduct.primary_image
                     });
 
@@ -494,7 +506,11 @@
                 },
 
                 formatPrice(price) {
-                    return new Intl.NumberFormat('en-US').format(price) + ' د.ع';
+                    const num = Number(price);
+                    if (isNaN(num) || !isFinite(num)) {
+                        return '0 د.ع';
+                    }
+                    return new Intl.NumberFormat('en-US').format(num) + ' د.ع';
                 }
             }));
         });
@@ -595,5 +611,98 @@
                 }, 300);
             }, 3000);
         }
+
+        // دالة تحويل الأرقام العربية إلى إنجليزية
+        function convertArabicToEnglishNumbers(str) {
+            const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+            let result = str;
+            for (let i = 0; i < arabicNumbers.length; i++) {
+                result = result.replace(new RegExp(arabicNumbers[i], 'g'), englishNumbers[i]);
+            }
+            return result;
+        }
+
+        // معالجة اللصق
+        function handlePhonePaste(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const convertedText = convertArabicToEnglishNumbers(pastedText);
+            const input = e.target;
+            input.value = convertedText;
+            formatPhoneNumber(input);
+        }
+
+        function formatPhoneNumber(input) {
+            let value = input.value;
+
+            // تحويل الأرقام العربية إلى إنجليزية أولاً
+            value = convertArabicToEnglishNumbers(value);
+
+            // إزالة كل شيء غير الأرقام
+            let cleaned = value.replace(/[^0-9]/g, '');
+
+            // إزالة البادئات الدولية
+            if (cleaned.startsWith('00964')) {
+                cleaned = cleaned.substring(5); // إزالة 00964
+            } else if (cleaned.startsWith('964')) {
+                cleaned = cleaned.substring(3); // إزالة 964
+            }
+
+            // إضافة 0 في البداية إذا لم تكن موجودة
+            if (cleaned.length > 0 && !cleaned.startsWith('0')) {
+                cleaned = '0' + cleaned;
+            }
+
+            // التأكد من 11 رقم فقط - إذا كان أكثر من 11، نأخذ أول 11 رقم
+            if (cleaned.length > 11) {
+                cleaned = cleaned.substring(0, 11);
+            }
+
+            // تحديث قيمة الحقل
+            input.value = cleaned;
+
+            // التحقق من أن الرقم بالضبط 11 رقم
+            const errorElement = document.getElementById('phone_error');
+            const form = input.closest('form');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (cleaned.length > 0 && cleaned.length !== 11) {
+                if (errorElement) errorElement.style.display = 'block';
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.style.opacity = '0.5';
+                    submitButton.style.cursor = 'not-allowed';
+                }
+            } else {
+                if (errorElement) errorElement.style.display = 'none';
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.style.opacity = '1';
+                    submitButton.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        // تطبيق التنسيق عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneInput = document.getElementById('customer_phone');
+            if (phoneInput && phoneInput.value) {
+                formatPhoneNumber(phoneInput);
+            }
+        });
+
+        // التحقق من وجود قياس واحد على الأقل قبل الإرسال
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const phoneInput = document.getElementById('customer_phone');
+            if (phoneInput && phoneInput.value) {
+                const cleaned = phoneInput.value.replace(/[^0-9]/g, '');
+                if (cleaned.length !== 11) {
+                    e.preventDefault();
+                    alert('الرقم يجب أن يكون بالضبط 11 رقم');
+                    return false;
+                }
+            }
+        });
     </script>
 </x-layout.default>

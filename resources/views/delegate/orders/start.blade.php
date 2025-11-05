@@ -36,6 +36,7 @@
                         class="form-input"
                         required
                         oninput="formatPhoneNumber(this)"
+                        onpaste="handlePhonePaste(event)"
                     >
                     @error('customer_phone')
                         <span class="text-danger text-xs mt-1">{{ $message }}</span>
@@ -108,8 +109,32 @@
     </div>
 
     <script>
+        // دالة تحويل الأرقام العربية إلى إنجليزية
+        function convertArabicToEnglishNumbers(str) {
+            const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+            let result = str;
+            for (let i = 0; i < arabicNumbers.length; i++) {
+                result = result.replace(new RegExp(arabicNumbers[i], 'g'), englishNumbers[i]);
+            }
+            return result;
+        }
+
+        // معالجة اللصق
+        function handlePhonePaste(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const convertedText = convertArabicToEnglishNumbers(pastedText);
+            const input = e.target;
+            input.value = convertedText;
+            formatPhoneNumber(input);
+        }
+
         function formatPhoneNumber(input) {
             let value = input.value;
+
+            // تحويل الأرقام العربية إلى إنجليزية أولاً
+            value = convertArabicToEnglishNumbers(value);
 
             // إزالة كل شيء غير الأرقام
             let cleaned = value.replace(/[^0-9]/g, '');

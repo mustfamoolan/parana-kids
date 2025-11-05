@@ -80,7 +80,16 @@
                                     <span class="badge badge-outline-primary text-xs">{{ $product->code }}</span>
                                 </div>
                                 <div class="text-lg font-bold text-success mt-3">
-                                    {{ number_format($product->selling_price, 0) }} د.ع
+                                    @php
+                                        $activePromotion = $product->warehouse->getCurrentActivePromotion();
+                                        $hasPromotion = $activePromotion && $activePromotion->isActive();
+                                    @endphp
+                                    @if($hasPromotion)
+                                        <span class="text-success">{{ number_format($product->effective_price, 0) }} د.ع</span>
+                                        <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                                    @else
+                                        {{ number_format($product->effective_price, 0) }} د.ع
+                                    @endif
                                 </div>
                             </div>
                         </div>

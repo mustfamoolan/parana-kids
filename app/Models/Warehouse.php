@@ -64,4 +64,33 @@ class Warehouse extends Model
     {
         return $this->hasMany(ProfitRecord::class);
     }
+
+    /**
+     * Get all promotions for this warehouse
+     */
+    public function promotions()
+    {
+        return $this->hasMany(WarehousePromotion::class);
+    }
+
+    /**
+     * Get the active promotion for this warehouse
+     */
+    public function activePromotion()
+    {
+        return $this->hasOne(WarehousePromotion::class)
+            ->where('is_active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now());
+    }
+
+    /**
+     * Get the current active promotion (helper method)
+     */
+    public function getCurrentActivePromotion()
+    {
+        return WarehousePromotion::active()
+            ->forWarehouse($this->id)
+            ->first();
+    }
 }

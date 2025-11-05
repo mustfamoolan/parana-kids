@@ -93,6 +93,16 @@ class OrderController extends Controller
             $query->where('delegate_id', $request->delegate_id);
         }
 
+        // فلتر حالة التدقيق
+        if ($request->filled('size_reviewed')) {
+            $query->where('size_reviewed', $request->size_reviewed);
+        }
+
+        // فلتر حالة تأكيد الرسالة
+        if ($request->filled('message_confirmed')) {
+            $query->where('message_confirmed', $request->message_confirmed);
+        }
+
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
@@ -848,7 +858,9 @@ class OrderController extends Controller
                     $product = Product::findOrFail($item['product_id']);
                     $size = ProductSize::findOrFail($item['size_id']);
 
-                    $subtotal = $product->selling_price * $item['quantity'];
+                    // استخدام effective_price (يشمل التخفيضات النشطة)
+                    $unitPrice = $product->effective_price;
+                    $subtotal = $unitPrice * $item['quantity'];
                     $totalAmount += $subtotal;
 
                     $order->items()->create([
@@ -858,7 +870,7 @@ class OrderController extends Controller
                         'product_name' => $product->name,
                         'size_name' => $size->size_name,
                         'quantity' => $item['quantity'],
-                        'unit_price' => $product->selling_price,
+                        'unit_price' => $unitPrice,
                         'subtotal' => $subtotal,
                     ]);
 
@@ -1364,6 +1376,56 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()
                             ->withErrors(['error' => 'حدث خطأ أثناء الحذف النهائي: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * تحديث حالة التدقيق للطلب غير المقيد
+     */
+    public function updateReviewStatus(Request $request, Order $order)
+    {
+        // التحقق من أن المستخدم هو المدير فقط
+        if (!auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        // التحقق من أن الطلب غير مقيد
+        if ($order->status !== 'pending') {
+            return response()->json(['error' => 'يمكن تحديث الحالة للطلبات غير المقيدة فقط'], 400);
+        }
+
+        if ($request->field === 'size_reviewed') {
+            $request->validate([
+                'field' => 'required|in:size_reviewed',
+                'value' => 'required|in:not_reviewed,reviewed',
+            ]);
+            $order->update([$request->field => $request->value]);
+        } else {
+            $request->validate([
+                'field' => 'required|in:message_confirmed',
+                'value' => 'required|in:not_sent,waiting_response,not_confirmed,confirmed',
+            ]);
+            $order->update([$request->field => $request->value]);
+        }
+
+        $order->refresh();
+
+        if ($request->field === 'size_reviewed') {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث حالة التدقيق بنجاح',
+                'size_reviewed' => $order->size_reviewed,
+                'size_review_status_text' => $order->size_review_status_text,
+                'size_review_status_badge_class' => $order->size_review_status_badge_class,
+            ]);
+        } else {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث حالة الرسالة بنجاح',
+                'message_confirmed' => $order->message_confirmed,
+                'message_confirmation_status_text' => $order->message_confirmation_status_text,
+                'message_confirmation_status_badge_class' => $order->message_confirmation_status_badge_class,
+            ]);
         }
     }
 }

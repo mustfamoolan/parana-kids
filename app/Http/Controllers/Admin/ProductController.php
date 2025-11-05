@@ -23,7 +23,7 @@ class ProductController extends Controller
 
         $perPage = $request->input('per_page', 15);
         $products = $warehouse->products()
-                              ->with(['images', 'sizes', 'creator'])
+                              ->with(['images', 'sizes', 'creator', 'warehouse.activePromotion'])
                               ->paginate($perPage)
                               ->appends($request->except('page'));
 
@@ -160,11 +160,11 @@ class ProductController extends Controller
         $this->authorize('view', $warehouse);
         $this->authorize('view', $product);
 
-        $product->load(['warehouse', 'images', 'sizes', 'creator']);
+        $product->load(['warehouse.activePromotion', 'images', 'sizes', 'creator']);
 
         // حساب السعر الكلي للبيع والشراء (للمدير فقط)
         $totalQuantity = $product->sizes->sum('quantity');
-        $totalSellingPrice = $product->selling_price * $totalQuantity;
+        $totalSellingPrice = $product->effective_price * $totalQuantity;
         $totalPurchasePrice = 0;
 
         if (auth()->user()->isAdmin() && $product->purchase_price) {

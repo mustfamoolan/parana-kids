@@ -142,7 +142,7 @@ class CartItemController extends Controller
                         'product_id' => $product->id,
                         'size_id' => $size->id,
                         'quantity' => $item['quantity'],
-                        'price' => $product->selling_price,
+                        'price' => $product->effective_price, // استخدام السعر الفعلي (يشمل التخفيضات)
                     ]);
 
                     StockReservation::create([

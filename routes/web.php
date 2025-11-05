@@ -55,6 +55,12 @@ Route::prefix('admin')->group(function () {
         Route::get('warehouses/{warehouse}/assign-users', [AdminWarehouseController::class, 'assignUsers'])->name('admin.warehouses.assign-users');
         Route::post('warehouses/{warehouse}/update-users', [AdminWarehouseController::class, 'updateUsers'])->name('admin.warehouses.update-users');
 
+        // Warehouse Promotion routes
+        Route::get('warehouses/{warehouse}/promotion/active', [AdminWarehouseController::class, 'getActivePromotion'])->name('admin.warehouses.promotion.active');
+        Route::post('warehouses/{warehouse}/promotion', [AdminWarehouseController::class, 'storePromotion'])->name('admin.warehouses.promotion.store');
+        Route::post('warehouses/{warehouse}/promotion/toggle', [AdminWarehouseController::class, 'togglePromotion'])->name('admin.warehouses.promotion.toggle');
+        Route::put('warehouses/{warehouse}/promotion/{promotion}', [AdminWarehouseController::class, 'updatePromotion'])->name('admin.warehouses.promotion.update');
+
         // User Management routes (Admin only)
         Route::resource('users', AdminUserController::class)->names([
             'index' => 'admin.users.index',
@@ -89,6 +95,7 @@ Route::prefix('admin')->group(function () {
         Route::get('orders/{order}/process', [AdminOrderController::class, 'showProcess'])->name('admin.orders.process');
         Route::post('orders/{order}/process', [AdminOrderController::class, 'processOrder'])->name('admin.orders.process.submit');
         Route::post('orders/{order}/confirm', [AdminOrderController::class, 'confirm'])->name('admin.orders.confirm');
+        Route::put('orders/{order}/review-status', [AdminOrderController::class, 'updateReviewStatus'])->name('admin.orders.review-status.update');
 
 
         // تعديل الطلب المقيد

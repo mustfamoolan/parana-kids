@@ -254,13 +254,11 @@
                                         min="0"
                                         required
                                     >
-                                    @if($index > 0)
-                                        <button type="button" class="btn btn-outline-danger btn-sm remove-size">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </button>
-                                    @endif
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-size">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -294,7 +292,7 @@
     </div>
 
     <script>
-        let sizeIndex = {{ $product->images->count() }};
+        let sizeIndex = {{ $product->sizes->count() }};
         let uploadedImages = [];
         let imageSlotIndex = 0;
 
@@ -586,7 +584,24 @@
         // إضافة مستمع للحذف للصفوف الموجودة
         document.addEventListener('click', function(e) {
             if (e.target.closest('.remove-size')) {
-                e.target.closest('.size-row').remove();
+                const sizeRow = e.target.closest('.size-row');
+                const container = document.getElementById('sizesContainer');
+                // السماح بالحذف إذا كان هناك أكثر من قياس واحد
+                if (container.querySelectorAll('.size-row').length > 1) {
+                    sizeRow.remove();
+                } else {
+                    alert('يجب أن يكون هناك على الأقل قياس واحد');
+                }
+            }
+        });
+
+        // التحقق من وجود قياس واحد على الأقل قبل الإرسال
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const sizeRows = document.querySelectorAll('#sizesContainer .size-row');
+            if (sizeRows.length === 0) {
+                e.preventDefault();
+                alert('يجب إضافة قياس واحد على الأقل للمنتج');
+                return false;
             }
         });
 
