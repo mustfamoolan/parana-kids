@@ -297,6 +297,415 @@ class OrderController extends Controller
     }
 
     /**
+     * صفحة الطلبات غير المقيدة (pending فقط)
+     */
+    public function pendingOrders(Request $request)
+    {
+        $this->authorize('viewAny', Order::class);
+
+        // جلب قائمة المخازن حسب الصلاحيات
+        if (Auth::user()->isSupplier()) {
+            $warehouses = Auth::user()->warehouses;
+        } else {
+            $warehouses = \App\Models\Warehouse::all();
+        }
+
+        // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+        $delegates = \App\Models\User::where('role', 'delegate')->get();
+
+        // Base query - فرض حالة pending دائماً
+        $query = Order::where('status', 'pending');
+
+        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
+        }
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        // فلتر المجهز (الطلبات التي قيدها المجهز) - لا ينطبق على pending لكن نتركه للتوافق
+        if ($request->filled('confirmed_by')) {
+            $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المندوب (الطلبات التي أنشأها المندوب)
+        if ($request->filled('delegate_id')) {
+            $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // فلتر حالة التدقيق
+        if ($request->filled('size_reviewed')) {
+            $query->where('size_reviewed', $request->size_reviewed);
+        }
+
+        // فلتر حالة تأكيد الرسالة
+        if ($request->filled('message_confirmed')) {
+            $query->where('message_confirmed', $request->message_confirmed);
+        }
+
+        // البحث في الطلبات
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        // فلتر حسب التاريخ
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
+        $perPage = $request->input('per_page', 15);
+
+        // تحميل العلاقات المطلوبة
+        $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy']);
+
+        // ترتيب الطلبات
+        $orders = $query->latest('created_at')
+                   ->paginate($perPage)
+                   ->appends($request->except('page'));
+
+        // حساب المبالغ الإجمالية والأرباح للمدير فقط
+        $pendingTotalAmount = 0;
+        $confirmedTotalAmount = 0;
+        $pendingProfitAmount = 0;
+        $confirmedProfitAmount = 0;
+
+        if (Auth::user()->isAdmin()) {
+            $accessibleWarehouseIdsForTotal = null;
+            if (Auth::user()->isSupplier()) {
+                $accessibleWarehouseIdsForTotal = Auth::user()->warehouses->pluck('id')->toArray();
+            }
+
+            // دالة مساعدة لتطبيق نفس الفلاتر
+            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+                if ($accessibleWarehouseIdsForTotal !== null) {
+                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
+                    });
+                }
+
+                if ($request->filled('warehouse_id')) {
+                    $query->whereHas('items.product', function($q) use ($request) {
+                        $q->where('warehouse_id', $request->warehouse_id);
+                    });
+                }
+
+                if ($request->filled('search')) {
+                    $searchTerm = $request->search;
+                    $query->where(function($q) use ($searchTerm) {
+                        $q->where('order_number', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                          });
+                    });
+                }
+
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+
+                if ($request->filled('time_from')) {
+                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                    $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                }
+
+                if ($request->filled('time_to')) {
+                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                    $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                }
+
+                return $query;
+            };
+
+            // حساب المبلغ الإجمالي والأرباح للطلبات غير المقيدة (pending)
+            $pendingQuery = Order::where('status', 'pending');
+            $pendingQuery = $applyFilters($pendingQuery);
+
+            $pendingOrderIds = $pendingQuery->pluck('id');
+            if ($pendingOrderIds->count() > 0) {
+                $pendingTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $pendingOrderIds)
+                    ->sum('subtotal') ?? 0;
+
+                $pendingProfitAmount = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $pendingOrderIds)
+                    ->selectRaw('SUM((order_items.unit_price - COALESCE(products.purchase_price, 0)) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
+            }
+
+            // حساب المبلغ الإجمالي والأرباح للطلبات المقيدة (confirmed)
+            $confirmedQuery = Order::where('status', 'confirmed');
+            $confirmedQuery = $applyFilters($confirmedQuery);
+
+            $confirmedOrderIds = $confirmedQuery->pluck('id');
+            if ($confirmedOrderIds->count() > 0) {
+                $confirmedTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $confirmedOrderIds)
+                    ->sum('subtotal') ?? 0;
+
+                $confirmedProfitAmount = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $confirmedOrderIds)
+                    ->whereNotNull('products.purchase_price')
+                    ->where('products.purchase_price', '>', 0)
+                    ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
+            }
+        }
+
+        return view('admin.orders.pending', compact('orders', 'warehouses', 'suppliers', 'delegates', 'pendingTotalAmount', 'confirmedTotalAmount', 'pendingProfitAmount', 'confirmedProfitAmount'));
+    }
+
+    /**
+     * صفحة الطلبات المقيدة (confirmed فقط)
+     */
+    public function confirmedOrders(Request $request)
+    {
+        $this->authorize('viewAny', Order::class);
+
+        // جلب قائمة المخازن حسب الصلاحيات
+        if (Auth::user()->isSupplier()) {
+            $warehouses = Auth::user()->warehouses;
+        } else {
+            $warehouses = \App\Models\Warehouse::all();
+        }
+
+        // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+        $delegates = \App\Models\User::where('role', 'delegate')->get();
+
+        // Base query - فرض حالة confirmed دائماً
+        $query = Order::where('status', 'confirmed');
+
+        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+
+            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
+        }
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        // فلتر المجهز (الطلبات التي قيدها المجهز)
+        if ($request->filled('confirmed_by')) {
+            $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المندوب (الطلبات التي أنشأها المندوب)
+        if ($request->filled('delegate_id')) {
+            $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // البحث في الطلبات
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        // فلتر حسب التاريخ
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
+        // فلتر حسب تاريخ التقييد (للطلبات المقيدة)
+        if ($request->filled('confirmed_from')) {
+            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
+        }
+
+        if ($request->filled('confirmed_to')) {
+            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        }
+
+        $perPage = $request->input('per_page', 15);
+
+        // تحميل العلاقات المطلوبة
+        $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy']);
+
+        // ترتيب الطلبات
+        $orders = $query->latest('confirmed_at')
+                   ->paginate($perPage)
+                   ->appends($request->except('page'));
+
+        // حساب المبالغ الإجمالية والأرباح للمدير فقط
+        $pendingTotalAmount = 0;
+        $confirmedTotalAmount = 0;
+        $pendingProfitAmount = 0;
+        $confirmedProfitAmount = 0;
+
+        if (Auth::user()->isAdmin()) {
+            $accessibleWarehouseIdsForTotal = null;
+            if (Auth::user()->isSupplier()) {
+                $accessibleWarehouseIdsForTotal = Auth::user()->warehouses->pluck('id')->toArray();
+            }
+
+            // دالة مساعدة لتطبيق نفس الفلاتر
+            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+                if ($accessibleWarehouseIdsForTotal !== null) {
+                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
+                    });
+                }
+
+                if ($request->filled('warehouse_id')) {
+                    $query->whereHas('items.product', function($q) use ($request) {
+                        $q->where('warehouse_id', $request->warehouse_id);
+                    });
+                }
+
+                if ($request->filled('search')) {
+                    $searchTerm = $request->search;
+                    $query->where(function($q) use ($searchTerm) {
+                        $q->where('order_number', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                          });
+                    });
+                }
+
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+
+                if ($request->filled('time_from')) {
+                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                    $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                }
+
+                if ($request->filled('time_to')) {
+                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                    $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                }
+
+                return $query;
+            };
+
+            // حساب المبلغ الإجمالي والأرباح للطلبات غير المقيدة (pending)
+            $pendingQuery = Order::where('status', 'pending');
+            $pendingQuery = $applyFilters($pendingQuery);
+
+            $pendingOrderIds = $pendingQuery->pluck('id');
+            if ($pendingOrderIds->count() > 0) {
+                $pendingTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $pendingOrderIds)
+                    ->sum('subtotal') ?? 0;
+
+                $pendingProfitAmount = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $pendingOrderIds)
+                    ->selectRaw('SUM((order_items.unit_price - COALESCE(products.purchase_price, 0)) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
+            }
+
+            // حساب المبلغ الإجمالي والأرباح للطلبات المقيدة (confirmed)
+            $confirmedQuery = Order::where('status', 'confirmed');
+            $confirmedQuery = $applyFilters($confirmedQuery);
+
+            $confirmedOrderIds = $confirmedQuery->pluck('id');
+            if ($confirmedOrderIds->count() > 0) {
+                $confirmedTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $confirmedOrderIds)
+                    ->sum('subtotal') ?? 0;
+
+                $confirmedProfitAmount = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $confirmedOrderIds)
+                    ->whereNotNull('products.purchase_price')
+                    ->where('products.purchase_price', '>', 0)
+                    ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
+            }
+        }
+
+        return view('admin.orders.confirmed', compact('orders', 'warehouses', 'suppliers', 'delegates', 'pendingTotalAmount', 'confirmedTotalAmount', 'pendingProfitAmount', 'confirmedProfitAmount'));
+    }
+
+    /**
      * Display a unified listing of all orders with filters.
      */
 
@@ -555,14 +964,20 @@ class OrderController extends Controller
             // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب (فقط للتسجيل، بدون خصم من المخزن)
             $order->load('items.product', 'items.size');
             foreach ($order->items as $item) {
+                // حساب balance_after: إذا كان size موجوداً نستخدم quantity، وإلا 0
+                $balanceAfter = 0;
+                if ($item->size_id && $item->size) {
+                    $balanceAfter = $item->size->quantity;
+                }
+
                 ProductMovement::record([
                     'product_id' => $item->product_id,
-                    'size_id' => $item->size_id,
+                    'size_id' => $item->size_id, // قد يكون null إذا تم حذف size
                     'warehouse_id' => $item->product->warehouse_id,
                     'order_id' => $order->id,
                     'movement_type' => 'confirm',
                     'quantity' => 0, // لا خصم، فقط تسجيل الحركة
-                    'balance_after' => $item->size ? $item->size->quantity : 0, // الرصيد الحالي (لم يتغير)
+                    'balance_after' => $balanceAfter, // الرصيد الحالي (لم يتغير)
                     'order_status' => 'confirmed',
                     'notes' => "تقييد/تجهيز طلب #{$order->order_number}"
                 ]);
@@ -1384,8 +1799,8 @@ class OrderController extends Controller
      */
     public function updateReviewStatus(Request $request, Order $order)
     {
-        // التحقق من أن المستخدم هو المدير فقط
-        if (!auth()->user()->isAdmin()) {
+        // التحقق من أن المستخدم هو المدير أو المجهز
+        if (!auth()->user()->isAdminOrSupplier()) {
             abort(403);
         }
 

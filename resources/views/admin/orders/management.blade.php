@@ -1,4 +1,4 @@
-<x-layout.default>
+<x-layout.admin>
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">إدارة الطلبات</h5>
@@ -865,4 +865,4 @@
             }, 3000);
         }
     </script>
-</x-layout.default>
+</x-layout.admin>

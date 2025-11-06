@@ -1,5 +1,13 @@
-@if(auth()->check() && auth()->user()->isAdmin() && request()->is('admin/*') && !request()->routeIs('admin.dashboard'))
-    <div class="fixed bottom-6 ltr:left-6 rtl:right-6 z-50">
+@if(auth()->check() && auth()->user()->isAdminOrSupplier() && request()->is('admin/*'))
+    @php
+        $currentPath = request()->path();
+        $isDashboard = request()->routeIs('admin.dashboard') || $currentPath === 'admin/dashboard' || $currentPath === 'admin';
+        // للمجهز: يظهر في جميع الصفحات (بما فيها الداشبورد)
+        // للمدير: يظهر في جميع الصفحات ما عدا الداشبورد
+        $shouldShow = auth()->user()->isSupplier() || !$isDashboard;
+    @endphp
+    @if($shouldShow)
+    <div class="fixed bottom-6 ltr:left-6 rtl:right-6 z-[9999]">
         <a href="{{ route('admin.dashboard') }}"
            class="btn btn-primary rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center w-14 h-14">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -7,5 +15,6 @@
             </svg>
         </a>
     </div>
+    @endif
 @endif
 

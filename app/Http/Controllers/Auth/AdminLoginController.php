@@ -35,11 +35,7 @@ class AdminLoginController extends Controller
             if ($user->isAdminOrSupplier()) {
                 Auth::login($user);
 
-                // المجهز يذهب لصفحة الطلبات، المدير للـ Dashboard
-                if ($user->role === 'supplier') {
-                    return redirect()->intended('/admin/orders-management');
-                }
-
+                // المجهز والمدير يذهبان للداشبورد
                 return redirect()->intended('/admin/dashboard');
             }
         }

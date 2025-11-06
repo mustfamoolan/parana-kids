@@ -12,7 +12,9 @@ class WarehousePromotion extends Model
 
     protected $fillable = [
         'warehouse_id',
+        'discount_type',
         'promotion_price',
+        'discount_percentage',
         'start_date',
         'end_date',
         'is_active',
@@ -21,6 +23,7 @@ class WarehousePromotion extends Model
 
     protected $casts = [
         'promotion_price' => 'decimal:2',
+        'discount_percentage' => 'decimal:2',
         'start_date' => 'datetime',
         'end_date' => 'datetime',
         'is_active' => 'boolean',
@@ -72,5 +75,20 @@ class WarehousePromotion extends Model
     public function scopeForWarehouse($query, $warehouseId)
     {
         return $query->where('warehouse_id', $warehouseId);
+    }
+
+    /**
+     * Calculate the final price based on discount type
+     */
+    public function calculatePrice($originalPrice): float
+    {
+        if ($this->discount_type === 'percentage') {
+            // حساب السعر بعد تطبيق النسبة المئوية
+            $discountAmount = ($originalPrice * $this->discount_percentage) / 100;
+            return max(0, $originalPrice - $discountAmount);
+        } else {
+            // استخدام المبلغ الثابت
+            return $this->promotion_price ?? $originalPrice;
+        }
     }
 }

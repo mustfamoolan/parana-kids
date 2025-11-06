@@ -23,7 +23,7 @@
             </div>
             <ul class="perfect-scrollbar relative font-semibold space-y-0.5 h-[calc(100vh-80px)] overflow-y-auto overflow-x-hidden  p-4 py-0"
                 x-data="{ activeDropdown: null }">
-                @if(auth()->check() && auth()->user()->isAdmin())
+                @if(auth()->check() && auth()->user()->isAdminOrSupplier())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.dashboard') }}" class="nav-link group">
                         <div class="flex items-center">

@@ -25,9 +25,9 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 $user = Auth::guard($guard)->user();
 
-                // المجهز يذهب مباشرة لصفحة إدارة الطلبات
+                // المجهز يذهب إلى الداشبورد
                 if ($user && $user->role === 'supplier') {
-                    return redirect()->route('admin.orders.management');
+                    return redirect()->route('admin.dashboard');
                 }
 
                 return redirect(RouteServiceProvider::HOME);

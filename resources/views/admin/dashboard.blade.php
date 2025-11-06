@@ -15,7 +15,15 @@
                 <h3 class="text-lg font-bold text-primary mb-2">الطلبات</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     @php
-                        $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
+                        $pendingOrdersQuery = \App\Models\Order::where('status', 'pending');
+                        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+                        if (auth()->user()->isSupplier()) {
+                            $accessibleWarehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
+                            $pendingOrdersQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                            });
+                        }
+                        $pendingOrdersCount = $pendingOrdersQuery->count();
                     @endphp
                     @if($pendingOrdersCount > 0)
                         <span class="badge bg-warning">{{ $pendingOrdersCount }}</span> قيد الانتظار
@@ -25,6 +33,29 @@
                 </p>
             </a>
 
+            <!-- 1.1. الطلبات غير المقيدة -->
+            <a href="{{ route('admin.orders.pending') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-warning mb-2">الطلبات غير المقيدة</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">عرض الطلبات غير المقيدة</p>
+            </a>
+
+            <!-- 1.2. الطلبات المقيدة -->
+            <a href="{{ route('admin.orders.confirmed') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-success/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-success mb-2">الطلبات المقيدة</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">عرض الطلبات المقيدة</p>
+            </a>
+
+            @if(auth()->user()->isAdmin())
             <!-- 2. إدارة المستخدمين -->
             <a href="{{ route('admin.users.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
@@ -46,6 +77,7 @@
                 <h3 class="text-lg font-bold text-success mb-2">التقارير</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">عرض التقارير والإحصائيات</p>
             </a>
+            @endif
 
             <!-- 4. المخازن -->
             <a href="{{ route('admin.warehouses.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">

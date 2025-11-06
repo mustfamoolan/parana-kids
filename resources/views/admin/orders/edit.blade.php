@@ -112,7 +112,7 @@
                                 </svg>
                                 نسخ
                             </button>
-                            <button type="button" onclick="openWhatsApp()" class="btn btn-sm btn-outline-success">
+                            <button type="button" onclick="openWhatsAppFromEdit()" class="btn btn-sm btn-outline-success">
                                 <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                                 </svg>
@@ -778,14 +778,91 @@
             }
         }
 
-        // دالة فتح واتساب
-        function openWhatsApp() {
+        // دالة بناء رسالة الواتساب
+        function generateWhatsAppMessage(orderItems, totalAmount) {
+            let message = '📦 أهلاً وسهلاً بيكم ❤️\n';
+            message += 'معكم فريق برنا كدز 👗\n\n';
+
+            // إضافة قائمة المنتجات
+            orderItems.forEach(function(item) {
+                const price = new Intl.NumberFormat('en-US').format(item.unit_price || 0);
+                message += `- ${item.product_code} - ${price} د.ع\n`;
+            });
+
+            // إضافة المجموع الكلي
+            const total = new Intl.NumberFormat('en-US').format(totalAmount || 0);
+            message += `\nالمجموع الكلي: ${total} د.ع\n\n`;
+
+            // إضافة طلب التأكيد
+            message += 'نرجو تأكيد الطلب من خلال الرد على هذه الرسالة بكلمة "تأكيد" حتى نبدأ بتجهيز الطلب وإرساله لكم 💨\n\n';
+            message += 'في حال عدم الرد خلال فترة قصيرة، سيتم إلغاء الطلب تلقائيًا.\n';
+            message += 'نشكر تعاونكم ويانا 🌸';
+
+            return message;
+        }
+
+        // دالة فتح واتساب من صفحة التعديل
+        function openWhatsAppFromEdit() {
             const phoneInput = document.getElementById('customer_phone');
-            if (phoneInput && phoneInput.value) {
-                const phone = phoneInput.value.replace(/[^0-9]/g, ''); // إزالة جميع الأحرف غير الرقمية
-                const whatsappUrl = `https://wa.me/${phone}`;
-                window.open(whatsappUrl, '_blank');
+            if (!phoneInput || !phoneInput.value) {
+                alert('يرجى إدخال رقم الهاتف');
+                return;
             }
+
+            // الحصول على بيانات Alpine.js
+            const alpineElement = document.querySelector('[x-data="orderEditForm()"]');
+            if (!alpineElement) {
+                alert('حدث خطأ في تحميل بيانات الطلب');
+                return;
+            }
+
+            let alpineData;
+            try {
+                alpineData = Alpine.$data(alpineElement);
+            } catch (e) {
+                // محاولة طريقة بديلة
+                if (window.Alpine && window.Alpine.$data) {
+                    alpineData = window.Alpine.$data(alpineElement);
+                } else {
+                    alert('حدث خطأ في الوصول إلى بيانات الطلب');
+                    return;
+                }
+            }
+
+            if (!alpineData || !alpineData.items || alpineData.items.length === 0) {
+                alert('لا توجد منتجات في الطلب');
+                return;
+            }
+
+            // تحضير بيانات المنتجات
+            const orderItems = alpineData.items.map(function(item) {
+                return {
+                    product_code: item.product_code || '',
+                    unit_price: parseFloat(item.unit_price) || 0
+                };
+            });
+
+            // حساب المجموع الكلي
+            const totalAmount = alpineData.totalAmount || 0;
+
+            // تنظيف رقم الهاتف
+            let cleanPhone = phoneInput.value.replace(/[^\d]/g, '');
+
+            // إضافة كود الدولة 964 للعراق إذا لم يكن موجوداً
+            if (!cleanPhone.startsWith('964')) {
+                if (cleanPhone.startsWith('0')) {
+                    cleanPhone = '964' + cleanPhone.substring(1);
+                } else if (cleanPhone.length < 12) {
+                    cleanPhone = '964' + cleanPhone;
+                }
+            }
+
+            // بناء الرسالة
+            const message = generateWhatsAppMessage(orderItems, totalAmount);
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+
+            // فتح واتساب في نافذة جديدة
+            window.open(whatsappUrl, '_blank');
         }
 
         // دالة الاتصال بالهاتف

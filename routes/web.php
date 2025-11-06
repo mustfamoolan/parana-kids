@@ -82,10 +82,14 @@ Route::prefix('admin')->group(function () {
             'update' => 'admin.warehouses.products.update',
             'destroy' => 'admin.warehouses.products.destroy',
         ]);
+        Route::post('warehouses/{warehouse}/products/{product}/toggle-hidden', [AdminProductController::class, 'toggleHidden'])->name('admin.warehouses.products.toggle-hidden');
+        Route::post('warehouses/{warehouse}/products/{product}/discount', [AdminProductController::class, 'updateDiscount'])->name('admin.warehouses.products.discount');
         // Order routes
 
         // إدارة الطلبات (الصفحة الجديدة الموحدة)
         Route::get('orders-management', [AdminOrderController::class, 'management'])->name('admin.orders.management');
+        Route::get('orders-pending', [AdminOrderController::class, 'pendingOrders'])->name('admin.orders.pending');
+        Route::get('orders-confirmed', [AdminOrderController::class, 'confirmedOrders'])->name('admin.orders.confirmed');
 
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
         Route::get('orders/materials/list', [AdminOrderController::class, 'getMaterialsList'])->name('admin.orders.materials');

@@ -57,6 +57,11 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'link_1688' => 'nullable|url|max:500',
+            'is_hidden' => 'nullable|boolean',
+            'discount_type' => 'nullable|in:none,amount,percentage',
+            'discount_value' => 'nullable|numeric|min:0|required_if:discount_type,amount,percentage',
+            'discount_start_date' => 'nullable|date|required_with:discount_end_date',
+            'discount_end_date' => 'nullable|date|after_or_equal:discount_start_date|required_with:discount_start_date',
             'image_urls' => 'nullable|array',
             'image_urls.*' => 'url|max:1000',
             'sizes' => 'required|array|min:1',
@@ -69,6 +74,14 @@ class ProductController extends Controller
         // استخدام الكود كاسم افتراضي إذا لم يتم إدخال اسم
         $productName = $request->name ?: $request->code;
 
+        // تحويل تواريخ التخفيض إلى UTC إذا كانت موجودة
+        $discountStartDate = $request->discount_start_date
+            ? \Carbon\Carbon::parse($request->discount_start_date, 'Asia/Baghdad')->setTimezone('UTC')
+            : null;
+        $discountEndDate = $request->discount_end_date
+            ? \Carbon\Carbon::parse($request->discount_end_date, 'Asia/Baghdad')->setTimezone('UTC')
+            : null;
+
         $product = Product::create([
             'warehouse_id' => $warehouse->id,
             'name' => $productName,
@@ -78,6 +91,11 @@ class ProductController extends Controller
             'selling_price' => $request->selling_price,
             'description' => $request->description,
             'link_1688' => $request->link_1688,
+            'is_hidden' => $request->has('is_hidden') && auth()->user()->isAdmin() ? (bool)$request->is_hidden : false,
+            'discount_type' => $request->discount_type ?? 'none',
+            'discount_value' => $request->discount_value,
+            'discount_start_date' => $discountStartDate,
+            'discount_end_date' => $discountEndDate,
             'created_by' => Auth::id(),
         ]);
 
@@ -203,6 +221,11 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'link_1688' => 'nullable|url|max:500',
+            'is_hidden' => 'nullable|boolean',
+            'discount_type' => 'nullable|in:none,amount,percentage',
+            'discount_value' => 'nullable|numeric|min:0|required_if:discount_type,amount,percentage',
+            'discount_start_date' => 'nullable|date|required_with:discount_end_date',
+            'discount_end_date' => 'nullable|date|after_or_equal:discount_start_date|required_with:discount_start_date',
             'image_urls' => 'nullable|array',
             'image_urls.*' => 'url|max:1000',
             'keep_images' => 'nullable|array',
@@ -217,7 +240,15 @@ class ProductController extends Controller
         // استخدام الكود كاسم افتراضي إذا لم يتم إدخال اسم
         $productName = $request->name ?: $request->code;
 
-        $product->update([
+        // تحويل تواريخ التخفيض إلى UTC إذا كانت موجودة
+        $discountStartDate = $request->discount_start_date
+            ? \Carbon\Carbon::parse($request->discount_start_date, 'Asia/Baghdad')->setTimezone('UTC')
+            : null;
+        $discountEndDate = $request->discount_end_date
+            ? \Carbon\Carbon::parse($request->discount_end_date, 'Asia/Baghdad')->setTimezone('UTC')
+            : null;
+
+        $updateData = [
             'name' => $productName,
             'code' => $request->code,
             'gender_type' => $request->gender_type,
@@ -225,7 +256,18 @@ class ProductController extends Controller
             'selling_price' => $request->selling_price,
             'description' => $request->description,
             'link_1688' => $request->link_1688,
-        ]);
+        ];
+
+        // فقط المدير يمكنه تعديل الحجب والتخفيض
+        if (auth()->user()->isAdmin()) {
+            $updateData['is_hidden'] = $request->has('is_hidden') ? (bool)$request->is_hidden : false;
+            $updateData['discount_type'] = $request->discount_type ?? 'none';
+            $updateData['discount_value'] = $request->discount_value;
+            $updateData['discount_start_date'] = $discountStartDate;
+            $updateData['discount_end_date'] = $discountEndDate;
+        }
+
+        $product->update($updateData);
 
         // حفظ القياسات القديمة لمقارنتها
         $oldSizes = $product->sizes->keyBy('size_name');
@@ -442,4 +484,75 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'تم حذف الصورة بنجاح');
     }
     */
+
+    /**
+     * Toggle product hidden status
+     */
+    public function toggleHidden(Request $request, Warehouse $warehouse, Product $product)
+    {
+        $this->authorize('view', $warehouse);
+        $this->authorize('update', $product);
+
+        if (!auth()->user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتنفيذ هذه العملية'
+            ], 403);
+        }
+
+        $request->validate([
+            'is_hidden' => 'required|boolean',
+        ]);
+
+        $product->update([
+            'is_hidden' => $request->is_hidden,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->is_hidden ? 'تم حجب المنتج بنجاح' : 'تم إلغاء حجب المنتج بنجاح',
+        ]);
+    }
+
+    /**
+     * Update product discount
+     */
+    public function updateDiscount(Request $request, Warehouse $warehouse, Product $product)
+    {
+        $this->authorize('view', $warehouse);
+        $this->authorize('update', $product);
+
+        if (!auth()->user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتنفيذ هذه العملية'
+            ], 403);
+        }
+
+        $request->validate([
+            'discount_type' => 'required|in:none,amount,percentage',
+            'discount_value' => 'nullable|numeric|min:0|required_if:discount_type,amount,percentage',
+            'discount_start_date' => 'nullable|date|required_with:discount_end_date',
+            'discount_end_date' => 'nullable|date|after_or_equal:discount_start_date|required_with:discount_start_date',
+        ]);
+
+        $discountStartDate = $request->discount_start_date
+            ? \Carbon\Carbon::parse($request->discount_start_date, 'Asia/Baghdad')->setTimezone('UTC')
+            : null;
+        $discountEndDate = $request->discount_end_date
+            ? \Carbon\Carbon::parse($request->discount_end_date, 'Asia/Baghdad')->setTimezone('UTC')
+            : null;
+
+        $product->update([
+            'discount_type' => $request->discount_type,
+            'discount_value' => $request->discount_type !== 'none' ? $request->discount_value : null,
+            'discount_start_date' => $discountStartDate,
+            'discount_end_date' => $discountEndDate,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->discount_type === 'none' ? 'تم إلغاء التخفيض بنجاح' : 'تم تحديث التخفيض بنجاح',
+        ]);
+    }
 }

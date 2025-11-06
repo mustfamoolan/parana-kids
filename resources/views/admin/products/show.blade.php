@@ -172,6 +172,43 @@
                             <span class="text-gray-500 dark:text-gray-400">آخر تحديث:</span>
                             <span class="font-medium text-black dark:text-white-light">{{ $product->updated_at->format('Y-m-d H:i') }}</span>
                         </div>
+
+                        @if(auth()->user()->isAdmin())
+                        <div class="border-t pt-4 mt-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-gray-500 dark:text-gray-400">حالة الحجب:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge {{ $product->is_hidden ? 'badge-danger' : 'badge-success' }}">
+                                        {{ $product->is_hidden ? 'محجوب' : 'غير محجوب' }}
+                                    </span>
+                                    <button onclick="toggleProductHidden({{ $product->id }}, {{ $product->is_hidden ? 'true' : 'false' }})"
+                                            class="btn btn-sm {{ $product->is_hidden ? 'btn-success' : 'btn-outline-danger' }}">
+                                        {{ $product->is_hidden ? 'إلغاء الحجب' : 'حجب' }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500 dark:text-gray-400">التخفيض:</span>
+                                <div class="flex items-center gap-2">
+                                    @if($product->hasActiveDiscount())
+                                        @php
+                                            $discountInfo = $product->getDiscountInfo();
+                                        @endphp
+                                        <span class="badge badge-warning">
+                                            {{ $discountInfo['type'] == 'percentage' ? $discountInfo['percentage'] . '%' : number_format($discountInfo['discount_amount'], 0) . ' د.ع' }}
+                                        </span>
+                                    @else
+                                        <span class="badge badge-outline-secondary">لا يوجد تخفيض</span>
+                                    @endif
+                                    <button onclick="openProductDiscountModal({{ $product->id }})"
+                                            class="btn btn-sm btn-outline-warning">
+                                        {{ $product->hasActiveDiscount() ? 'تعديل' : 'إضافة' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -425,5 +462,308 @@
                 });
             }
         });
+
+        @if(auth()->user()->isAdmin())
+        // Product Hidden Toggle
+        function toggleProductHidden(productId, currentState) {
+            const isHidden = currentState === true;
+            const newState = !isHidden;
+
+            if (!confirm(`هل أنت متأكد من ${newState ? 'حجب' : 'إلغاء حجب'} هذا المنتج؟`)) {
+                return;
+            }
+
+            fetch(`/admin/warehouses/{{ $product->warehouse_id }}/products/${productId}/toggle-hidden`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ is_hidden: newState })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء التحديث');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء التحديث');
+            });
+        }
+
+        // Product Discount Modal
+        let currentProductId = null;
+        const productDiscountModal = document.getElementById('productDiscountModal');
+        const productDiscountForm = document.getElementById('productDiscountForm');
+
+        function openProductDiscountModal(productId) {
+            currentProductId = productId;
+            // يمكنك إضافة AJAX لجلب بيانات المنتج الحالية هنا
+            if (productDiscountModal) {
+                productDiscountModal.classList.remove('hidden');
+                productDiscountModal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeProductDiscountModal() {
+            if (productDiscountModal) {
+                productDiscountModal.classList.add('hidden');
+                productDiscountModal.classList.remove('flex');
+                document.body.style.overflow = 'auto';
+                if (productDiscountForm) {
+                    productDiscountForm.reset();
+                }
+                currentProductId = null;
+            }
+        }
+
+        // دالة لإظهار الإشعارات
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-success' : 'bg-danger';
+            notification.className = `fixed top-4 rtl:right-4 ltr:left-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2 min-w-[300px]`;
+            notification.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    ${type === 'success'
+                        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+                        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>'
+                    }
+                </svg>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.transition = 'opacity 0.3s ease-out';
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Submit Product Discount
+        if (productDiscountForm) {
+            productDiscountForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const discountType = document.getElementById('product_discount_type').value;
+                const discountValue = document.getElementById('product_discount_value').value;
+                const discountStartDate = document.getElementById('product_discount_start_date').value;
+                const discountEndDate = document.getElementById('product_discount_end_date').value;
+
+                // Validation
+                if (discountType !== 'none') {
+                    if (!discountValue || parseFloat(discountValue) <= 0) {
+                        showNotification('يرجى إدخال قيمة تخفيض صحيحة', 'error');
+                        return;
+                    }
+                    if (discountType === 'percentage') {
+                        const percentageNum = parseFloat(discountValue);
+                        if (percentageNum > 100) {
+                            showNotification('النسبة المئوية يجب أن تكون بين 0 و 100', 'error');
+                            return;
+                        }
+                    }
+                    if (discountStartDate && discountEndDate && new Date(discountStartDate) >= new Date(discountEndDate)) {
+                        showNotification('تاريخ النهاية يجب أن يكون بعد تاريخ البداية', 'error');
+                        return;
+                    }
+                }
+
+                // إظهار loading state
+                const submitBtn = productDiscountForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn ? submitBtn.innerHTML : '';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = `
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-sm sm:text-base">جاري الحفظ...</span>
+                    `;
+                }
+
+                const formData = {
+                    discount_type: discountType,
+                    discount_value: discountType !== 'none' ? discountValue : null,
+                    discount_start_date: discountStartDate || null,
+                    discount_end_date: discountEndDate || null,
+                };
+
+                fetch(`/admin/warehouses/{{ $product->warehouse_id }}/products/${currentProductId}/discount`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(data.message || 'تم حفظ التخفيض بنجاح', 'success');
+                        setTimeout(() => {
+                            closeProductDiscountModal();
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }
+                        showNotification(data.message || 'حدث خطأ أثناء الحفظ', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                    showNotification('حدث خطأ أثناء الحفظ', 'error');
+                });
+            });
+        }
+
+        // Toggle Product Discount Fields
+        const productDiscountTypeSelect = document.getElementById('product_discount_type');
+        const productDiscountValueInput = document.getElementById('product_discount_value');
+        if (productDiscountTypeSelect) {
+            function updateProductDiscountFields() {
+                const discountType = productDiscountTypeSelect.value;
+                const valueContainer = document.getElementById('product_discount_value_container');
+                const datesContainer = document.getElementById('product_discount_dates_container');
+
+                if (discountType === 'none') {
+                    if (valueContainer) valueContainer.style.display = 'none';
+                    if (datesContainer) datesContainer.style.display = 'none';
+                    if (productDiscountValueInput) {
+                        productDiscountValueInput.value = '';
+                        productDiscountValueInput.removeAttribute('max');
+                        productDiscountValueInput.setAttribute('step', '1');
+                    }
+                } else {
+                    if (valueContainer) valueContainer.style.display = 'block';
+                    if (datesContainer) datesContainer.style.display = 'block';
+
+                    if (productDiscountValueInput) {
+                        if (discountType === 'percentage') {
+                            productDiscountValueInput.setAttribute('max', '100');
+                            productDiscountValueInput.setAttribute('step', '0.01');
+                            productDiscountValueInput.setAttribute('placeholder', 'أدخل النسبة (0-100)...');
+                            const hint = document.getElementById('product_discount_hint');
+                            if (hint) hint.textContent = 'أدخل النسبة المئوية من 0 إلى 100 (مثال: 10 يعني 10%)';
+                        } else {
+                            productDiscountValueInput.removeAttribute('max');
+                            productDiscountValueInput.setAttribute('step', '1');
+                            productDiscountValueInput.setAttribute('placeholder', 'أدخل المبلغ...');
+                            const hint = document.getElementById('product_discount_hint');
+                            if (hint) hint.textContent = 'أدخل المبلغ بالدينار العراقي';
+                        }
+                    }
+                }
+            }
+
+            productDiscountTypeSelect.addEventListener('change', updateProductDiscountFields);
+            // تهيئة أولية
+            updateProductDiscountFields();
+        }
+        @endif
     </script>
+
+    <!-- Modal لتخفيض المنتج -->
+    @if(auth()->user()->isAdmin())
+    <div id="productDiscountModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] hidden items-center justify-center p-3 sm:p-4 md:p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[95vh] overflow-hidden shadow-2xl transform transition-all">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-warning/10 to-warning/5">
+                <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h3 class="text-base sm:text-lg font-bold dark:text-white-light truncate">تخفيض المنتج</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">تطبيق تخفيض خاص على هذا المنتج</p>
+                    </div>
+                </div>
+                <button onclick="closeProductDiscountModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0 rtl:mr-2 ltr:ml-2">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form id="productDiscountForm" class="p-4 sm:p-5 md:p-6 overflow-y-auto max-h-[calc(95vh-120px)]" novalidate>
+                <div class="space-y-4 sm:space-y-5">
+                    <!-- نوع التخفيض -->
+                    <div>
+                        <label for="product_discount_type" class="block text-sm font-semibold mb-2 sm:mb-3 text-gray-700 dark:text-gray-300">
+                            نوع التخفيض
+                        </label>
+                        <select id="product_discount_type" name="discount_type" class="form-select w-full text-sm sm:text-base">
+                            <option value="none">لا يوجد تخفيض</option>
+                            <option value="amount">مبلغ ثابت</option>
+                            <option value="percentage">نسبة مئوية</option>
+                        </select>
+                    </div>
+
+                    <!-- قيمة التخفيض -->
+                    <div id="product_discount_value_container" class="hidden">
+                        <label for="product_discount_value" class="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                            قيمة التخفيض
+                        </label>
+                        <input type="number" id="product_discount_value" name="discount_value"
+                               class="form-input w-full text-sm sm:text-base" min="0" step="1"
+                               placeholder="أدخل القيمة...">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" id="product_discount_hint">
+                            أدخل قيمة التخفيض
+                        </p>
+                    </div>
+
+                    <!-- تاريخ البداية -->
+                    <div id="product_discount_dates_container" class="hidden">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="product_discount_start_date" class="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                                    تاريخ البداية (اختياري)
+                                </label>
+                                <input type="datetime-local" id="product_discount_start_date" name="discount_start_date"
+                                       class="form-input w-full text-sm sm:text-base">
+                            </div>
+                            <div>
+                                <label for="product_discount_end_date" class="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                                    تاريخ النهاية (اختياري)
+                                </label>
+                                <input type="datetime-local" id="product_discount_end_date" name="discount_end_date"
+                                       class="form-input w-full text-sm sm:text-base">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <button type="submit" class="btn btn-primary flex-1 gap-2 order-2 sm:order-1">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm sm:text-base">حفظ التخفيض</span>
+                    </button>
+                    <button type="button" onclick="closeProductDiscountModal()" class="btn btn-outline-secondary order-1 sm:order-2">
+                        <span class="text-sm sm:text-base">إلغاء</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 </x-layout.admin>

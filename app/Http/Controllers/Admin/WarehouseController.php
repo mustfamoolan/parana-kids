@@ -132,6 +132,45 @@ class WarehouseController extends Controller
             }
         }
 
+        // فلتر المنتجات المحجوبة
+        if ($request->filled('is_hidden')) {
+            $isHidden = $request->is_hidden === '1' || $request->is_hidden === 'true';
+            $productsQuery->where('is_hidden', $isHidden);
+        }
+
+        // فلتر المنتجات المخفضة
+        if ($request->filled('has_discount')) {
+            $hasDiscount = $request->has_discount === '1' || $request->has_discount === 'true';
+            if ($hasDiscount) {
+                $productsQuery->where(function($q) {
+                    $q->where(function($subQ) {
+                        // منتجات لها تخفيض نشط
+                        $subQ->whereNotNull('discount_type')
+                             ->where('discount_type', '!=', 'none')
+                             ->whereNotNull('discount_value')
+                             ->where(function($dateQ) {
+                                 $now = now();
+                                 $dateQ->where(function($d) use ($now) {
+                                     $d->whereNull('discount_start_date')
+                                       ->orWhere('discount_start_date', '<=', $now);
+                                 })
+                                 ->where(function($d) use ($now) {
+                                     $d->whereNull('discount_end_date')
+                                       ->orWhere('discount_end_date', '>=', $now);
+                                 });
+                             });
+                    });
+                });
+            } else {
+                // منتجات بدون تخفيض
+                $productsQuery->where(function($q) {
+                    $q->whereNull('discount_type')
+                      ->orWhere('discount_type', 'none')
+                      ->orWhereNull('discount_value');
+                });
+            }
+        }
+
         // البحث بكود المنتج أو اسم المنتج أو القياس
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -174,6 +213,8 @@ class WarehouseController extends Controller
         // تمرير معاملات البحث والفلترة للـ view
         $searchTerm = $request->get('search', '');
         $genderTypeFilter = $request->get('gender_type', '');
+        $isHiddenFilter = $request->get('is_hidden', '');
+        $hasDiscountFilter = $request->get('has_discount', '');
 
         // تعيين المنتجات المفلترة للمخزن لعرضها في الـ view
         $warehouse->setRelation('products', $products);
@@ -181,7 +222,7 @@ class WarehouseController extends Controller
         // جلب التخفيض النشط
         $activePromotion = $warehouse->getCurrentActivePromotion();
 
-        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'activePromotion'));
+        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion'));
     }
 
     /**
@@ -298,7 +339,9 @@ class WarehouseController extends Controller
                 'success' => true,
                 'promotion' => [
                     'id' => $promotion->id,
+                    'discount_type' => $promotion->discount_type,
                     'promotion_price' => $promotion->promotion_price,
+                    'discount_percentage' => $promotion->discount_percentage,
                     'start_date' => $promotion->start_date->setTimezone('Asia/Baghdad')->format('Y-m-d\TH:i'),
                     'end_date' => $promotion->end_date->setTimezone('Asia/Baghdad')->format('Y-m-d\TH:i'),
                     'is_active' => $promotion->is_active,
@@ -343,7 +386,9 @@ class WarehouseController extends Controller
 
         $promotion = WarehousePromotion::create([
             'warehouse_id' => $warehouse->id,
-            'promotion_price' => $request->promotion_price,
+            'discount_type' => $request->discount_type,
+            'promotion_price' => $request->discount_type === 'amount' ? $request->promotion_price : null,
+            'discount_percentage' => $request->discount_type === 'percentage' ? $request->discount_percentage : null,
             'start_date' => $startDate,
             'end_date' => $endDate,
             'is_active' => true,
@@ -355,7 +400,9 @@ class WarehouseController extends Controller
             'message' => 'تم تفعيل التخفيض بنجاح',
             'promotion' => [
                 'id' => $promotion->id,
+                'discount_type' => $promotion->discount_type,
                 'promotion_price' => $promotion->promotion_price,
+                'discount_percentage' => $promotion->discount_percentage,
                 'start_date' => $promotion->start_date->setTimezone('Asia/Baghdad')->format('Y-m-d H:i'),
                 'end_date' => $promotion->end_date->setTimezone('Asia/Baghdad')->format('Y-m-d H:i'),
             ]
@@ -405,7 +452,9 @@ class WarehouseController extends Controller
         }
 
         $request->validate([
-            'promotion_price' => 'required|numeric|min:0',
+            'discount_type' => 'required|in:amount,percentage',
+            'promotion_price' => 'required_if:discount_type,amount|nullable|numeric|min:0',
+            'discount_percentage' => 'required_if:discount_type,percentage|nullable|numeric|min:0|max:100',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
         ]);
@@ -415,7 +464,9 @@ class WarehouseController extends Controller
         $endDate = \Carbon\Carbon::parse($request->end_date, 'Asia/Baghdad')->setTimezone('UTC');
 
         $promotion->update([
-            'promotion_price' => $request->promotion_price,
+            'discount_type' => $request->discount_type,
+            'promotion_price' => $request->discount_type === 'amount' ? $request->promotion_price : null,
+            'discount_percentage' => $request->discount_type === 'percentage' ? $request->discount_percentage : null,
             'start_date' => $startDate,
             'end_date' => $endDate,
         ]);
@@ -425,7 +476,9 @@ class WarehouseController extends Controller
             'message' => 'تم تحديث التخفيض بنجاح',
             'promotion' => [
                 'id' => $promotion->id,
+                'discount_type' => $promotion->discount_type,
                 'promotion_price' => $promotion->promotion_price,
+                'discount_percentage' => $promotion->discount_percentage,
                 'start_date' => $promotion->start_date->setTimezone('Asia/Baghdad')->format('Y-m-d H:i'),
                 'end_date' => $promotion->end_date->setTimezone('Asia/Baghdad')->format('Y-m-d H:i'),
             ]

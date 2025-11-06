@@ -19,8 +19,9 @@ class ProductController extends Controller
         // الحصول على معرفات المخازن المصرح بها للمندوب
         $warehouseIds = Auth::user()->warehouses()->pluck('warehouse_id');
 
-        // بناء الاستعلام الأساسي
+        // بناء الاستعلام الأساسي (استبعاد المنتجات المحجوبة)
         $query = Product::whereIn('warehouse_id', $warehouseIds)
+                        ->where('is_hidden', false)
                         ->with(['primaryImage', 'images', 'sizes.reservations', 'warehouse.activePromotion']);
 
         $searchedSize = null; // لتمرير القياس المبحوث للـ view
@@ -118,6 +119,7 @@ class ProductController extends Controller
         }
 
         $products = $warehouse->products()
+                              ->where('is_hidden', false)
                               ->with(['images', 'sizes', 'warehouse.activePromotion'])
                               ->paginate(10);
 
@@ -167,6 +169,7 @@ class ProductController extends Controller
     public function getProductData($id)
     {
         $product = Product::with(['sizes', 'primaryImage', 'warehouse'])
+                         ->where('is_hidden', false)
                          ->findOrFail($id);
 
         // التحقق من صلاحية الوصول للمخزن

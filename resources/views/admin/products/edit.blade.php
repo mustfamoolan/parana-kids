@@ -175,6 +175,128 @@
                         <div class="mt-1 text-danger">{{ $message }}</div>
                     @enderror
                 </div>
+
+                @if(auth()->user()->isAdmin())
+                <!-- حجب المنتج -->
+                <div class="mt-5">
+                    <label class="flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="is_hidden"
+                            name="is_hidden"
+                            value="1"
+                            {{ old('is_hidden', $product->is_hidden) ? 'checked' : '' }}
+                            class="form-checkbox"
+                        >
+                        <span class="rtl:mr-2 ltr:ml-2 text-sm font-medium text-black dark:text-white">
+                            حجب المنتج (إخفاؤه عن المندوبين)
+                        </span>
+                    </label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 rtl:mr-1 ltr:ml-1">
+                        المنتج المحجوب لن يظهر للمندوبين في قائمة المنتجات
+                    </p>
+                    @error('is_hidden')
+                        <div class="mt-1 text-danger">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <!-- تخفيض المنتج -->
+                <div class="mt-5 panel">
+                    <div class="mb-5">
+                        <h6 class="text-lg font-semibold dark:text-white-light">تخفيض المنتج</h6>
+                        <p class="text-gray-500 dark:text-gray-400">تطبيق تخفيض خاص على هذا المنتج</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- نوع التخفيض -->
+                        <div>
+                            <label for="discount_type" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                                نوع التخفيض
+                            </label>
+                            <select
+                                id="discount_type"
+                                name="discount_type"
+                                class="form-select @error('discount_type') border-danger @enderror"
+                            >
+                                <option value="none" {{ old('discount_type', $product->discount_type) == 'none' ? 'selected' : '' }}>لا يوجد تخفيض</option>
+                                <option value="amount" {{ old('discount_type', $product->discount_type) == 'amount' ? 'selected' : '' }}>مبلغ ثابت</option>
+                                <option value="percentage" {{ old('discount_type', $product->discount_type) == 'percentage' ? 'selected' : '' }}>نسبة مئوية</option>
+                            </select>
+                            @error('discount_type')
+                                <div class="mt-1 text-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- قيمة التخفيض -->
+                        <div id="discount_value_container">
+                            <label for="discount_value" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                                قيمة التخفيض
+                                <span id="discount_value_label">
+                                    @if(old('discount_type', $product->discount_type) == 'percentage')
+                                        (%)
+                                    @else
+                                        (دينار عراقي)
+                                    @endif
+                                </span>
+                            </label>
+                            <input
+                                type="number"
+                                id="discount_value"
+                                name="discount_value"
+                                value="{{ old('discount_value', $product->discount_value) }}"
+                                class="form-input @error('discount_value') border-danger @enderror"
+                                placeholder="@if(old('discount_type', $product->discount_type) == 'percentage') أدخل النسبة... @else أدخل المبلغ... @endif"
+                                min="0"
+                                step="@if(old('discount_type', $product->discount_type) == 'percentage') 0.01 @else 1 @endif"
+                                @if(old('discount_type', $product->discount_type) == 'percentage') max="100" @endif
+                            >
+                            @error('discount_value')
+                                <div class="mt-1 text-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- تاريخ البداية -->
+                        <div id="discount_dates_container">
+                            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                <div>
+                                    <label for="discount_start_date" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                                        تاريخ بداية التخفيض (اختياري)
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        id="discount_start_date"
+                                        name="discount_start_date"
+                                        value="{{ old('discount_start_date', $product->discount_start_date ? $product->discount_start_date->setTimezone('Asia/Baghdad')->format('Y-m-d\TH:i') : '') }}"
+                                        class="form-input @error('discount_start_date') border-danger @enderror"
+                                    >
+                                    @error('discount_start_date')
+                                        <div class="mt-1 text-danger">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label for="discount_end_date" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                                        تاريخ نهاية التخفيض (اختياري)
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        id="discount_end_date"
+                                        name="discount_end_date"
+                                        value="{{ old('discount_end_date', $product->discount_end_date ? $product->discount_end_date->setTimezone('Asia/Baghdad')->format('Y-m-d\TH:i') : '') }}"
+                                        class="form-input @error('discount_end_date') border-danger @enderror"
+                                    >
+                                    @error('discount_end_date')
+                                        <div class="mt-1 text-danger">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                إذا تركت التواريخ فارغة، سيتم تطبيق التخفيض فوراً بدون تاريخ انتهاء
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
 
             <!-- صور المنتج (متعددة) -->
@@ -674,6 +796,82 @@
         // تطبيق على حقول الأسعار
         const purchasePriceInput = document.getElementById('purchase_price');
         const sellingPriceInput = document.getElementById('selling_price');
+
+        @if(auth()->user()->isAdmin())
+        // إدارة حقول التخفيض
+        const discountTypeSelect = document.getElementById('discount_type');
+        const discountValueInput = document.getElementById('discount_value');
+        const discountValueLabel = document.getElementById('discount_value_label');
+        const discountDatesContainer = document.getElementById('discount_dates_container');
+
+        function toggleDiscountFields() {
+            if (!discountTypeSelect || !discountValueInput || !discountValueLabel) {
+                return;
+            }
+
+            const discountType = discountTypeSelect.value;
+
+            if (discountType === 'none') {
+                // إخفاء حقول التخفيض
+                if (discountValueInput) {
+                    discountValueInput.closest('#discount_value_container').style.display = 'none';
+                    discountValueInput.value = '';
+                }
+                if (discountDatesContainer) {
+                    discountDatesContainer.style.display = 'none';
+                }
+            } else {
+                // إظهار حقول التخفيض
+                if (discountValueInput) {
+                    discountValueInput.closest('#discount_value_container').style.display = 'block';
+                }
+                if (discountDatesContainer) {
+                    discountDatesContainer.style.display = 'block';
+                }
+
+                if (discountType === 'percentage') {
+                    // نسبة مئوية
+                    if (discountValueLabel) {
+                        discountValueLabel.textContent = '(%)';
+                    }
+                    if (discountValueInput) {
+                        discountValueInput.setAttribute('max', '100');
+                        discountValueInput.setAttribute('step', '0.01');
+                        discountValueInput.setAttribute('placeholder', 'أدخل النسبة (0-100)...');
+                        // التأكد من أن القيمة الحالية صحيحة
+                        if (discountValueInput.value && parseFloat(discountValueInput.value) > 100) {
+                            discountValueInput.value = '100';
+                        }
+                    }
+                } else if (discountType === 'amount') {
+                    // مبلغ ثابت
+                    if (discountValueLabel) {
+                        discountValueLabel.textContent = '(دينار عراقي)';
+                    }
+                    if (discountValueInput) {
+                        discountValueInput.removeAttribute('max');
+                        discountValueInput.setAttribute('step', '1');
+                        discountValueInput.setAttribute('placeholder', 'أدخل المبلغ...');
+                    }
+                }
+            }
+        }
+
+        // تهيئة أولية
+        if (discountTypeSelect) {
+            // تهيئة الحقول عند تحميل الصفحة
+            document.addEventListener('DOMContentLoaded', function() {
+                toggleDiscountFields();
+            });
+            // إذا كانت الصفحة محملة بالفعل
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', toggleDiscountFields);
+            } else {
+                toggleDiscountFields();
+            }
+            discountTypeSelect.addEventListener('change', toggleDiscountFields);
+        }
+        @endif
 
         if (purchasePriceInput) {
             addZerosToPrice(purchasePriceInput);

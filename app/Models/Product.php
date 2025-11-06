@@ -19,11 +19,20 @@ class Product extends Model
         'description',
         'link_1688',
         'created_by',
+        'is_hidden',
+        'discount_type',
+        'discount_value',
+        'discount_start_date',
+        'discount_end_date',
     ];
 
     protected $casts = [
         'purchase_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
+        'is_hidden' => 'boolean',
+        'discount_value' => 'decimal:2',
+        'discount_start_date' => 'datetime',
+        'discount_end_date' => 'datetime',
     ];
 
     /**
@@ -81,12 +90,22 @@ class Product extends Model
 
     /**
      * Get the effective price (considering active promotions)
+     * الأولوية: تخفيض المنتج الواحد > تخفيض المخزن العام
      */
     public function getEffectivePriceAttribute()
     {
+        $originalPrice = $this->selling_price;
+
+        // 1. التحقق من تخفيض المنتج الواحد أولاً (الأولوية الأعلى)
+        if ($this->hasActiveDiscount()) {
+            $productDiscountPrice = $this->calculateProductDiscountPrice($originalPrice);
+            return $productDiscountPrice;
+        }
+
+        // 2. التحقق من تخفيض المخزن العام
         $warehouse = $this->warehouse;
         if (!$warehouse) {
-            return $this->selling_price;
+            return $originalPrice;
         }
 
         // استخدام eager loading إذا كان متاحاً
@@ -99,9 +118,79 @@ class Product extends Model
         }
 
         if ($activePromotion && $activePromotion->isActive()) {
-            return $activePromotion->promotion_price;
+            return $activePromotion->calculatePrice($originalPrice);
         }
 
-        return $this->selling_price;
+        return $originalPrice;
+    }
+
+    /**
+     * Check if product has an active discount
+     */
+    public function hasActiveDiscount(): bool
+    {
+        if (!$this->discount_type || $this->discount_type === 'none' || !$this->discount_value) {
+            return false;
+        }
+
+        $now = now();
+        $startDate = $this->discount_start_date;
+        $endDate = $this->discount_end_date;
+
+        // إذا لم تكن هناك تواريخ محددة، يعتبر التخفيض دائماً نشطاً
+        if (!$startDate && !$endDate) {
+            return true;
+        }
+
+        // التحقق من التواريخ
+        if ($startDate && $now->lt($startDate)) {
+            return false;
+        }
+
+        if ($endDate && $now->gt($endDate)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Calculate product discount price
+     */
+    private function calculateProductDiscountPrice($originalPrice): float
+    {
+        if ($this->discount_type === 'percentage') {
+            $discountAmount = ($originalPrice * $this->discount_value) / 100;
+            return max(0, $originalPrice - $discountAmount);
+        } elseif ($this->discount_type === 'amount') {
+            return max(0, $originalPrice - $this->discount_value);
+        }
+
+        return $originalPrice;
+    }
+
+    /**
+     * Get discount information
+     */
+    public function getDiscountInfo(): ?array
+    {
+        if (!$this->hasActiveDiscount()) {
+            return null;
+        }
+
+        $originalPrice = $this->selling_price;
+        $discountPrice = $this->calculateProductDiscountPrice($originalPrice);
+        $discountAmount = $originalPrice - $discountPrice;
+
+        return [
+            'type' => $this->discount_type,
+            'value' => $this->discount_value,
+            'original_price' => $originalPrice,
+            'discount_price' => $discountPrice,
+            'discount_amount' => $discountAmount,
+            'percentage' => $this->discount_type === 'percentage' ? $this->discount_value : ($discountAmount / $originalPrice * 100),
+            'start_date' => $this->discount_start_date,
+            'end_date' => $this->discount_end_date,
+        ];
     }
 }

@@ -48,7 +48,7 @@ class ProductPolicy
         }
 
         if ($user->isSupplier()) {
-            return $product->warehouse->canUserManage($user);
+            return $product->warehouse->canUserAccess($user);
         }
 
         return false;
