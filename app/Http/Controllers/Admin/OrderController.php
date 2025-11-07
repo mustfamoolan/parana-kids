@@ -802,11 +802,71 @@ class OrderController extends Controller
             $query->where('status', 'pending');
         }
 
-        // فلتر المخزن ⭐ الميزة الجديدة
+        // فلتر المخزن
         if ($request->filled('warehouse_id')) {
             $query->whereHas('items.product', function($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
+        }
+
+        // فلتر المجهز
+        if ($request->filled('confirmed_by')) {
+            $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المندوب
+        if ($request->filled('delegate_id')) {
+            $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // فلتر حالة التدقيق
+        if ($request->filled('size_reviewed')) {
+            $query->where('size_reviewed', $request->size_reviewed);
+        }
+
+        // فلتر حالة تأكيد الرسالة
+        if ($request->filled('message_confirmed')) {
+            $query->where('message_confirmed', $request->message_confirmed);
+        }
+
+        // البحث في الطلبات
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
+                      $productQuery->where('name', 'like', "%{$searchTerm}%")
+                                   ->orWhere('code', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        // فلتر حسب التاريخ
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
         $orders = $query->with([

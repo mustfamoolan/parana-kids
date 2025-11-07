@@ -363,7 +363,9 @@ class WarehouseController extends Controller
         $this->authorize('update', $warehouse);
 
         $request->validate([
-            'promotion_price' => 'required|numeric|min:0',
+            'discount_type' => 'required|in:amount,percentage',
+            'promotion_price' => 'required_if:discount_type,amount|nullable|numeric|min:0',
+            'discount_percentage' => 'required_if:discount_type,percentage|nullable|numeric|min:0.01|max:100',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
         ]);

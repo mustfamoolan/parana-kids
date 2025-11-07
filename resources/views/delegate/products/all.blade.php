@@ -70,7 +70,7 @@
             <h1 class="text-2xl font-bold mb-4 text-center">المنتجات</h1>
 
             <!-- الفلاتر -->
-            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <!-- فلتر النوع -->
                 <div>
                     <label for="gender_type_filter" class="block text-sm font-medium mb-2">النوع</label>
@@ -84,6 +84,19 @@
                         <option value="girls" {{ request('gender_type') == 'girls' ? 'selected' : '' }}>بناتي</option>
                         <option value="boys_girls" {{ request('gender_type') == 'boys_girls' ? 'selected' : '' }}>ولادي بناتي</option>
                         <option value="accessories" {{ request('gender_type') == 'accessories' ? 'selected' : '' }}>اكسسوار</option>
+                    </select>
+                </div>
+
+                <!-- فلتر التخفيض -->
+                <div>
+                    <label for="has_discount_filter" class="block text-sm font-medium mb-2">التخفيض</label>
+                    <select
+                        id="has_discount_filter"
+                        class="form-select"
+                        onchange="applyFilters()"
+                    >
+                        <option value="">كل المنتجات</option>
+                        <option value="1" {{ request('has_discount') == '1' ? 'selected' : '' }}>المنتجات المخفضة فقط</option>
                     </select>
                 </div>
 
@@ -524,8 +537,9 @@
             loading = true;
 
             const genderTypeFilter = document.getElementById('gender_type_filter')?.value || '';
+            const hasDiscountFilter = document.getElementById('has_discount_filter')?.value || '';
 
-            console.log('Loading products:', { page, search: currentSearch, gender_type: genderTypeFilter, reset });
+            console.log('Loading products:', { page, search: currentSearch, gender_type: genderTypeFilter, has_discount: hasDiscountFilter, reset });
 
             if (reset) {
                 document.getElementById('productsContainer').innerHTML = '';
@@ -538,6 +552,9 @@
             let url = `{{ route('delegate.products.all') }}?page=${page}&search=${encodeURIComponent(currentSearch)}`;
             if (genderTypeFilter) {
                 url += `&gender_type=${encodeURIComponent(genderTypeFilter)}`;
+            }
+            if (hasDiscountFilter) {
+                url += `&has_discount=${encodeURIComponent(hasDiscountFilter)}`;
             }
             console.log('Fetching:', url);
 

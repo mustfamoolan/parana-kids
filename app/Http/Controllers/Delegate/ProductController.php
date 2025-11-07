@@ -41,6 +41,32 @@ class ProductController extends Controller
             }
         }
 
+        // فلتر التخفيض
+        if ($request->filled('has_discount') && $request->has_discount == '1') {
+            $query->where(function($q) {
+                // تخفيض المنتج الواحد
+                $q->whereNotNull('discount_type')
+                  ->where('discount_type', '!=', 'none')
+                  ->whereNotNull('discount_value')
+                  ->where(function($dateQ) {
+                      // إذا لم تكن هناك تواريخ محددة، يعتبر التخفيض دائماً نشطاً
+                      // أو إذا كانت التواريخ ضمن النطاق الصحيح
+                      $dateQ->where(function($noDates) {
+                          $noDates->whereNull('discount_start_date')
+                                  ->whereNull('discount_end_date');
+                      })->orWhere(function($withDates) {
+                          $withDates->where(function($startDate) {
+                              $startDate->whereNull('discount_start_date')
+                                        ->orWhere('discount_start_date', '<=', now());
+                          })->where(function($endDate) {
+                              $endDate->whereNull('discount_end_date')
+                                      ->orWhere('discount_end_date', '>=', now());
+                          });
+                      });
+                  });
+            });
+        }
+
         // البحث بالكود أو القياس أو النوع
         if ($request->filled('search')) {
             $search = trim($request->search);

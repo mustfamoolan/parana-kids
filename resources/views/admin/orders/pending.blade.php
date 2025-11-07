@@ -3,11 +3,23 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">الطلبات غير المقيدة</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.materials.management', array_filter(['warehouse_id' => request('warehouse_id'), 'status' => 'pending'])) }}" class="btn btn-success">
+                <a href="{{ route('admin.orders.materials.management', array_filter([
+                    'status' => 'pending',
+                    'warehouse_id' => request('warehouse_id'),
+                    'search' => request('search'),
+                    'confirmed_by' => request('confirmed_by'),
+                    'delegate_id' => request('delegate_id'),
+                    'size_reviewed' => request('size_reviewed'),
+                    'message_confirmed' => request('message_confirmed'),
+                    'date_from' => request('date_from'),
+                    'date_to' => request('date_to'),
+                    'time_from' => request('time_from'),
+                    'time_to' => request('time_to'),
+                ])) }}" class="btn btn-success">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                     </svg>
-                    عرض كل المواد المطلوبة
+                    عرض المواد المطلوبة
                 </a>
             </div>
         </div>

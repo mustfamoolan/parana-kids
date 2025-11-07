@@ -59,9 +59,9 @@
                     <!-- الكود -->
                     <p class="text-primary text-xs mb-1.5 font-bold">{{ $product->code }}</p>
 
-                    <!-- النوع -->
-                    @if($product->gender_type)
-                        <div class="mb-2">
+                    <!-- النوع والتخفيض -->
+                    <div class="mb-2 flex items-center gap-2 flex-wrap">
+                        @if($product->gender_type)
                             <span class="badge {{ $product->gender_type == 'boys' ? 'badge-outline-info' : ($product->gender_type == 'girls' ? 'badge-outline-pink' : ($product->gender_type == 'boys_girls' ? 'badge-outline-primary' : 'badge-outline-warning')) }} text-xs">
                                 @if($product->gender_type == 'boys')
                                     ولادي
@@ -73,8 +73,11 @@
                                     اكسسوار
                                 @endif
                             </span>
-                        </div>
-                    @endif
+                        @endif
+                        @if($product->hasActiveDiscount())
+                            <span class="badge badge-warning text-xs">مخفض</span>
+                        @endif
+                    </div>
 
                     <!-- الاسم -->
                     <h5 class="text-[#3b3f5c] text-[15px] font-bold mb-4 dark:text-white-light line-clamp-2">{{ $product->name }}</h5>
@@ -84,8 +87,28 @@
                         @php
                             $activePromotion = $product->warehouse->getCurrentActivePromotion();
                             $hasPromotion = $activePromotion && $activePromotion->isActive();
+                            $hasProductDiscount = $product->hasActiveDiscount();
                         @endphp
-                        @if($hasPromotion)
+                        @if($hasProductDiscount)
+                            @php
+                                $discountInfo = $product->getDiscountInfo();
+                            @endphp
+                            <div class="flex flex-col gap-1">
+                                <div>
+                                    <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge badge-warning text-xs">
+                                        @if($discountInfo['type'] === 'percentage')
+                                            تخفيض {{ number_format($discountInfo['percentage'], 1) }}%
+                                        @else
+                                            تخفيض {{ number_format($discountInfo['discount_amount'], 0) }} د.ع
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                        @elseif($hasPromotion)
                             <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
                             <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
                         @else
