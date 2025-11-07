@@ -349,3 +349,9 @@ Route::view('/auth/cover-login', 'auth.cover-login');
 Route::view('/auth/cover-register', 'auth.cover-register');
 Route::view('/auth/cover-lockscreen', 'auth.cover-lockscreen');
 Route::view('/auth/cover-password-reset', 'auth.cover-password-reset');
+
+// Handle missing Nunito font files - return 204 (No Content) to prevent timeout
+Route::get('/assets/fonts/nunito/{filename}', function ($filename) {
+    // Return 204 No Content instead of 404 to prevent browser timeout
+    return response('', 204);
+})->where('filename', '.*');

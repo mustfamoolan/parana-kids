@@ -57,7 +57,7 @@ module.exports = {
           },
         },
         fontFamily: {
-          nunito: ["Nunito", "sans-serif"],
+          nunito: ["Nunito", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
         },
         spacing: {
           4.5: "18px",

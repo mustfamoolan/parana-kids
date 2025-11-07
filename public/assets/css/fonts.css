@@ -9,6 +9,14 @@
  *
  * Download from: https://fonts.google.com/specimen/Nunito
  * Or use: https://google-webfonts-helper.herokuapp.com/fonts/nunito
+ *
+ * NOTE: If font files are missing, the browser will fallback to system fonts
+ * (sans-serif) automatically. This prevents timeout errors.
+ */
+
+/*
+ * Note: If font files are missing, browsers will automatically fallback to system fonts.
+ * The font-display: swap ensures text remains visible during font load.
  */
 
 @font-face {
@@ -54,5 +62,10 @@
     font-display: swap;
     src: url('/assets/fonts/nunito/nunito-v25-latin-800.woff2') format('woff2'),
          url('/assets/fonts/nunito/nunito-v25-latin-800.woff') format('woff');
+}
+
+/* Fallback font stack - used when Nunito files are missing */
+body, .font-nunito {
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
