@@ -3,7 +3,21 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold">عرض الطلب الحالي</h1>
-            <a href="{{ route('delegate.products.all') }}" class="btn btn-outline-secondary">
+            @php
+                $backUrl = request()->query('back_url');
+                if ($backUrl) {
+                    $backUrl = urldecode($backUrl);
+                    $parsed = parse_url($backUrl);
+                    $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                    if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                        $backUrl = null;
+                    }
+                }
+                if (!$backUrl) {
+                    $backUrl = route('delegate.products.all');
+                }
+            @endphp
+            <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                 </svg>

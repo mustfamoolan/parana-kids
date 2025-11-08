@@ -5,7 +5,21 @@
                 <h5 class="font-semibold text-lg dark:text-white-light">كشف حركة المواد</h5>
                 <p class="text-sm text-gray-500">{{ $product->name }} - القياس: {{ $size->size_name }}</p>
             </div>
-            <a href="{{ route('admin.warehouses.products.show', [$warehouse, $product]) }}" class="btn btn-outline-secondary">
+            @php
+                $backUrl = request()->query('back_url');
+                if ($backUrl) {
+                    $backUrl = urldecode($backUrl);
+                    $parsed = parse_url($backUrl);
+                    $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                    if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                        $backUrl = null;
+                    }
+                }
+                if (!$backUrl) {
+                    $backUrl = route('admin.warehouses.products.show', [$warehouse, $product]);
+                }
+            @endphp
+            <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                 العودة للمنتج
             </a>
         </div>

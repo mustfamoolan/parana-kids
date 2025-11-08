@@ -3,9 +3,28 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                @php
+                    $backUrl = request()->query('back_url');
+                    if ($backUrl) {
+                        $backUrl = urldecode($backUrl);
+                        // Security check: ensure the URL is from the same domain
+                        $parsed = parse_url($backUrl);
+                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                            $backUrl = null;
+                        }
+                    }
+                    if (!$backUrl) {
+                        if ($order->trashed()) {
+                            $backUrl = route('admin.orders.management', ['status' => 'deleted']) . '#order-' . $order->id;
+                        } else {
+                            $backUrl = route('admin.orders.management') . '#order-' . $order->id;
+                        }
+                    }
+                @endphp
                 @if($order->trashed())
                     <!-- للطلبات المحذوفة: زر العودة فقط -->
-                    <a href="{{ route('admin.orders.management', ['status' => 'deleted']) }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
+                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
@@ -13,35 +32,38 @@
                     </a>
                 @else
                     <!-- للطلبات غير المحذوفة: جميع الأزرار -->
-                    <a href="{{ route('admin.orders.management') }}#order-{{ $order->id }}" class="btn btn-outline-secondary">
+                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                         العودة للطلبات
                     </a>
+                    @php
+                        $backUrlParam = request()->query('back_url') ? '&back_url=' . urlencode(request()->query('back_url')) : '';
+                    @endphp
                     @if($order->status === 'confirmed')
-                        <a href="{{ route('admin.orders.management', ['status' => 'confirmed']) }}" class="btn btn-outline-success">
+                        <a href="{{ route('admin.orders.management', ['status' => 'confirmed']) }}{{ $backUrlParam }}" class="btn btn-outline-success">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                             الطلبات المقيدة
                         </a>
                     @elseif($order->status === 'cancelled')
-                        <a href="{{ route('admin.orders.management', ['status' => 'cancelled']) }}" class="btn btn-outline-danger">
+                        <a href="{{ route('admin.orders.management', ['status' => 'cancelled']) }}{{ $backUrlParam }}" class="btn btn-outline-danger">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                             الطلبات الملغية
                         </a>
                     @elseif($order->status === 'returned')
-                        <a href="{{ route('admin.orders.management', ['status' => 'returned']) }}" class="btn btn-outline-warning">
+                        <a href="{{ route('admin.orders.management', ['status' => 'returned']) }}{{ $backUrlParam }}" class="btn btn-outline-warning">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                             </svg>
                             الطلبات المسترجعة
                         </a>
                     @elseif($order->status === 'exchanged')
-                        <a href="{{ route('admin.orders.management', ['status' => 'exchanged']) }}" class="btn btn-outline-info">
+                        <a href="{{ route('admin.orders.management', ['status' => 'exchanged']) }}{{ $backUrlParam }}" class="btn btn-outline-info">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                             </svg>
@@ -424,8 +446,13 @@
         // بيانات الطلب للواتساب
         const orderWhatsAppData = {
             phone: '{{ $order->customer_phone }}',
+            orderNumber: '{{ $order->order_number }}',
+            customerPhone: '{{ $order->customer_phone }}',
+            pageName: '{{ optional($order->delegate)->page_name ?? '' }}',
+            deliveryFee: {{ \App\Models\Setting::getDeliveryFee() }},
             items: @json($order->items->map(function($item) {
                 return [
+                    'product_name' => $item->product_name ?? optional($item->product)->name ?? $item->product_code,
                     'product_code' => $item->product_code,
                     'unit_price' => $item->unit_price
                 ];
@@ -435,7 +462,7 @@
 
         // دالة فتح واتساب للطلب
         function openWhatsAppForOrder() {
-            openWhatsApp(orderWhatsAppData.phone, orderWhatsAppData.items, orderWhatsAppData.totalAmount);
+            openWhatsApp(orderWhatsAppData.phone, orderWhatsAppData.items, orderWhatsAppData.totalAmount, orderWhatsAppData.orderNumber, orderWhatsAppData.customerPhone, orderWhatsAppData.pageName, orderWhatsAppData.deliveryFee);
         }
 
         // دالة نسخ النص إلى الحافظة
@@ -478,19 +505,32 @@
         }
 
         // دالة بناء رسالة الواتساب
-        function generateWhatsAppMessage(orderItems, totalAmount) {
+        function generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee) {
             let message = '📦 أهلاً وسهلاً بيكم ❤️\n';
-            message += 'معكم فريق برنا كدز 👗\n\n';
+            // استخدام اسم البيج للمندوب أو "برنا كدز" كقيمة افتراضية
+            const pageNameText = pageName || 'برنا كدز';
+            message += `معكم فريق ${pageNameText} 👗\n\n`;
 
-            // إضافة قائمة المنتجات
+            // إضافة رقم الزبون
+            if (customerPhone) {
+                message += `رقم الهاتف: ${customerPhone}\n\n`;
+            }
+
+            // إضافة قائمة المنتجات (باسم المنتج بدلاً من الكود)
+            message += 'المنتجات:\n';
             orderItems.forEach(function(item) {
                 const price = new Intl.NumberFormat('en-US').format(item.unit_price);
-                message += `- ${item.product_code} - ${price} د.ع\n`;
+                const productName = item.product_name || item.product_code;
+                message += `- ${productName} - ${price} د.ع\n`;
             });
 
-            // إضافة المجموع الكلي
-            const total = new Intl.NumberFormat('en-US').format(totalAmount);
-            message += `\nالمجموع الكلي: ${total} د.ع\n\n`;
+            // حساب المجموع الكلي مع سعر التوصيل
+            const totalWithDelivery = totalAmount + deliveryFee;
+            const totalFormatted = new Intl.NumberFormat('en-US').format(totalAmount);
+            const totalWithDeliveryFormatted = new Intl.NumberFormat('en-US').format(totalWithDelivery);
+            message += `\nالمجموع الكلي: ${totalFormatted} د.ع\n`;
+            message += `سعر التوصيل: ${new Intl.NumberFormat('en-US').format(deliveryFee)} د.ع\n`;
+            message += `المجموع الكلي (مع التوصيل): ${totalWithDeliveryFormatted} د.ع\n\n`;
 
             // إضافة طلب التأكيد
             message += 'نرجو تأكيد الطلب من خلال الرد على هذه الرسالة بكلمة "تأكيد" حتى نبدأ بتجهيز الطلب وإرساله لكم 💨\n\n';
@@ -501,7 +541,7 @@
         }
 
         // دالة فتح واتساب
-        function openWhatsApp(phone, orderItems, totalAmount) {
+        function openWhatsApp(phone, orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee) {
             // تنظيف رقم الهاتف (إزالة المسافات والرموز)
             let cleanPhone = phone.replace(/[^\d]/g, '');
 
@@ -516,7 +556,7 @@
             }
 
             // بناء الرسالة
-            const message = generateWhatsAppMessage(orderItems, totalAmount);
+            const message = generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee);
             const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 
             // فتح واتساب في نافذة جديدة

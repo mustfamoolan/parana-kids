@@ -1052,6 +1052,23 @@ class OrderController extends Controller
             // التعديل على المنتجات يتم من صفحة التعديل (admin.orders.edit)
         });
 
+        // التحقق من وجود back_url وإرجاع المستخدم إلى الصفحة السابقة مع الحفاظ على البحث والفلتر
+        $backUrl = $request->input('back_url');
+        if ($backUrl) {
+            $backUrl = urldecode($backUrl);
+            // Security check: ensure the URL is from the same domain
+            $parsed = parse_url($backUrl);
+            $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+            if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                $backUrl = null;
+            }
+        }
+
+        if ($backUrl) {
+            return redirect($backUrl)
+                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+        }
+
         return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
                         ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
     }
@@ -1901,6 +1918,283 @@ class OrderController extends Controller
                 'message_confirmation_status_text' => $order->message_confirmation_status_text,
                 'message_confirmation_status_badge_class' => $order->message_confirmation_status_badge_class,
             ]);
+        }
+    }
+
+    /**
+     * عرض قائمة الطلبات المقيدة للإرجاع الجزئي
+     */
+    public function partialReturnsIndex(Request $request)
+    {
+        $query = Order::where('status', 'confirmed')
+            // إخفاء الطلبات التي تم إرجاع جميع منتجاتها (لا تحتوي على منتجات قابلة للإرجاع)
+            ->whereHas('items', function($itemsQuery) {
+                $itemsQuery->where('quantity', '>', 0);
+            });
+
+        // فلتر المندوب
+        if ($request->filled('delegate_id')) {
+            $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // فلتر المجهز
+        if ($request->filled('confirmed_by')) {
+            $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // البحث الذكي (مطابقة تامة)
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', '=', $searchTerm)
+                  ->orWhere('customer_name', '=', $searchTerm)
+                  ->orWhere('customer_phone', '=', $searchTerm)
+                  ->orWhere('customer_social_link', '=', $searchTerm)
+                  ->orWhere('customer_address', '=', $searchTerm)
+                  ->orWhere('delivery_code', '=', $searchTerm)
+                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                      $delegateQuery->where('name', '=', $searchTerm)
+                                    ->orWhere('code', '=', $searchTerm);
+                  })
+                  ->orWhereHas('confirmedBy', function($confirmedQuery) use ($searchTerm) {
+                      $confirmedQuery->where('name', '=', $searchTerm);
+                  });
+            });
+        }
+
+        // فلتر حسب التاريخ
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $perPage = $request->input('per_page', 15);
+
+        // تحميل العلاقات
+        $query->with(['delegate', 'items.product.primaryImage', 'confirmedBy']);
+
+        $orders = $query->latest('created_at')
+                        ->paginate($perPage)
+                        ->appends($request->except('page'));
+
+        // جلب البيانات للفلترة
+        $delegates = User::where('role', 'delegate')->orderBy('name')->get();
+        $suppliers = User::whereIn('role', ['supplier', 'admin'])->orderBy('name')->get();
+
+        return view('admin.orders.partial-returns-index', compact('orders', 'delegates', 'suppliers'));
+    }
+
+    /**
+     * عرض صفحة اختيار المنتجات للإرجاع الجزئي
+     */
+    public function showPartialReturn(Order $order)
+    {
+        $this->authorize('update', $order);
+
+        if ($order->status !== 'confirmed') {
+            return redirect()->route('admin.orders.partial-returns.index')
+                            ->withErrors(['error' => 'لا يمكن إرجاع منتجات من طلب غير مقيد']);
+        }
+
+        $order->load(['items.product.primaryImage', 'items.size', 'items.returnItems']);
+
+        return view('admin.orders.partial-return', compact('order'));
+    }
+
+    /**
+     * معالجة الإرجاع الجزئي
+     */
+    public function processPartialReturn(Request $request, Order $order)
+    {
+        try {
+            $this->authorize('update', $order);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            \Log::error('Partial Return Authorization Failed', [
+                'user_id' => auth()->id(),
+                'order_id' => $order->id,
+                'error' => $e->getMessage()
+            ]);
+            return back()->withErrors(['error' => 'ليس لديك صلاحية لإرجاع هذا الطلب: ' . $e->getMessage()])->withInput();
+        }
+
+        if ($order->status !== 'confirmed') {
+            \Log::error('Partial Return - Order Not Confirmed', [
+                'order_id' => $order->id,
+                'status' => $order->status
+            ]);
+            return back()->withErrors(['error' => 'لا يمكن إرجاع منتجات من طلب غير مقيد. حالة الطلب: ' . $order->status])->withInput();
+        }
+
+        // Log البيانات المرسلة
+        \Log::info('Partial Return Request', [
+            'order_id' => $order->id,
+            'return_items_count' => count($request->return_items ?? []),
+            'return_items' => $request->return_items,
+            'all_request_data' => $request->all()
+        ]);
+
+        try {
+            $validated = $request->validate([
+                'return_items' => 'required|array|min:1',
+                'return_items.*.order_item_id' => 'required|exists:order_items,id',
+                'return_items.*.product_id' => 'required|exists:products,id',
+                'return_items.*.size_id' => 'nullable', // يمكن أن يكون null أو 0، سنتعامل معه في المنطق
+                'return_items.*.quantity' => 'required|integer|min:1',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Partial Return Validation Failed', [
+                'order_id' => $order->id,
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            return back()->withErrors(['error' => 'خطأ في البيانات المرسلة: ' . json_encode($e->errors(), JSON_UNESCAPED_UNICODE)])->withInput();
+        }
+
+        try {
+            DB::transaction(function() use ($validated, $order, $request) {
+                $totalAmountReduction = 0;
+
+                foreach ($validated['return_items'] as $index => $returnItem) {
+                    \Log::info("Processing return item {$index}", [
+                        'return_item' => $returnItem
+                    ]);
+
+                    $orderItem = OrderItem::find($returnItem['order_item_id']);
+
+                    if (!$orderItem) {
+                        throw new \Exception("عنصر الطلب غير موجود (order_item_id: {$returnItem['order_item_id']})");
+                    }
+
+                    if ($orderItem->order_id !== $order->id) {
+                        throw new \Exception("عنصر الطلب لا ينتمي لهذا الطلب. order_item_id: {$returnItem['order_item_id']}, order_id: {$orderItem->order_id}, expected: {$order->id}");
+                    }
+
+                    // استخدام size_id من order_item مباشرة (أكثر موثوقية)
+                    $sizeIdToUse = $orderItem->size_id ?? $returnItem['size_id'] ?? null;
+                    $size = null;
+
+                    // محاولة البحث عن القياس
+                    // 1. إذا كان size_id موجوداً، استخدمه للبحث
+                    if (!empty($sizeIdToUse) && $sizeIdToUse != 0) {
+                        $size = ProductSize::find($sizeIdToUse);
+                    }
+
+                    // 2. إذا لم يتم العثور على القياس وكان size_name موجوداً، ابحث بالاسم
+                    if (!$size && $orderItem->size_name) {
+                        $size = ProductSize::where('product_id', $orderItem->product_id)
+                                          ->where('size_name', $orderItem->size_name)
+                                          ->first();
+
+                        if ($size) {
+                            // تحديث order_item بـ size_id الصحيح
+                            $orderItem->size_id = $size->id;
+                            $orderItem->save();
+                            \Log::info('Updated order_item size_id from size_name', [
+                                'order_item_id' => $orderItem->id,
+                                'old_size_id' => $sizeIdToUse,
+                                'new_size_id' => $size->id,
+                                'size_name' => $orderItem->size_name
+                            ]);
+                        }
+                    }
+
+                    // 3. فقط إذا كان كلاهما غير موجود، ارمي exception
+                    if (!$size) {
+                        \Log::error('ProductSize not found - both size_id and size_name failed', [
+                            'order_item_id' => $orderItem->id,
+                            'size_id' => $sizeIdToUse,
+                            'product_id' => $orderItem->product_id,
+                            'product_name' => $orderItem->product_name,
+                            'size_name' => $orderItem->size_name
+                        ]);
+                        throw new \Exception("القياس غير موجود (size_id: {$sizeIdToUse}, size_name: {$orderItem->size_name}) للمنتج: {$orderItem->product_name}. يرجى التحقق من بيانات المنتج.");
+                    }
+
+                    // التحقق من الكمية المتبقية
+                    $remainingQuantity = $orderItem->remaining_quantity;
+                    \Log::info("Order item remaining quantity", [
+                        'order_item_id' => $orderItem->id,
+                        'original_quantity' => $orderItem->quantity,
+                        'remaining_quantity' => $remainingQuantity,
+                        'requested_quantity' => $returnItem['quantity']
+                    ]);
+
+                    if ($returnItem['quantity'] > $remainingQuantity) {
+                        throw new \Exception("الكمية المراد إرجاعها ({$returnItem['quantity']}) أكبر من الكمية المتبقية ({$remainingQuantity}) للمنتج: {$orderItem->product_name}");
+                    }
+
+                    // تقليل كمية order_item
+                    $oldQuantity = $orderItem->quantity;
+                    $orderItem->quantity -= $returnItem['quantity'];
+                    $orderItem->subtotal = $orderItem->quantity * $orderItem->unit_price;
+                    $orderItem->save();
+
+                    \Log::info("Before increment - Size quantity", [
+                        'size_id' => $size->id,
+                        'current_quantity' => $size->quantity,
+                        'quantity_to_add' => $returnItem['quantity']
+                    ]);
+
+                    // إرجاع الكمية للمخزن (يعمل حتى لو كانت الكمية 0 أو سالبة)
+                    $size->increment('quantity', $returnItem['quantity']);
+                    $size->refresh();
+
+                    \Log::info("After increment - Size quantity", [
+                        'size_id' => $size->id,
+                        'new_quantity' => $size->quantity
+                    ]);
+
+                    // تسجيل حركة المادة
+                    ProductMovement::record([
+                        'product_id' => $orderItem->product_id,
+                        'size_id' => $size->id,
+                        'warehouse_id' => $orderItem->product->warehouse_id,
+                        'order_id' => $order->id,
+                        'movement_type' => 'partial_return',
+                        'quantity' => $returnItem['quantity'],
+                        'balance_after' => $size->quantity,
+                        'order_status' => $order->status,
+                        'notes' => "إرجاع جزئي من طلب #{$order->order_number} - منتج: {$orderItem->product_name} ({$orderItem->size_name})"
+                    ]);
+
+                    // تسجيل ReturnItem
+                    ReturnItem::create([
+                        'order_id' => $order->id,
+                        'order_item_id' => $returnItem['order_item_id'],
+                        'product_id' => $orderItem->product_id,
+                        'size_id' => $size->id,
+                        'quantity_returned' => $returnItem['quantity'],
+                        'return_reason' => $request->notes ?? 'إرجاع جزئي',
+                    ]);
+
+                    // حساب المبلغ المخصوم
+                    $totalAmountReduction += $returnItem['quantity'] * $orderItem->unit_price;
+                }
+
+                // تحديث المبلغ الإجمالي للطلب
+                $order->total_amount -= $totalAmountReduction;
+                $order->save();
+
+                \Log::info('Partial return completed successfully', [
+                    'order_id' => $order->id,
+                    'total_amount_reduction' => $totalAmountReduction
+                ]);
+            });
+
+            return redirect()->route('admin.orders.partial-returns.index')
+                            ->with('success', 'تم إرجاع المنتجات بنجاح');
+        } catch (\Exception $e) {
+            \Log::error('Partial Return Exception', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            return back()->withErrors(['error' => 'حدث خطأ أثناء معالجة الإرجاع: ' . $e->getMessage() . ' (تحقق من ملف السجلات للتفاصيل)'])->withInput();
         }
     }
 }

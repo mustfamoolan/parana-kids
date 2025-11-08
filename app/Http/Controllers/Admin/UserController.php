@@ -69,6 +69,11 @@ class UserController extends Controller
             $rules['code'] = 'required|string|unique:users,code';
         }
 
+        // اسم البيج للمندوب فقط (اختياري)
+        if ($request->role === 'delegate') {
+            $rules['page_name'] = 'nullable|string|max:255';
+        }
+
         // البريد اختياري لكن يجب أن يكون فريد
         if ($request->filled('email')) {
             $rules['email'] = 'email|unique:users,email';
@@ -116,6 +121,11 @@ class UserController extends Controller
         // كود مطلوب للمجهز والمندوب
         if (in_array($request->role, ['supplier', 'delegate'])) {
             $rules['code'] = 'required|string|unique:users,code,' . $user->id;
+        }
+
+        // اسم البيج للمندوب فقط (اختياري)
+        if ($request->role === 'delegate') {
+            $rules['page_name'] = 'nullable|string|max:255';
         }
 
         // البريد اختياري

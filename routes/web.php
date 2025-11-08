@@ -42,6 +42,25 @@ Route::prefix('admin')->group(function () {
         // صفحة التقارير (للمدير فقط)
         Route::get('reports', [AdminDashboardController::class, 'reports'])->name('admin.reports');
 
+        // صفحة كشف مبيعات (للمدير فقط)
+        Route::get('sales-report', [\App\Http\Controllers\Admin\SalesReportController::class, 'index'])->name('admin.sales-report');
+
+        // Settings routes (Admin only)
+        Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('admin.settings.index');
+        Route::post('settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->name('admin.settings.update');
+
+        // Expenses routes (Admin only)
+        // يجب وضع search-products قبل resource route لتجنب التعارض
+        Route::get('expenses/search-products', [\App\Http\Controllers\Admin\ExpenseController::class, 'searchProducts'])->name('admin.expenses.search-products');
+        Route::resource('expenses', \App\Http\Controllers\Admin\ExpenseController::class)->names([
+            'index' => 'admin.expenses.index',
+            'create' => 'admin.expenses.create',
+            'store' => 'admin.expenses.store',
+            'edit' => 'admin.expenses.edit',
+            'update' => 'admin.expenses.update',
+            'destroy' => 'admin.expenses.destroy',
+        ])->except(['show']);
+
         // Warehouse routes
         Route::resource('warehouses', AdminWarehouseController::class)->names([
             'index' => 'admin.warehouses.index',
@@ -91,9 +110,12 @@ Route::prefix('admin')->group(function () {
         Route::get('orders-pending', [AdminOrderController::class, 'pendingOrders'])->name('admin.orders.pending');
         Route::get('orders-confirmed', [AdminOrderController::class, 'confirmedOrders'])->name('admin.orders.confirmed');
 
-        Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
+        // الإرجاع الجزئي الجديد (يجب وضعه قبل orders/{order} لتجنب التعارض)
+        Route::get('orders/partial-returns', [AdminOrderController::class, 'partialReturnsIndex'])->name('admin.orders.partial-returns.index');
         Route::get('orders/materials/list', [AdminOrderController::class, 'getMaterialsList'])->name('admin.orders.materials');
         Route::get('orders/materials/management', [AdminOrderController::class, 'getMaterialsListManagement'])->name('admin.orders.materials.management');
+
+        Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
 
         // تجهيز وتقييد الطلبات
         Route::get('orders/{order}/process', [AdminOrderController::class, 'showProcess'])->name('admin.orders.process');
@@ -116,6 +138,10 @@ Route::prefix('admin')->group(function () {
         // Route::get('orders/{order}/return', [AdminOrderController::class, 'showReturn'])->name('admin.orders.return');
         // Route::post('orders/{order}/return', [AdminOrderController::class, 'processReturn'])->name('admin.orders.return.process');
         Route::get('orders/{order}/return-details', [AdminOrderController::class, 'returnDetails'])->name('admin.orders.return.details');
+
+        // الإرجاع الجزئي الجديد (بدون تغيير حالة الطلب)
+        Route::get('orders/{order}/partial-return', [AdminOrderController::class, 'showPartialReturn'])->name('admin.orders.partial-return');
+        Route::post('orders/{order}/partial-return', [AdminOrderController::class, 'processPartialReturn'])->name('admin.orders.partial-return.process');
 
         // الاستبدال (كلي أو جزئي) - محذوف
         // Route::get('orders/{order}/exchange', [AdminOrderController::class, 'showExchange'])->name('admin.orders.exchange');

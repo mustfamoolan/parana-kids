@@ -3,7 +3,22 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تجهيز الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-outline-secondary">
+                @php
+                    $backUrl = request()->query('back_url');
+                    if ($backUrl) {
+                        $backUrl = urldecode($backUrl);
+                        // Security check: ensure the URL is from the same domain
+                        $parsed = parse_url($backUrl);
+                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                            $backUrl = null;
+                        }
+                    }
+                    if (!$backUrl) {
+                        $backUrl = route('admin.orders.show', $order);
+                    }
+                @endphp
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -14,6 +29,9 @@
 
         <form method="POST" action="{{ route('admin.orders.process.submit', $order) }}" id="processForm">
             @csrf
+            @if($backUrl)
+                <input type="hidden" name="back_url" value="{{ $backUrl }}">
+            @endif
 
             <!-- معلومات الزبون -->
             <div class="panel mb-5">
@@ -249,7 +267,7 @@
                     <button type="button" @click="submitOrder()" class="btn btn-primary flex-1">
                         تجهيز وتقييد الطلب
                     </button>
-                    <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-outline-secondary">
+                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                         إلغاء
                     </a>
                 </div>
@@ -336,7 +354,8 @@
                     // الإجماليات
                     const totalQty = this.items.reduce((s, it) => s + Number(it?.quantity || 0), 0);
                     const totalAmount = this.items.reduce((s, it) => s + (Number(it?.quantity || 0) * Number(it?.unit_price || 0)), 0);
-                    const totalAmountWithFee = totalAmount + 5000; // إضافة 5000 تلقائياً
+                    const deliveryFee = {{ \App\Models\Setting::getDeliveryFee() }};
+                    const totalAmountWithFee = totalAmount + deliveryFee;
 
                     // تنسيق المبلغ بدون فواصل (أرقام فقط) لتجنب مشكلة قلب الأرقام
                     const totalAmountTxt = String(totalAmountWithFee);

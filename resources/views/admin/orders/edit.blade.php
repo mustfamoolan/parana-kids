@@ -3,7 +3,22 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تعديل الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-outline-secondary">
+                @php
+                    $backUrl = request()->query('back_url');
+                    if ($backUrl) {
+                        $backUrl = urldecode($backUrl);
+                        // Security check: ensure the URL is from the same domain
+                        $parsed = parse_url($backUrl);
+                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                            $backUrl = null;
+                        }
+                    }
+                    if (!$backUrl) {
+                        $backUrl = route('admin.orders.show', $order);
+                    }
+                @endphp
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -384,7 +399,7 @@
                     <button type="button" @click="submitOrder()" class="btn btn-success flex-1">
                         حفظ التعديلات
                     </button>
-                    <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-outline-secondary">
+                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                         إلغاء
                     </a>
                 </div>
@@ -779,19 +794,32 @@
         }
 
         // دالة بناء رسالة الواتساب
-        function generateWhatsAppMessage(orderItems, totalAmount) {
+        function generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee) {
             let message = '📦 أهلاً وسهلاً بيكم ❤️\n';
-            message += 'معكم فريق برنا كدز 👗\n\n';
+            // استخدام اسم البيج للمندوب أو "برنا كدز" كقيمة افتراضية
+            const pageNameText = pageName || 'برنا كدز';
+            message += `معكم فريق ${pageNameText} 👗\n\n`;
 
-            // إضافة قائمة المنتجات
+            // إضافة رقم الزبون
+            if (customerPhone) {
+                message += `رقم الهاتف: ${customerPhone}\n\n`;
+            }
+
+            // إضافة قائمة المنتجات (باسم المنتج بدلاً من الكود)
+            message += 'المنتجات:\n';
             orderItems.forEach(function(item) {
                 const price = new Intl.NumberFormat('en-US').format(item.unit_price || 0);
-                message += `- ${item.product_code} - ${price} د.ع\n`;
+                const productName = item.product_name || item.product_code;
+                message += `- ${productName} - ${price} د.ع\n`;
             });
 
-            // إضافة المجموع الكلي
-            const total = new Intl.NumberFormat('en-US').format(totalAmount || 0);
-            message += `\nالمجموع الكلي: ${total} د.ع\n\n`;
+            // حساب المجموع الكلي مع سعر التوصيل
+            const totalWithDelivery = totalAmount + deliveryFee;
+            const totalFormatted = new Intl.NumberFormat('en-US').format(totalAmount || 0);
+            const totalWithDeliveryFormatted = new Intl.NumberFormat('en-US').format(totalWithDelivery);
+            message += `\nالمجموع الكلي: ${totalFormatted} د.ع\n`;
+            message += `سعر التوصيل: ${new Intl.NumberFormat('en-US').format(deliveryFee)} د.ع\n`;
+            message += `المجموع الكلي (مع التوصيل): ${totalWithDeliveryFormatted} د.ع\n\n`;
 
             // إضافة طلب التأكيد
             message += 'نرجو تأكيد الطلب من خلال الرد على هذه الرسالة بكلمة "تأكيد" حتى نبدأ بتجهيز الطلب وإرساله لكم 💨\n\n';
@@ -837,6 +865,7 @@
             // تحضير بيانات المنتجات
             const orderItems = alpineData.items.map(function(item) {
                 return {
+                    product_name: item.product_name || item.product_code || '',
                     product_code: item.product_code || '',
                     unit_price: parseFloat(item.unit_price) || 0
                 };
@@ -844,6 +873,12 @@
 
             // حساب المجموع الكلي
             const totalAmount = alpineData.totalAmount || 0;
+
+            // الحصول على رقم الطلب ورقم الزبون واسم البيج وسعر التوصيل
+            const orderNumber = '{{ $order->order_number }}';
+            const customerPhone = phoneInput.value;
+            const pageName = '{{ optional($order->delegate)->page_name ?? '' }}';
+            const deliveryFee = {{ \App\Models\Setting::getDeliveryFee() }};
 
             // تنظيف رقم الهاتف
             let cleanPhone = phoneInput.value.replace(/[^\d]/g, '');
@@ -858,7 +893,7 @@
             }
 
             // بناء الرسالة
-            const message = generateWhatsAppMessage(orderItems, totalAmount);
+            const message = generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee);
             const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 
             // فتح واتساب في نافذة جديدة

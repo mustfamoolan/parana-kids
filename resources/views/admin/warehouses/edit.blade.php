@@ -3,7 +3,21 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تعديل المخزن: {{ $warehouse->name }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.warehouses.index') }}" class="btn btn-outline-secondary">
+                @php
+                    $backUrl = request()->query('back_url');
+                    if ($backUrl) {
+                        $backUrl = urldecode($backUrl);
+                        $parsed = parse_url($backUrl);
+                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                            $backUrl = null;
+                        }
+                    }
+                    if (!$backUrl) {
+                        $backUrl = route('admin.warehouses.index');
+                    }
+                @endphp
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -55,7 +69,7 @@
             </div>
 
             <div class="flex items-center justify-end gap-4 pt-5">
-                <a href="{{ route('admin.warehouses.index') }}" class="btn btn-outline-secondary">
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     إلغاء
                 </a>
                 <button type="submit" class="btn btn-primary">

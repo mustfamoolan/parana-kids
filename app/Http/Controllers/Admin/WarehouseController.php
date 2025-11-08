@@ -222,7 +222,21 @@ class WarehouseController extends Controller
         // جلب التخفيض النشط
         $activePromotion = $warehouse->getCurrentActivePromotion();
 
-        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion'));
+        // حساب إحصائيات المنتجات (من جميع منتجات المخزن وليس فقط المفلترة)
+        $allProducts = $warehouse->products()->get();
+
+        $productsWithDiscount = $allProducts->filter(function($product) {
+            return $product->hasActiveDiscount();
+        })->count();
+
+        $productsWithoutDiscount = $allProducts->filter(function($product) {
+            return !$product->hasActiveDiscount();
+        })->count();
+
+        $productsHidden = $allProducts->where('is_hidden', true)->count();
+        $productsNotHidden = $allProducts->where('is_hidden', false)->count();
+
+        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden'));
     }
 
     /**

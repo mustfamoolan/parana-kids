@@ -3,14 +3,28 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل المنتج: {{ $product->name }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.warehouses.products.index', $product->warehouse) }}" class="btn btn-outline-secondary">
+                @php
+                    $backUrl = request()->query('back_url');
+                    if ($backUrl) {
+                        $backUrl = urldecode($backUrl);
+                        $parsed = parse_url($backUrl);
+                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                            $backUrl = null;
+                        }
+                    }
+                    if (!$backUrl) {
+                        $backUrl = route('admin.warehouses.products.index', $product->warehouse);
+                    }
+                @endphp
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
                     العودة للمنتجات
                 </a>
                 @can('update', $product)
-                    <a href="{{ route('admin.warehouses.products.edit', [$product->warehouse, $product]) }}" class="btn btn-outline-warning">
+                    <a href="{{ route('admin.warehouses.products.edit', [$product->warehouse, $product]) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-outline-warning">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>

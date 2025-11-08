@@ -273,9 +273,13 @@ class ProductController extends Controller
         $oldSizes = $product->sizes->keyBy('size_name');
         $newSizes = collect($request->sizes)->keyBy('size_name');
 
-        // تسجيل القياسات المحذوفة قبل الحذف
+        // حفظ القياسات الموجودة قبل أي تعديل (للاستخدام لاحقاً)
+        $existingSizes = $product->sizes->keyBy('size_name');
+
+        // تسجيل القياسات المحذوفة قبل الحذف (فقط إذا لم تعد موجودة في القياسات الجديدة)
         foreach ($oldSizes as $sizeName => $oldSize) {
             if (!isset($newSizes[$sizeName])) {
+                // حذف القياس فقط إذا لم يعد موجوداً في القائمة الجديدة
                 ProductMovement::record([
                     'product_id' => $product->id,
                     'size_id' => $oldSize->id,
@@ -285,22 +289,37 @@ class ProductController extends Controller
                     'balance_after' => 0,
                     'notes' => "حذف القياس - المنتج: {$product->name} - القياس: {$sizeName} (كان الرصيد: {$oldSize->quantity})",
                 ]);
+                // حذف القياس فقط إذا لم يعد موجوداً في القائمة الجديدة
+                $oldSize->delete();
+                // إزالة من existingSizes أيضاً
+                unset($existingSizes[$sizeName]);
             }
         }
 
-        // Update sizes - الآن يمكن حذفها بأمان
-        $product->sizes()->delete();
+        // Update sizes - تحديث القياسات الموجودة بدلاً من حذفها وإنشاء قياسات جديدة
+        // هذا يحافظ على size_id في order_items
         foreach ($request->sizes as $sizeData) {
-            $size = ProductSize::create([
-                'product_id' => $product->id,
-                'size_name' => $sizeData['size_name'],
-                'quantity' => $sizeData['quantity'],
-            ]);
+            if (isset($existingSizes[$sizeData['size_name']])) {
+                // تحديث القياس الموجود (حتى لو كانت الكمية 0، نحافظ على size_id)
+                $size = $existingSizes[$sizeData['size_name']];
+                $oldQuantity = $size->quantity;
+                $size->quantity = $sizeData['quantity'];
+                $size->save();
+            } else {
+                // إنشاء قياس جديد
+                $size = ProductSize::create([
+                    'product_id' => $product->id,
+                    'size_name' => $sizeData['size_name'],
+                    'quantity' => $sizeData['quantity'],
+                ]);
+            }
 
             // تسجيل حركة التعديل عند تغيير الكمية
             if (isset($oldSizes[$sizeData['size_name']])) {
                 $oldSize = $oldSizes[$sizeData['size_name']];
                 $quantityDifference = $sizeData['quantity'] - $oldSize->quantity;
+
+                // إذا كانت الكمية 0، لا نحذف القياس، فقط نسجل الحركة
 
                 if ($quantityDifference > 0) {
                     // زيادة الكمية

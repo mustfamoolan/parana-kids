@@ -567,7 +567,7 @@
                             <div class="flex gap-2 flex-wrap">
                                 @if($order->trashed())
                                     <!-- أزرار الطلبات المحذوفة -->
-                                    <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-sm btn-primary flex-1" title="عرض التفاصيل">
+                                    <a href="{{ route('admin.orders.show', $order->id) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-primary flex-1" title="عرض التفاصيل">
                                         <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -586,7 +586,7 @@
                                     </form>
                                 @else
                                     <!-- أزرار الطلبات العادية -->
-                                    <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-sm btn-primary flex-1" title="عرض">
+                                    <a href="{{ route('admin.orders.show', $order) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-primary flex-1" title="عرض">
                                         <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -596,7 +596,7 @@
 
                                     @if($order->status === 'pending')
                                         @can('update', $order)
-                                            <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
+                                            <a href="{{ route('admin.orders.edit', $order) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
                                                 <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                 </svg>
@@ -604,7 +604,7 @@
                                             </a>
                                         @endcan
                                         @can('process', $order)
-                                            <a href="{{ route('admin.orders.process', $order) }}" class="btn btn-sm btn-success flex-1" title="تجهيز">
+                                            <a href="{{ route('admin.orders.process', $order) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-success flex-1" title="تجهيز">
                                                 <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
@@ -613,7 +613,7 @@
                                         @endcan
                                     @elseif($order->status === 'confirmed' && $order->canBeEdited())
                                         @can('update', $order)
-                                            <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
+                                            <a href="{{ route('admin.orders.edit', $order) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
                                                 <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                 </svg>

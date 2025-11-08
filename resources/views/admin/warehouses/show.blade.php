@@ -3,14 +3,28 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تفاصيل المخزن: {{ $warehouse->name }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.warehouses.index') }}" class="btn btn-outline-secondary">
+                @php
+                    $backUrl = request()->query('back_url');
+                    if ($backUrl) {
+                        $backUrl = urldecode($backUrl);
+                        $parsed = parse_url($backUrl);
+                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                            $backUrl = null;
+                        }
+                    }
+                    if (!$backUrl) {
+                        $backUrl = route('admin.warehouses.index');
+                    }
+                @endphp
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
                     العودة للقائمة
                 </a>
                 @can('update', $warehouse)
-                    <a href="{{ route('admin.warehouses.edit', $warehouse) }}" class="btn btn-outline-warning">
+                    <a href="{{ route('admin.warehouses.edit', $warehouse) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-outline-warning">
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
@@ -202,6 +216,69 @@
                                 @endif
                             </div>
                         @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- إحصائيات المنتجات -->
+        <div class="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <!-- المنتجات المخفضة -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ $productsWithDiscount }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">المنتجات المخفضة</div>
+                    </div>
+                    <div class="rounded-full bg-warning/10 p-3">
+                        <svg class="h-8 w-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- المنتجات المحجوبة -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ $productsHidden }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">المنتجات المحجوبة</div>
+                    </div>
+                    <div class="rounded-full bg-danger/10 p-3">
+                        <svg class="h-8 w-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- المنتجات غير المحجوبة -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ $productsNotHidden }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">المنتجات غير المحجوبة</div>
+                    </div>
+                    <div class="rounded-full bg-success/10 p-3">
+                        <svg class="h-8 w-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- المنتجات غير المخفضة -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-xl font-bold text-black dark:text-white">{{ $productsWithoutDiscount }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">المنتجات غير المخفضة</div>
+                    </div>
+                    <div class="rounded-full bg-info/10 p-3">
+                        <svg class="h-8 w-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
                     </div>
                 </div>
             </div>
