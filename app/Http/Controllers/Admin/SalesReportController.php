@@ -38,15 +38,8 @@ class SalesReportController extends Controller
         // بناء query للطلبات مع جميع الفلاتر
         $ordersQuery = Order::query();
 
-        // فلتر حالة الطلب (مقيدة/غير مقيدة/الكل)
-        if ($request->filled('order_status')) {
-            if ($request->order_status === 'confirmed') {
-                $ordersQuery->where('status', 'confirmed');
-            } elseif ($request->order_status === 'pending') {
-                $ordersQuery->where('status', 'pending');
-            }
-            // إذا كان 'all' أو فارغ، لا نضيف فلتر
-        }
+        // فلتر دائم: فقط الطلبات المقيدة
+        $ordersQuery->where('status', 'confirmed');
 
         // فلتر المندوب
         if ($request->filled('delegate_id')) {
@@ -87,22 +80,8 @@ class SalesReportController extends Controller
             });
         }
 
-        // تطبيق فلتر التاريخ
-        $ordersQuery->where(function($q) use ($dateFrom, $dateTo) {
-            $q->where(function($subQ) use ($dateFrom, $dateTo) {
-                // للطلبات المقيدة: استخدام confirmed_at
-                $subQ->where('status', 'confirmed')
-                     ->whereBetween(DB::raw('DATE(confirmed_at)'), [$dateFrom, $dateTo]);
-            })->orWhere(function($subQ) use ($dateFrom, $dateTo) {
-                // للطلبات غير المقيدة: استخدام created_at
-                $subQ->where('status', 'pending')
-                     ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo]);
-            })->orWhere(function($subQ) use ($dateFrom, $dateTo) {
-                // للطلبات المسترجعة: استخدام returned_at
-                $subQ->where('status', 'returned')
-                     ->whereBetween(DB::raw('DATE(returned_at)'), [$dateFrom, $dateTo]);
-            });
-        });
+        // تطبيق فلتر التاريخ (فقط للطلبات المقيدة باستخدام confirmed_at)
+        $ordersQuery->whereBetween(DB::raw('DATE(confirmed_at)'), [$dateFrom, $dateTo]);
 
         // جلب الطلبات
         $orders = $ordersQuery->get();
@@ -132,15 +111,35 @@ class SalesReportController extends Controller
     private function calculateStatistics($orders, $orderIds, $deliveryFee, $profitMargin, $request, $dateFrom, $dateTo)
     {
         // جلب جميع order_items للطلبات المحددة
-        $orderItems = OrderItem::whereIn('order_id', $orderIds)->get();
+        $orderItemsQuery = OrderItem::whereIn('order_id', $orderIds);
+
+        // فلترة orderItems حسب warehouse_id إذا كان موجوداً
+        if ($request->filled('warehouse_id')) {
+            $orderItemsQuery->whereHas('product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        $orderItems = $orderItemsQuery->get();
 
         // جلب جميع return_items للطلبات المحددة
-        $returnItems = ReturnItem::whereIn('order_id', $orderIds)->get();
+        $returnItemsQuery = ReturnItem::whereIn('order_id', $orderIds);
+
+        // فلترة returnItems حسب warehouse_id إذا كان موجوداً
+        if ($request->filled('warehouse_id')) {
+            $returnItemsQuery->whereHas('orderItem.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        $returnItems = $returnItemsQuery->get();
 
         // حساب المبلغ الكلي بدون توصيل
+        // ملاحظة: subtotal في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
+        // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
         $totalAmountWithoutDelivery = $orderItems->sum('subtotal');
 
-        // حساب مبلغ الإرجاع (من return_items)
+        // حساب مبلغ الإرجاع (من return_items) - للعرض فقط، لا نستخدمه في الحسابات
         $returnAmount = 0;
         foreach ($returnItems as $returnItem) {
             $orderItem = $orderItems->firstWhere('id', $returnItem->order_item_id);
@@ -148,9 +147,6 @@ class SalesReportController extends Controller
                 $returnAmount += $orderItem->unit_price * $returnItem->quantity_returned;
             }
         }
-
-        // المبلغ الكلي بدون توصيل بعد خصم الإرجاع
-        $totalAmountWithoutDelivery -= $returnAmount;
 
         // عدد الطلبات المقيدة
         $confirmedOrders = $orders->where('status', 'confirmed');
@@ -162,38 +158,57 @@ class SalesReportController extends Controller
             return $order->status === 'returned' && !$order->is_partial_return;
         });
 
-        // حساب المبلغ الكلي مع التوصيل باستخدام القيم المحفوظة وقت التقييد
+        // حساب المبلغ الكلي (بدون التوصيل - التوصيل لا يدخل في الحسابات)
         $totalAmountWithDelivery = $totalAmountWithoutDelivery;
         $totalMarginAmount = 0;
 
         foreach ($confirmedOrders as $order) {
             // فقط للطلبات غير المسترجعة كلياً
             if ($order->status !== 'returned' || $order->is_partial_return) {
-                // استخدام سعر التوصيل المحفوظ وقت التقييد (أو القيمة الحالية كبديل)
-                $orderDeliveryFee = $order->delivery_fee_at_confirmation ?? $deliveryFee;
-                $totalAmountWithDelivery += $orderDeliveryFee;
+                // إذا كان هناك فلتر مخزن، نحسب نسبة المنتجات من ذلك المخزن
+                if ($request->filled('warehouse_id')) {
+                    // جلب جميع items للطلب
+                    $allOrderItems = $order->items;
+                    $warehouseOrderItems = $allOrderItems->filter(function($item) use ($request) {
+                        return $item->product && $item->product->warehouse_id == $request->warehouse_id;
+                    });
 
+                    // حساب نسبة المنتجات من المخزن المحدد
+                    $totalQuantity = $allOrderItems->sum('quantity');
+                    $warehouseQuantity = $warehouseOrderItems->sum('quantity');
+                    $warehouseRatio = $totalQuantity > 0 ? $warehouseQuantity / $totalQuantity : 0;
+                } else {
+                    $warehouseRatio = 1; // إذا لم يكن هناك فلتر مخزن، نستخدم 100%
+                }
+
+                // التوصيل لا يدخل في الحسابات - تم إزالته
                 // استخدام ربح الفروقات المحفوظ وقت التقييد (أو القيمة الحالية كبديل)
                 $orderProfitMargin = $order->profit_margin_at_confirmation ?? $profitMargin;
-                $totalMarginAmount += $orderProfitMargin;
+                $totalMarginAmount += $orderProfitMargin * $warehouseRatio;
             }
         }
 
         // حساب الأرباح بدون فروقات
+        // الأرباح = (سعر البيع - سعر الشراء) × الكمية لكل منتج
+        // ملاحظة: quantity في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
+        // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
         $totalProfitWithoutMargin = 0;
         foreach ($orderItems as $item) {
-            if ($item->product && $item->product->purchase_price) {
-                $itemProfit = ($item->unit_price - $item->product->purchase_price) * $item->quantity;
-                $totalProfitWithoutMargin += $itemProfit;
-            }
-        }
+            // التأكد من وجود المنتج وسعر الشراء
+            if ($item->product && $item->product->purchase_price && $item->product->purchase_price > 0) {
+                // سعر البيع = unit_price (المحفوظ في order_item)
+                // سعر الشراء = purchase_price (من جدول products)
+                $sellingPrice = $item->unit_price ?? 0;
+                $purchasePrice = $item->product->purchase_price ?? 0;
+                // quantity هنا هو الكمية المتبقية بعد الإرجاع الجزئي
+                $quantity = $item->quantity ?? 0;
 
-        // خصم الأرباح من المواد المسترجعة
-        foreach ($returnItems as $returnItem) {
-            $orderItem = $orderItems->firstWhere('id', $returnItem->order_item_id);
-            if ($orderItem && $orderItem->product && $orderItem->product->purchase_price) {
-                $returnProfit = ($orderItem->unit_price - $orderItem->product->purchase_price) * $returnItem->quantity_returned;
-                $totalProfitWithoutMargin -= $returnProfit;
+                // حساب ربح القطعة الواحدة
+                $profitPerUnit = $sellingPrice - $purchasePrice;
+
+                // حساب ربح المنتج الكلي = ربح القطعة × الكمية المتبقية
+                $itemProfit = $profitPerUnit * $quantity;
+                $totalProfitWithoutMargin += $itemProfit;
             }
         }
 
@@ -209,8 +224,10 @@ class SalesReportController extends Controller
         // عدد الطلبات
         $ordersCount = $orders->count();
 
-        // عدد المواد (ناقص المواد المسترجعة)
-        $itemsCount = $orderItems->sum('quantity') - $returnItems->sum('quantity_returned');
+        // عدد المواد (الكمية المتبقية بعد الإرجاع)
+        // ملاحظة: quantity في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
+        // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
+        $itemsCount = $orderItems->sum('quantity');
 
         return [
             'total_amount_with_delivery' => $totalAmountWithDelivery,
@@ -233,62 +250,83 @@ class SalesReportController extends Controller
         $profitsByDate = [];
         $profitsWithMarginByDate = [];
 
-        // تجميع البيانات حسب التاريخ
+        // تجميع البيانات حسب التاريخ (فقط للطلبات المقيدة)
         foreach ($orders as $order) {
-            $date = null;
-            if ($order->status === 'confirmed' && $order->confirmed_at) {
-                $date = $order->confirmed_at->format('Y-m-d');
-            } elseif ($order->status === 'pending') {
-                $date = $order->created_at->format('Y-m-d');
-            } elseif ($order->status === 'returned' && $order->returned_at) {
-                $date = $order->returned_at->format('Y-m-d');
+            // فقط الطلبات المقيدة مع confirmed_at
+            if (!$order->confirmed_at) {
+                continue;
             }
 
-            if ($date && $date >= $dateFrom && $date <= $dateTo) {
+            $date = $order->confirmed_at->format('Y-m-d');
+
+            if ($date >= $dateFrom && $date <= $dateTo) {
                 if (!isset($salesByDate[$date])) {
                     $salesByDate[$date] = 0;
                     $profitsByDate[$date] = 0;
                     $profitsWithMarginByDate[$date] = 0;
                 }
 
-                // حساب المبلغ (بدون توصيل)
-                $orderAmount = $order->items->sum('subtotal');
-
-                // إضافة سعر التوصيل للطلبات المقيدة غير المسترجعة كلياً
-                if ($order->status === 'confirmed' && ($order->status !== 'returned' || $order->is_partial_return)) {
-                    // استخدام سعر التوصيل المحفوظ وقت التقييد
-                    $orderDeliveryFee = $order->delivery_fee_at_confirmation ?? Setting::getDeliveryFee();
-                    $orderAmount += $orderDeliveryFee;
+                // فلترة items حسب warehouse_id إذا كان موجوداً
+                $orderItems = $order->items;
+                if ($request->filled('warehouse_id')) {
+                    $orderItems = $orderItems->filter(function($item) use ($request) {
+                        return $item->product && $item->product->warehouse_id == $request->warehouse_id;
+                    });
                 }
+
+                // حساب المبلغ (بدون توصيل) - فقط للمنتجات من المخزن المحدد
+                // التوصيل لا يدخل في الحسابات
+                $orderAmount = $orderItems->sum('subtotal');
 
                 $salesByDate[$date] += $orderAmount;
 
-                // حساب الربح
+                // حساب الربح - فقط للمنتجات من المخزن المحدد
+                // الأرباح = (سعر البيع - سعر الشراء) × الكمية لكل منتج
+                // ملاحظة: quantity في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
+                // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
                 $orderProfit = 0;
-                foreach ($order->items as $item) {
-                    if ($item->product && $item->product->purchase_price) {
-                        $itemProfit = ($item->unit_price - $item->product->purchase_price) * $item->quantity;
+                foreach ($orderItems as $item) {
+                    // التأكد من وجود المنتج وسعر الشراء
+                    if ($item->product && $item->product->purchase_price && $item->product->purchase_price > 0) {
+                        // سعر البيع = unit_price (المحفوظ في order_item)
+                        // سعر الشراء = purchase_price (من جدول products)
+                        $sellingPrice = $item->unit_price ?? 0;
+                        $purchasePrice = $item->product->purchase_price ?? 0;
+                        // quantity هنا هو الكمية المتبقية بعد الإرجاع الجزئي
+                        $quantity = $item->quantity ?? 0;
+
+                        // حساب ربح القطعة الواحدة
+                        $profitPerUnit = $sellingPrice - $purchasePrice;
+
+                        // حساب ربح المنتج الكلي = ربح القطعة × الكمية المتبقية
+                        $itemProfit = $profitPerUnit * $quantity;
                         $orderProfit += $itemProfit;
                     }
                 }
 
-                // خصم الإرجاع
-                $returnProfit = 0;
-                foreach ($order->returnItems as $returnItem) {
-                    $orderItem = $order->items->firstWhere('id', $returnItem->order_item_id);
-                    if ($orderItem && $orderItem->product && $orderItem->product->purchase_price) {
-                        $returnProfit += ($orderItem->unit_price - $orderItem->product->purchase_price) * $returnItem->quantity_returned;
-                    }
-                }
-                $orderProfit -= $returnProfit;
-
                 $profitsByDate[$date] += $orderProfit;
 
                 // إضافة الفروقات فقط للطلبات المقيدة غير المسترجعة كلياً
-                if ($order->status === 'confirmed' && ($order->status !== 'returned' || $order->is_partial_return)) {
+                if ($order->status !== 'returned' || $order->is_partial_return) {
+                    // إذا كان هناك فلتر مخزن، نحسب نسبة المنتجات من ذلك المخزن
+                    if ($request->filled('warehouse_id')) {
+                        // جلب جميع items للطلب
+                        $allOrderItems = $order->items;
+                        $warehouseOrderItems = $allOrderItems->filter(function($item) use ($request) {
+                            return $item->product && $item->product->warehouse_id == $request->warehouse_id;
+                        });
+
+                        // حساب نسبة المنتجات من المخزن المحدد
+                        $totalQuantity = $allOrderItems->sum('quantity');
+                        $warehouseQuantity = $warehouseOrderItems->sum('quantity');
+                        $warehouseRatio = $totalQuantity > 0 ? $warehouseQuantity / $totalQuantity : 0;
+                    } else {
+                        $warehouseRatio = 1; // إذا لم يكن هناك فلتر مخزن، نستخدم 100%
+                    }
+
                     // استخدام ربح الفروقات المحفوظ وقت التقييد
                     $orderProfitMargin = $order->profit_margin_at_confirmation ?? Setting::getProfitMargin();
-                    $profitsWithMarginByDate[$date] += $orderProfit + $orderProfitMargin;
+                    $profitsWithMarginByDate[$date] += $orderProfit + ($orderProfitMargin * $warehouseRatio);
                 } else {
                     $profitsWithMarginByDate[$date] += $orderProfit;
                 }

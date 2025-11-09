@@ -15,16 +15,6 @@
         <div class="panel mb-6">
             <form method="GET" action="{{ route('admin.sales-report') }}" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- فلتر حالة الطلب -->
-                    <div>
-                        <label class="form-label">حالة الطلب</label>
-                        <select name="order_status" class="form-select">
-                            <option value="all" {{ request('order_status') == 'all' || !request('order_status') ? 'selected' : '' }}>الكل</option>
-                            <option value="confirmed" {{ request('order_status') == 'confirmed' ? 'selected' : '' }}>مقيدة</option>
-                            <option value="pending" {{ request('order_status') == 'pending' ? 'selected' : '' }}>غير مقيدة</option>
-                        </select>
-                    </div>
-
                     <!-- فلتر المندوب -->
                     <div>
                         <label class="form-label">المندوب</label>
@@ -110,27 +100,12 @@
         </div>
 
         <!-- الكاردات الإحصائية -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-            <!-- المبلغ الكلي مع التوصيل -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
+            <!-- المبلغ الكلي -->
             <div class="panel">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المبلغ الكلي مع التوصيل</h6>
-                        <p class="text-xl font-bold text-success">{{ number_format($statistics['total_amount_with_delivery'], 0, '.', ',') }} دينار</p>
-                    </div>
-                    <div class="p-2 bg-success/10 rounded-lg">
-                        <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- المبلغ الكلي بدون توصيل -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المبلغ الكلي بدون توصيل</h6>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المبلغ الكلي</h6>
                         <p class="text-xl font-bold text-primary">{{ number_format($statistics['total_amount_without_delivery'], 0, '.', ',') }} دينار</p>
                     </div>
                     <div class="p-2 bg-primary/10 rounded-lg">
@@ -141,76 +116,16 @@
                 </div>
             </div>
 
-            <!-- مبلغ الأرباح الكلي بدون فروقات -->
+            <!-- الأرباح -->
             <div class="panel">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">مبلغ الأرباح الكلي بدون فروقات</h6>
-                        <p class="text-xl font-bold text-info">{{ number_format($statistics['total_profit_without_margin'], 0, '.', ',') }} دينار</p>
-                    </div>
-                    <div class="p-2 bg-info/10 rounded-lg">
-                        <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- مبلغ الأرباح الكلي مع الفروقات -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">مبلغ الأرباح الكلي مع الفروقات</h6>
-                        <p class="text-xl font-bold text-warning">{{ number_format($statistics['total_profit_with_margin'], 0, '.', ',') }} دينار</p>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الأرباح</h6>
+                        <p class="text-xl font-bold text-warning">{{ number_format($statistics['total_profit_without_margin'], 0, '.', ',') }} دينار</p>
                     </div>
                     <div class="p-2 bg-warning/10 rounded-lg">
                         <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- مبلغ الكلي للفروقات -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">مبلغ الكلي للفروقات</h6>
-                        <p class="text-xl font-bold text-secondary">{{ number_format($statistics['total_margin_amount'], 0, '.', ',') }} دينار</p>
-                    </div>
-                    <div class="p-2 bg-secondary/10 rounded-lg">
-                        <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- المصروفات -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المصروفات</h6>
-                        <p class="text-xl font-bold text-danger">{{ number_format($statistics['total_expenses'], 0, '.', ',') }} دينار</p>
-                    </div>
-                    <div class="p-2 bg-danger/10 rounded-lg">
-                        <svg class="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- الأرباح بعد خصم المصروفات -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الأرباح بعد خصم المصروفات</h6>
-                        <p class="text-xl font-bold {{ $statistics['profit_after_expenses'] >= 0 ? 'text-success' : 'text-danger' }}">{{ number_format($statistics['profit_after_expenses'], 0, '.', ',') }} دينار</p>
-                    </div>
-                    <div class="p-2 {{ $statistics['profit_after_expenses'] >= 0 ? 'bg-success/10' : 'bg-danger/10' }} rounded-lg">
-                        <svg class="w-5 h-5 {{ $statistics['profit_after_expenses'] >= 0 ? 'text-success' : 'text-danger' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                     </div>
                 </div>
@@ -231,11 +146,11 @@
                 </div>
             </div>
 
-            <!-- عدد المواد -->
+            <!-- عدد القطع -->
             <div class="panel">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">عدد المواد</h6>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">عدد القطع</h6>
                         <p class="text-xl font-bold text-success">{{ number_format($statistics['items_count'], 0, '.', ',') }} قطعة</p>
                     </div>
                     <div class="p-2 bg-success/10 rounded-lg">

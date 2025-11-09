@@ -298,15 +298,10 @@
                                 </span>
                                 <span class="text-gray-500">دينار</span>
                             </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 dark:text-gray-400">سعر التوصيل:</span>
-                                <span class="font-semibold text-lg" id="deliveryFeeDisplay">{{ number_format(\App\Models\Setting::getDeliveryFee(), 0, '.', ',') }}</span>
-                                <span class="text-gray-500">دينار</span>
-                            </div>
                             <div class="flex justify-between items-center border-t border-blue-200 dark:border-blue-700 pt-2 mt-2">
                                 <span class="text-gray-700 dark:text-gray-300 font-semibold text-lg">السعر الكلي:</span>
                                 <span class="font-bold text-xl text-primary" id="totalAmountWithDelivery">
-                                    {{ number_format($totalProducts + \App\Models\Setting::getDeliveryFee(), 0, '.', ',') }}
+                                    {{ number_format($totalProducts, 0, '.', ',') }}
                                 </span>
                                 <span class="text-gray-500 font-semibold">دينار</span>
                             </div>
@@ -318,7 +313,7 @@
                             <div class="flex justify-between items-center border-t border-blue-200 dark:border-blue-700 pt-2 mt-2" id="remainingAmountSection" style="display: none;">
                                 <span class="text-gray-700 dark:text-gray-300 font-semibold text-lg">المبلغ المتبقي بعد الإرجاع:</span>
                                 <span class="font-bold text-xl text-success" id="remainingAmount">
-                                    {{ number_format($totalProducts + \App\Models\Setting::getDeliveryFee(), 0, '.', ',') }}
+                                    {{ number_format($totalProducts, 0, '.', ',') }}
                                 </span>
                                 <span class="text-gray-500 font-semibold">دينار</span>
                             </div>
@@ -500,7 +495,6 @@
 
         // تحديث المبالغ الإجمالية
         function updateAmounts() {
-            const deliveryFee = {{ \App\Models\Setting::getDeliveryFee() }};
             let totalProductsPrice = 0;
             let returnAmount = 0;
 
@@ -534,8 +528,10 @@
                 }
             });
 
-            const totalAmountWithDelivery = totalProductsPrice + deliveryFee;
-            const remainingAmount = totalAmountWithDelivery;
+            // السعر الكلي = فقط سعر المنتجات (بدون التوصيل)
+            const totalAmountWithDelivery = totalProductsPrice;
+            // المبلغ المتبقي بعد الإرجاع = فقط سعر المنتجات المتبقية (بدون التوصيل)
+            const remainingAmount = totalProductsPrice;
 
             // تحديث العرض
             const totalProductsPriceEl = document.getElementById('totalProductsPrice');
@@ -551,12 +547,6 @@
 
             if (totalAmountWithDeliveryEl) {
                 totalAmountWithDeliveryEl.textContent = totalAmountWithDelivery.toLocaleString('en-US');
-            }
-
-            // تحديث عرض سعر التوصيل
-            const deliveryFeeDisplay = document.getElementById('deliveryFeeDisplay');
-            if (deliveryFeeDisplay) {
-                deliveryFeeDisplay.textContent = deliveryFee.toLocaleString('en-US');
             }
 
             if (returnAmount > 0) {

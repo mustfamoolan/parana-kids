@@ -172,6 +172,15 @@ class DashboardController extends Controller
         // المبلغ الإجمالي = confirmed + pending
         $totalAmount = $confirmedTotalAmount + $pendingTotalAmount;
 
+        // حساب إجمالي الفروقات من الطلبات المقيدة
+        $totalMarginAmount = 0;
+        if ($confirmedOrderIds->count() > 0) {
+            $totalMarginAmount = DB::table('orders')
+                ->whereIn('id', $confirmedOrderIds)
+                ->whereNotNull('profit_margin_at_confirmation')
+                ->sum('profit_margin_at_confirmation') ?? 0;
+        }
+
         // حساب قيمة المخازن مباشرة من البيانات الحالية
         $profitCalculator = new \App\Services\ProfitCalculator();
         $totalWarehouseValue = 0;
@@ -460,6 +469,7 @@ class DashboardController extends Controller
             'totalWarehouseValue',
             'totalProductValue',
             'totalAmount',
+            'totalMarginAmount',
             'totalSoldItems',
             'soldItemsByWarehouse',
             'lineChartData',
