@@ -67,34 +67,20 @@
                     <!-- فلتر المنتج -->
                     <div>
                         <label class="form-label">المنتج</label>
-                        <select name="product_id" class="form-select">
-                            <option value="">كل المنتجات</option>
-                            @foreach($products as $product)
-                                <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>
-                                    {{ $product->name }} ({{ $product->code }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- فلتر الطلبات المسترجعة -->
-                    <div>
-                        <label class="form-label">الطلبات المسترجعة</label>
-                        <select name="orders_returned" class="form-select">
-                            <option value="all" {{ request('orders_returned') == 'all' || !request('orders_returned') ? 'selected' : '' }}>الكل</option>
-                            <option value="returned" {{ request('orders_returned') == 'returned' ? 'selected' : '' }}>مسترجعة</option>
-                            <option value="not_returned" {{ request('orders_returned') == 'not_returned' ? 'selected' : '' }}>غير مسترجعة</option>
-                        </select>
-                    </div>
-
-                    <!-- فلتر المواد المسترجعة -->
-                    <div>
-                        <label class="form-label">المواد المسترجعة</label>
-                        <select name="items_returned" class="form-select">
-                            <option value="all" {{ request('items_returned') == 'all' || !request('items_returned') ? 'selected' : '' }}>الكل</option>
-                            <option value="returned" {{ request('items_returned') == 'returned' ? 'selected' : '' }}>مسترجعة</option>
-                            <option value="not_returned" {{ request('items_returned') == 'not_returned' ? 'selected' : '' }}>غير مسترجعة</option>
-                        </select>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="product_search"
+                                class="form-input"
+                                placeholder="ابحث بكود المنتج أو اسم المنتج..."
+                                autocomplete="off"
+                                value="@if(request('product_id'))@php $selectedProduct = $products->firstWhere('id', request('product_id')); @endphp{{ $selectedProduct ? $selectedProduct->name . ' (' . $selectedProduct->code . ')' : '' }}@endif"
+                            >
+                            <input type="hidden" name="product_id" id="product_id" value="{{ request('product_id') }}">
+                            <div id="product_results" class="absolute z-10 w-full mt-1 bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                <!-- نتائج البحث ستظهر هنا -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- البحث الذكي -->
@@ -200,6 +186,36 @@
                 </div>
             </div>
 
+            <!-- المصروفات -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المصروفات</h6>
+                        <p class="text-xl font-bold text-danger">{{ number_format($statistics['total_expenses'], 0, '.', ',') }} دينار</p>
+                    </div>
+                    <div class="p-2 bg-danger/10 rounded-lg">
+                        <svg class="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الأرباح بعد خصم المصروفات -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الأرباح بعد خصم المصروفات</h6>
+                        <p class="text-xl font-bold {{ $statistics['profit_after_expenses'] >= 0 ? 'text-success' : 'text-danger' }}">{{ number_format($statistics['profit_after_expenses'], 0, '.', ',') }} دينار</p>
+                    </div>
+                    <div class="p-2 {{ $statistics['profit_after_expenses'] >= 0 ? 'bg-success/10' : 'bg-danger/10' }} rounded-lg">
+                        <svg class="w-5 h-5 {{ $statistics['profit_after_expenses'] >= 0 ? 'text-success' : 'text-danger' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
             <!-- عدد الطلبات -->
             <div class="panel">
                 <div class="flex items-center justify-between">
@@ -225,50 +241,6 @@
                     <div class="p-2 bg-success/10 rounded-lg">
                         <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- المنتج الأكثر مبيعاً -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المنتج الأكثر مبيعاً</h6>
-                        @if($statistics['most_sold_product_id'])
-                            @php
-                                $mostSoldProduct = \App\Models\Product::find($statistics['most_sold_product_id']);
-                            @endphp
-                            <p class="text-lg font-bold text-info">{{ $mostSoldProduct ? $mostSoldProduct->name : 'غير محدد' }}</p>
-                        @else
-                            <p class="text-lg font-bold text-info">غير محدد</p>
-                        @endif
-                    </div>
-                    <div class="p-2 bg-info/10 rounded-lg">
-                        <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- المنتج الأقل مبيعاً -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المنتج الأقل مبيعاً</h6>
-                        @if($statistics['least_sold_product_id'])
-                            @php
-                                $leastSoldProduct = \App\Models\Product::find($statistics['least_sold_product_id']);
-                            @endphp
-                            <p class="text-lg font-bold text-warning">{{ $leastSoldProduct ? $leastSoldProduct->name : 'غير محدد' }}</p>
-                        @else
-                            <p class="text-lg font-bold text-warning">غير محدد</p>
-                        @endif
-                    </div>
-                    <div class="p-2 bg-warning/10 rounded-lg">
-                        <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
                         </svg>
                     </div>
                 </div>
@@ -437,6 +409,90 @@
                 }
             }));
         });
+
+        // البحث عن المنتجات
+        let searchTimeout;
+        const productSearchInput = document.getElementById('product_search');
+        const productResultsDiv = document.getElementById('product_results');
+        const productIdInput = document.getElementById('product_id');
+
+        if (productSearchInput) {
+            productSearchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    searchProducts(this.value);
+                }, 300);
+            });
+
+            // إخفاء نتائج البحث عند النقر خارجها
+            document.addEventListener('click', function(event) {
+                if (!productSearchInput.contains(event.target) && !productResultsDiv.contains(event.target)) {
+                    productResultsDiv.classList.add('hidden');
+                }
+            });
+        }
+
+        function searchProducts(query) {
+            if (!query || query.length < 1) {
+                productResultsDiv.classList.add('hidden');
+                return;
+            }
+
+            const url = `{{ route('admin.sales-report.search-products') }}?search=${encodeURIComponent(query)}`;
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(products => {
+                productResultsDiv.innerHTML = '';
+
+                if (!products || products.length === 0) {
+                    productResultsDiv.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">لا توجد نتائج</div>';
+                } else {
+                    products.forEach(product => {
+                        const item = document.createElement('div');
+                        item.className = 'p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors';
+                        item.innerHTML = `
+                            <div class="font-medium text-black dark:text-white">${escapeHtml(product.name)}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">كود: ${escapeHtml(product.code)}</div>
+                        `;
+                        item.addEventListener('click', function() {
+                            selectProduct(product.id, product.name, product.code);
+                        });
+                        productResultsDiv.appendChild(item);
+                    });
+                }
+                productResultsDiv.classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error searching products:', error);
+                productResultsDiv.innerHTML = '<div class="p-3 text-sm text-danger text-center">حدث خطأ في البحث</div>';
+                productResultsDiv.classList.remove('hidden');
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function selectProduct(productId, productName, productCode) {
+            productIdInput.value = productId;
+            productSearchInput.value = `${productName} (${productCode})`;
+            productResultsDiv.classList.add('hidden');
+        }
     </script>
 </x-layout.admin>
 

@@ -1008,6 +1008,10 @@ class OrderController extends Controller
         ]);
 
         DB::transaction(function() use ($order, $request) {
+            // حفظ القيم الحالية من الإعدادات وقت التقييد
+            $deliveryFee = \App\Models\Setting::getDeliveryFee();
+            $profitMargin = \App\Models\Setting::getProfitMargin();
+
             // تحديث معلومات الطلب فقط (بدون تعديل المنتجات لأن التعديل يتم من صفحة التعديل)
             $order->update([
                 'customer_name' => $request->customer_name,
@@ -1019,6 +1023,8 @@ class OrderController extends Controller
                 'status' => 'confirmed',
                 'confirmed_at' => now(),
                 'confirmed_by' => auth()->id(),
+                'delivery_fee_at_confirmation' => $deliveryFee,
+                'profit_margin_at_confirmation' => $profitMargin,
             ]);
 
             // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب (فقط للتسجيل، بدون خصم من المخزن)
@@ -2179,11 +2185,39 @@ class OrderController extends Controller
                 $order->total_amount -= $totalAmountReduction;
                 $order->save();
 
+                // التحقق من أن جميع منتجات الطلب تم إرجاعها
+                $order->refresh();
+                $allItemsReturned = $order->items()->where('quantity', '>', 0)->count() === 0;
+
+                if ($allItemsReturned) {
+                    // حذف الطلب تلقائياً (soft delete) مع السبب
+                    $order->deleted_by = auth()->id();
+                    $order->deletion_reason = 'إرجاع الطلب بالكامل';
+                    $order->deleted_at = now();
+                    $order->save();
+
+                    \Log::info('Order automatically deleted after full return', [
+                        'order_id' => $order->id,
+                        'deleted_by' => auth()->id(),
+                        'deletion_reason' => 'إرجاع الطلب بالكامل'
+                    ]);
+                }
+
                 \Log::info('Partial return completed successfully', [
                     'order_id' => $order->id,
-                    'total_amount_reduction' => $totalAmountReduction
+                    'total_amount_reduction' => $totalAmountReduction,
+                    'all_items_returned' => $allItemsReturned
                 ]);
             });
+
+            // التحقق مرة أخرى بعد الـ transaction لمعرفة ما إذا تم حذف الطلب
+            $order->refresh();
+            $allItemsReturned = $order->items()->where('quantity', '>', 0)->count() === 0;
+
+            if ($allItemsReturned && $order->trashed()) {
+                return redirect()->route('admin.orders.partial-returns.index')
+                                ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
+            }
 
             return redirect()->route('admin.orders.partial-returns.index')
                             ->with('success', 'تم إرجاع المنتجات بنجاح');

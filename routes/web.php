@@ -44,6 +44,7 @@ Route::prefix('admin')->group(function () {
 
         // صفحة كشف مبيعات (للمدير فقط)
         Route::get('sales-report', [\App\Http\Controllers\Admin\SalesReportController::class, 'index'])->name('admin.sales-report');
+        Route::get('sales-report/search-products', [\App\Http\Controllers\Admin\SalesReportController::class, 'searchProducts'])->name('admin.sales-report.search-products');
 
         // Settings routes (Admin only)
         Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('admin.settings.index');

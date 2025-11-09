@@ -37,6 +37,8 @@ class Order extends Model
         'deletion_reason',
         'size_reviewed',
         'message_confirmed',
+        'delivery_fee_at_confirmation',
+        'profit_margin_at_confirmation',
     ];
 
     protected $casts = [

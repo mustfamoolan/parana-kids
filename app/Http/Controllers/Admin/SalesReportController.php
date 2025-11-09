@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Expense;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -71,18 +72,6 @@ class SalesReportController extends Controller
             });
         }
 
-        // فلتر الطلبات المسترجعة (مسترجعة/غير مسترجعة/الكل)
-        if ($request->filled('orders_returned')) {
-            if ($request->orders_returned === 'returned') {
-                $ordersQuery->where('status', 'returned');
-            } elseif ($request->orders_returned === 'not_returned') {
-                $ordersQuery->where('status', '!=', 'returned');
-            }
-        }
-
-        // فلتر المواد المسترجعة (مسترجعة/غير مسترجعة/الكل)
-        // هذا يحتاج إلى منطق معقد - سنتعامل معه في الحسابات
-
         // فلتر التاريخ
         $dateFrom = $request->filled('date_from') ? $request->date_from : now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->filled('date_to') ? $request->date_to : now()->format('Y-m-d');
@@ -120,7 +109,7 @@ class SalesReportController extends Controller
         $orderIds = $orders->pluck('id');
 
         // حساب الإحصائيات
-        $statistics = $this->calculateStatistics($orders, $orderIds, $deliveryFee, $profitMargin, $request);
+        $statistics = $this->calculateStatistics($orders, $orderIds, $deliveryFee, $profitMargin, $request, $dateFrom, $dateTo);
 
         // حساب بيانات الجارتات
         $chartData = $this->calculateChartData($orders, $orderIds, $dateFrom, $dateTo, $request);
@@ -140,7 +129,7 @@ class SalesReportController extends Controller
         ));
     }
 
-    private function calculateStatistics($orders, $orderIds, $deliveryFee, $profitMargin, $request)
+    private function calculateStatistics($orders, $orderIds, $deliveryFee, $profitMargin, $request, $dateFrom, $dateTo)
     {
         // جلب جميع order_items للطلبات المحددة
         $orderItems = OrderItem::whereIn('order_id', $orderIds)->get();
@@ -173,13 +162,22 @@ class SalesReportController extends Controller
             return $order->status === 'returned' && !$order->is_partial_return;
         });
 
-        // عدد الطلبات المقيدة غير المسترجعة كلياً
-        $confirmedNonFullyReturnedCount = $confirmedOrders->filter(function($order) {
-            return $order->status !== 'returned' || $order->is_partial_return;
-        })->count();
+        // حساب المبلغ الكلي مع التوصيل باستخدام القيم المحفوظة وقت التقييد
+        $totalAmountWithDelivery = $totalAmountWithoutDelivery;
+        $totalMarginAmount = 0;
 
-        // حساب المبلغ الكلي مع التوصيل
-        $totalAmountWithDelivery = $totalAmountWithoutDelivery + ($confirmedNonFullyReturnedCount * $deliveryFee);
+        foreach ($confirmedOrders as $order) {
+            // فقط للطلبات غير المسترجعة كلياً
+            if ($order->status !== 'returned' || $order->is_partial_return) {
+                // استخدام سعر التوصيل المحفوظ وقت التقييد (أو القيمة الحالية كبديل)
+                $orderDeliveryFee = $order->delivery_fee_at_confirmation ?? $deliveryFee;
+                $totalAmountWithDelivery += $orderDeliveryFee;
+
+                // استخدام ربح الفروقات المحفوظ وقت التقييد (أو القيمة الحالية كبديل)
+                $orderProfitMargin = $order->profit_margin_at_confirmation ?? $profitMargin;
+                $totalMarginAmount += $orderProfitMargin;
+            }
+        }
 
         // حساب الأرباح بدون فروقات
         $totalProfitWithoutMargin = 0;
@@ -199,11 +197,14 @@ class SalesReportController extends Controller
             }
         }
 
-        // حساب مبلغ الفروقات (فقط للطلبات المقيدة غير المسترجعة كلياً)
-        $totalMarginAmount = $confirmedNonFullyReturnedCount * $profitMargin;
-
         // حساب الأرباح مع الفروقات
         $totalProfitWithMargin = $totalProfitWithoutMargin + $totalMarginAmount;
+
+        // حساب إجمالي المصروفات حسب نطاق التاريخ
+        $totalExpenses = Expense::byDateRange($dateFrom, $dateTo)->sum('amount');
+
+        // حساب الأرباح بعد خصم المصروفات
+        $profitAfterExpenses = $totalProfitWithMargin - $totalExpenses;
 
         // عدد الطلبات
         $ordersCount = $orders->count();
@@ -211,40 +212,16 @@ class SalesReportController extends Controller
         // عدد المواد (ناقص المواد المسترجعة)
         $itemsCount = $orderItems->sum('quantity') - $returnItems->sum('quantity_returned');
 
-        // المنتج الأكثر مبيعاً
-        $mostSoldProduct = $orderItems
-            ->groupBy('product_id')
-            ->map(function($items) {
-                return $items->sum('quantity') - $items->sum(function($item) {
-                    return $item->returnItems()->sum('quantity_returned');
-                });
-            })
-            ->sortDesc()
-            ->keys()
-            ->first();
-
-        // المنتج الأقل مبيعاً
-        $leastSoldProduct = $orderItems
-            ->groupBy('product_id')
-            ->map(function($items) {
-                return $items->sum('quantity') - $items->sum(function($item) {
-                    return $item->returnItems()->sum('quantity_returned');
-                });
-            })
-            ->sort()
-            ->keys()
-            ->first();
-
         return [
             'total_amount_with_delivery' => $totalAmountWithDelivery,
             'total_amount_without_delivery' => $totalAmountWithoutDelivery,
             'total_profit_without_margin' => $totalProfitWithoutMargin,
             'total_profit_with_margin' => $totalProfitWithMargin,
             'total_margin_amount' => $totalMarginAmount,
+            'total_expenses' => $totalExpenses,
+            'profit_after_expenses' => $profitAfterExpenses,
             'orders_count' => $ordersCount,
             'items_count' => max(0, $itemsCount),
-            'most_sold_product_id' => $mostSoldProduct,
-            'least_sold_product_id' => $leastSoldProduct,
             'return_amount' => $returnAmount,
         ];
     }
@@ -274,8 +251,16 @@ class SalesReportController extends Controller
                     $profitsWithMarginByDate[$date] = 0;
                 }
 
-                // حساب المبلغ
+                // حساب المبلغ (بدون توصيل)
                 $orderAmount = $order->items->sum('subtotal');
+
+                // إضافة سعر التوصيل للطلبات المقيدة غير المسترجعة كلياً
+                if ($order->status === 'confirmed' && ($order->status !== 'returned' || $order->is_partial_return)) {
+                    // استخدام سعر التوصيل المحفوظ وقت التقييد
+                    $orderDeliveryFee = $order->delivery_fee_at_confirmation ?? Setting::getDeliveryFee();
+                    $orderAmount += $orderDeliveryFee;
+                }
+
                 $salesByDate[$date] += $orderAmount;
 
                 // حساب الربح
@@ -301,7 +286,9 @@ class SalesReportController extends Controller
 
                 // إضافة الفروقات فقط للطلبات المقيدة غير المسترجعة كلياً
                 if ($order->status === 'confirmed' && ($order->status !== 'returned' || $order->is_partial_return)) {
-                    $profitsWithMarginByDate[$date] += $orderProfit + Setting::getProfitMargin();
+                    // استخدام ربح الفروقات المحفوظ وقت التقييد
+                    $orderProfitMargin = $order->profit_margin_at_confirmation ?? Setting::getProfitMargin();
+                    $profitsWithMarginByDate[$date] += $orderProfit + $orderProfitMargin;
                 } else {
                     $profitsWithMarginByDate[$date] += $orderProfit;
                 }
@@ -331,11 +318,39 @@ class SalesReportController extends Controller
 
     private function saveReport($statistics, $chartData, $request, $dateFrom, $dateTo)
     {
+        // تحضير الفلاتر للمقارنة
+        $filters = $request->except(['_token', 'page']);
+
+        // ترتيب المفاتيح لضمان المقارنة الصحيحة
+        ksort($filters);
+        $filtersJson = json_encode($filters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        // جلب جميع التقارير بنفس التواريخ في آخر 24 ساعة
+        $recentReports = SalesReport::where('date_from', $dateFrom)
+            ->where('date_to', $dateTo)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->get();
+
+        // التحقق من وجود تقرير بنفس الفلاتر
+        $existingReport = $recentReports->first(function($report) use ($filtersJson) {
+            // تحويل filters من array إلى JSON للمقارنة
+            $reportFilters = $report->filters ?? [];
+            ksort($reportFilters);
+            $reportFiltersJson = json_encode($reportFilters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return $reportFiltersJson === $filtersJson;
+        });
+
+        // إذا وُجد تقرير في آخر 24 ساعة بنفس الفلاتر، نتخطى الحفظ
+        if ($existingReport) {
+            return;
+        }
+
+        // حفظ تقرير جديد
         SalesReport::create([
             'report_date' => now()->toDateString(),
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
-            'filters' => $request->except(['_token', 'page']),
+            'filters' => $filters,
             'total_amount_with_delivery' => $statistics['total_amount_with_delivery'],
             'total_amount_without_delivery' => $statistics['total_amount_without_delivery'],
             'total_profit_without_margin' => $statistics['total_profit_without_margin'],
@@ -343,9 +358,37 @@ class SalesReportController extends Controller
             'total_margin_amount' => $statistics['total_margin_amount'],
             'orders_count' => $statistics['orders_count'],
             'items_count' => $statistics['items_count'],
-            'most_sold_product_id' => $statistics['most_sold_product_id'],
-            'least_sold_product_id' => $statistics['least_sold_product_id'],
+            'most_sold_product_id' => null,
+            'least_sold_product_id' => null,
             'chart_data' => $chartData,
         ]);
+    }
+
+    /**
+     * Search products for sales report filter (AJAX)
+     */
+    public function searchProducts(Request $request)
+    {
+        try {
+            $search = $request->get('search', '');
+
+            if (empty($search)) {
+                return response()->json([]);
+            }
+
+            $products = \App\Models\Product::select('id', 'name', 'code')
+                ->where(function($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%")
+                          ->orWhere('code', 'LIKE', "%{$search}%");
+                })
+                ->orderBy('name')
+                ->limit(20)
+                ->get();
+
+            return response()->json($products);
+        } catch (\Exception $e) {
+            \Log::error('Error searching products: ' . $e->getMessage());
+            return response()->json(['error' => 'حدث خطأ في البحث'], 500);
+        }
     }
 }
