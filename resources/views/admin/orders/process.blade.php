@@ -357,15 +357,16 @@
                     // النص الثابت
                     const prefix = 'فتح وتصوير الطلب امام الزبون قبل التسليم عند القياس';
 
-                    // جمع أسماء المنتجات مع العدد
+                    // جمع أسماء المنتجات مع السعر والعدد
                     const productParts = this.items
                         .map(i => {
                             const rawName = (i?.product_name || '');
                             const name = rawName.includes('(') ? rawName.split('(')[0].trim() : rawName.trim();
                             if (!name) return '';
                             const qty = Number(i?.quantity || 0);
-                            // اسم المنتج ثم العدد
-                            return `${name} العدد ${qty}`;
+                            const unitPrice = Number(i?.unit_price || 0);
+                            // اسم المنتج ثم السعر ثم العدد
+                            return `${name} سعر ${unitPrice} العدد ${qty}`;
                         })
                         .filter(Boolean);
 
@@ -378,9 +379,9 @@
                     // تنسيق المبلغ بدون فواصل (أرقام فقط) لتجنب مشكلة قلب الأرقام
                     const totalAmountTxt = String(totalAmountWithFee);
 
-                    // بناء النص الكامل: النص الثابت + المنتجات + العدد الإجمالي + المبلغ الكلي
+                    // بناء النص الكامل: النص الثابت + المنتجات + العدد الإجمالي + المبلغ الكلي مع التوصيل
                     const productsText = productParts.join(' ');
-                    const totals = `العدد الإجمالي ${totalQty} المبلغ الكلي ${totalAmountTxt}`;
+                    const totals = `العدد الإجمالي ${totalQty} المبلغ الكلي مع التوصيل ${totalAmountTxt}`;
 
                     // دمج كل شيء في سطر واحد مع مسافات صحيحة
                     const fullText = `${prefix} ${productsText} ${totals}`;
