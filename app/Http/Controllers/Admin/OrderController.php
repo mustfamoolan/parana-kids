@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 class OrderController extends Controller
 {
@@ -1058,7 +1059,20 @@ class OrderController extends Controller
             // التعديل على المنتجات يتم من صفحة التعديل (admin.orders.edit)
         });
 
-        // التحقق من وجود back_url وإرجاع المستخدم إلى الصفحة السابقة مع الحفاظ على البحث والفلتر
+        // التحقق من وجود back_route أولاً (الأفضل - يعمل على أي بيئة)
+        $backRoute = $request->input('back_route');
+        $backParams = $request->input('back_params');
+
+        if ($backRoute && Route::has($backRoute)) {
+            $params = $backParams ? json_decode(urldecode($backParams), true) : [];
+            if (!is_array($params)) {
+                $params = [];
+            }
+            return redirect()->route($backRoute, $params)
+                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+        }
+
+        // إذا لم يكن back_route موجوداً، نستخدم back_url القديم (للتوافق مع الصفحات الأخرى)
         $backUrl = $request->input('back_url');
         if ($backUrl) {
             $backUrl = urldecode($backUrl);
@@ -1398,6 +1412,35 @@ class OrderController extends Controller
                 // تحديث المبلغ الإجمالي
                 $order->update(['total_amount' => $totalAmount]);
             });
+
+            // التحقق من وجود back_route أولاً (الأفضل - يعمل على أي بيئة)
+            $backRoute = $request->input('back_route');
+            $backParams = $request->input('back_params');
+
+            if ($backRoute && Route::has($backRoute)) {
+                $params = $backParams ? json_decode(urldecode($backParams), true) : [];
+                if (!is_array($params)) {
+                    $params = [];
+                }
+                return redirect()->route($backRoute, $params)
+                            ->with('success', 'تم تحديث الطلب بنجاح');
+            }
+
+            // إذا لم يكن back_route موجوداً، نستخدم back_url القديم (للتوافق مع الصفحات الأخرى)
+            $backUrl = $request->input('back_url');
+            if ($backUrl) {
+                $backUrl = urldecode($backUrl);
+                $parsed = parse_url($backUrl);
+                $currentHost = $request->getHost();
+                if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                    $backUrl = null;
+                }
+            }
+
+            if ($backUrl) {
+                return redirect($backUrl)
+                            ->with('success', 'تم تحديث الطلب بنجاح');
+            }
 
             return redirect()->route('admin.orders.management')
                             ->with('success', 'تم تحديث الطلب بنجاح');

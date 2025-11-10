@@ -4,16 +4,31 @@
             <h5 class="text-lg font-semibold dark:text-white-light">تجهيز الطلب: {{ $order->order_number }}</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 @php
-                    $backUrl = request()->query('back_url');
-                    if ($backUrl) {
-                        $backUrl = urldecode($backUrl);
-                        // Security check: ensure the URL is from the same domain
-                        $parsed = parse_url($backUrl);
-                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
-                        if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
-                            $backUrl = null;
+                    // التحقق من back_route أولاً (الأفضل - يعمل على أي بيئة)
+                    $backRoute = request()->query('back_route');
+                    $backParams = request()->query('back_params');
+                    $backUrl = null;
+
+                    if ($backRoute && \Illuminate\Support\Facades\Route::has($backRoute)) {
+                        $params = $backParams ? json_decode(urldecode($backParams), true) : [];
+                        if (!is_array($params)) {
+                            $params = [];
+                        }
+                        $backUrl = route($backRoute, $params);
+                    } else {
+                        // إذا لم يكن back_route موجوداً، نستخدم back_url القديم
+                        $backUrl = request()->query('back_url');
+                        if ($backUrl) {
+                            $backUrl = urldecode($backUrl);
+                            // Security check: ensure the URL is from the same domain
+                            $parsed = parse_url($backUrl);
+                            $currentHost = request()->getHost();
+                            if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                                $backUrl = null;
+                            }
                         }
                     }
+
                     if (!$backUrl) {
                         $backUrl = route('admin.orders.show', $order);
                     }
@@ -29,7 +44,10 @@
 
         <form method="POST" action="{{ route('admin.orders.process.submit', $order) }}" id="processForm">
             @csrf
-            @if($backUrl)
+            @if($backRoute)
+                <input type="hidden" name="back_route" value="{{ $backRoute }}">
+                <input type="hidden" name="back_params" value="{{ $backParams }}">
+            @elseif($backUrl)
                 <input type="hidden" name="back_url" value="{{ $backUrl }}">
             @endif
 
