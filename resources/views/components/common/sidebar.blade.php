@@ -327,7 +327,7 @@
 
                 <!-- زر تثبيت PWA -->
                 <li class="menu nav-item" id="pwa-install-item">
-                    <a href="javascript:void(0)" onclick="installPWA()" class="nav-link group" id="pwa-install-button">
+                    <a href="javascript:void(0)" onclick="window.showInstallInstructions()" class="nav-link group" id="pwa-install-button">
                         <div class="flex items-center">
                             <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
                                 fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -412,86 +412,8 @@
             },
         }));
 
-        // PWA Install Button Logic
-        let deferredPrompt = null;
-        let installRetryAttempts = 0;
-        const maxRetryAttempts = 3;
-
-        // Function to install PWA
-        window.installPWA = function() {
-            if (deferredPrompt) {
-                try {
-                    // Show the install prompt
-                    deferredPrompt.prompt();
-
-                    // Wait for the user to respond to the prompt
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('User accepted the install prompt');
-                            installRetryAttempts = 0; // Reset retry attempts on success
-                        } else {
-                            console.log('User dismissed the install prompt');
-                        }
-                        // لا نمسح deferredPrompt - نبقيه للاستخدام مرة أخرى
-                        // المتصفح سيعيد إرسال beforeinstallprompt event إذا لزم الأمر
-                    }).catch((error) => {
-                        console.log('Error showing install prompt:', error);
-                        // إذا فشل، نحاول الحصول على event جديد
-                        if (error.message && error.message.includes('already been shown')) {
-                            deferredPrompt = null;
-                            // محاولة إعادة الحصول على event
-                            attemptToGetInstallPrompt();
-                        }
-                    });
-                } catch (error) {
-                    console.log('Error in installPWA:', error);
-                    // إذا حدث خطأ، نحاول الحصول على event جديد
-                    if (error.message && error.message.includes('already been shown')) {
-                        deferredPrompt = null;
-                        // محاولة إعادة الحصول على event
-                        attemptToGetInstallPrompt();
-                    }
-                }
-            } else {
-                // If deferredPrompt is not available, try to get it
-                console.log('Install prompt not available, attempting to get it...');
-                attemptToGetInstallPrompt();
-            }
-        };
-
-        // Function to attempt getting install prompt
-        function attemptToGetInstallPrompt() {
-            if (installRetryAttempts < maxRetryAttempts) {
-                installRetryAttempts++;
-                console.log(`Attempting to get install prompt (attempt ${installRetryAttempts}/${maxRetryAttempts})...`);
-
-                // Wait a bit and try again
-                setTimeout(() => {
-                    if (deferredPrompt) {
-                        // If we got the prompt, try installing again
-                        console.log('Install prompt available, retrying installation...');
-                        installRetryAttempts = 0; // Reset attempts
-                        window.installPWA();
-                    } else {
-                        // Continue waiting for the event
-                        if (installRetryAttempts < maxRetryAttempts) {
-                            console.log('Still waiting for beforeinstallprompt event...');
-                            // Try again
-                            attemptToGetInstallPrompt();
-                        } else {
-                            console.log('Max retry attempts reached. Install prompt not available.');
-                            installRetryAttempts = 0; // Reset for next time
-                        }
-                    }
-                }, 2000); // Increased wait time to 2 seconds
-            } else {
-                console.log('Max retry attempts reached. Install prompt not available.');
-                installRetryAttempts = 0; // Reset for next time
-            }
-        }
-
-        // Function to show manual install instructions
-        function showInstallInstructions() {
+        // PWA Install Instructions - Simple approach without beforeinstallprompt
+        window.showInstallInstructions = function() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 
             // Detect device type
@@ -562,33 +484,9 @@
             modalComponent.open = true;
         }
 
-        // Listen for beforeinstallprompt event (multiple listeners for better coverage)
-        function handleBeforeInstallPrompt(e) {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            // إذا كان deferredPrompt موجوداً بالفعل، نستبدله بالجديد
-            deferredPrompt = e;
-            installRetryAttempts = 0; // Reset retry attempts when we get the event
-            console.log('beforeinstallprompt event received');
-        }
-
-        // Add multiple listeners to catch the event
-        // Use { passive: false } because we need preventDefault
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { passive: false });
-        document.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { passive: false });
-
-        // Also listen on window load in case event fires after initial load
-        window.addEventListener('load', () => {
-            // Re-add listener after load
-            window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { passive: false });
-        }, { passive: true });
-
-        // Listen for appinstalled event
+        // Listen for appinstalled event (optional - just for logging)
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
-            // لا نمسح deferredPrompt - نبقيه للسماح بإعادة التثبيت إذا لزم الأمر
-            // المتصفح سيعيد إرسال beforeinstallprompt event إذا لزم الأمر
         }, { passive: true });
 
         // Alpine.js Modal Component for Install Instructions

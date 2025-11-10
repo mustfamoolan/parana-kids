@@ -102,19 +102,31 @@
     <script defer src="/assets/js/alpine.min.js"></script>
     <script src="/assets/js/custom.js"></script>
 
-    <!-- PWA Service Worker Registration -->
-    <script>
+    <!-- PWA Service Worker Registration using Workbox -->
+    <script type="module">
+        import { Workbox } from 'https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-window.prod.mjs';
+
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(function(registration) {
-                        console.log('Service Worker registered successfully:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('Service Worker registration failed:', error);
-                    });
+            const wb = new Workbox('/service-worker.js');
+
+            wb.register().then((registration) => {
+                console.log('Service Worker registered successfully:', registration.scope);
+            }).catch((error) => {
+                console.log('Service Worker registration failed:', error);
+            });
+
+            // Listen for updates
+            wb.addEventListener('installed', (event) => {
+                if (event.isUpdate) {
+                    console.log('New service worker available');
+                }
             });
         }
+
+        // Listen for appinstalled event (optional - just for logging)
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+        }, { passive: true });
     </script>
     </body>
 

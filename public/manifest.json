@@ -24,6 +24,32 @@
   ],
   "categories": ["business", "productivity"],
   "lang": "ar",
-  "dir": "rtl"
+  "dir": "rtl",
+  "shortcuts": [
+    {
+      "name": "الطلبات",
+      "short_name": "الطلبات",
+      "description": "عرض وإدارة الطلبات",
+      "url": "/admin/orders/management",
+      "icons": [
+        {
+          "src": "/assets/images/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "التقارير",
+      "short_name": "التقارير",
+      "description": "عرض التقارير والإحصائيات",
+      "url": "/admin/reports",
+      "icons": [
+        {
+          "src": "/assets/images/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
 }
 

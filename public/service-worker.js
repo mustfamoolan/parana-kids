@@ -1,79 +1,69 @@
+// Import Workbox
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
+
+// Set cache name
 const CACHE_NAME = 'parana-kids-v1';
-const urlsToCache = [
-  '/',
-  '/assets/css/fonts.css',
-  '/assets/images/ParanaKids.png',
-  '/assets/images/icons/icon-192x192.png',
-  '/assets/images/icons/icon-512x512.png'
-];
 
-// Install event - cache resources
-self.addEventListener('install', function(event) {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(function(cache) {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-      .catch(function(error) {
-        console.log('Cache install failed:', error);
-      })
-  );
-});
+// Precaching - Cache critical assets on install
+workbox.precaching.precacheAndRoute([
+  {
+    url: '/',
+    revision: null
+  },
+  {
+    url: '/assets/css/fonts.css',
+    revision: null
+  },
+  {
+    url: '/assets/images/ParanaKids.png',
+    revision: null
+  },
+  {
+    url: '/assets/images/icons/icon-192x192.png',
+    revision: null
+  },
+  {
+    url: '/assets/images/icons/icon-512x512.png',
+    revision: null
+  },
+  {
+    url: '/manifest.json',
+    revision: null
+  }
+]);
 
-// Activate event - clean up old caches
-self.addEventListener('activate', function(event) {
-  event.waitUntil(
-    caches.keys().then(function(cacheNames) {
-      return Promise.all(
-        cacheNames.map(function(cacheName) {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-});
+// Cache strategy: Network First, then Cache for HTML pages
+workbox.routing.registerRoute(
+  ({request}) => request.destination === 'document',
+  new workbox.strategies.NetworkFirst({
+    cacheName: CACHE_NAME,
+    plugins: [
+      {
+        cacheableResponse: {
+          statuses: [0, 200],
+        },
+      },
+    ],
+  })
+);
 
-// Fetch event - Network First strategy with Cache fallback
-self.addEventListener('fetch', function(event) {
-  event.respondWith(
-    fetch(event.request)
-      .then(function(response) {
-        // Check if valid response
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
+// Cache strategy: Cache First for static assets
+workbox.routing.registerRoute(
+  ({request}) => request.destination === 'style' ||
+                 request.destination === 'script' ||
+                 request.destination === 'image' ||
+                 request.destination === 'font',
+  new workbox.strategies.CacheFirst({
+    cacheName: CACHE_NAME,
+    plugins: [
+      {
+        cacheableResponse: {
+          statuses: [0, 200],
+        },
+      },
+    ],
+  })
+);
 
-        // Clone the response
-        const responseToCache = response.clone();
-
-        caches.open(CACHE_NAME)
-          .then(function(cache) {
-            cache.put(event.request, responseToCache);
-          });
-
-        return response;
-      })
-      .catch(function() {
-        // Network failed, try cache
-        return caches.match(event.request)
-          .then(function(response) {
-            if (response) {
-              return response;
-            }
-            // If not in cache, return offline page or error
-            return new Response('Offline', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: new Headers({
-                'Content-Type': 'text/plain'
-              })
-            });
-          });
-      })
-  );
-});
-
+// Clean up old caches
+workbox.precaching.cleanupOutdatedCaches();
