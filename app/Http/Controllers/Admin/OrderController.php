@@ -1064,7 +1064,11 @@ class OrderController extends Controller
             $backUrl = urldecode($backUrl);
             // Security check: ensure the URL is from the same domain
             $parsed = parse_url($backUrl);
-            $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+            // استخدام request()->getHost() للحصول على الـ host الفعلي من الـ request الحالي
+            // هذا يضمن أن الفحص يعمل بشكل صحيح على أي بيئة (localhost أو production)
+            $currentHost = $request->getHost();
+            // السماح بـ relative URLs (URLs بدون host) لأنها آمنة دائماً
+            // أو URLs من نفس الـ host
             if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
                 $backUrl = null;
             }

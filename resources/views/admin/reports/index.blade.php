@@ -229,6 +229,36 @@
         </div>
         @endif
 
+        @if(isset($warehouseProfits) && count($warehouseProfits) > 0)
+        <!-- أرباح المخازن -->
+        <div class="panel mb-5">
+            <h5 class="font-semibold text-lg dark:text-white-light mb-4">أرباح المخازن</h5>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($warehouseProfits as $warehouse)
+                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h6 class="text-sm font-semibold text-gray-600 dark:text-gray-400">{{ $warehouse['warehouse_name'] }}</h6>
+                            <p class="text-lg font-bold {{ $warehouse['profit'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                {{ number_format($warehouse['profit'], 0, '.', ',') }} دينار
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                البيع: {{ number_format($warehouse['selling_value'], 0, '.', ',') }} |
+                                الشراء: {{ number_format($warehouse['purchase_value'], 0, '.', ',') }}
+                            </p>
+                        </div>
+                        <div class="p-2 {{ $warehouse['profit'] >= 0 ? 'bg-success/10' : 'bg-danger/10' }} rounded-lg">
+                            <svg class="w-5 h-5 {{ $warehouse['profit'] >= 0 ? 'text-success' : 'text-danger' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         <!-- أكثر المنتجات مبيعاً -->
         @if(isset($topSellingProducts) && $topSellingProducts->count() > 0)
         <div class="panel mb-5">
@@ -241,6 +271,7 @@
                             <th>اسم المنتج</th>
                             <th>الكود</th>
                             <th>عدد القطع المباعة</th>
+                            <th>عدد القطع المتبقية في المخزن</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -250,6 +281,7 @@
                             <td>{{ $product['name'] }}</td>
                             <td>{{ $product['code'] }}</td>
                             <td class="font-semibold text-primary">{{ number_format($product['total_sold'], 0, '.', ',') }} قطعة</td>
+                            <td class="font-semibold text-info">{{ number_format($product['remaining_quantity'] ?? 0, 0, '.', ',') }} قطعة</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -270,6 +302,7 @@
                             <th>اسم المنتج</th>
                             <th>الكود</th>
                             <th>عدد القطع المباعة</th>
+                            <th>عدد القطع المتبقية في المخزن</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -279,6 +312,7 @@
                             <td>{{ $product['name'] }}</td>
                             <td>{{ $product['code'] }}</td>
                             <td class="font-semibold text-warning">{{ number_format($product['total_sold'], 0, '.', ',') }} قطعة</td>
+                            <td class="font-semibold text-info">{{ number_format($product['remaining_quantity'] ?? 0, 0, '.', ',') }} قطعة</td>
                         </tr>
                         @endforeach
                     </tbody>

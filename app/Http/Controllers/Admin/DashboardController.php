@@ -205,6 +205,52 @@ class DashboardController extends Controller
         // حساب الصرفيات حسب الفلاتر
         $totalExpenses = Expense::byDateRange($dateFrom, $dateTo)->sum('amount') ?? 0;
 
+        // حساب أرباح المخازن (سعر البيع الكلي - سعر الشراء الكلي)
+        $warehouseProfits = [];
+        $warehousesQuery = Warehouse::query();
+        if ($request->filled('warehouse_id')) {
+            $warehousesQuery->where('id', $request->warehouse_id);
+        }
+        $filteredWarehouses = $warehousesQuery->get();
+
+        foreach ($filteredWarehouses as $warehouse) {
+            $totalSellingValue = 0;
+            $totalPurchaseValue = 0;
+
+            // جلب المنتجات مع العلاقات
+            $productsQuery = $warehouse->products()->with('sizes');
+            if ($request->filled('product_id')) {
+                $productsQuery->where('id', $request->product_id);
+            }
+            $products = $productsQuery->get();
+
+            foreach ($products as $product) {
+                $quantity = $product->sizes->sum('quantity');
+                if ($quantity > 0) {
+                    // استخدام effective_price (يأخذ في الاعتبار التخفيضات)
+                    $effectivePrice = $product->effective_price;
+                    $totalSellingValue += $effectivePrice * $quantity;
+
+                    if ($product->purchase_price) {
+                        $totalPurchaseValue += $product->purchase_price * $quantity;
+                    }
+                }
+            }
+
+            $warehouseProfit = $totalSellingValue - $totalPurchaseValue;
+
+            $warehouseProfits[] = [
+                'warehouse_id' => $warehouse->id,
+                'warehouse_name' => $warehouse->name,
+                'profit' => (float)$warehouseProfit,
+                'selling_value' => (float)$totalSellingValue,
+                'purchase_value' => (float)$totalPurchaseValue,
+            ];
+        }
+
+        // تحويل إلى collection لضمان الوصول الصحيح في الـ View
+        $warehouseProfits = collect($warehouseProfits);
+
         // حساب عدد قطع المخزن (الكمية الحالية في المخازن)
         $totalWarehousePiecesQuery = ProductSize::query()
             ->join('products', 'product_sizes.product_id', '=', 'products.id')
@@ -362,7 +408,7 @@ class DashboardController extends Controller
 
         $profitsByWarehouseArray = [];
         if ($confirmedOrderIdsForPie->count() > 0) {
-            $warehouseProfits = DB::table('order_items')
+            $warehouseProfitsForChart = DB::table('order_items')
                 ->join('products', 'order_items.product_id', '=', 'products.id')
                 ->whereIn('order_items.order_id', $confirmedOrderIdsForPie)
                 ->whereNotNull('products.purchase_price')
@@ -375,7 +421,7 @@ class DashboardController extends Controller
                 ->groupBy('products.warehouse_id')
                 ->get();
 
-            foreach ($warehouseProfits as $profit) {
+            foreach ($warehouseProfitsForChart as $profit) {
                 $warehouse = Warehouse::find($profit->warehouse_id);
                 $profitsByWarehouseArray[] = [
                     'warehouse_id' => $profit->warehouse_id,
@@ -462,11 +508,16 @@ class DashboardController extends Controller
             ->limit(10)
             ->get()
             ->map(function($item) {
+                // حساب عدد القطع المتبقية في المخزن
+                $product = Product::with('sizes')->find($item->id);
+                $remainingQuantity = $product ? $product->sizes->sum('quantity') : 0;
+
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
                     'total_sold' => (int)$item->total_sold,
+                    'remaining_quantity' => (int)$remainingQuantity,
                 ];
             });
 
@@ -504,11 +555,16 @@ class DashboardController extends Controller
             ->limit(10)
             ->get()
             ->map(function($item) {
+                // حساب عدد القطع المتبقية في المخزن
+                $product = Product::with('sizes')->find($item->id);
+                $remainingQuantity = $product ? $product->sizes->sum('quantity') : 0;
+
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
                     'total_sold' => (int)$item->total_sold,
+                    'remaining_quantity' => (int)$remainingQuantity,
                 ];
             });
 
@@ -525,6 +581,7 @@ class DashboardController extends Controller
             'soldItemsByWarehouse',
             'totalExpenses',
             'totalWarehousePieces',
+            'warehouseProfits',
             'topSellingProducts',
             'leastSellingProducts',
             'lineChartData',
