@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('invoice_products', function (Blueprint $table) {
-            $table->dropColumn('gender_type');
-        });
+        if (Schema::hasColumn('invoice_products', 'gender_type')) {
+            Schema::table('invoice_products', function (Blueprint $table) {
+                $table->dropColumn('gender_type');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('invoice_products', function (Blueprint $table) {
-            $table->enum('gender_type', ['boys', 'girls', 'boys_girls', 'accessories'])->after('price_yuan');
-        });
+        if (!Schema::hasColumn('invoice_products', 'gender_type')) {
+            Schema::table('invoice_products', function (Blueprint $table) {
+                $table->enum('gender_type', ['boys', 'girls', 'boys_girls', 'accessories'])->after('price_yuan');
+            });
+        }
     }
 };
