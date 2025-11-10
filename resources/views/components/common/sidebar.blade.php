@@ -325,6 +325,25 @@
 
 @endif
 
+                <!-- زر تثبيت PWA -->
+                <li class="menu nav-item" id="pwa-install-item" style="display: none;">
+                    <a href="javascript:void(0)" onclick="installPWA()" class="nav-link group" id="pwa-install-button">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5"
+                                    d="M12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C22 4.92893 22 7.28595 22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22Z"
+                                    fill="currentColor" />
+                                <path
+                                    d="M12 16L8 12H11V8H13V12H16L12 16Z"
+                                    fill="currentColor" />
+                            </svg>
+                            <span
+                                class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">تثبيت التطبيق</span>
+                        </div>
+                    </a>
+                </li>
+
                 @if(auth()->user()->isAdmin())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.settings.index') }}" class="nav-link group">
@@ -368,5 +387,84 @@
                 }
             },
         }));
+
+        // PWA Install Button Logic
+        let deferredPrompt = null;
+
+        // Function to install PWA
+        window.installPWA = function() {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    } else {
+                        console.log('User dismissed the install prompt');
+                    }
+                    // Clear the deferredPrompt
+                    deferredPrompt = null;
+                    // Hide the install button
+                    const installButton = document.querySelector('#pwa-install-button');
+                    if (installButton) {
+                        const li = installButton.closest('li');
+                        if (li) {
+                            li.style.display = 'none';
+                        }
+                    }
+                });
+            }
+        };
+
+        // Function to show install button
+        function showInstallButton() {
+            const installButton = document.querySelector('#pwa-install-button');
+            if (installButton) {
+                const li = installButton.closest('li');
+                if (li) {
+                    li.style.display = 'block';
+                }
+            }
+        }
+
+        // Function to hide install button
+        function hideInstallButton() {
+            const installButton = document.querySelector('#pwa-install-button');
+            if (installButton) {
+                const li = installButton.closest('li');
+                if (li) {
+                    li.style.display = 'none';
+                }
+            }
+        }
+
+        // Listen for beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show the install button
+            showInstallButton();
+        });
+
+        // Listen for appinstalled event
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            deferredPrompt = null;
+            hideInstallButton();
+        });
+
+        // Check if app is already installed (standalone mode)
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+            hideInstallButton();
+        }
+
+        // Initialize: hide button by default
+        document.addEventListener('DOMContentLoaded', () => {
+            hideInstallButton();
+        });
     });
 </script>
