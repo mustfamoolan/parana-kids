@@ -326,7 +326,7 @@
 @endif
 
                 <!-- زر تثبيت PWA -->
-                <li class="menu nav-item" id="pwa-install-item" style="display: none;">
+                <li class="menu nav-item" id="pwa-install-item">
                     <a href="javascript:void(0)" onclick="installPWA()" class="nav-link group" id="pwa-install-button">
                         <div class="flex items-center">
                             <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
@@ -366,6 +366,30 @@
             </ul>
         </div>
     </nav>
+
+    <!-- Modal تعليمات التثبيت -->
+    <div x-data="installModal" x-cloak>
+        <div class="fixed inset-0 bg-[black]/60 z-[999] hidden overflow-y-auto" :class="open && '!block'">
+            <div class="flex items-center justify-center min-h-screen px-4" @click.self="open = false">
+                <div x-show="open" x-transition x-transition.duration.300 class="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
+                    <div class="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
+                        <h5 class="font-bold text-lg dark:text-white-light" x-text="title"></h5>
+                        <button type="button" class="text-white-dark hover:text-dark" @click="toggle">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-5">
+                        <div class="dark:text-white-dark/70 text-base font-medium text-[#1f2937]" x-html="instructions"></div>
+                        <div class="flex justify-end items-center mt-8">
+                            <button type="button" class="btn btn-primary" @click="toggle">فهمت</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     document.addEventListener("alpine:init", () => {
@@ -404,40 +428,73 @@
                     } else {
                         console.log('User dismissed the install prompt');
                     }
-                    // Clear the deferredPrompt
+                    // Clear the deferredPrompt (but keep button visible if prompt is available again)
                     deferredPrompt = null;
-                    // Hide the install button
-                    const installButton = document.querySelector('#pwa-install-button');
-                    if (installButton) {
-                        const li = installButton.closest('li');
-                        if (li) {
-                            li.style.display = 'none';
-                        }
-                    }
                 });
+            } else {
+                // If deferredPrompt is not available, show manual install instructions
+                showInstallInstructions();
             }
         };
 
-        // Function to show install button
-        function showInstallButton() {
-            const installButton = document.querySelector('#pwa-install-button');
-            if (installButton) {
-                const li = installButton.closest('li');
-                if (li) {
-                    li.style.display = 'block';
-                }
-            }
-        }
+        // Function to show manual install instructions
+        function showInstallInstructions() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 
-        // Function to hide install button
-        function hideInstallButton() {
-            const installButton = document.querySelector('#pwa-install-button');
-            if (installButton) {
-                const li = installButton.closest('li');
-                if (li) {
-                    li.style.display = 'none';
-                }
+            // Detect device type
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+            const isAndroid = /android/i.test(userAgent);
+            const isDesktop = !isIOS && !isAndroid;
+
+            // Get modal component
+            const modalComponent = window.installModalComponent;
+            if (!modalComponent) {
+                // Wait a bit for Alpine to initialize
+                setTimeout(showInstallInstructions, 100);
+                return;
             }
+
+            // Set instructions based on device type
+            if (isIOS) {
+                modalComponent.title = 'كيفية تثبيت التطبيق على iOS';
+                modalComponent.instructions = `
+                    <div class="space-y-3">
+                        <p class="text-sm">لتثبيت التطبيق على iOS:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right">
+                            <li>اضغط على زر <strong>المشاركة</strong> (Share) في أسفل الشاشة</li>
+                            <li>اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong> (Add to Home Screen)</li>
+                            <li>اضغط على <strong>"إضافة"</strong> (Add) في الزاوية العلوية اليمنى</li>
+                        </ol>
+                    </div>
+                `;
+            } else if (isAndroid) {
+                modalComponent.title = 'كيفية تثبيت التطبيق على Android';
+                modalComponent.instructions = `
+                    <div class="space-y-3">
+                        <p class="text-sm">لتثبيت التطبيق على Android:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right">
+                            <li>اضغط على <strong>قائمة المتصفح</strong> (ثلاث نقاط في الزاوية العلوية اليمنى)</li>
+                            <li>اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong> أو <strong>"تثبيت التطبيق"</strong></li>
+                            <li>اضغط على <strong>"إضافة"</strong> أو <strong>"تثبيت"</strong> للتأكيد</li>
+                        </ol>
+                    </div>
+                `;
+            } else {
+                modalComponent.title = 'كيفية تثبيت التطبيق على الكمبيوتر';
+                modalComponent.instructions = `
+                    <div class="space-y-3">
+                        <p class="text-sm">لتثبيت التطبيق على الكمبيوتر:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right">
+                            <li>ابحث عن أيقونة <strong>التثبيت</strong> في شريط العنوان (بجانب شريط البحث)</li>
+                            <li>أو اضغط على <strong>قائمة المتصفح</strong> → <strong>"تثبيت التطبيق"</strong></li>
+                            <li>اضغط على <strong>"تثبيت"</strong> في النافذة المنبثقة</li>
+                        </ol>
+                    </div>
+                `;
+            }
+
+            // Show modal
+            modalComponent.open = true;
         }
 
         // Listen for beforeinstallprompt event
@@ -446,25 +503,29 @@
             e.preventDefault();
             // Stash the event so it can be triggered later
             deferredPrompt = e;
-            // Show the install button
-            showInstallButton();
         });
 
         // Listen for appinstalled event
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
             deferredPrompt = null;
-            hideInstallButton();
+            // لا نخفي الزر - يبقى ظاهراً دائماً
         });
 
-        // Check if app is already installed (standalone mode)
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-            hideInstallButton();
-        }
+        // Alpine.js Modal Component for Install Instructions
+        Alpine.data("installModal", () => ({
+            open: false,
+            title: 'كيفية تثبيت التطبيق',
+            instructions: '',
 
-        // Initialize: hide button by default
-        document.addEventListener('DOMContentLoaded', () => {
-            hideInstallButton();
-        });
+            toggle() {
+                this.open = !this.open;
+            },
+
+            init() {
+                // Store reference to this component globally
+                window.installModalComponent = this;
+            }
+        }));
     });
 </script>
