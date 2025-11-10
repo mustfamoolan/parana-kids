@@ -414,28 +414,81 @@
 
         // PWA Install Button Logic
         let deferredPrompt = null;
+        let installRetryAttempts = 0;
+        const maxRetryAttempts = 3;
 
         // Function to install PWA
         window.installPWA = function() {
             if (deferredPrompt) {
-                // Show the install prompt
-                deferredPrompt.prompt();
+                try {
+                    // Show the install prompt
+                    deferredPrompt.prompt();
 
-                // Wait for the user to respond to the prompt
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('User accepted the install prompt');
-                    } else {
-                        console.log('User dismissed the install prompt');
+                    // Wait for the user to respond to the prompt
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('User accepted the install prompt');
+                            installRetryAttempts = 0; // Reset retry attempts on success
+                        } else {
+                            console.log('User dismissed the install prompt');
+                        }
+                        // لا نمسح deferredPrompt - نبقيه للاستخدام مرة أخرى
+                        // المتصفح سيعيد إرسال beforeinstallprompt event إذا لزم الأمر
+                    }).catch((error) => {
+                        console.log('Error showing install prompt:', error);
+                        // إذا فشل، نحاول الحصول على event جديد
+                        if (error.message && error.message.includes('already been shown')) {
+                            deferredPrompt = null;
+                            // محاولة إعادة الحصول على event
+                            attemptToGetInstallPrompt();
+                        }
+                    });
+                } catch (error) {
+                    console.log('Error in installPWA:', error);
+                    // إذا حدث خطأ، نحاول الحصول على event جديد
+                    if (error.message && error.message.includes('already been shown')) {
+                        deferredPrompt = null;
+                        // محاولة إعادة الحصول على event
+                        attemptToGetInstallPrompt();
                     }
-                    // Clear the deferredPrompt (but keep button visible if prompt is available again)
-                    deferredPrompt = null;
-                });
+                }
             } else {
-                // If deferredPrompt is not available, show manual install instructions
-                showInstallInstructions();
+                // If deferredPrompt is not available, try to get it
+                console.log('Install prompt not available, attempting to get it...');
+                attemptToGetInstallPrompt();
             }
         };
+
+        // Function to attempt getting install prompt
+        function attemptToGetInstallPrompt() {
+            if (installRetryAttempts < maxRetryAttempts) {
+                installRetryAttempts++;
+                console.log(`Attempting to get install prompt (attempt ${installRetryAttempts}/${maxRetryAttempts})...`);
+
+                // Wait a bit and try again
+                setTimeout(() => {
+                    if (deferredPrompt) {
+                        // If we got the prompt, try installing again
+                        console.log('Install prompt available, retrying installation...');
+                        installRetryAttempts = 0; // Reset attempts
+                        window.installPWA();
+                    } else {
+                        // Continue waiting for the event
+                        if (installRetryAttempts < maxRetryAttempts) {
+                            console.log('Still waiting for beforeinstallprompt event...');
+                            // Try again
+                            attemptToGetInstallPrompt();
+                        } else {
+                            console.log('Max retry attempts reached. Install prompt not available.');
+                            installRetryAttempts = 0; // Reset for next time
+                        }
+                    }
+                }, 2000); // Increased wait time to 2 seconds
+            } else {
+                console.log('Max retry attempts reached. Install prompt not available.');
+                installRetryAttempts = 0; // Reset for next time
+            }
+        }
 
         // Function to show manual install instructions
         function showInstallInstructions() {
@@ -459,36 +512,48 @@
                 modalComponent.title = 'كيفية تثبيت التطبيق على iOS';
                 modalComponent.instructions = `
                     <div class="space-y-3">
-                        <p class="text-sm">لتثبيت التطبيق على iOS:</p>
-                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right">
+                        <p class="text-sm font-semibold mb-2">لتثبيت التطبيق على iOS:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right mb-4">
                             <li>اضغط على زر <strong>المشاركة</strong> (Share) في أسفل الشاشة</li>
                             <li>اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong> (Add to Home Screen)</li>
                             <li>اضغط على <strong>"إضافة"</strong> (Add) في الزاوية العلوية اليمنى</li>
                         </ol>
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                            <p class="text-xs text-blue-700 dark:text-blue-300"><strong>ملاحظة:</strong> إذا لم يظهر خيار "إضافة إلى الشاشة الرئيسية"، تأكد من فتح الموقع في Safari وليس في متصفح آخر.</p>
+                        </div>
                     </div>
                 `;
             } else if (isAndroid) {
                 modalComponent.title = 'كيفية تثبيت التطبيق على Android';
                 modalComponent.instructions = `
                     <div class="space-y-3">
-                        <p class="text-sm">لتثبيت التطبيق على Android:</p>
-                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right">
-                            <li>اضغط على <strong>قائمة المتصفح</strong> (ثلاث نقاط في الزاوية العلوية اليمنى)</li>
-                            <li>اختر <strong>"إضافة إلى الشاشة الرئيسية"</strong> أو <strong>"تثبيت التطبيق"</strong></li>
+                        <p class="text-sm font-semibold mb-2">لتثبيت التطبيق على Android:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right mb-4">
+                            <li>اضغط على <strong>قائمة المتصفح</strong> (ثلاث نقاط ⋮ في الزاوية العلوية اليمنى)</li>
+                            <li>ابحث عن <strong>"إضافة إلى الشاشة الرئيسية"</strong> أو <strong>"تثبيت التطبيق"</strong> أو <strong>"Install app"</strong></li>
+                            <li>إذا لم تجد الخيار، اضغط على <strong>"إعدادات الموقع"</strong> أو <strong>"Site settings"</strong></li>
+                            <li>في صفحة الإعدادات، ابحث عن <strong>"تثبيت التطبيق"</strong> أو <strong>"Install app"</strong></li>
                             <li>اضغط على <strong>"إضافة"</strong> أو <strong>"تثبيت"</strong> للتأكيد</li>
                         </ol>
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                            <p class="text-xs text-blue-700 dark:text-blue-300"><strong>ملاحظة:</strong> إذا لم يظهر خيار التثبيت، قد يكون بسبب وجود تطبيقات أخرى مثبتة. جرب حذف بعض التطبيقات المثبتة أو استخدم Chrome بدلاً من متصفحات أخرى.</p>
+                        </div>
                     </div>
                 `;
             } else {
                 modalComponent.title = 'كيفية تثبيت التطبيق على الكمبيوتر';
                 modalComponent.instructions = `
                     <div class="space-y-3">
-                        <p class="text-sm">لتثبيت التطبيق على الكمبيوتر:</p>
-                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right">
-                            <li>ابحث عن أيقونة <strong>التثبيت</strong> في شريط العنوان (بجانب شريط البحث)</li>
-                            <li>أو اضغط على <strong>قائمة المتصفح</strong> → <strong>"تثبيت التطبيق"</strong></li>
+                        <p class="text-sm font-semibold mb-2">لتثبيت التطبيق على الكمبيوتر:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-sm rtl:text-right mb-4">
+                            <li>ابحث عن أيقونة <strong>التثبيت</strong> (⊕) في شريط العنوان (بجانب شريط البحث)</li>
+                            <li>أو اضغط على <strong>قائمة المتصفح</strong> (ثلاث نقاط ⋮) → <strong>"تثبيت التطبيق"</strong> أو <strong>"Install app"</strong></li>
+                            <li>إذا لم تجد الخيار، اضغط على <strong>"إعدادات"</strong> → <strong>"التطبيقات"</strong> → <strong>"تثبيت التطبيق"</strong></li>
                             <li>اضغط على <strong>"تثبيت"</strong> في النافذة المنبثقة</li>
                         </ol>
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                            <p class="text-xs text-blue-700 dark:text-blue-300"><strong>ملاحظة:</strong> إذا لم يظهر خيار التثبيت، تأكد من استخدام Chrome أو Edge. بعض المتصفحات الأخرى لا تدعم تثبيت التطبيقات.</p>
+                        </div>
                     </div>
                 `;
             }
@@ -497,20 +562,34 @@
             modalComponent.open = true;
         }
 
-        // Listen for beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
+        // Listen for beforeinstallprompt event (multiple listeners for better coverage)
+        function handleBeforeInstallPrompt(e) {
             // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
             // Stash the event so it can be triggered later
+            // إذا كان deferredPrompt موجوداً بالفعل، نستبدله بالجديد
             deferredPrompt = e;
-        });
+            installRetryAttempts = 0; // Reset retry attempts when we get the event
+            console.log('beforeinstallprompt event received');
+        }
+
+        // Add multiple listeners to catch the event
+        // Use { passive: false } because we need preventDefault
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { passive: false });
+        document.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { passive: false });
+
+        // Also listen on window load in case event fires after initial load
+        window.addEventListener('load', () => {
+            // Re-add listener after load
+            window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { passive: false });
+        }, { passive: true });
 
         // Listen for appinstalled event
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
-            deferredPrompt = null;
-            // لا نخفي الزر - يبقى ظاهراً دائماً
-        });
+            // لا نمسح deferredPrompt - نبقيه للسماح بإعادة التثبيت إذا لزم الأمر
+            // المتصفح سيعيد إرسال beforeinstallprompt event إذا لزم الأمر
+        }, { passive: true });
 
         // Alpine.js Modal Component for Install Instructions
         Alpine.data("installModal", () => ({
