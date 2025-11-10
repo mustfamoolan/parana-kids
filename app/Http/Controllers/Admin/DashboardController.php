@@ -8,6 +8,8 @@ use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\Order;
 use App\Models\User;
+use App\Models\Expense;
+use App\Models\ProductSize;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -169,9 +171,6 @@ class DashboardController extends Controller
                 ->sum('subtotal') ?? 0;
         }
 
-        // المبلغ الإجمالي = confirmed + pending
-        $totalAmount = $confirmedTotalAmount + $pendingTotalAmount;
-
         // حساب إجمالي الفروقات من الطلبات المقيدة
         $totalMarginAmount = 0;
         if ($confirmedOrderIds->count() > 0) {
@@ -181,29 +180,8 @@ class DashboardController extends Controller
                 ->sum('profit_margin_at_confirmation') ?? 0;
         }
 
-        // حساب قيمة المخازن مباشرة من البيانات الحالية
-        $profitCalculator = new \App\Services\ProfitCalculator();
-        $totalWarehouseValue = 0;
-
-        // بناء query للمخازن حسب الفلاتر
-        $warehousesQuery = Warehouse::query();
-        if ($request->filled('warehouse_id')) {
-            $warehousesQuery->where('id', $request->warehouse_id);
-        }
-        $filteredWarehouses = $warehousesQuery->get();
-
-        foreach ($filteredWarehouses as $warehouse) {
-            // تطبيق فلتر المنتج إذا كان موجوداً
-            if ($request->filled('product_id')) {
-                $hasProduct = $warehouse->products()->where('id', $request->product_id)->exists();
-                if (!$hasProduct) {
-                    continue;
-                }
-            }
-            $totalWarehouseValue += $profitCalculator->calculateWarehouseValue($warehouse);
-        }
-
         // حساب قيمة المنتجات مباشرة من البيانات الحالية
+        $profitCalculator = new \App\Services\ProfitCalculator();
         $totalProductValue = 0;
         $productsQuery = Product::query();
         if ($request->filled('product_id')) {
@@ -223,6 +201,24 @@ class DashboardController extends Controller
         // 1. Line Chart: الأرباح حسب التاريخ
         $dateFrom = $request->filled('date_from') ? $request->date_from : now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->filled('date_to') ? $request->date_to : now()->format('Y-m-d');
+
+        // حساب الصرفيات حسب الفلاتر
+        $totalExpenses = Expense::byDateRange($dateFrom, $dateTo)->sum('amount') ?? 0;
+
+        // حساب عدد قطع المخزن (الكمية الحالية في المخازن)
+        $totalWarehousePiecesQuery = ProductSize::query()
+            ->join('products', 'product_sizes.product_id', '=', 'products.id')
+            ->whereNotNull('products.warehouse_id');
+
+        // تطبيق الفلاتر
+        if ($request->filled('warehouse_id')) {
+            $totalWarehousePiecesQuery->where('products.warehouse_id', $request->warehouse_id);
+        }
+        if ($request->filled('product_id')) {
+            $totalWarehousePiecesQuery->where('product_sizes.product_id', $request->product_id);
+        }
+
+        $totalWarehousePieces = $totalWarehousePiecesQuery->sum('product_sizes.quantity') ?? 0;
 
         // حساب الأرباح حسب التاريخ من confirmed orders
         $confirmedOrdersByDateQuery = DB::table('orders')
@@ -432,32 +428,89 @@ class DashboardController extends Controller
             'values' => $profitsByDelegate->pluck('value')->toArray(),
         ];
 
-        // 5. Area Chart: قيمة المخازن عبر الزمن
-        // إذا كانت هناك سجلات في profit_records، نستخدمها
-        // وإلا نعرض القيمة الحالية فقط
-        $warehouseValueByDate = (clone $query)
-            ->whereNotNull('warehouse_id')
-            ->whereBetween('record_date', [$dateFrom, $dateTo])
-            ->select(
-                DB::raw('DATE(record_date) as date'),
-                DB::raw('MAX(warehouse_value) as max_value')
-            )
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get();
+        // حساب أكثر المنتجات مبيعاً (أعلى 10) - من الطلبات المقيدة فقط
+        $topSellingProductsQuery = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->where('orders.status', 'confirmed')
+            ->whereNotNull('orders.confirmed_at')
+            ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
 
-        // إذا لم تكن هناك بيانات تاريخية، نعرض القيمة الحالية
-        if ($warehouseValueByDate->isEmpty() && $totalWarehouseValue > 0) {
-            $areaChartData = [
-                'categories' => [now()->format('Y-m-d')],
-                'values' => [(float)$totalWarehouseValue],
-            ];
-        } else {
-            $areaChartData = [
-                'categories' => $warehouseValueByDate->pluck('date')->toArray(),
-                'values' => $warehouseValueByDate->pluck('max_value')->map(fn($v) => (float)$v)->toArray(),
-            ];
+        // تطبيق الفلاتر
+        if ($request->filled('warehouse_id')) {
+            $topSellingProductsQuery->where('products.warehouse_id', $request->warehouse_id);
         }
+        if ($request->filled('product_id')) {
+            $topSellingProductsQuery->where('order_items.product_id', $request->product_id);
+        }
+        if ($request->filled('delegate_id')) {
+            $topSellingProductsQuery->where('orders.delegate_id', $request->delegate_id);
+        }
+        if ($request->filled('confirmed_by')) {
+            $topSellingProductsQuery->where('orders.confirmed_by', $request->confirmed_by);
+        }
+
+        $topSellingProducts = $topSellingProductsQuery
+            ->select(
+                'products.id',
+                'products.name',
+                'products.code',
+                DB::raw('SUM(order_items.quantity) as total_sold')
+            )
+            ->groupBy('products.id', 'products.name', 'products.code')
+            ->orderByDesc('total_sold')
+            ->limit(10)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'code' => $item->code,
+                    'total_sold' => (int)$item->total_sold,
+                ];
+            });
+
+        // حساب الأقل مبيعاً - من الطلبات المقيدة فقط
+        $leastSellingProductsQuery = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->where('orders.status', 'confirmed')
+            ->whereNotNull('orders.confirmed_at')
+            ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
+
+        // تطبيق الفلاتر
+        if ($request->filled('warehouse_id')) {
+            $leastSellingProductsQuery->where('products.warehouse_id', $request->warehouse_id);
+        }
+        if ($request->filled('product_id')) {
+            $leastSellingProductsQuery->where('order_items.product_id', $request->product_id);
+        }
+        if ($request->filled('delegate_id')) {
+            $leastSellingProductsQuery->where('orders.delegate_id', $request->delegate_id);
+        }
+        if ($request->filled('confirmed_by')) {
+            $leastSellingProductsQuery->where('orders.confirmed_by', $request->confirmed_by);
+        }
+
+        $leastSellingProducts = $leastSellingProductsQuery
+            ->select(
+                'products.id',
+                'products.name',
+                'products.code',
+                DB::raw('SUM(order_items.quantity) as total_sold')
+            )
+            ->groupBy('products.id', 'products.name', 'products.code')
+            ->orderBy('total_sold')
+            ->limit(10)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'code' => $item->code,
+                    'total_sold' => (int)$item->total_sold,
+                ];
+            });
 
         return view('admin.reports.index', compact(
             'warehouses',
@@ -466,17 +519,18 @@ class DashboardController extends Controller
             'suppliers',
             'totalActualProfit',
             'totalExpectedProfit',
-            'totalWarehouseValue',
             'totalProductValue',
-            'totalAmount',
             'totalMarginAmount',
             'totalSoldItems',
             'soldItemsByWarehouse',
+            'totalExpenses',
+            'totalWarehousePieces',
+            'topSellingProducts',
+            'leastSellingProducts',
             'lineChartData',
             'columnChartData',
             'pieChartData',
-            'barChartData',
-            'areaChartData'
+            'barChartData'
         ));
     }
 }

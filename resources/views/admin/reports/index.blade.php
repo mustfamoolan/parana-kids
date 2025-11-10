@@ -98,7 +98,7 @@
         </div>
 
         <!-- الكاردات الإحصائية -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
             <!-- الربح الحالي -->
             <div class="panel">
                 <div class="flex items-center justify-between">
@@ -129,21 +129,6 @@
                 </div>
             </div>
 
-            <!-- قيمة المخازن -->
-            <div class="panel">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">قيمة المخازن</h6>
-                        <p class="text-xl font-bold text-info">{{ number_format($totalWarehouseValue, 0, '.', ',') }} دينار</p>
-                    </div>
-                    <div class="p-2 bg-info/10 rounded-lg">
-                        <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
             <!-- قيمة المنتجات -->
             <div class="panel">
                 <div class="flex items-center justify-between">
@@ -159,16 +144,16 @@
                 </div>
             </div>
 
-            <!-- المبلغ الإجمالي -->
+            <!-- الصرفيات -->
             <div class="panel">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">المبلغ الإجمالي</h6>
-                        <p class="text-xl font-bold text-secondary">{{ number_format($totalAmount, 0, '.', ',') }} دينار</p>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الصرفيات</h6>
+                        <p class="text-xl font-bold text-danger">{{ number_format($totalExpenses ?? 0, 0, '.', ',') }} دينار</p>
                     </div>
-                    <div class="p-2 bg-secondary/10 rounded-lg">
-                        <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <div class="p-2 bg-danger/10 rounded-lg">
+                        <svg class="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
                         </svg>
                     </div>
                 </div>
@@ -183,6 +168,21 @@
                     </div>
                     <div class="p-2 bg-primary/10 rounded-lg">
                         <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- عدد قطع المخزن -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">عدد قطع المخزن</h6>
+                        <p class="text-xl font-bold text-info">{{ number_format($totalWarehousePieces ?? 0, 0, '.', ',') }} قطعة</p>
+                    </div>
+                    <div class="p-2 bg-info/10 rounded-lg">
+                        <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
                     </div>
@@ -225,6 +225,64 @@
                     </div>
                 </div>
                 @endforeach
+            </div>
+        </div>
+        @endif
+
+        <!-- أكثر المنتجات مبيعاً -->
+        @if(isset($topSellingProducts) && $topSellingProducts->count() > 0)
+        <div class="panel mb-5">
+            <h5 class="font-semibold text-lg dark:text-white-light mb-4">أكثر المنتجات مبيعاً (أعلى 10)</h5>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>اسم المنتج</th>
+                            <th>الكود</th>
+                            <th>عدد القطع المباعة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($topSellingProducts as $index => $product)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $product['name'] }}</td>
+                            <td>{{ $product['code'] }}</td>
+                            <td class="font-semibold text-primary">{{ number_format($product['total_sold'], 0, '.', ',') }} قطعة</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+
+        <!-- الأقل مبيعاً -->
+        @if(isset($leastSellingProducts) && $leastSellingProducts->count() > 0)
+        <div class="panel mb-5">
+            <h5 class="font-semibold text-lg dark:text-white-light mb-4">الأقل مبيعاً</h5>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>اسم المنتج</th>
+                            <th>الكود</th>
+                            <th>عدد القطع المباعة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($leastSellingProducts as $index => $product)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $product['name'] }}</td>
+                            <td>{{ $product['code'] }}</td>
+                            <td class="font-semibold text-warning">{{ number_format($product['total_sold'], 0, '.', ',') }} قطعة</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
         @endif
