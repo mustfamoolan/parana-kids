@@ -15,7 +15,7 @@
                     <div class="absolute inset-y-0 w-8 from-primary/10 via-transparent to-transparent ltr:-right-10 ltr:bg-gradient-to-r rtl:-left-10 rtl:bg-gradient-to-l xl:w-16 ltr:xl:-right-20 rtl:xl:-left-20"></div>
                     <div class="ltr:xl:-skew-x-[14deg] rtl:xl:skew-x-[14deg]">
                         <a href="/" class="w-48 block lg:w-72 ms-10">
-                            <img src="/assets/images/auth/logo-white.svg" alt="Logo" class="w-full" />
+                            <img src="/assets/images/ParanaKids-removebg-preview.png" alt="المخزن" class="w-full" />
                         </a>
                         <div class="mt-24 hidden w-full max-w-[430px] lg:block">
                             <img src="/assets/images/auth/login.svg" alt="Cover Image" class="w-full" />
@@ -25,7 +25,7 @@
                 <div class="relative flex w-full flex-col items-center justify-center gap-6 px-4 pb-16 pt-6 sm:px-6 lg:max-w-[667px]">
                     <div class="flex w-full max-w-[440px] items-center gap-2 lg:absolute lg:end-6 lg:top-6 lg:max-w-full">
                         <a href="/" class="block w-8 lg:hidden">
-                            <img src="/assets/images/logo.svg" alt="Logo" class="w-full" />
+                            <img src="/assets/images/ParanaKids.png" alt="Logo" class="w-full" />
                         </a>
                         <div class="dropdown ms-auto w-max" x-data="dropdown" @click.outside="open = false">
                             <a href="javascript:;" class="flex items-center gap-2.5 rounded-lg border border-white-dark/30 bg-white px-2 py-1.5 text-white-dark hover:border-primary hover:text-primary dark:bg-black"
@@ -118,7 +118,7 @@
                         </div>
                     </div>
                     <p class="absolute bottom-6 w-full text-center dark:text-white">
-                        © <span id="footer-year">2024</span>. Paraná Kids All Rights Reserved.
+                        © <span id="footer-year">2024</span>. المخزن جميع الحقوق محفوظة.
                     </p>
                 </div>
             </div>

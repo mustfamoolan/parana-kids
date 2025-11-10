@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Models\PrivateWarehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +48,8 @@ class UserController extends Controller
     {
         $this->authorize('create', User::class);
         $warehouses = Warehouse::all();
-        return view('admin.users.create', compact('warehouses'));
+        $privateWarehouses = PrivateWarehouse::all();
+        return view('admin.users.create', compact('warehouses', 'privateWarehouses'));
     }
 
     /**
@@ -61,11 +63,11 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:users,phone',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,supplier,delegate',
+            'role' => 'required|in:admin,supplier,delegate,private_supplier',
         ];
 
-        // كود مطلوب للمجهز والمندوب
-        if (in_array($request->role, ['supplier', 'delegate'])) {
+        // كود مطلوب للمجهز والمندوب والمورد
+        if (in_array($request->role, ['supplier', 'delegate', 'private_supplier'])) {
             $rules['code'] = 'required|string|unique:users,code';
         }
 
@@ -85,9 +87,14 @@ class UserController extends Controller
         DB::transaction(function() use ($validated, $request) {
             $user = User::create($validated);
 
-            // ربط المخازن للموردين والمندوبين
+            // ربط المخازن للمجهزين والمندوبين (ليس للمورد private_supplier)
             if (in_array($request->role, ['supplier', 'delegate']) && $request->filled('warehouses')) {
                 $user->warehouses()->attach($request->warehouses);
+            }
+
+            // ربط المخزن الخاص للموردين (private_supplier)
+            if ($request->role === 'private_supplier' && $request->filled('private_warehouse_id')) {
+                $user->update(['private_warehouse_id' => $request->private_warehouse_id]);
             }
         });
 
@@ -102,7 +109,8 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
         $warehouses = Warehouse::all();
-        return view('admin.users.edit', compact('user', 'warehouses'));
+        $privateWarehouses = PrivateWarehouse::all();
+        return view('admin.users.edit', compact('user', 'warehouses', 'privateWarehouses'));
     }
 
     /**
@@ -115,11 +123,11 @@ class UserController extends Controller
         $rules = [
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:users,phone,' . $user->id,
-            'role' => 'required|in:admin,supplier,delegate',
+            'role' => 'required|in:admin,supplier,delegate,private_supplier',
         ];
 
-        // كود مطلوب للمجهز والمندوب
-        if (in_array($request->role, ['supplier', 'delegate'])) {
+        // كود مطلوب للمجهز والمندوب والمورد
+        if (in_array($request->role, ['supplier', 'delegate', 'private_supplier'])) {
             $rules['code'] = 'required|string|unique:users,code,' . $user->id;
         }
 
@@ -149,9 +157,20 @@ class UserController extends Controller
         DB::transaction(function() use ($user, $validated, $request) {
             $user->update($validated);
 
-            // تحديث المخازن للموردين والمندوبين
+            // تحديث المخازن للمجهزين والمندوبين (ليس للمورد private_supplier)
             if (in_array($request->role, ['supplier', 'delegate'])) {
                 $user->warehouses()->sync($request->warehouses ?? []);
+            } else {
+                // إزالة المخازن إذا لم يكن المستخدم مجهز أو مندوب
+                $user->warehouses()->sync([]);
+            }
+
+            // تحديث المخزن الخاص للموردين (private_supplier)
+            if ($request->role === 'private_supplier') {
+                $user->update(['private_warehouse_id' => $request->private_warehouse_id ?? null]);
+            } else {
+                // إزالة المخزن الخاص إذا لم يكن المستخدم مورد
+                $user->update(['private_warehouse_id' => null]);
             }
         });
 

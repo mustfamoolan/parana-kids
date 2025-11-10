@@ -220,6 +220,19 @@
                 </p>
             </a>
             @endif
+
+            @if(auth()->user()->isAdmin())
+            <!-- المخازن الخاصة -->
+            <a href="{{ route('admin.private-warehouses.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 border-2 border-secondary/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path opacity="0.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" fill="currentColor" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-secondary mb-2">المخازن الخاصة</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن الخاصة والموردين</p>
+            </a>
+            @endif
         </div>
     </div>
 </x-layout.admin>

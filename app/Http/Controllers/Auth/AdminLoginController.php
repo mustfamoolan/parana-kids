@@ -31,11 +31,16 @@ class AdminLoginController extends Controller
                    ->first();
 
         if ($user && Hash::check($password, $user->password)) {
-            // Check if user is admin or supplier
-            if ($user->isAdminOrSupplier()) {
+            // Check if user is admin, supplier, or private_supplier
+            if ($user->isAdmin() || $user->isSupplier() || $user->isPrivateSupplier()) {
                 Auth::login($user);
 
-                // المجهز والمدير يذهبان للداشبورد
+                // إذا كان المستخدم مورداً (private_supplier)، يذهب مباشرة لصفحة الفواتير
+                if ($user->isPrivateSupplier()) {
+                    return redirect()->intended('/admin/invoices');
+                }
+
+                // المجهز (supplier) والمدير يذهبان للداشبورد
                 return redirect()->intended('/admin/dashboard');
             }
         }

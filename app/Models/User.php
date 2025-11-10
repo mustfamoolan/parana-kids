@@ -24,6 +24,7 @@ class User extends Authenticatable
         'code',
         'phone',
         'page_name',
+        'private_warehouse_id',
     ];
 
     /**
@@ -54,9 +55,25 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is supplier
+     * Check if user is supplier (regular supplier, not private supplier)
      */
     public function isSupplier()
+    {
+        return $this->role === 'supplier';
+    }
+
+    /**
+     * Check if user is private supplier (مورد)
+     */
+    public function isPrivateSupplier()
+    {
+        return $this->role === 'private_supplier';
+    }
+
+    /**
+     * Check if user is regular supplier (مجهز) - supplier without private warehouse
+     */
+    public function isRegularSupplier()
     {
         return $this->role === 'supplier';
     }
@@ -70,11 +87,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is admin or supplier
+     * Check if user is admin or supplier (includes both regular and private suppliers)
      */
     public function isAdminOrSupplier()
     {
-        return $this->isAdmin() || $this->isSupplier();
+        return $this->isAdmin() || $this->isSupplier() || $this->isPrivateSupplier();
     }
 
     /**
@@ -136,5 +153,13 @@ class User extends Authenticatable
     public function orders()
     {
         return $this->hasMany(Order::class, 'delegate_id');
+    }
+
+    /**
+     * Get the private warehouse assigned to this user
+     */
+    public function privateWarehouse()
+    {
+        return $this->belongsTo(PrivateWarehouse::class, 'private_warehouse_id');
     }
 }

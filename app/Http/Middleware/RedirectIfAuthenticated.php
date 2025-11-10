@@ -26,8 +26,13 @@ class RedirectIfAuthenticated
                 $user = Auth::guard($guard)->user();
 
                 // المجهز يذهب إلى الداشبورد
-                if ($user && $user->role === 'supplier') {
+                if ($user && $user->isSupplier()) {
                     return redirect()->route('admin.dashboard');
+                }
+
+                // المورد يذهب إلى صفحة الفواتير
+                if ($user && $user->isPrivateSupplier()) {
+                    return redirect()->route('admin.invoices.index');
                 }
 
                 return redirect(RouteServiceProvider::HOME);

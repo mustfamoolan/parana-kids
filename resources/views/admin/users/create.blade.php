@@ -12,7 +12,7 @@
                 alert('يرجى تحديد نوع المستخدم');
                 return false;
             }
-            if ((this.selectedRole === 'supplier' || this.selectedRole === 'delegate') && !document.getElementById('code').value) {
+            if ((this.selectedRole === 'supplier' || this.selectedRole === 'delegate' || this.selectedRole === 'private_supplier') && !document.getElementById('code').value) {
                 alert('يرجى إدخال الكود');
                 return false;
             }
@@ -51,7 +51,7 @@
             <!-- نوع المستخدم -->
             <div class="panel">
                 <h6 class="text-lg font-semibold mb-4">نوع المستخدم</h6>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                            :class="{ 'border-primary bg-primary/5': selectedRole === 'admin' }">
                         <input type="radio" x-model="selectedRole" value="admin" class="form-radio text-primary">
@@ -66,7 +66,16 @@
                         <input type="radio" x-model="selectedRole" value="supplier" class="form-radio text-primary" @change="console.log('Role changed to:', selectedRole)">
                         <div class="mr-3">
                             <div class="font-medium">مجهز</div>
-                            <div class="text-sm text-gray-500">إدارة المخازن</div>
+                            <div class="text-sm text-gray-500">إدارة المخازن العادية</div>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                           :class="{ 'border-primary bg-primary/5': selectedRole === 'private_supplier' }">
+                        <input type="radio" x-model="selectedRole" value="private_supplier" class="form-radio text-primary" @change="console.log('Role changed to:', selectedRole)">
+                        <div class="mr-3">
+                            <div class="font-medium">مورد</div>
+                            <div class="text-sm text-gray-500">إدارة المخزن الخاص والفواتير</div>
                         </div>
                     </label>
 
@@ -113,15 +122,15 @@
                         @enderror
                     </div>
 
-                    <!-- الكود (للمجهز والمندوب فقط) -->
-                    <div x-show="selectedRole === 'supplier' || selectedRole === 'delegate'">
+                    <!-- الكود (للمجهز والمندوب والمورد) -->
+                    <div x-show="selectedRole === 'supplier' || selectedRole === 'delegate' || selectedRole === 'private_supplier'">
                         <label for="code" class="block text-sm font-medium mb-2">الكود <span class="text-red-500">*</span></label>
                         <input type="text" id="code" name="code" value="{{ old('code') }}"
                                class="form-input @error('code') border-red-500 @enderror"
-                               :placeholder="selectedRole === 'supplier' ? 'SUP001' : 'DEL001'"
-                               :required="selectedRole === 'supplier' || selectedRole === 'delegate'">
+                               :placeholder="selectedRole === 'supplier' ? 'SUP001' : (selectedRole === 'private_supplier' ? 'PRV001' : 'DEL001')"
+                               :required="selectedRole === 'supplier' || selectedRole === 'delegate' || selectedRole === 'private_supplier'">
                         <div class="text-sm text-gray-500 mt-1">
-                            مثال: <span x-text="selectedRole === 'supplier' ? 'SUP001' : 'DEL001'"></span>
+                            مثال: <span x-text="selectedRole === 'supplier' ? 'SUP001' : (selectedRole === 'private_supplier' ? 'PRV001' : 'DEL001')"></span>
                         </div>
                         @error('code')
                             <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
@@ -166,7 +175,7 @@
                 </div>
             </div>
 
-            <!-- المخازن (للمجهز والمندوب) -->
+            <!-- المخازن (للمجهز والمندوب فقط - ليس للمورد) -->
             <div class="panel" x-show="selectedRole === 'supplier' || selectedRole === 'delegate'" x-transition>
                 <h6 class="text-lg font-semibold mb-4">المخازن المخصصة</h6>
 
@@ -194,6 +203,45 @@
                 @endif
 
                 @error('warehouses')
+                    <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- المخزن الخاص (للمورد فقط) -->
+            <div class="panel" x-show="selectedRole === 'private_supplier'" x-transition>
+                <h6 class="text-lg font-semibold mb-4">المخزن الخاص</h6>
+                <p class="text-sm text-gray-500 mb-4">اختر المخزن الخاص لهذا المورد. المورد سيستخدم هذا المخزن لإدارة فواتيره.</p>
+
+                @if(isset($privateWarehouses) && $privateWarehouses->count() > 0)
+                    <div>
+                        <label for="private_warehouse_id" class="block text-sm font-medium mb-2">المخزن الخاص</label>
+                        <select id="private_warehouse_id" name="private_warehouse_id" class="form-select">
+                            <option value="">-- اختر المخزن الخاص --</option>
+                            @foreach($privateWarehouses as $privateWarehouse)
+                                <option value="{{ $privateWarehouse->id }}" {{ old('private_warehouse_id') == $privateWarehouse->id ? 'selected' : '' }}>
+                                    {{ $privateWarehouse->name }}
+                                    @if($privateWarehouse->description)
+                                        - {{ Str::limit($privateWarehouse->description, 30) }}
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="text-sm text-gray-500 mt-1">اختياري - يمكن تعيينه لاحقاً</div>
+                    </div>
+                @else
+                    <div class="text-center py-8 text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <p>لا يوجد مخازن خاصة في النظام</p>
+                        <p class="text-sm mb-4">يرجى إنشاء مخزن خاص أولاً</p>
+                        <a href="{{ route('admin.private-warehouses.create') }}" class="btn btn-sm btn-primary">
+                            إنشاء مخزن خاص جديد
+                        </a>
+                    </div>
+                @endif
+
+                @error('private_warehouse_id')
                     <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
                 @enderror
             </div>

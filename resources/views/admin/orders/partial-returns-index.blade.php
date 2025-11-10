@@ -142,11 +142,12 @@
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المندوب</span>
                                 <p class="font-medium">{{ $order->delegate->name }}</p>
+                                @if($order->delivery_code)
                                 <div class="flex items-center gap-2 mt-1">
-                                    <p class="text-sm text-gray-500">كود: {{ $order->delegate->code }}</p>
+                                    <p class="text-sm text-gray-500">كود الوسيط: <span class="font-medium">{{ $order->delivery_code }}</span></p>
                                     <button
                                         type="button"
-                                        onclick="copyDeliveryCode('{{ $order->delegate->code }}', 'delivery')"
+                                        onclick="copyDeliveryCode('{{ $order->delivery_code }}', 'delivery')"
                                         class="btn btn-xs btn-outline-primary flex items-center gap-1"
                                         title="نسخ كود الوسيط"
                                     >
@@ -156,6 +157,7 @@
                                         نسخ
                                     </button>
                                 </div>
+                                @endif
                             </div>
                         </div>
 

@@ -20,6 +20,7 @@ use App\Http\Controllers\Delegate\OrderController as DelegateOrderController;
 use App\Http\Controllers\Admin\ProductLinkController;
 use App\Http\Controllers\Delegate\ProductLinkController as DelegateProductLinkController;
 use App\Http\Controllers\PublicProductController;
+use App\Http\Controllers\Admin\PrivateWarehouseController;
 
 // Redirect root to delegate login
 Route::get('/', function () {
@@ -46,6 +47,18 @@ Route::prefix('admin')->group(function () {
         Route::get('sales-report', [\App\Http\Controllers\Admin\SalesReportController::class, 'index'])->name('admin.sales-report');
         Route::get('sales-report/search-products', [\App\Http\Controllers\Admin\SalesReportController::class, 'searchProducts'])->name('admin.sales-report.search-products');
 
+        // صفحة إنشاء فواتير PDF (للمدير فقط)
+        Route::get('invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'index'])->name('admin.invoices.index');
+        Route::get('invoices/my-invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'myInvoices'])->name('admin.invoices.my-invoices');
+        Route::post('invoices/products', [\App\Http\Controllers\Admin\InvoiceController::class, 'storeProduct'])->name('admin.invoices.products.store');
+        Route::put('invoices/products/{id}', [\App\Http\Controllers\Admin\InvoiceController::class, 'updateProduct'])->name('admin.invoices.products.update');
+        Route::delete('invoices/products/{id}', [\App\Http\Controllers\Admin\InvoiceController::class, 'deleteProduct'])->name('admin.invoices.products.delete');
+        Route::post('invoices/save', [\App\Http\Controllers\Admin\InvoiceController::class, 'saveInvoice'])->name('admin.invoices.save');
+        Route::get('invoices/{id}/edit', [\App\Http\Controllers\Admin\InvoiceController::class, 'edit'])->name('admin.invoices.edit');
+        Route::put('invoices/{id}', [\App\Http\Controllers\Admin\InvoiceController::class, 'update'])->name('admin.invoices.update');
+        Route::delete('invoices/{id}', [\App\Http\Controllers\Admin\InvoiceController::class, 'destroy'])->name('admin.invoices.destroy');
+        Route::get('invoices/{id}/pdf', [\App\Http\Controllers\Admin\InvoiceController::class, 'downloadPdf'])->name('admin.invoices.pdf');
+
         // Settings routes (Admin only)
         Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('admin.settings.index');
         Route::post('settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->name('admin.settings.update');
@@ -61,6 +74,17 @@ Route::prefix('admin')->group(function () {
             'update' => 'admin.expenses.update',
             'destroy' => 'admin.expenses.destroy',
         ])->except(['show']);
+
+        // Private Warehouses routes (Admin only)
+        Route::resource('private-warehouses', PrivateWarehouseController::class)->names([
+            'index' => 'admin.private-warehouses.index',
+            'create' => 'admin.private-warehouses.create',
+            'store' => 'admin.private-warehouses.store',
+            'show' => 'admin.private-warehouses.show',
+            'edit' => 'admin.private-warehouses.edit',
+            'update' => 'admin.private-warehouses.update',
+            'destroy' => 'admin.private-warehouses.destroy',
+        ]);
 
         // Warehouse routes
         Route::resource('warehouses', AdminWarehouseController::class)->names([
@@ -91,6 +115,9 @@ Route::prefix('admin')->group(function () {
             'update' => 'admin.users.update',
             'destroy' => 'admin.users.destroy',
         ]);
+
+        // View supplier invoices (Admin only)
+        Route::get('users/{userId}/invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'viewSupplierInvoices'])->name('admin.users.invoices');
 
         // Product routes
         Route::resource('warehouses.products', AdminProductController::class)->names([

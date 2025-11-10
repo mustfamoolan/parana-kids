@@ -26,6 +26,7 @@
                         <option value="">جميع الأنواع</option>
                         <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>مدير</option>
                         <option value="supplier" {{ request('role') === 'supplier' ? 'selected' : '' }}>مجهز</option>
+                        <option value="private_supplier" {{ request('role') === 'private_supplier' ? 'selected' : '' }}>مورد</option>
                         <option value="delegate" {{ request('role') === 'delegate' ? 'selected' : '' }}>مندوب</option>
                     </select>
                 </div>
@@ -64,6 +65,8 @@
                                             <span class="badge badge-danger text-xs">مدير</span>
                                         @elseif($user->role === 'supplier')
                                             <span class="badge badge-warning text-xs">مجهز</span>
+                                        @elseif($user->role === 'private_supplier')
+                                            <span class="badge badge-success text-xs">مورد</span>
                                         @elseif($user->role === 'delegate')
                                             <span class="badge badge-info text-xs">مندوب</span>
                                         @endif
@@ -115,6 +118,13 @@
                                 </div>
                                 @endif
 
+                                @if($user->isPrivateSupplier() && $user->privateWarehouse)
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">المخزن الخاص:</span>
+                                    <div><span class="badge badge-outline-success">{{ $user->privateWarehouse->name }}</span></div>
+                                </div>
+                                @endif
+
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">تاريخ الإنشاء:</span>
                                     <div class="text-sm">{{ $user->created_at->format('Y-m-d H:i') }}</div>
@@ -122,7 +132,15 @@
                             </div>
 
                             <!-- Actions -->
-                            <div class="flex gap-2 mt-4 pt-4 border-t">
+                            <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                                @if($user->isPrivateSupplier())
+                                    <a href="{{ route('admin.users.invoices', $user->id) }}" class="btn btn-sm btn-info flex-1" title="عرض فواتير المورد">
+                                        <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        فواتير
+                                    </a>
+                                @endif
                                 <a href="{{ route('admin.users.edit', $user) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-warning flex-1">
                                     <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>

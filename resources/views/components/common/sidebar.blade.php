@@ -4,10 +4,10 @@
         <div class="bg-white dark:bg-[#0e1726] h-full">
             <div class="flex justify-between items-center px-4 py-3">
                 <a href="/" class="main-logo flex items-center shrink-0">
-                    <img class="w-8 ml-[5px] flex-none" src="/assets/images/logo.svg"
+                    <img class="w-8 ml-[5px] flex-none" src="/assets/images/ParanaKids.png"
                         alt="image" />
                     <span
-                        class="text-2xl ltr:ml-1.5 rtl:mr-1.5  font-semibold  align-middle lg:inline dark:text-white-light">Paraná Kids</span>
+                        class="text-2xl ltr:ml-1.5 rtl:mr-1.5  font-semibold  align-middle lg:inline dark:text-white-light">المخزن</span>
                 </a>
                 <a href="javascript:;"
                     class="collapse-icon w-8 h-8 rounded-full flex items-center hover:bg-gray-500/10 dark:hover:bg-dark-light/10 dark:text-white-light transition duration-300 rtl:rotate-180"
@@ -23,7 +23,41 @@
             </div>
             <ul class="perfect-scrollbar relative font-semibold space-y-0.5 h-[calc(100vh-80px)] overflow-y-auto overflow-x-hidden  p-4 py-0"
                 x-data="{ activeDropdown: null }">
-                @if(auth()->check() && auth()->user()->isAdminOrSupplier())
+                {{-- القائمة للمورد - فقط صفحتين --}}
+                @if(auth()->check() && auth()->user()->isPrivateSupplier())
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.invoices.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    fill="currentColor" />
+                            </svg>
+                            <span
+                                class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إنشاء فاتورة</span>
+                        </div>
+                    </a>
+                </li>
+
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.invoices.my-invoices') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    fill="currentColor" />
+                            </svg>
+                            <span
+                                class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">الفواتير المحفوظة</span>
+                        </div>
+                    </a>
+                </li>
+                @endif
+
+                {{-- القائمة للمدير والمجهز (ليس للمورد) --}}
+                @if(auth()->check() && auth()->user()->isAdminOrSupplier() && !auth()->user()->isPrivateSupplier())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.dashboard') }}" class="nav-link group">
                         <div class="flex items-center">
@@ -44,6 +78,7 @@
                     </a>
                 </li>
 
+                @if(auth()->user()->isAdmin())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.users.index') }}" class="nav-link group">
                         <div class="flex items-center">
@@ -108,7 +143,28 @@
                 </li>
                 @endif
 
+                @endif
+
                 @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSupplier()))
+                @if(auth()->user()->isAdmin())
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.private-warehouses.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5"
+                                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                    fill="currentColor" />
+                            </svg>
+                            <span
+                                class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">المخازن الخاصة</span>
+                        </div>
+                    </a>
+                </li>
+                @endif
+
+                {{-- المخازن العادية - فقط للمدير والمجهز (ليس للمورد) --}}
+                @if(!auth()->user()->isPrivateSupplier())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.warehouses.index') }}" class="nav-link group">
                         <div class="flex items-center">
@@ -132,6 +188,7 @@
                         </div>
                     </a>
                 </li>
+                @endif
 
                 <li class="menu nav-item">
                     <a href="{{ route('admin.product-movements.index') }}" class="nav-link group">
@@ -268,7 +325,7 @@
 
 @endif
 
-                @if(auth()->check() && auth()->user()->isAdminOrSupplier())
+                @if(auth()->user()->isAdmin())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.settings.index') }}" class="nav-link group">
                         <div class="flex items-center">
