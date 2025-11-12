@@ -25,6 +25,33 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 $user = Auth::guard($guard)->user();
 
+                // فحص إضافي: إذا كان المستخدم مسجل دخول ويحاول الوصول لصفحة تسجيل الدخول
+                // إعادة التوجيه فوراً (حتى لو كان من back button)
+                $currentPath = $request->path();
+                if (str_contains($currentPath, 'admin/login') || str_contains($currentPath, 'delegate/login')) {
+                    // المندوب يذهب إلى الداشبورد
+                    if ($user && $user->isDelegate()) {
+                        return redirect()->route('delegate.dashboard')->with('message', 'أنت مسجل دخول بالفعل');
+                    }
+
+                    // المجهز يذهب إلى الداشبورد
+                    if ($user && $user->isSupplier()) {
+                        return redirect()->route('admin.dashboard')->with('message', 'أنت مسجل دخول بالفعل');
+                    }
+
+                    // المورد يذهب إلى صفحة الفواتير
+                    if ($user && $user->isPrivateSupplier()) {
+                        return redirect()->route('admin.invoices.index')->with('message', 'أنت مسجل دخول بالفعل');
+                    }
+
+                    // المدير يذهب إلى الداشبورد
+                    if ($user && $user->isAdmin()) {
+                        return redirect()->route('admin.dashboard')->with('message', 'أنت مسجل دخول بالفعل');
+                    }
+
+                    return redirect(RouteServiceProvider::HOME);
+                }
+
                 // المندوب يذهب إلى الداشبورد
                 if ($user && $user->isDelegate()) {
                     return redirect()->route('delegate.dashboard');

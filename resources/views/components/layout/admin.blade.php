@@ -167,8 +167,35 @@
         (function() {
             // صفحات تسجيل الدخول التي يجب منع الرجوع إليها
             const loginPages = ['/admin/login', '/delegate/login'];
-            const currentPath = window.location.pathname;
-            const isLoginPage = loginPages.some(page => currentPath.includes(page));
+            let currentPath = window.location.pathname;
+            let isLoginPage = loginPages.some(page => currentPath.includes(page));
+
+            // دالة للتحقق من حالة تسجيل الدخول وإعادة التوجيه إذا لزم الأمر
+            function checkAndRedirect() {
+                currentPath = window.location.pathname;
+                isLoginPage = loginPages.some(page => currentPath.includes(page));
+
+                if (isLoginPage) {
+                    // التحقق من وجود cookies تسجيل الدخول
+                    const hasRememberToken = document.cookie.includes('remember_web_');
+                    const hasSessionCookie = document.cookie.includes('laravel_session');
+
+                    if (hasRememberToken || hasSessionCookie) {
+                        // المستخدم مسجل دخول، إعادة التوجيه إلى الداشبورد
+                        const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
+                            ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
+                            : '/admin/dashboard';
+                        window.location.replace(dashboardUrl);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // فحص فوري عند تحميل الصفحة
+            if (checkAndRedirect()) {
+                return; // إيقاف تنفيذ باقي الكود إذا تم إعادة التوجيه
+            }
 
             // حفظ الصفحة الحالية في localStorage (استثناء صفحات تسجيل الدخول)
             function saveCurrentPage() {
@@ -204,8 +231,7 @@
                     function handlePopState(event) {
                         if (isNavigating) return;
 
-                        const currentUrl = window.location.href;
-                        const currentPath = window.location.pathname;
+                        currentPath = window.location.pathname;
                         const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
 
                         if (isTryingToGoToLogin) {
@@ -228,9 +254,14 @@
 
                     // التحقق من حالة الصفحة عند العودة من back button (للموبايل)
                     window.addEventListener('pageshow', function(event) {
+                        // التحقق من حالة تسجيل الدخول عند إعادة فتح الصفحة
+                        if (checkAndRedirect()) {
+                            return;
+                        }
+
                         if (event.persisted) {
                             // الصفحة تم تحميلها من cache (back button)
-                            const currentPath = window.location.pathname;
+                            currentPath = window.location.pathname;
                             const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
 
                             if (isTryingToGoToLogin) {
@@ -241,8 +272,39 @@
                             }
                         }
                     });
+
+                    // إضافة hashchange event listener كحل احتياطي
+                    window.addEventListener('hashchange', function() {
+                        if (checkAndRedirect()) {
+                            return;
+                        }
+                    });
+
+                    // فحص دوري للتحقق من URL الحالي (كل 2 ثانية)
+                    let lastCheckedPath = currentPath;
+                    setInterval(function() {
+                        currentPath = window.location.pathname;
+                        if (currentPath !== lastCheckedPath) {
+                            lastCheckedPath = currentPath;
+                            if (checkAndRedirect()) {
+                                return;
+                            }
+                        }
+                    }, 2000);
                 }
             }
+
+            // إضافة visibilitychange event listener للتحقق من حالة تسجيل الدخول عند إعادة فتح التطبيق
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    // التطبيق أصبح مرئياً (تم إعادة فتحه)
+                    setTimeout(function() {
+                        if (checkAndRedirect()) {
+                            return;
+                        }
+                    }, 100);
+                }
+            });
         })();
     </script>
 

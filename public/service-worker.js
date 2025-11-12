@@ -5,11 +5,8 @@ importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox
 const CACHE_NAME = 'parana-kids-v1';
 
 // Precaching - Cache critical assets on install
+// ملاحظة: لا نضيف صفحات تسجيل الدخول إلى precache
 workbox.precaching.precacheAndRoute([
-  {
-    url: '/',
-    revision: null
-  },
   {
     url: '/assets/css/fonts.css',
     revision: null
