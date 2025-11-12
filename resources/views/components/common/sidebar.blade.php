@@ -3,12 +3,12 @@
         class="sidebar fixed min-h-screen h-full top-0 bottom-0 w-[260px] shadow-[5px_0_25px_0_rgba(94,92,154,0.1)] z-50 transition-all duration-300">
         <div class="bg-white dark:bg-[#0e1726] h-full">
             <div class="flex justify-between items-center px-4 py-3">
-                <a href="/" class="main-logo flex items-center shrink-0">
+                <div class="main-logo flex items-center shrink-0">
                     <img class="w-8 ml-[5px] flex-none" src="/assets/images/ParanaKids.png"
                         alt="image" />
                     <span
                         class="text-2xl ltr:ml-1.5 rtl:mr-1.5  font-semibold  align-middle lg:inline dark:text-white-light">المخزن</span>
-                </a>
+                </div>
                 <a href="javascript:;"
                     class="collapse-icon w-8 h-8 rounded-full flex items-center hover:bg-gray-500/10 dark:hover:bg-dark-light/10 dark:text-white-light transition duration-300 rtl:rotate-180"
                     @click="$store.app.toggleSidebar()">
@@ -344,7 +344,69 @@
                     </a>
                 </li>
 
-                @if(auth()->user()->isAdmin())
+                <!-- زر تسجيل الدخول/الخروج -->
+                @if(auth()->check())
+                    @if(auth()->user()->isAdmin() || auth()->user()->isSupplier() || auth()->user()->isPrivateSupplier())
+                        <li class="menu nav-item">
+                            <form method="POST" action="{{ route('admin.logout') }}" class="inline w-full">
+                                @csrf
+                                <button type="submit" class="nav-link group w-full text-left">
+                                    <div class="flex items-center">
+                                        <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                            fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path opacity="0.5"
+                                                d="M17 9.00195C19.175 9.01406 20.3529 9.11051 21.1213 9.8789C22 10.7576 22 12.1718 22 15.0002V16.0002C22 18.8286 22 20.2429 21.1213 21.1215C20.2426 22.0002 18.8284 22.0002 16 22.0002H8C5.17157 22.0002 3.75736 22.0002 2.87868 21.1215C2 20.2429 2 18.8286 2 16.0002L2 15.0002C2 12.1718 2 10.7576 2.87868 9.87889C3.64706 9.11051 4.82497 9.01406 7 9.00195"
+                                                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                            <path d="M12 15L12 2M12 2L15 5.5M12 2L9 5.5" stroke="currentColor"
+                                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span
+                                            class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">تسجيل الخروج</span>
+                                    </div>
+                                </button>
+                            </form>
+                        </li>
+                    @elseif(auth()->user()->isDelegate())
+                        <li class="menu nav-item">
+                            <form method="POST" action="{{ route('delegate.logout') }}" class="inline w-full">
+                                @csrf
+                                <button type="submit" class="nav-link group w-full text-left">
+                                    <div class="flex items-center">
+                                        <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                            fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path opacity="0.5"
+                                                d="M17 9.00195C19.175 9.01406 20.3529 9.11051 21.1213 9.8789C22 10.7576 22 12.1718 22 15.0002V16.0002C22 18.8286 22 20.2429 21.1213 21.1215C20.2426 22.0002 18.8284 22.0002 16 22.0002H8C5.17157 22.0002 3.75736 22.0002 2.87868 21.1215C2 20.2429 2 18.8286 2 16.0002L2 15.0002C2 12.1718 2 10.7576 2.87868 9.87889C3.64706 9.11051 4.82497 9.01406 7 9.00195"
+                                                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                            <path d="M12 15L12 2M12 2L15 5.5M12 2L9 5.5" stroke="currentColor"
+                                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span
+                                            class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">تسجيل الخروج</span>
+                                    </div>
+                                </button>
+                            </form>
+                        </li>
+                    @endif
+                @else
+                    <li class="menu nav-item">
+                        <a href="{{ request()->is('admin/*') ? route('admin.login') : route('delegate.login') }}" class="nav-link group">
+                            <div class="flex items-center">
+                                <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path opacity="0.5"
+                                        d="M17 9.00195C19.175 9.01406 20.3529 9.11051 21.1213 9.8789C22 10.7576 22 12.1718 22 15.0002V16.0002C22 18.8286 22 20.2429 21.1213 21.1215C20.2426 22.0002 18.8284 22.0002 16 22.0002H8C5.17157 22.0002 3.75736 22.0002 2.87868 21.1215C2 20.2429 2 18.8286 2 16.0002L2 15.0002C2 12.1718 2 10.7576 2.87868 9.87889C3.64706 9.11051 4.82497 9.01406 7 9.00195"
+                                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                    <path d="M12 15L12 2M12 2L15 5.5M12 2L9 5.5" stroke="currentColor"
+                                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span
+                                    class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">تسجيل الدخول</span>
+                            </div>
+                        </a>
+                    </li>
+                @endif
+
+                @if(auth()->check() && auth()->user()->isAdmin())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.settings.index') }}" class="nav-link group">
                         <div class="flex items-center">

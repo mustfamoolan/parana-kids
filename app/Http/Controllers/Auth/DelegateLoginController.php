@@ -31,7 +31,8 @@ class DelegateLoginController extends Controller
         if ($user && Hash::check($password, $user->password)) {
             // Check if user is delegate
             if ($user->isDelegate()) {
-                Auth::login($user);
+                // تفعيل Remember Me لحفظ حالة تسجيل الدخول في PWA
+                Auth::login($user, true);
                 return redirect()->intended('/delegate/dashboard');
             }
         }

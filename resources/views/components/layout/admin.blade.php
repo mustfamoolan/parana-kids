@@ -106,8 +106,16 @@
         <x-common.sidebar />
 
         <div class="main-content flex flex-col min-h-screen">
-            <!-- Admin Header -->
-            <x-common.header />
+            <!-- Mobile Sidebar Toggle Button -->
+            <button type="button"
+                class="fixed top-4 ltr:left-4 rtl:right-4 z-50 lg:hidden p-2 rounded-full bg-white dark:bg-[#0e1726] shadow-lg hover:bg-white-light/90 dark:hover:bg-dark/60 dark:text-[#d0d2d6] hover:text-primary dark:hover:text-primary transition-all"
+                @click="$store.app.toggleSidebar()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 7L4 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path opacity="0.5" d="M20 12L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M20 17L4 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </button>
 
             <div class="dvanimation p-6 animate__animated" :class="[$store.app.animation]">
                 {{ $slot }}
@@ -152,6 +160,61 @@
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
         }, { passive: true });
+    </script>
+
+    <!-- PWA: حفظ الصفحة الحالية ومنع الرجوع إلى صفحة تسجيل الدخول -->
+    <script>
+        (function() {
+            // صفحات تسجيل الدخول التي يجب منع الرجوع إليها
+            const loginPages = ['/admin/login', '/delegate/login'];
+            const currentPath = window.location.pathname;
+            const isLoginPage = loginPages.some(page => currentPath.includes(page));
+
+            // حفظ الصفحة الحالية في localStorage (استثناء صفحات تسجيل الدخول)
+            function saveCurrentPage() {
+                if (!isLoginPage && typeof Storage !== 'undefined') {
+                    // حفظ URL الحالي
+                    localStorage.setItem('pwa_last_page', window.location.href);
+                    localStorage.setItem('pwa_last_path', window.location.pathname);
+                }
+            }
+
+            // حفظ الصفحة عند تحميل الصفحة
+            saveCurrentPage();
+
+            // حفظ الصفحة عند تغيير الصفحة (للتنقل داخل التطبيق)
+            window.addEventListener('beforeunload', saveCurrentPage);
+
+            // منع الرجوع إلى صفحة تسجيل الدخول إذا كان المستخدم مسجل دخول
+            if (!isLoginPage) {
+                // إضافة صفحة افتراضية في history لمنع الرجوع إلى صفحة تسجيل الدخول
+                if (window.history && window.history.pushState) {
+                    // إضافة صفحة افتراضية في history
+                    window.history.pushState({ preventBack: true }, null, window.location.href);
+
+                    // منع الرجوع إلى صفحة تسجيل الدخول
+                    let isNavigating = false;
+                    window.addEventListener('popstate', function(event) {
+                        if (isNavigating) return;
+
+                        const currentUrl = window.location.href;
+                        const isTryingToGoToLogin = loginPages.some(page => currentUrl.includes(page));
+
+                        if (isTryingToGoToLogin) {
+                            isNavigating = true;
+                            // إعادة توجيه إلى الداشبورد
+                            const dashboardUrl = currentPath.includes('/admin/')
+                                ? '/admin/dashboard'
+                                : '/delegate/dashboard';
+                            window.location.replace(dashboardUrl);
+                        } else if (event.state && event.state.preventBack) {
+                            // إعادة إضافة الصفحة في history
+                            window.history.pushState({ preventBack: true }, null, window.location.href);
+                        }
+                    });
+                }
+            }
+        })();
     </script>
 </body>
 

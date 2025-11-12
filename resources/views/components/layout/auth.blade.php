@@ -128,6 +128,34 @@
             console.log('PWA was installed');
         }, { passive: true });
     </script>
+
+    <!-- PWA: العودة إلى آخر صفحة محفوظة بعد تسجيل الدخول -->
+    <script>
+        (function() {
+            // التحقق من وجود آخر صفحة محفوظة بعد تسجيل الدخول الناجح
+            if (typeof Storage !== 'undefined') {
+                // الانتظار قليلاً للتأكد من اكتمال تسجيل الدخول
+                setTimeout(function() {
+                    const lastPage = localStorage.getItem('pwa_last_page');
+                    const lastPath = localStorage.getItem('pwa_last_path');
+                    const currentPath = window.location.pathname;
+
+                    // إذا كان هناك صفحة محفوظة وليست صفحة تسجيل الدخول، والآن نحن في الداشبورد
+                    if (lastPage && lastPath) {
+                        const loginPages = ['/admin/login', '/delegate/login'];
+                        const isLastPageLogin = loginPages.some(page => lastPath.includes(page));
+                        const isCurrentDashboard = currentPath.includes('/dashboard');
+
+                        // إذا كانت آخر صفحة ليست صفحة تسجيل الدخول ونحن في الداشبورد، الانتقال إليها
+                        if (!isLastPageLogin && isCurrentDashboard) {
+                            // الانتقال إلى آخر صفحة محفوظة
+                            window.location.href = lastPage;
+                        }
+                    }
+                }, 500);
+            }
+        })();
+    </script>
     </body>
 
     </html>

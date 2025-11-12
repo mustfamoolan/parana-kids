@@ -20,11 +20,15 @@ class PublicProductController extends Controller
             abort(404, 'الرابط غير موجود أو تم حذفه');
         }
 
-        // Base query: منتجات المخزن المحدد (أو كل المخازن إذا كان null)
+        // Base query: منتجات المخزن المحدد (أو المخازن المخصصة للمندوب إذا كان null)
         $productsQuery = Product::with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
 
         if ($productLink->warehouse_id) {
             $productsQuery->where('warehouse_id', $productLink->warehouse_id);
+        } else {
+            // إذا لم يكن هناك مخزن محدد، عرض المنتجات من المخازن المخصصة للمندوب الذي أنشأ الرابط فقط
+            $userWarehouseIds = $productLink->creator->warehouses()->pluck('warehouse_id');
+            $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
         }
 
         // فلتر النوع (مع دعم boys_girls)

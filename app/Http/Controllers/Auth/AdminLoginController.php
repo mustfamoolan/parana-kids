@@ -33,7 +33,8 @@ class AdminLoginController extends Controller
         if ($user && Hash::check($password, $user->password)) {
             // Check if user is admin, supplier, or private_supplier
             if ($user->isAdmin() || $user->isSupplier() || $user->isPrivateSupplier()) {
-                Auth::login($user);
+                // تفعيل Remember Me لحفظ حالة تسجيل الدخول في PWA
+                Auth::login($user, true);
 
                 // إذا كان المستخدم مورداً (private_supplier)، يذهب مباشرة لصفحة الفواتير
                 if ($user->isPrivateSupplier()) {

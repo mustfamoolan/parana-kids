@@ -30,8 +30,8 @@ class ProductLinkController extends Controller
      */
     public function create()
     {
-        // جلب جميع المخازن للمندوب
-        $warehouses = Warehouse::all();
+        // جلب المخازن المخصصة للمندوب فقط
+        $warehouses = Auth::user()->warehouses;
 
         return view('delegate.product-links.create', compact('warehouses'));
     }
@@ -46,6 +46,11 @@ class ProductLinkController extends Controller
             'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'size_name' => 'nullable|string|max:50',
         ]);
+
+        // التحقق من أن المندوب لديه صلاحية الوصول للمخزن المحدد
+        if ($request->warehouse_id && !Auth::user()->canAccessWarehouse($request->warehouse_id)) {
+            return back()->withErrors(['warehouse_id' => 'ليس لديك صلاحية للوصول إلى هذا المخزن']);
+        }
 
         $productLink = ProductLink::create([
             'warehouse_id' => $request->warehouse_id ?: null,
@@ -86,14 +91,28 @@ class ProductLinkController extends Controller
             'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
         ]);
 
+        // التحقق من أن المندوب لديه صلاحية الوصول للمخزن المحدد
+        if ($request->warehouse_id && !Auth::user()->canAccessWarehouse($request->warehouse_id)) {
+            return response()->json([
+                'error' => 'ليس لديك صلاحية للوصول إلى هذا المخزن'
+            ], 403);
+        }
+
         // جلب المنتجات
         $productsQuery = Product::whereHas('sizes', function($q) {
             $q->where('quantity', '>', 0);
         });
 
+        // الحصول على معرفات المخازن المصرح بها للمندوب
+        $userWarehouseIds = Auth::user()->warehouses()->pluck('warehouse_id');
+
         // فلتر حسب المخزن (إذا كان محدداً)
         if ($request->warehouse_id) {
+            // التحقق تم بالفعل في بداية الدالة، يمكننا المتابعة مباشرة
             $productsQuery->where('warehouse_id', $request->warehouse_id);
+        } else {
+            // إذا لم يكن هناك مخزن محدد، عرض المنتجات من المخازن المخصصة للمندوب فقط
+            $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
         }
 
         // فلتر حسب النوع (مع دعم boys_girls)
