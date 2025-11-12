@@ -32,8 +32,8 @@ Route::get('/p/{token}', [PublicProductController::class, 'show'])->name('public
 
 // Admin/Supplier Authentication Routes
 Route::prefix('admin')->group(function () {
-    Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->name('admin.login');
-    Route::post('/login', [AdminLoginController::class, 'login']);
+    Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->middleware('guest')->name('admin.login');
+    Route::post('/login', [AdminLoginController::class, 'login'])->middleware('guest');
     Route::post('/logout', [AdminLoginController::class, 'logout'])->name('admin.logout');
 
     // Protected admin routes
@@ -220,8 +220,8 @@ Route::prefix('admin')->group(function () {
 
 // Delegate Authentication Routes
 Route::prefix('delegate')->group(function () {
-    Route::get('/login', [DelegateLoginController::class, 'showLoginForm'])->name('delegate.login');
-    Route::post('/login', [DelegateLoginController::class, 'login']);
+    Route::get('/login', [DelegateLoginController::class, 'showLoginForm'])->middleware('guest')->name('delegate.login');
+    Route::post('/login', [DelegateLoginController::class, 'login'])->middleware('guest');
     Route::post('/logout', [DelegateLoginController::class, 'logout'])->name('delegate.logout');
 
     // Protected delegate routes
@@ -403,6 +403,17 @@ Route::view('/auth/cover-login', 'auth.cover-login');
 Route::view('/auth/cover-register', 'auth.cover-register');
 Route::view('/auth/cover-lockscreen', 'auth.cover-lockscreen');
 Route::view('/auth/cover-password-reset', 'auth.cover-password-reset');
+
+// Route للتحقق من حالة تسجيل الدخول في PWA
+Route::get('/api/check-auth', function () {
+    return response()->json([
+        'authenticated' => auth()->check(),
+        'user' => auth()->check() ? [
+            'id' => auth()->user()->id,
+            'name' => auth()->user()->name,
+        ] : null,
+    ]);
+})->middleware('web');
 
 // Handle missing or empty Nunito font files - return 204 (No Content) to prevent timeout
 Route::get('/assets/fonts/nunito/{filename}', function ($filename) {

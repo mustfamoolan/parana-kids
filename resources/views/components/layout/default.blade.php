@@ -185,31 +185,108 @@
 
             // منع الرجوع إلى صفحة تسجيل الدخول إذا كان المستخدم مسجل دخول
             if (!isLoginPage) {
+                // إزالة صفحة تسجيل الدخول من history إذا كانت موجودة
+                if (window.history && window.history.replaceState) {
+                    // استخدام replaceState لإزالة صفحة تسجيل الدخول من history
+                    window.history.replaceState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
+                }
+
                 // إضافة صفحة افتراضية في history لمنع الرجوع إلى صفحة تسجيل الدخول
                 if (window.history && window.history.pushState) {
                     // إضافة صفحة افتراضية في history
-                    window.history.pushState({ preventBack: true }, null, window.location.href);
+                    window.history.pushState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
 
                     // منع الرجوع إلى صفحة تسجيل الدخول
                     let isNavigating = false;
-                    window.addEventListener('popstate', function(event) {
+
+                    function handlePopState(event) {
                         if (isNavigating) return;
 
                         const currentUrl = window.location.href;
-                        const isTryingToGoToLogin = loginPages.some(page => currentUrl.includes(page));
+                        const currentPath = window.location.pathname;
+                        const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
 
                         if (isTryingToGoToLogin) {
                             isNavigating = true;
                             // إعادة توجيه إلى الداشبورد
-                            const dashboardUrl = currentPath.includes('/admin/')
-                                ? '/admin/dashboard'
+                            const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
+                                ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
                                 : '/delegate/dashboard';
                             window.location.replace(dashboardUrl);
-                        } else if (event.state && event.state.preventBack) {
-                            // إعادة إضافة الصفحة في history
-                            window.history.pushState({ preventBack: true }, null, window.location.href);
+                            return;
+                        }
+
+                        // إعادة إضافة الصفحة في history لمنع الرجوع
+                        if (event.state && event.state.preventBack) {
+                            window.history.pushState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
+                        }
+                    }
+
+                    window.addEventListener('popstate', handlePopState);
+
+                    // التحقق من حالة الصفحة عند العودة من back button (للموبايل)
+                    window.addEventListener('pageshow', function(event) {
+                        if (event.persisted) {
+                            // الصفحة تم تحميلها من cache (back button)
+                            const currentPath = window.location.pathname;
+                            const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
+
+                            if (isTryingToGoToLogin) {
+                                const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
+                                    ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
+                                    : '/delegate/dashboard';
+                                window.location.replace(dashboardUrl);
+                            }
                         }
                     });
+                }
+            }
+        })();
+    </script>
+
+    <!-- PWA: التحقق من حالة تسجيل الدخول عند تحميل الصفحة -->
+    <script>
+        (function() {
+            // التحقق من حالة تسجيل الدخول عند تحميل الصفحة
+            // هذا يساعد في PWA لضمان بقاء المستخدم مسجل دخول
+            if (typeof Storage !== 'undefined') {
+                // التحقق من وجود remember token في cookies
+                const hasRememberToken = document.cookie.includes('remember_web_');
+                const hasSessionCookie = document.cookie.includes('laravel_session');
+
+                // إذا كان هناك remember token أو session cookie، المستخدم يجب أن يكون مسجل دخول
+                // إذا لم يكن كذلك، قد تكون هناك مشكلة في الـ cache
+                if (hasRememberToken || hasSessionCookie) {
+                    // محاولة تحديث الصفحة للحصول على حالة تسجيل الدخول الصحيحة
+                    // لكن فقط إذا لم نكن في صفحة تسجيل الدخول
+                    const currentPath = window.location.pathname;
+                    const isLoginPage = currentPath.includes('/admin/login') || currentPath.includes('/delegate/login');
+
+                    if (!isLoginPage) {
+                        // التحقق من حالة تسجيل الدخول عبر AJAX
+                        // هذا يساعد في تحديث حالة تسجيل الدخول في PWA
+                        fetch('/api/check-auth', {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            }
+                        }).then(response => {
+                            if (response.ok) {
+                                return response.json();
+                            }
+                        }).then(data => {
+                            // إذا كان المستخدم غير مسجل دخول رغم وجود cookies، قد تكون هناك مشكلة
+                            // لكن لا نفعل شيء تلقائياً لأن Laravel middleware سيتعامل مع هذا
+                            if (data && !data.authenticated && (hasRememberToken || hasSessionCookie)) {
+                                // قد تكون هناك مشكلة في الـ cache، لكن لا نفعل شيء تلقائياً
+                                // Laravel middleware سيتعامل مع هذا عند محاولة الوصول لصفحة محمية
+                            }
+                        }).catch(() => {
+                            // إذا فشل الطلب، لا نفعل شيء
+                        });
+                    }
                 }
             }
         })();

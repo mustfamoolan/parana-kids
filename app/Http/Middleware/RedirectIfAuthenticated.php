@@ -25,6 +25,11 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 $user = Auth::guard($guard)->user();
 
+                // المندوب يذهب إلى الداشبورد
+                if ($user && $user->isDelegate()) {
+                    return redirect()->route('delegate.dashboard');
+                }
+
                 // المجهز يذهب إلى الداشبورد
                 if ($user && $user->isSupplier()) {
                     return redirect()->route('admin.dashboard');
@@ -33,6 +38,11 @@ class RedirectIfAuthenticated
                 // المورد يذهب إلى صفحة الفواتير
                 if ($user && $user->isPrivateSupplier()) {
                     return redirect()->route('admin.invoices.index');
+                }
+
+                // المدير يذهب إلى الداشبورد
+                if ($user && $user->isAdmin()) {
+                    return redirect()->route('admin.dashboard');
                 }
 
                 return redirect(RouteServiceProvider::HOME);

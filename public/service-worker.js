@@ -32,15 +32,30 @@ workbox.precaching.precacheAndRoute([
   }
 ]);
 
-// Cache strategy: Network First, then Cache for HTML pages
+// استثناء صفحات تسجيل الدخول من cache - استخدام NetworkOnly
 workbox.routing.registerRoute(
-  ({request}) => request.destination === 'document',
+  ({request, url}) => {
+    const pathname = new URL(url).pathname;
+    return request.destination === 'document' &&
+           (pathname.includes('/admin/login') || pathname.includes('/delegate/login'));
+  },
+  new workbox.strategies.NetworkOnly()
+);
+
+// Cache strategy: Network First, then Cache for HTML pages (باستثناء صفحات تسجيل الدخول)
+workbox.routing.registerRoute(
+  ({request, url}) => {
+    const pathname = new URL(url).pathname;
+    return request.destination === 'document' &&
+           !pathname.includes('/admin/login') &&
+           !pathname.includes('/delegate/login');
+  },
   new workbox.strategies.NetworkFirst({
     cacheName: CACHE_NAME,
     plugins: [
       {
         cacheableResponse: {
-          statuses: [0, 200],
+          statuses: [200],
         },
       },
     ],
