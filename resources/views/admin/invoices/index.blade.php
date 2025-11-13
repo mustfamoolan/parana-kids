@@ -1637,16 +1637,30 @@
 
         // حفظ الفاتورة
         document.getElementById('saveInvoiceBtn').addEventListener('click', async function() {
+            // Validation على الجانب العميل قبل الإرسال
             if (invoiceItems.length === 0) {
-                alert('الفاتورة فارغة');
+                alert('الفاتورة فارغة. يرجى إضافة منتجات أولاً.');
                 return;
             }
 
-            const items = invoiceItems.map(item => ({
-                product_id: parseInt(item.product_id),
-                size: item.size || null,
-                quantity: parseInt(item.quantity)
-            }));
+            const items = invoiceItems.map((item, index) => {
+                const productId = parseInt(item.product_id);
+                const quantity = parseInt(item.quantity);
+
+                // التحقق من صحة البيانات
+                if (isNaN(productId) || productId <= 0) {
+                    throw new Error(`المنتج في العنصر #${index + 1} غير صحيح`);
+                }
+                if (isNaN(quantity) || quantity <= 0) {
+                    throw new Error(`الكمية في العنصر #${index + 1} غير صحيحة`);
+                }
+
+                return {
+                    product_id: productId,
+                    size: item.size || null,
+                    quantity: quantity
+                };
+            });
 
             // الحصول على private_warehouse_id من URL إذا كان موجود
             const urlParams = new URLSearchParams(window.location.search);
@@ -1654,7 +1668,10 @@
 
             const requestData = { items };
             if (privateWarehouseId) {
-                requestData.private_warehouse_id = privateWarehouseId;
+                const warehouseId = parseInt(privateWarehouseId);
+                if (!isNaN(warehouseId) && warehouseId > 0) {
+                    requestData.private_warehouse_id = warehouseId;
+                }
             }
 
             try {
@@ -1703,13 +1720,22 @@
                     // الاستجابة ليست JSON، قراءة النص
                     const text = await response.text();
                     console.error('Non-JSON response:', text);
-                    alert('حدث خطأ في الخادم. يرجى التحقق من البيانات وإعادة المحاولة.');
+                    console.error('Response status:', response.status);
+                    console.error('Response headers:', response.headers);
+                    alert('حدث خطأ في الخادم. يرجى التحقق من البيانات وإعادة المحاولة.\n\nكود الخطأ: ' + response.status);
                     return;
                 }
 
                 // التحقق من نجاح الطلب
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: 'حدث خطأ غير معروف' }));
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        console.error('Error parsing JSON response:', e);
+                        errorData = { message: 'حدث خطأ غير معروف' };
+                    }
+
                     let errorMessage = isEditMode ? 'حدث خطأ أثناء تحديث الفاتورة' : 'حدث خطأ أثناء حفظ الفاتورة';
 
                     if (response.status === 422 && errorData.errors) {
@@ -1718,13 +1744,29 @@
                         errorMessage = 'خطأ في البيانات:\n' + validationErrors;
                     } else if (errorData.message) {
                         errorMessage = errorData.message;
+                    } else if (errorData.error) {
+                        errorMessage = errorData.error;
                     }
+
+                    console.error('Invoice save/update error:', {
+                        status: response.status,
+                        errorData: errorData,
+                        requestData: requestData
+                    });
 
                     alert(errorMessage);
                     return;
                 }
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    console.error('Error parsing success response:', e);
+                    alert('حدث خطأ أثناء معالجة الاستجابة من الخادم');
+                    return;
+                }
+
                 if (data.success) {
                     savedInvoiceId = data.invoice.id;
                     alert(isEditMode ? 'تم تحديث الفاتورة بنجاح' : 'تم حفظ الفاتورة بنجاح');
@@ -1736,11 +1778,18 @@
                         window.location.href = '{{ route("admin.invoices.my-invoices") }}';
                     }
                 } else {
-                    alert((isEditMode ? 'حدث خطأ أثناء تحديث الفاتورة: ' : 'حدث خطأ أثناء حفظ الفاتورة: ') + (data.message || ''));
+                    const errorMsg = data.message || 'حدث خطأ غير معروف';
+                    console.error('Invoice save/update failed:', data);
+                    alert((isEditMode ? 'حدث خطأ أثناء تحديث الفاتورة: ' : 'حدث خطأ أثناء حفظ الفاتورة: ') + errorMsg);
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert((isEditMode ? 'حدث خطأ أثناء تحديث الفاتورة: ' : 'حدث خطأ أثناء حفظ الفاتورة: ') + (error.message || ''));
+                console.error('Invoice save/update exception:', {
+                    error: error,
+                    message: error.message,
+                    stack: error.stack,
+                    requestData: requestData
+                });
+                alert((isEditMode ? 'حدث خطأ أثناء تحديث الفاتورة: ' : 'حدث خطأ أثناء حفظ الفاتورة: ') + (error.message || 'حدث خطأ غير متوقع'));
             }
         });
 

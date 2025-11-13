@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
@@ -206,13 +207,25 @@ class InvoiceController extends Controller
      */
     public function saveInvoice(Request $request)
     {
-        $request->validate([
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:invoice_products,id',
-            'items.*.size' => 'nullable|string',
-            'items.*.quantity' => 'required|integer|min:1',
-            'private_warehouse_id' => 'nullable|exists:private_warehouses,id',
-        ]);
+        try {
+            $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|exists:invoice_products,id',
+                'items.*.size' => 'nullable|string',
+                'items.*.quantity' => 'required|integer|min:1',
+                'private_warehouse_id' => 'nullable|exists:private_warehouses,id',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Invoice validation error', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'خطأ في البيانات المرسلة',
+                'errors' => $e->errors(),
+            ], 422);
+        }
 
         $user = Auth::user();
 
@@ -229,7 +242,11 @@ class InvoiceController extends Controller
                 if ($user->isAdmin()) {
                     $invoiceData['private_warehouse_id'] = $request->private_warehouse_id;
                 } else {
-                    abort(403, 'غير مصرح لك بإضافة فاتورة لهذا المخزن الخاص');
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'غير مصرح لك بإضافة فاتورة لهذا المخزن الخاص',
+                    ], 403);
                 }
             } elseif ($user->isPrivateSupplier() && $user->private_warehouse_id) {
                 // المورد يضيف فاتورة لمخزنه الخاص
@@ -239,18 +256,47 @@ class InvoiceController extends Controller
             $invoice = Invoice::create($invoiceData);
 
             $totalAmount = 0;
-            foreach ($request->items as $item) {
-                $product = InvoiceProduct::findOrFail($item['product_id']);
-                $itemTotal = $product->price_yuan * $item['quantity'];
-                $totalAmount += $itemTotal;
+            foreach ($request->items as $index => $item) {
+                try {
+                    $product = InvoiceProduct::findOrFail($item['product_id']);
 
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'invoice_product_id' => $product->id,
-                    'size' => $item['size'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'price_yuan' => $product->price_yuan,
-                ]);
+                    // التحقق من وجود السعر
+                    if ($product->price_yuan === null || $product->price_yuan < 0) {
+                        throw new \Exception("المنتج #{$product->id} لا يحتوي على سعر صحيح");
+                    }
+
+                    $itemTotal = $product->price_yuan * $item['quantity'];
+                    $totalAmount += $itemTotal;
+
+                    InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'invoice_product_id' => $product->id,
+                        'size' => $item['size'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'price_yuan' => $product->price_yuan,
+                    ]);
+                } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                    DB::rollBack();
+                    Log::error('Invoice product not found', [
+                        'product_id' => $item['product_id'] ?? null,
+                        'item_index' => $index
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => "المنتج المحدد في العنصر #" . ($index + 1) . " غير موجود",
+                    ], 404);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('Invoice item creation error', [
+                        'item' => $item,
+                        'index' => $index,
+                        'error' => $e->getMessage()
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => "خطأ في العنصر #" . ($index + 1) . ": " . $e->getMessage(),
+                    ], 500);
+                }
             }
 
             $invoice->update(['total_amount' => $totalAmount]);
@@ -263,9 +309,15 @@ class InvoiceController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Invoice save error', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['_token'])
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء حفظ الفاتورة: ' . $e->getMessage(),
+                'message' => 'حدث خطأ أثناء حفظ الفاتورة. يرجى التحقق من البيانات وإعادة المحاولة.',
             ], 500);
         }
     }
@@ -413,25 +465,58 @@ class InvoiceController extends Controller
 
         // فقط المدير يمكنه تعديل الفواتير
         if (!$user->isAdmin()) {
-            abort(403, 'غير مصرح لك بتعديل الفواتير.');
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بتعديل الفواتير.',
+            ], 403);
         }
 
         // إذا كانت items string (من form data)، تحويلها إلى array
         $items = $request->items;
         if (is_string($items)) {
             $items = json_decode($items, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Invoice update JSON decode error', [
+                    'json_error' => json_last_error_msg(),
+                    'items_string' => $items
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'خطأ في تنسيق البيانات المرسلة',
+                ], 400);
+            }
         }
 
         // التحقق من صحة البيانات
-        $request->merge(['items' => $items]);
-        $request->validate([
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:invoice_products,id',
-            'items.*.size' => 'nullable|string',
-            'items.*.quantity' => 'required|integer|min:1',
-        ]);
+        try {
+            $request->merge(['items' => $items]);
+            $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|exists:invoice_products,id',
+                'items.*.size' => 'nullable|string',
+                'items.*.quantity' => 'required|integer|min:1',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Invoice update validation error', [
+                'errors' => $e->errors(),
+                'request_data' => $request->except(['_token', '_method'])
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'خطأ في البيانات المرسلة',
+                'errors' => $e->errors(),
+            ], 422);
+        }
 
-        $invoice = Invoice::findOrFail($id);
+        try {
+            $invoice = Invoice::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Invoice not found for update', ['invoice_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'الفاتورة المحددة غير موجودة',
+            ], 404);
+        }
 
         DB::beginTransaction();
         try {
@@ -440,18 +525,49 @@ class InvoiceController extends Controller
 
             // إضافة العناصر الجديدة
             $totalAmount = 0;
-            foreach ($items as $item) {
-                $product = InvoiceProduct::findOrFail($item['product_id']);
-                $itemTotal = $product->price_yuan * $item['quantity'];
-                $totalAmount += $itemTotal;
+            foreach ($items as $index => $item) {
+                try {
+                    $product = InvoiceProduct::findOrFail($item['product_id']);
 
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'invoice_product_id' => $product->id,
-                    'size' => $item['size'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'price_yuan' => $product->price_yuan,
-                ]);
+                    // التحقق من وجود السعر
+                    if ($product->price_yuan === null || $product->price_yuan < 0) {
+                        throw new \Exception("المنتج #{$product->id} لا يحتوي على سعر صحيح");
+                    }
+
+                    $itemTotal = $product->price_yuan * $item['quantity'];
+                    $totalAmount += $itemTotal;
+
+                    InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'invoice_product_id' => $product->id,
+                        'size' => $item['size'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'price_yuan' => $product->price_yuan,
+                    ]);
+                } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                    DB::rollBack();
+                    Log::error('Invoice product not found in update', [
+                        'product_id' => $item['product_id'] ?? null,
+                        'item_index' => $index,
+                        'invoice_id' => $id
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => "المنتج المحدد في العنصر #" . ($index + 1) . " غير موجود",
+                    ], 404);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('Invoice item update error', [
+                        'item' => $item,
+                        'index' => $index,
+                        'invoice_id' => $id,
+                        'error' => $e->getMessage()
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => "خطأ في العنصر #" . ($index + 1) . ": " . $e->getMessage(),
+                    ], 500);
+                }
             }
 
             // تحديث المبلغ الإجمالي
@@ -465,9 +581,16 @@ class InvoiceController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Invoice update error', [
+                'invoice_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['_token', '_method'])
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء تحديث الفاتورة: ' . $e->getMessage(),
+                'message' => 'حدث خطأ أثناء تحديث الفاتورة. يرجى التحقق من البيانات وإعادة المحاولة.',
             ], 500);
         }
     }
