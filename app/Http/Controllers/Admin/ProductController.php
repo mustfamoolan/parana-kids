@@ -24,6 +24,7 @@ class ProductController extends Controller
         $perPage = $request->input('per_page', 15);
         $products = $warehouse->products()
                               ->with(['images', 'sizes', 'creator', 'warehouse.activePromotion'])
+                              ->latest()
                               ->paginate($perPage)
                               ->appends($request->except('page'));
 
@@ -52,7 +53,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255',
-            'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
+            'gender_type' => 'required|in:boys,girls,accessories,boys_girls',
             'purchase_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
@@ -299,10 +300,12 @@ class ProductController extends Controller
         // Update sizes - تحديث القياسات الموجودة بدلاً من حذفها وإنشاء قياسات جديدة
         // هذا يحافظ على size_id في order_items
         foreach ($request->sizes as $sizeData) {
+            $oldQuantity = null;
+
             if (isset($existingSizes[$sizeData['size_name']])) {
                 // تحديث القياس الموجود (حتى لو كانت الكمية 0، نحافظ على size_id)
                 $size = $existingSizes[$sizeData['size_name']];
-                $oldQuantity = $size->quantity;
+                $oldQuantity = $size->quantity; // حفظ الكمية القديمة قبل التحديث
                 $size->quantity = $sizeData['quantity'];
                 $size->save();
             } else {
@@ -315,12 +318,11 @@ class ProductController extends Controller
             }
 
             // تسجيل حركة التعديل عند تغيير الكمية
-            if (isset($oldSizes[$sizeData['size_name']])) {
-                $oldSize = $oldSizes[$sizeData['size_name']];
-                $quantityDifference = $sizeData['quantity'] - $oldSize->quantity;
+            if ($oldQuantity !== null) {
+                // القياس موجود، حساب الفرق من الكمية القديمة المحفوظة
+                $quantityDifference = $sizeData['quantity'] - $oldQuantity;
 
-                // إذا كانت الكمية 0، لا نحذف القياس، فقط نسجل الحركة
-
+                // تسجيل الحركة فقط إذا تغيرت الكمية
                 if ($quantityDifference > 0) {
                     // زيادة الكمية
                     ProductMovement::record([
@@ -422,6 +424,28 @@ class ProductController extends Controller
                     // تجاهل الخطأ والاستمرار
                 }
             }
+        }
+
+        // التحقق من وجود back_url وإذا كان موجوداً، نعيد التوجيه إليه (نفس منطق OrderController)
+        $backUrl = $request->input('back_url');
+        if ($backUrl) {
+            $backUrl = urldecode($backUrl);
+            $parsed = parse_url($backUrl);
+            $currentHost = $request->getHost();
+
+            // التحقق من أن back_url من نفس النطاق (Security check)
+            if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
+                $backUrl = null;
+            }
+        }
+
+        // إذا كان back_url موجوداً وصحيحاً، نعيد التوجيه إليه مع إضافة #product-{id} للانتقال مباشرة إلى المنتج
+        if ($backUrl) {
+            // إضافة #product-{id} إلى URL للانتقال مباشرة إلى المنتج
+            // إزالة أي hash موجود مسبقاً وإضافة hash جديد
+            $backUrl = preg_replace('/#.*$/', '', $backUrl);
+            $backUrl .= '#product-' . $product->id;
+            return redirect($backUrl)->with('success', 'تم تحديث المنتج بنجاح');
         }
 
         return redirect()->route('admin.warehouses.products.show', [$warehouse, $product])

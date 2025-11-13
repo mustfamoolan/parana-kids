@@ -107,6 +107,7 @@
                             <input
                                 type="text"
                                 name="search"
+                                id="searchFilterPending"
                                 class="form-input"
                                 placeholder="ابحث برقم الطلب، اسم الزبون، رقم الهاتف، العنوان، رابط السوشل ميديا، الملاحظات، أو اسم/كود المنتج..."
                                 value="{{ request('search') }}"
@@ -127,7 +128,7 @@
                             </select>
                         </div>
                         <div class="sm:w-48">
-                            <select name="confirmed_by" class="form-select">
+                            <select name="confirmed_by" id="confirmedByFilterPending" class="form-select">
                                 <option value="">كل المجهزين والمديرين</option>
                                 @foreach($suppliers as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('confirmed_by') == $supplier->id ? 'selected' : '' }}>
@@ -137,7 +138,7 @@
                             </select>
                         </div>
                         <div class="sm:w-48">
-                            <select name="delegate_id" class="form-select">
+                            <select name="delegate_id" id="delegateIdFilterPending" class="form-select">
                                 <option value="">كل المندوبين</option>
                                 @foreach($delegates as $delegate)
                                     <option value="{{ $delegate->id }}" {{ request('delegate_id') == $delegate->id ? 'selected' : '' }}>
@@ -147,14 +148,14 @@
                             </select>
                         </div>
                         <div class="sm:w-48">
-                            <select name="size_reviewed" class="form-select">
+                            <select name="size_reviewed" id="sizeReviewedFilterPending" class="form-select">
                                 <option value="">كل حالات التدقيق</option>
                                 <option value="not_reviewed" {{ request('size_reviewed') === 'not_reviewed' ? 'selected' : '' }}>لم يتم التدقيق</option>
                                 <option value="reviewed" {{ request('size_reviewed') === 'reviewed' ? 'selected' : '' }}>تم تدقيق القياس</option>
                             </select>
                         </div>
                         <div class="sm:w-48">
-                            <select name="message_confirmed" class="form-select">
+                            <select name="message_confirmed" id="messageConfirmedFilterPending" class="form-select">
                                 <option value="">كل حالات الرسالة</option>
                                 <option value="not_sent" {{ request('message_confirmed') === 'not_sent' ? 'selected' : '' }}>لم يرسل الرسالة</option>
                                 <option value="waiting_response" {{ request('message_confirmed') === 'waiting_response' ? 'selected' : '' }}>تم الارسال رسالة وبالانتضار الرد</option>
@@ -170,6 +171,7 @@
                             <input
                                 type="date"
                                 name="date_from"
+                                id="dateFromFilterPending"
                                 class="form-input"
                                 placeholder="من تاريخ"
                                 value="{{ request('date_from') }}"
@@ -179,6 +181,7 @@
                             <input
                                 type="date"
                                 name="date_to"
+                                id="dateToFilterPending"
                                 class="form-input"
                                 placeholder="إلى تاريخ"
                                 value="{{ request('date_to') }}"
@@ -188,6 +191,7 @@
                             <input
                                 type="time"
                                 name="time_from"
+                                id="timeFromFilterPending"
                                 class="form-input"
                                 placeholder="من الساعة"
                                 value="{{ request('time_from') }}"
@@ -197,6 +201,7 @@
                             <input
                                 type="time"
                                 name="time_to"
+                                id="timeToFilterPending"
                                 class="form-input"
                                 placeholder="إلى الساعة"
                                 value="{{ request('time_to') }}"
@@ -210,7 +215,7 @@
                                 بحث
                             </button>
                             @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id') || request('confirmed_by') || request('delegate_id') || request('size_reviewed') || request('message_confirmed'))
-                                <a href="{{ route('admin.orders.pending') }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('admin.orders.pending') }}" class="btn btn-outline-secondary" id="clearFiltersBtn">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
@@ -404,27 +409,80 @@
     </div>
 
     <script>
-        // Local Storage للمخزن
+        // Local Storage لجميع الفلاتر
         document.addEventListener('DOMContentLoaded', function() {
-            const warehouseFilter = document.getElementById('warehouseFilterPending');
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+                                urlParams.has('delegate_id') || urlParams.has('size_reviewed') || urlParams.has('message_confirmed') ||
+                                urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to');
 
-            if (warehouseFilter) {
-                // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const savedWarehouse = localStorage.getItem('selectedWarehouse_pending');
+            // قائمة الفلاتر مع مفاتيح localStorage
+            const filters = [
+                { id: 'warehouseFilterPending', key: 'selectedWarehouse_pending', param: 'warehouse_id' },
+                { id: 'searchFilterPending', key: 'selectedSearch_pending', param: 'search' },
+                { id: 'confirmedByFilterPending', key: 'selectedConfirmedBy_pending', param: 'confirmed_by' },
+                { id: 'delegateIdFilterPending', key: 'selectedDelegateId_pending', param: 'delegate_id' },
+                { id: 'sizeReviewedFilterPending', key: 'selectedSizeReviewed_pending', param: 'size_reviewed' },
+                { id: 'messageConfirmedFilterPending', key: 'selectedMessageConfirmed_pending', param: 'message_confirmed' },
+                { id: 'dateFromFilterPending', key: 'selectedDateFrom_pending', param: 'date_from' },
+                { id: 'dateToFilterPending', key: 'selectedDateTo_pending', param: 'date_to' },
+                { id: 'timeFromFilterPending', key: 'selectedTimeFrom_pending', param: 'time_from' },
+                { id: 'timeToFilterPending', key: 'selectedTimeTo_pending', param: 'time_to' }
+            ];
 
-                // لا نقوم بتطبيق الفلتر تلقائياً إلا إذا لم تكن هناك معاملات في URL
-                if (savedWarehouse && !warehouseFilter.value && !urlParams.has('warehouse_id') && !urlParams.has('search') && !urlParams.has('confirmed_by') && !urlParams.has('delegate_id') && !urlParams.has('date_from') && !urlParams.has('date_to')) {
-                    warehouseFilter.value = savedWarehouse;
-                }
+            let hasSavedFilters = false;
+            const savedParams = new URLSearchParams();
 
-                // حفظ الفلتر في Local Storage عند التغيير
-                warehouseFilter.addEventListener('change', function() {
-                    if (this.value) {
-                        localStorage.setItem('selectedWarehouse_pending', this.value);
-                    } else {
-                        localStorage.removeItem('selectedWarehouse_pending');
+            filters.forEach(filter => {
+                const element = document.getElementById(filter.id);
+                if (element) {
+                    // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
+                    if (!hasUrlParams) {
+                        const savedValue = localStorage.getItem(filter.key);
+                        if (savedValue) {
+                            element.value = savedValue;
+                            savedParams.append(filter.param, savedValue);
+                            hasSavedFilters = true;
+                        }
                     }
+
+                    // حفظ الفلتر في Local Storage عند التغيير
+                    const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
+                    element.addEventListener(eventType, function() {
+                        if (this.value) {
+                            localStorage.setItem(filter.key, this.value);
+                        } else {
+                            localStorage.removeItem(filter.key);
+                        }
+                    });
+                }
+            });
+
+            // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL
+            if (!hasUrlParams && hasSavedFilters && savedParams.toString()) {
+                const form = document.querySelector('form[action*="orders-pending"]');
+                if (form) {
+                    // إضافة الفلاتر المحفوظة إلى النموذج
+                    savedParams.forEach((value, key) => {
+                        const existingInput = form.querySelector(`[name="${key}"]`);
+                        if (existingInput) {
+                            existingInput.value = value;
+                        }
+                    });
+                    // إرسال النموذج تلقائياً
+                    form.submit();
+                }
+            }
+
+            // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            if (clearFiltersBtn) {
+                clearFiltersBtn.addEventListener('click', function(e) {
+                    // حذف جميع الفلاتر من localStorage
+                    filters.forEach(filter => {
+                        localStorage.removeItem(filter.key);
+                    });
+                    // السماح بالانتقال الطبيعي للرابط
                 });
             }
         });

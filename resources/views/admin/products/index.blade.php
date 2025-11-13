@@ -62,7 +62,7 @@
         @if($products->count() > 0)
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($products as $product)
-                    <div class="panel">
+                    <div class="panel" id="product-{{ $product->id }}">
                         <!-- Header -->
                         <div class="flex items-center gap-3 mb-3 relative">
                             @if($product->images->count() > 0)
@@ -257,6 +257,23 @@
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
         }
+
+        // الانتقال إلى المنتج المحدد عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.location.hash) {
+                const target = document.querySelector(window.location.hash);
+                if (target) {
+                    setTimeout(() => {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // إضافة highlight مؤقت للمنتج
+                        target.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                        setTimeout(() => {
+                            target.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+                        }, 2000);
+                    }, 100);
+                }
+            }
+        });
 
         function openImageModal(imageUrl, productName) {
             const modal = document.getElementById('imageModal');

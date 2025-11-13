@@ -8,7 +8,7 @@
                     if ($backUrl) {
                         $backUrl = urldecode($backUrl);
                         $parsed = parse_url($backUrl);
-                        $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                        $currentHost = request()->getHost(); // استخدام getHost() لضمان العمل على الاستضافة
                         if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
                             $backUrl = null;
                         }
@@ -44,6 +44,9 @@
         <form method="POST" action="{{ route('admin.warehouses.products.update', [$product->warehouse, $product]) }}" enctype="multipart/form-data" class="space-y-5">
             @csrf
             @method('PUT')
+            @if(request()->query('back_url'))
+                <input type="hidden" name="back_url" value="{{ request()->query('back_url') }}">
+            @endif
 
             <!-- معلومات المنتج الأساسية -->
             <div class="panel">
@@ -778,33 +781,57 @@
         function addZerosToPrice(input) {
             if (!input) return;
 
-            input.addEventListener('blur', function() {
+            // إزالة listener القديم إذا كان موجوداً لمنع التكرار
+            if (input._priceBlurHandler) {
+                input.removeEventListener('blur', input._priceBlurHandler);
+            }
+
+            // إنشاء named function لحفظ reference
+            input._priceBlurHandler = function() {
                 let inputValue = this.value.trim();
                 if (!inputValue || inputValue === '0') return;
+
+                const numericValue = parseFloat(inputValue);
+                if (isNaN(numericValue) || numericValue <= 0) return;
+
+                // التحقق من أن القيمة لم يتم معالجتها بالفعل (لا تنتهي بـ 000 أو 00)
+                const valueStr = String(Math.floor(numericValue));
+
+                // إذا كانت القيمة تنتهي بـ 000 وطولها أكبر من 3، فهي معالجة بالفعل
+                if (valueStr.endsWith('000') && valueStr.length > 3) {
+                    return; // القيمة معالجة بالفعل، لا نضيف أصفار
+                }
 
                 // التحقق من وجود فاصلة عشرية (نقطة)
                 const hasDecimal = inputValue.includes('.');
 
                 if (hasDecimal) {
                     // إذا كان هناك فاصلة → أضف 00 فقط (الفاصلة تقلل صفر واحد)
-                    // نحول الرقم إلى صحيح (نزيل الفاصلة) ثم نضرب في 100
                     const parts = inputValue.split('.');
                     const integerPart = parts[0] || '0';
                     const decimalPart = parts[1] || '';
                     // دمج الأجزاء بدون فاصلة
                     const combinedValue = integerPart + decimalPart;
-                    const numericValue = parseFloat(combinedValue);
-                    if (!isNaN(numericValue)) {
-                        this.value = numericValue * 100; // 2 صفر فقط
+                    const combinedNumeric = parseFloat(combinedValue);
+                    if (!isNaN(combinedNumeric)) {
+                        const resultValue = combinedNumeric * 100;
+                        const resultStr = String(Math.floor(resultValue));
+                        // التحقق من أن القيمة الناتجة لا تنتهي بـ 00 (معالجة بالفعل)
+                        if (!resultStr.endsWith('00') || resultStr.length <= 2) {
+                            this.value = resultValue;
+                        }
                     }
                 } else {
                     // إذا لم يكن هناك فاصلة → أضف 000 (3 أصفار)
-                    let value = parseFloat(inputValue);
-                    if (!isNaN(value) && value > 0) {
-                        this.value = Math.floor(value) * 1000;
+                    // لكن فقط إذا كانت القيمة لا تنتهي بـ 000 بالفعل
+                    if (!valueStr.endsWith('000') || valueStr.length <= 3) {
+                        this.value = Math.floor(numericValue) * 1000;
                     }
                 }
-            });
+            };
+
+            // إضافة listener جديد
+            input.addEventListener('blur', input._priceBlurHandler);
         }
 
         // تطبيق على حقول الأسعار

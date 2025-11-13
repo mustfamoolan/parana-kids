@@ -55,7 +55,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">عرض الطلبات المقيدة</p>
             </a>
 
-            @if(auth()->user()->isAdmin())
+            @if(auth()->user()->isAdmin() || auth()->user()->isSupplier())
             <!-- 2. الإرجاع الجزئي -->
             <a href="{{ route('admin.orders.partial-returns.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
@@ -66,11 +66,18 @@
                 <h3 class="text-lg font-bold text-warning mb-2">الإرجاع الجزئي</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     @php
-                        $partialReturnsCount = \App\Models\Order::where('status', 'confirmed')
+                        $partialReturnsQuery = \App\Models\Order::where('status', 'confirmed')
                             ->whereHas('items', function($q) {
                                 $q->where('quantity', '>', 0);
-                            })
-                            ->count();
+                            });
+                        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+                        if (auth()->user()->isSupplier()) {
+                            $accessibleWarehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
+                            $partialReturnsQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                            });
+                        }
+                        $partialReturnsCount = $partialReturnsQuery->count();
                     @endphp
                     @if($partialReturnsCount > 0)
                         <span class="badge bg-warning">{{ $partialReturnsCount }}</span> طلب قابل للإرجاع
@@ -79,7 +86,9 @@
                     @endif
                 </p>
             </a>
+            @endif
 
+            @if(auth()->user()->isAdmin())
             <!-- 3. التقارير -->
             <a href="{{ route('admin.reports') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-success/20 rounded-full flex items-center justify-center">
