@@ -10,12 +10,18 @@ class TrustProxies extends Middleware
     /**
      * The trusted proxies for this application.
      *
+     * Cloudflare IP ranges - يتم الوثوق بجميع IPs من Cloudflare
+     * للحصول على IP الحقيقي للمستخدم من header CF-Connecting-IP
+     *
      * @var array<int, string>|string|null
      */
-    protected $proxies;
+    protected $proxies = '*'; // Trust all proxies (Cloudflare)
 
     /**
      * The headers that should be used to detect proxies.
+     *
+     * Cloudflare يرسل IP الحقيقي في X-Forwarded-For header
+     * ملف .htaccess يقوم بتحويل CF-Connecting-IP إلى X-Forwarded-For
      *
      * @var int
      */

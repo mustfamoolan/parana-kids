@@ -5,6 +5,14 @@
 
     RewriteEngine On
 
+    # Cloudflare Real IP - استخدام CF-Connecting-IP للحصول على IP الحقيقي للمستخدم
+    # هذا يساعد Laravel في التعرف على IP الحقيقي بدلاً من IP Cloudflare
+    <IfModule mod_headers.c>
+        # إذا كان الطلب قادم من Cloudflare، استخدم CF-Connecting-IP
+        SetEnvIf CF-Connecting-IP "^(.+)$" CF_CONNECTING_IP=$1
+        RequestHeader set X-Forwarded-For %{CF_CONNECTING_IP}e env=CF_CONNECTING_IP
+    </IfModule>
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
