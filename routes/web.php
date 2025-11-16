@@ -297,7 +297,18 @@ Route::prefix('delegate')->group(function () {
     });
 });
 
-Route::view('/apps/chat', 'apps.chat');
+// Chat routes
+Route::get('/apps/chat', [App\Http\Controllers\ChatController::class, 'index'])->name('chat.index');
+Route::get('/api/chat/conversations', [App\Http\Controllers\ChatController::class, 'getConversations'])->name('chat.conversations');
+Route::post('/api/chat/conversation', [App\Http\Controllers\ChatController::class, 'getOrCreateConversation'])->name('chat.get-or-create-conversation');
+Route::get('/api/chat/messages', [App\Http\Controllers\ChatController::class, 'getMessages'])->name('chat.messages');
+Route::post('/api/chat/send', [App\Http\Controllers\ChatController::class, 'sendMessage'])->name('chat.send');
+Route::post('/api/chat/send-to-user', [App\Http\Controllers\ChatController::class, 'sendMessageToUser'])->name('chat.send-to-user');
+Route::post('/api/chat/mark-read', [App\Http\Controllers\ChatController::class, 'markAsRead'])->name('chat.mark-read');
+Route::get('/api/chat/search-order', [App\Http\Controllers\ChatController::class, 'searchOrder'])->name('chat.search-order');
+Route::post('/api/chat/send-order', [App\Http\Controllers\ChatController::class, 'sendOrderMessage'])->name('chat.send-order');
+Route::get('/api/chat/search-product', [App\Http\Controllers\ChatController::class, 'searchProduct'])->name('chat.search-product');
+Route::post('/api/chat/send-product', [App\Http\Controllers\ChatController::class, 'sendProductMessage'])->name('chat.send-product');
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

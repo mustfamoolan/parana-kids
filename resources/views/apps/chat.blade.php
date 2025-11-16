@@ -2,17 +2,17 @@
 
 
     <div x-data="chat">
-        <div class="flex gap-5 relative sm:h-[calc(100vh_-_150px)] h-full sm:min-h-0"
+        <div class="flex gap-5 relative sm:h-[calc(100vh_-_150px)] h-[calc(100vh_-_100px)] sm:min-h-0 overflow-hidden"
             :class="{ 'min-h-[999px]': isShowChatMenu }">
             <div class="panel p-4 flex-none overflow-hidden max-w-xs w-full absolute xl:relative z-10 space-y-4 xl:h-full hidden xl:block"
                 :class="isShowChatMenu && '!block'">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center">
-                        <div class="flex-none"><img src="/assets/images/profile-34.jpeg"
+                        <div class="flex-none"><img src="/assets/images/profile-{{ (auth()->id() % 20) + 1 }}.jpeg"
                                 class="rounded-full h-12 w-12 object-cover" /></div>
                         <div class="mx-3">
-                            <p class="mb-1 font-semibold">Alon Smith</p>
-                            <p class="text-xs text-white-dark">Software Developer</p>
+                            <p class="mb-1 font-semibold">{{ auth()->user()->name }}</p>
+                            <p class="text-xs text-white-dark">{{ ucfirst(auth()->user()->role) }}</p>
                         </div>
                     </div>
                     <div x-data="dropdown" @click.outside="open = false" class="dropdown">
@@ -97,7 +97,10 @@
                     </div>
                 </div>
                 <div class="flex justify-between items-center text-xs">
-                    <button type="button" class="hover:text-primary group">
+                    <button type="button"
+                        class="hover:text-primary group"
+                        :class="{ 'text-primary': activeTab === 'chats' }"
+                        @click="activeTab = 'chats'">
 
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                             xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto mb-1">
@@ -122,7 +125,10 @@
                         </svg>
                         Calls </button>
 
-                    <button type="button" class="hover:text-primary group">
+                    <button type="button"
+                        class="hover:text-primary group"
+                        :class="{ 'text-primary': activeTab === 'contacts' }"
+                        @click="activeTab = 'contacts'">
 
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                             xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto mb-1">
@@ -173,7 +179,12 @@
                                             </template>
                                         </div>
                                         <div class="mx-3 ltr:text-left rtl:text-right">
-                                            <p class="mb-1 font-semibold" x-text="person.name"></p>
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <p class="font-semibold" x-text="person.name"></p>
+                                                <template x-if="person.code">
+                                                    <span class="badge badge-outline-primary text-xs" x-text="person.code"></span>
+                                                </template>
+                                            </div>
                                             <p class="text-xs text-white-dark truncate max-w-[185px]"
                                                 x-text="person.preview"></p>
                                         </div>
@@ -302,7 +313,7 @@
                     </div>
                 </template>
                 <template x-if="isShowUserChat && selectedUser">
-                    <div class="relative h-full">
+                    <div class="relative h-full flex flex-col">
                         <div class="flex justify-between items-center p-4">
                             <div class="flex items-center space-x-2 rtl:space-x-reverse">
                                 <button type="button" class="xl:hidden hover:text-primary"
@@ -481,7 +492,7 @@
                             </div>
                         </div>
                         <div class="h-px w-full border-b border-[#e0e6ed] dark:border-[#1b2e4b]"></div>
-                        <div class="perfect-scrollbar relative h-full overflow-auto sm:h-[calc(100vh_-_300px)]">
+                        <div class="perfect-scrollbar relative overflow-y-auto flex-1 min-h-0">
                             <div
                                 class="space-y-5 p-4 chat-conversation-box sm:pb-0 pb-[68px] sm:min-h-[300px] min-h-[400px]">
                                 <div class="block m-6 mt-0">
@@ -493,26 +504,110 @@
                                 </div>
                                 <template x-for="message in selectedUser.messages">
                                     <div class="flex items-start gap-3"
-                                        :class="{ 'justify-end': selectedUser.userId === message.fromUserId }">
+                                        :class="{ 'justify-end': loginUser.id === message.fromUserId }">
                                         <div class="flex-none"
-                                            :class="{ 'order-2': selectedUser.userId === message.fromUserId }">
-                                            <template x-if="selectedUser.userId === message.fromUserId">
+                                            :class="{ 'order-2': loginUser.id === message.fromUserId }">
+                                            <template x-if="loginUser.id === message.fromUserId">
                                                 <img :src="`/assets/images/${loginUser.path}`"
                                                     class="rounded-full h-10 w-10 object-cover" />
                                             </template>
-                                            <template x-if="selectedUser.userId !== message.fromUserId">
+                                            <template x-if="loginUser.id !== message.fromUserId">
                                                 <img :src="`/assets/images/${selectedUser.path}`"
                                                     class="rounded-full h-10 w-10 object-cover" />
                                             </template>
                                         </div>
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-3">
+                                                <!-- عرض card الطلب إذا كانت الرسالة من نوع order -->
+                                                <template x-if="message.type === 'order' && message.order">
+                                                    <div class="panel min-w-[280px] max-w-[320px]"
+                                                        :class="message.order.status === 'confirmed' ? 'border-2 border-green-500 dark:border-green-600' : 'border-2 border-yellow-500 dark:border-yellow-600'">
+                                                        <div class="flex items-center justify-between mb-3">
+                                                            <div>
+                                                                <a :href="'{{ auth()->user()->isDelegate() ? url('/delegate/orders') : url('/admin/orders-management') }}?search=' + encodeURIComponent(message.order.order_number) + '#order-' + message.order.id"
+                                                                   class="text-lg font-bold text-primary dark:text-primary-light hover:underline"
+                                                                   x-text="message.order.order_number"></a>
+                                                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" x-text="message.order.customer_name"></p>
+                                                            </div>
+                                                            <span class="badge shrink-0"
+                                                                  :class="message.order.status === 'confirmed' ? 'badge-outline-success' : 'badge-outline-warning'"
+                                                                  x-text="message.order.status === 'confirmed' ? 'مقيد' : 'قيد الانتظار'"></span>
+                                                        </div>
+                                                        <div class="space-y-2 mb-3">
+                                                            <div class="flex justify-between text-sm">
+                                                                <span class="text-gray-500 dark:text-gray-400">الهاتف:</span>
+                                                                <span x-text="message.order.customer_phone"></span>
+                                                            </div>
+                                                            <div class="flex justify-between text-sm">
+                                                                <span class="text-gray-500 dark:text-gray-400">المبلغ:</span>
+                                                                <span class="font-semibold" x-text="message.order.total_amount + ' د.ع'"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="pt-3 border-t border-gray-200 dark:border-gray-700">
+                                                            <a :href="'{{ auth()->user()->isDelegate() ? url('/delegate/orders') : url('/admin/orders-management') }}?search=' + encodeURIComponent(message.order.order_number) + '#order-' + message.order.id"
+                                                               class="btn btn-primary btn-sm w-full">عرض التفاصيل</a>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <!-- عرض card المنتج إذا كانت الرسالة من نوع product -->
+                                                <template x-if="message.type === 'product' && message.product">
+                                                    <div class="panel min-w-[280px] max-w-[320px] border-2 border-primary dark:border-primary-light">
+                                                        <div class="flex items-center gap-3 mb-3">
+                                                            <template x-if="message.product.image_url">
+                                                                <img :src="message.product.image_url"
+                                                                     class="w-16 h-16 object-cover rounded-lg"
+                                                                     :alt="message.product.name" />
+                                                            </template>
+                                                            <template x-if="!message.product.image_url">
+                                                                <div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                                    </svg>
+                                                                </div>
+                                                            </template>
+                                                            <div class="flex-1">
+                                                                <h6 class="font-semibold text-primary dark:text-primary-light" x-text="message.product.name"></h6>
+                                                                <p class="text-xs text-gray-500 dark:text-gray-400" x-text="message.product.code"></p>
+                                                            </div>
+                                                        </div>
+                                                        <div class="space-y-2 mb-3">
+                                                            <div class="flex justify-between text-sm">
+                                                                <span class="text-gray-500 dark:text-gray-400">سعر البيع:</span>
+                                                                <span class="font-semibold" x-text="message.product.selling_price + ' د.ع'"></span>
+                                                            </div>
+                                                            <template x-if="message.product.warehouse_name">
+                                                                <div class="flex justify-between text-sm">
+                                                                    <span class="text-gray-500 dark:text-gray-400">المخزن:</span>
+                                                                    <span x-text="message.product.warehouse_name"></span>
+                                                                </div>
+                                                            </template>
+                                                            <template x-if="message.product.sizes && message.product.sizes.length > 0">
+                                                                <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">القياسات والكميات:</p>
+                                                                    <div class="space-y-1">
+                                                                        <template x-for="size in message.product.sizes" :key="size.id">
+                                                                            <div class="flex justify-between text-xs">
+                                                                                <span class="text-gray-500 dark:text-gray-400" x-text="size.size_name"></span>
+                                                                                <span class="font-semibold"
+                                                                                      :class="size.available_quantity > 0 ? 'text-success' : 'text-danger'"
+                                                                                      x-text="size.available_quantity + ' متوفر'"></span>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <!-- عرض الرسالة النصية العادية -->
+                                                <template x-if="message.type !== 'order' && message.type !== 'product' || (!message.order && !message.product)">
                                                 <div class="dark:bg-gray-800 p-4 py-2 rounded-md bg-black/10"
-                                                    :class="message.fromUserId == selectedUser.userId ?
+                                                        :class="loginUser.id === message.fromUserId ?
                                                         'ltr:rounded-br-none rtl:rounded-bl-none !bg-primary text-white' :
                                                         'ltr:rounded-bl-none rtl:rounded-br-none'"
                                                     x-text="message.text"></div>
-                                                <div :class="{ 'hidden': selectedUser.userId === message.fromUserId }">
+                                                </template>
+                                                <div :class="{ 'hidden': loginUser.id === message.fromUserId }">
 
                                                     <svg width="24" height="24" viewBox="0 0 24 24"
                                                         fill="none" xmlns="http://www.w3.org/2000/svg"
@@ -534,8 +629,7 @@
                                             </div>
                                             <div class="text-xs text-white-dark"
                                                 :class="{
-                                                    'ltr:text-right rtl:text-left': selectedUser.userId === message
-                                                        .fromUserId
+                                                    'ltr:text-right rtl:text-left': loginUser.id === message.fromUserId
                                                 }"
                                                 x-text="message.time ? message.time: '5h ago'"></div>
                                         </div>
@@ -543,8 +637,8 @@
                                 </template>
                             </div>
                         </div>
-                        <div class="p-4 absolute bottom-0 left-0 w-full">
-                            <div class="sm:flex w-full space-x-3 rtl:space-x-reverse items-center">
+                        <div class="p-4 sticky bottom-0 left-0 w-full bg-white dark:bg-[#0e1726] border-t border-[#e0e6ed] dark:border-[#1b2e4b]">
+                            <div class="flex w-full space-x-2 rtl:space-x-reverse items-center">
                                 <div class="relative flex-1">
                                     <input id=""
                                         class="form-input rounded-full border-0 bg-[#f4f4f4] px-12 focus:outline-none py-2"
@@ -580,67 +674,21 @@
                                         </svg>
                                     </button>
                                 </div>
-                                <div class=" items-center space-x-3 rtl:space-x-reverse sm:py-0 py-3 hidden sm:block">
+                                <div class="flex items-center space-x-2 rtl:space-x-reverse py-2">
+                                    <!-- زر البحث عن منتج -->
                                     <button type="button"
-                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary">
-
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
-                                            <path
-                                                d="M7 8C7 5.23858 9.23858 3 12 3C14.7614 3 17 5.23858 17 8V11C17 13.7614 14.7614 16 12 16C9.23858 16 7 13.7614 7 11V8Z"
-                                                stroke="currentColor" stroke-width="1.5" />
-                                            <path opacity="0.5" d="M13.5 8L17 8" stroke="currentColor"
-                                                stroke-width="1.5" stroke-linecap="round" />
-                                            <path opacity="0.5" d="M13.5 11L17 11" stroke="currentColor"
-                                                stroke-width="1.5" stroke-linecap="round" />
-                                            <path opacity="0.5" d="M7 8L9 8" stroke="currentColor"
-                                                stroke-width="1.5" stroke-linecap="round" />
-                                            <path opacity="0.5" d="M7 11L9 11" stroke="currentColor"
-                                                stroke-width="1.5" stroke-linecap="round" />
-                                            <path opacity="0.5"
-                                                d="M20 10V11C20 15.4183 16.4183 19 12 19M4 10V11C4 15.4183 7.58172 19 12 19M12 19V22"
-                                                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                            <path d="M22 2L2 22" stroke="currentColor" stroke-width="1.5"
-                                                stroke-linecap="round" />
+                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary"
+                                        @click="showProductSearch = true">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
+                                            <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </button>
+                                    <!-- زر البحث عن طلب -->
                                     <button type="button"
-                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary">
-
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
-                                            <path opacity="0.5"
-                                                d="M17 9.00195C19.175 9.01406 20.3529 9.11051 21.1213 9.8789C22 10.7576 22 12.1718 22 15.0002V16.0002C22 18.8286 22 20.2429 21.1213 21.1215C20.2426 22.0002 18.8284 22.0002 16 22.0002H8C5.17157 22.0002 3.75736 22.0002 2.87868 21.1215C2 20.2429 2 18.8286 2 16.0002L2 15.0002C2 12.1718 2 10.7576 2.87868 9.87889C3.64706 9.11051 4.82497 9.01406 7 9.00195"
-                                                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                            <path d="M12 2L12 15M12 15L9 11.5M12 15L15 11.5" stroke="currentColor"
-                                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                    </button>
-                                    <button type="button"
-                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary">
-
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
-                                            <circle cx="12" cy="13" r="3"
-                                                stroke="currentColor" stroke-width="1.5" />
-                                            <path opacity="0.5"
-                                                d="M9.77778 21H14.2222C17.3433 21 18.9038 21 20.0248 20.2646C20.51 19.9462 20.9267 19.5371 21.251 19.0607C22 17.9601 22 16.4279 22 13.3636C22 10.2994 22 8.76721 21.251 7.6666C20.9267 7.19014 20.51 6.78104 20.0248 6.46268C19.3044 5.99013 18.4027 5.82123 17.022 5.76086C16.3631 5.76086 15.7959 5.27068 15.6667 4.63636C15.4728 3.68489 14.6219 3 13.6337 3H10.3663C9.37805 3 8.52715 3.68489 8.33333 4.63636C8.20412 5.27068 7.63685 5.76086 6.978 5.76086C5.59733 5.82123 4.69555 5.99013 3.97524 6.46268C3.48995 6.78104 3.07328 7.19014 2.74902 7.6666C2 8.76721 2 10.2994 2 13.3636C2 16.4279 2 17.9601 2.74902 19.0607C3.07328 19.5371 3.48995 19.9462 3.97524 20.2646C5.09624 21 6.65675 21 9.77778 21Z"
-                                                stroke="currentColor" stroke-width="1.5" />
-                                            <path d="M19 10H18" stroke="currentColor" stroke-width="1.5"
-                                                stroke-linecap="round" />
-                                        </svg>
-                                    </button>
-                                    <button type="button"
-                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary">
-
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 opacity-70">
-                                            <circle cx="5" cy="12" r="2"
-                                                stroke="currentColor" stroke-width="1.5" />
-                                            <circle opacity="0.5" cx="12" cy="12" r="2"
-                                                stroke="currentColor" stroke-width="1.5" />
-                                            <circle cx="19" cy="12" r="2"
-                                                stroke="currentColor" stroke-width="1.5" />
+                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary"
+                                        @click="showOrderSearch = true">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
+                                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </button>
                                 </div>
@@ -648,6 +696,161 @@
                         </div>
                     </div>
                 </template>
+            </div>
+
+            <!-- Modal البحث عن الطلبات -->
+            <div class="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto hidden"
+                :class="showOrderSearch && '!block'">
+                <div class="flex items-center justify-center min-h-screen px-4"
+                    @click.self="showOrderSearch = false">
+                    <div x-show="showOrderSearch" x-transition x-transition.duration.300
+                        class="panel border-0 p-0 rounded-lg overflow-hidden md:w-full max-w-lg w-[90%] my-8">
+                                    <button type="button"
+                            class="absolute top-4 ltr:right-4 rtl:left-4 text-white-dark hover:text-dark"
+                            @click="showOrderSearch = false">
+
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                        <h3 class="text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3 ltr:pr-[50px] rtl:pl-[50px]">البحث عن طلب</h3>
+                        <div class="p-5">
+                            <div class="mb-5">
+                                <input type="text"
+                                       x-model="orderSearchQuery"
+                                       @input.debounce.300ms="searchOrders()"
+                                       placeholder="ابحث برقم الطلب، رقم الهاتف، أو الرابط..."
+                                       class="form-input" />
+                            </div>
+
+                            <div class="space-y-2 max-h-[400px] overflow-y-auto">
+                                <template x-if="orderSearchResults.length === 0 && orderSearchQuery.length >= 3">
+                                    <div class="text-center py-8 text-gray-500">
+                                        <p>لا توجد نتائج</p>
+                                    </div>
+                                </template>
+
+                                <template x-for="order in orderSearchResults" :key="order.id">
+                                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                                         @click="sendOrderMessage(order)">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="font-semibold text-primary" x-text="order.order_number"></span>
+                                            <span class="text-xs px-2 py-1 rounded"
+                                                  :class="order.status === 'confirmed' ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'"
+                                                  x-text="order.status === 'confirmed' ? 'مقيد' : 'قيد الانتظار'"></span>
+                                        </div>
+                                        <div class="text-sm space-y-1">
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">العميل:</span>
+                                                <span x-text="order.customer_name"></span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">الهاتف:</span>
+                                                <span x-text="order.customer_phone"></span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">المبلغ:</span>
+                                                <span class="font-semibold" x-text="order.total_amount + ' د.ع'"></span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">التاريخ:</span>
+                                                <span x-text="order.created_at"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal البحث عن المنتجات -->
+            <div class="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto hidden"
+                :class="showProductSearch && '!block'">
+                <div class="flex items-center justify-center min-h-screen px-4"
+                    @click.self="showProductSearch = false">
+                    <div x-show="showProductSearch" x-transition x-transition.duration.300
+                        class="panel border-0 p-0 rounded-lg overflow-hidden md:w-full max-w-lg w-[90%] my-8">
+                                    <button type="button"
+                            class="absolute top-4 ltr:right-4 rtl:left-4 text-white-dark hover:text-dark"
+                            @click="showProductSearch = false">
+
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                        <h3 class="text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3 ltr:pr-[50px] rtl:pl-[50px]">البحث عن منتج</h3>
+                        <div class="p-5">
+                            <div class="mb-5">
+                                <input type="text"
+                                       x-model="productSearchQuery"
+                                       @input.debounce.300ms="searchProducts()"
+                                       placeholder="ابحث باسم المنتج أو الكود..."
+                                       class="form-input" />
+                                </div>
+
+                            <div class="space-y-2 max-h-[400px] overflow-y-auto">
+                                <template x-if="productSearchResults.length === 0 && productSearchQuery.length >= 2">
+                                    <div class="text-center py-8 text-gray-500">
+                                        <p>لا توجد نتائج</p>
+                            </div>
+                                </template>
+
+                                <template x-for="product in productSearchResults" :key="product.id">
+                                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                                         @click="sendProductMessage(product)">
+                                        <div class="flex items-center gap-3">
+                                            <template x-if="product.image_url">
+                                                <img :src="product.image_url"
+                                                     class="w-16 h-16 object-cover rounded-lg"
+                                                     :alt="product.name" />
+                                            </template>
+                                            <template x-if="!product.image_url">
+                                                <div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                    </svg>
+                        </div>
+                                            </template>
+                                            <div class="flex-1">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <span class="font-semibold text-primary" x-text="product.name"></span>
+                    </div>
+                                                <p class="text-xs text-gray-500 mb-1" x-text="product.code"></p>
+                                                <div class="flex items-center gap-3 text-sm mb-1">
+                                                    <span class="text-gray-500">سعر البيع:</span>
+                                                    <span class="font-semibold" x-text="product.selling_price + ' د.ع'"></span>
+                                                </div>
+                                                <template x-if="product.warehouse_name">
+                                                    <p class="text-xs text-gray-500 mb-1" x-text="'المخزن: ' + product.warehouse_name"></p>
+                </template>
+                                                <template x-if="product.sizes && product.sizes.length > 0">
+                                                    <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                        <template x-for="size in product.sizes" :key="size.id">
+                                                            <div class="flex justify-between text-xs mb-1">
+                                                                <span class="text-gray-500" x-text="size.size_name"></span>
+                                                                <span class="font-semibold"
+                                                                      :class="size.available_quantity > 0 ? 'text-success' : 'text-danger'"
+                                                                      x-text="size.available_quantity + ' متوفر'"></span>
+            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -657,259 +860,205 @@
                 isShowUserChat: false,
                 isShowChatMenu: false,
                 loginUser: {
-                    id: 0,
-                    name: 'Alon Smith',
-                    path: 'profile-34.jpeg',
-                    designation: 'Software Developer',
+                    id: {{ auth()->id() }},
+                    name: '{{ auth()->user()->name }}',
+                    path: 'profile-{{ (auth()->id() % 20) + 1 }}.jpeg',
+                    designation: '{{ auth()->user()->role }}',
                 },
-                contactList: [{
-                        userId: 1,
-                        name: 'Nia Hillyer',
-                        path: 'profile-16.jpeg',
-                        time: '2:09 PM',
-                        preview: 'How do you do?',
-                        messages: [{
-                                fromUserId: 0,
-                                toUserId: 1,
-                                text: 'Hi, I am back from vacation'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 1,
-                                text: 'How are you?'
-                            },
-                            {
-                                fromUserId: 1,
-                                toUserId: 0,
-                                text: 'Welcom Back'
-                            },
-                            {
-                                fromUserId: 1,
-                                toUserId: 0,
-                                text: 'I am all well'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 1,
-                                text: 'Coffee?'
-                            },
-                        ],
-                        active: true,
-                    },
-                    {
-                        userId: 2,
-                        name: 'Sean Freeman',
-                        path: 'profile-1.jpeg',
-                        time: '12:09 PM',
-                        preview: 'I was wondering...',
-                        messages: [{
-                                fromUserId: 0,
-                                toUserId: 2,
-                                text: 'Hello'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 2,
-                                text: "It's me"
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 2,
-                                text: 'I have a question regarding project.'
-                            },
-                        ],
-                        active: false,
-                    },
-                    {
-                        userId: 3,
-                        name: 'Alma Clarke',
-                        path: 'profile-2.jpeg',
-                        time: '1:44 PM',
-                        preview: 'I’ve forgotten how it felt before',
-                        messages: [{
-                                fromUserId: 0,
-                                toUserId: 3,
-                                text: 'Hey Buddy.'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 3,
-                                text: "What's up"
-                            },
-                            {
-                                fromUserId: 3,
-                                toUserId: 0,
-                                text: 'I am sick'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 3,
-                                text: 'Not comming to office today.'
-                            },
-                        ],
-                        active: true,
-                    },
-                    {
-                        userId: 4,
-                        name: 'Alan Green',
-                        path: 'profile-3.jpeg',
-                        time: '2:06 PM',
-                        preview: 'But we’re probably gonna need a new carpet.',
-                        messages: [{
-                                fromUserId: 0,
-                                toUserId: 4,
-                                text: 'Hi, collect your check'
-                            },
-                            {
-                                fromUserId: 4,
-                                toUserId: 0,
-                                text: 'Ok, I will be there in 10 mins'
-                            },
-                        ],
-                        active: true,
-                    },
-                    {
-                        userId: 5,
-                        name: 'Shaun Park',
-                        path: 'profile-4.jpeg',
-                        time: '2:05 PM',
-                        preview: 'It’s not that bad...',
-                        messages: [{
-                                fromUserId: 0,
-                                toUserId: 3,
-                                text: 'Hi, I am back from vacation'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 3,
-                                text: 'How are you?'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 5,
-                                text: 'Welcom Back'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 5,
-                                text: 'I am all well'
-                            },
-                            {
-                                fromUserId: 5,
-                                toUserId: 0,
-                                text: 'Coffee?'
-                            },
-                        ],
-                        active: false,
-                    },
-                    {
-                        userId: 6,
-                        name: 'Roxanne',
-                        path: 'profile-5.jpeg',
-                        time: '2:00 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [{
-                                fromUserId: 0,
-                                toUserId: 6,
-                                text: 'Hi'
-                            },
-                            {
-                                fromUserId: 0,
-                                toUserId: 6,
-                                text: 'Uploaded files to server.'
-                            },
-                        ],
-                        active: false,
-                    },
-                    {
-                        userId: 7,
-                        name: 'Ernest Reeves',
-                        path: 'profile-6.jpeg',
-                        time: '2:09 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [],
-                        active: true,
-                    },
-                    {
-                        userId: 8,
-                        name: 'Laurie Fox',
-                        path: 'profile-7.jpeg',
-                        time: '12:09 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [],
-                        active: true,
-                    },
-                    {
-                        userId: 9,
-                        name: 'Xavier',
-                        path: 'profile-8.jpeg',
-                        time: '4:09 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [],
-                        active: false,
-                    },
-                    {
-                        userId: 10,
-                        name: 'Susan Phillips',
-                        path: 'profile-9.jpeg',
-                        time: '9:00 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [],
-                        active: true,
-                    },
-                    {
-                        userId: 11,
-                        name: 'Dale Butler',
-                        path: 'profile-10.jpeg',
-                        time: '5:09 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [],
-                        active: false,
-                    },
-                    {
-                        userId: 12,
-                        name: 'Grace Roberts',
-                        path: 'user-profile.jpeg',
-                        time: '8:01 PM',
-                        preview: 'Wasup for the third time like is you bling bitch',
-                        messages: [],
-                        active: true,
-                    },
-                ],
+                conversationsList: @json($conversationsList->values()->all()),
+                availableUsersList: @json($availableUsersList->values()->all()),
+                activeTab: 'contacts', // 'chats' أو 'contacts' - افتراضي contacts
                 searchUser: '',
                 textMessage: '',
                 selectedUser: '',
+                showOrderSearch: false,
+                orderSearchQuery: '',
+                orderSearchResults: [],
+                selectedOrder: null,
+                showProductSearch: false,
+                productSearchQuery: '',
+                productSearchResults: [],
+                selectedProduct: null,
+
+                get contactList() {
+                    // إرجاع القائمة المناسبة حسب التبويب النشط
+                    if (this.activeTab === 'chats') {
+                        return this.conversationsList;
+                    } else {
+                        return this.availableUsersList;
+                    }
+                },
 
                 get searchUsers() {
                     setTimeout(() => {
                         const element = document.querySelector('.chat-users');
+                        if (element) {
                         element.scrollTop = 0;
                         element.behavior = "smooth";
+                        }
                     });
                     return this.contactList.filter((d) => {
-                        return d.name.toLowerCase().includes(this.searchUser)
+                        return d.name.toLowerCase().includes(this.searchUser.toLowerCase())
                     });
                 },
 
-                selectUser(user) {
+                async selectUser(user) {
                     this.selectedUser = user;
                     this.isShowUserChat = true;
-                    this.scrollToBottom;
                     this.isShowChatMenu = false;
+
+                    // إذا لم تكن هناك محادثة، أنشئ واحدة
+                    if (!user.conversationId && user.userId) {
+                        try {
+                            const response = await fetch('{{ route("chat.get-or-create-conversation") }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify({ user_id: user.userId })
+                            });
+                            const data = await response.json();
+                            if (data.conversation_id) {
+                                user.conversationId = data.conversation_id;
+                                // إضافة المستخدم إلى conversationsList إذا لم يكن موجوداً
+                                if (!this.conversationsList.find(c => c.userId === user.userId)) {
+                                    this.conversationsList.push({
+                                        userId: user.userId,
+                                        name: user.name,
+                                        path: user.path,
+                                        time: '',
+                                        preview: '',
+                                        messages: [],
+                                        active: true,
+                                        conversationId: data.conversation_id
+                                    });
+                                }
+                                // جلب الرسائل بعد إنشاء المحادثة
+                                await this.loadMessages(data.conversation_id);
+                            }
+                        } catch (error) {
+                            console.error('Error creating conversation:', error);
+                            alert('حدث خطأ في إنشاء المحادثة');
+                        }
+                    } else if (user.conversationId) {
+                        // جلب الرسائل إذا كانت المحادثة موجودة
+                        await this.loadMessages(user.conversationId);
+                    }
+
+                    this.scrollToBottom;
                 },
 
-                sendMessage() {
-                    if (this.textMessage.trim()) {
-                        const user = this.contactList.find((d) => d.userId === this.selectedUser
-                            .userId);
-                        user.messages.push({
-                            fromUserId: this.selectedUser.userId,
-                            toUserId: 0,
-                            text: this.textMessage,
+                async loadMessages(conversationId) {
+                    try {
+                        const response = await fetch(`{{ route("chat.messages") }}?conversation_id=${conversationId}`);
+                        const messages = await response.json();
+                        // تحديث الرسائل في selectedUser مباشرة
+                        if (this.selectedUser) {
+                            this.selectedUser.messages = messages;
+                        }
+                        // تحديث الرسائل في القوائم أيضاً
+                        let user = this.conversationsList.find((d) => d.conversationId === conversationId);
+                        if (user) {
+                            user.messages = messages;
+                        }
+                        user = this.availableUsersList.find((d) => d.conversationId === conversationId);
+                        if (user) {
+                            user.messages = messages;
+                        }
+                        this.scrollToBottom;
+                    } catch (error) {
+                        console.error('Error loading messages:', error);
+                    }
+                },
+
+                async sendMessage() {
+                    if (!this.textMessage.trim() || !this.selectedUser) {
+                        return;
+                    }
+
+                    const messageText = this.textMessage.trim();
+                    this.textMessage = '';
+
+                    // إضافة الرسالة محلياً أولاً إلى selectedUser.messages
+                    if (!this.selectedUser.messages) {
+                        this.selectedUser.messages = [];
+                    }
+                    this.selectedUser.messages.push({
+                        fromUserId: this.loginUser.id,
+                        toUserId: this.selectedUser.userId,
+                        text: messageText,
                             time: 'Just now',
                         });
-                        this.textMessage = '';
+
                         this.scrollToBottom;
+
+                    // إرسال الرسالة للخادم
+                    try {
+                        let url, body;
+                        const conversationId = this.selectedUser.conversationId;
+
+                        if (conversationId) {
+                            url = '{{ route("chat.send") }}';
+                            body = JSON.stringify({
+                                conversation_id: conversationId,
+                                message: messageText
+                            });
+                        } else if (this.selectedUser.userId) {
+                            url = '{{ route("chat.send-to-user") }}';
+                            body = JSON.stringify({
+                                user_id: this.selectedUser.userId,
+                                message: messageText
+                            });
+                        } else {
+                            return;
+                        }
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: body
+                        });
+
+                        const data = await response.json();
+                        if (data.success && data.message) {
+                            // تحديث الرسالة بالبيانات من الخادم
+                            if (this.selectedUser.messages.length > 0) {
+                                const lastMessage = this.selectedUser.messages[this.selectedUser.messages.length - 1];
+                                if (lastMessage.text === messageText) {
+                                    lastMessage.id = data.message.id;
+                                    lastMessage.time = data.message.time;
+                                }
+                            }
+
+                            // إذا تم إنشاء محادثة جديدة
+                            if (data.conversation_id) {
+                                this.selectedUser.conversationId = data.conversation_id;
+                                // تحديث conversationId في القوائم أيضاً
+                                const userInList = this.conversationsList.find(c => c.userId === this.selectedUser.userId);
+                                if (userInList) {
+                                    userInList.conversationId = data.conversation_id;
+                                }
+                                const userInAvailable = this.availableUsersList.find(c => c.userId === this.selectedUser.userId);
+                                if (userInAvailable) {
+                                    userInAvailable.conversationId = data.conversation_id;
+                                }
+                            }
+                        } else {
+                            // في حالة الخطأ، إزالة الرسالة المحلية
+                            this.selectedUser.messages.pop();
+                            alert('حدث خطأ في إرسال الرسالة');
+                        }
+                    } catch (error) {
+                        console.error('Error sending message:', error);
+                        // في حالة الخطأ، إزالة الرسالة المحلية
+                        if (this.selectedUser.messages.length > 0) {
+                            this.selectedUser.messages.pop();
+                        }
+                        alert('حدث خطأ في إرسال الرسالة');
                     }
                 },
 
@@ -923,6 +1072,122 @@
                                 block: "end",
                             });
                         });
+                    }
+                },
+
+                async searchOrders() {
+                    if (this.orderSearchQuery.length < 3) {
+                        this.orderSearchResults = [];
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`{{ route("chat.search-order") }}?query=${encodeURIComponent(this.orderSearchQuery)}`);
+                        const orders = await response.json();
+                        this.orderSearchResults = orders;
+                    } catch (error) {
+                        console.error('Error searching orders:', error);
+                        this.orderSearchResults = [];
+                    }
+                },
+
+                async sendOrderMessage(order) {
+                    if (!this.selectedUser || !this.selectedUser.conversationId) {
+                        alert('يرجى اختيار محادثة أولاً');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('{{ route("chat.send-order") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                conversation_id: this.selectedUser.conversationId,
+                                order_id: order.id
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success && data.message) {
+                            // إضافة الرسالة إلى المحادثة
+                            if (!this.selectedUser.messages) {
+                                this.selectedUser.messages = [];
+                            }
+                            this.selectedUser.messages.push(data.message);
+
+                            // إغلاق modal البحث
+                            this.showOrderSearch = false;
+                            this.orderSearchQuery = '';
+                            this.orderSearchResults = [];
+
+                            this.scrollToBottom;
+                        } else {
+                            alert(data.error || 'حدث خطأ في إرسال الطلب');
+                        }
+                    } catch (error) {
+                        console.error('Error sending order message:', error);
+                        alert('حدث خطأ في إرسال الطلب');
+                    }
+                },
+
+                async searchProducts() {
+                    if (this.productSearchQuery.length < 2) {
+                        this.productSearchResults = [];
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`{{ route("chat.search-product") }}?query=${encodeURIComponent(this.productSearchQuery)}`);
+                        const products = await response.json();
+                        this.productSearchResults = products;
+                    } catch (error) {
+                        console.error('Error searching products:', error);
+                        this.productSearchResults = [];
+                    }
+                },
+
+                async sendProductMessage(product) {
+                    if (!this.selectedUser || !this.selectedUser.conversationId) {
+                        alert('يرجى اختيار محادثة أولاً');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('{{ route("chat.send-product") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                conversation_id: this.selectedUser.conversationId,
+                                product_id: product.id
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success && data.message) {
+                            // إضافة الرسالة إلى المحادثة
+                            if (!this.selectedUser.messages) {
+                                this.selectedUser.messages = [];
+                            }
+                            this.selectedUser.messages.push(data.message);
+
+                            // إغلاق modal البحث
+                            this.showProductSearch = false;
+                            this.productSearchQuery = '';
+                            this.productSearchResults = [];
+
+                            this.scrollToBottom;
+                        } else {
+                            alert(data.error || 'حدث خطأ في إرسال المنتج');
+                        }
+                    } catch (error) {
+                        console.error('Error sending product message:', error);
+                        alert('حدث خطأ في إرسال المنتج');
                     }
                 },
             }));

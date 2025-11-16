@@ -162,4 +162,33 @@ class User extends Authenticatable
     {
         return $this->belongsTo(PrivateWarehouse::class, 'private_warehouse_id');
     }
+
+    /**
+     * Get all conversations this user is part of
+     */
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+                    ->withPivot('last_read_at')
+                    ->withTimestamps()
+                    ->orderBy('updated_at', 'desc');
+    }
+
+    /**
+     * Get all messages sent by this user
+     */
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    /**
+     * Get users that share warehouses with this user
+     * الآن يعيد جميع المستخدمين (إزالة قيد المخزن المشترك)
+     */
+    public function getUsersWithSharedWarehouses()
+    {
+        // إرجاع جميع المستخدمين (باستثناء المستخدم الحالي)
+        return User::where('id', '!=', $this->id)->get();
+    }
 }

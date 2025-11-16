@@ -270,9 +270,22 @@
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                             <div class="flex items-center justify-between sm:justify-start gap-3">
                                 <div>
-                                    <h6 class="text-lg font-semibold dark:text-white-light">
-                                        {{ $order->order_number }}
-                                    </h6>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <h6 class="text-lg font-semibold dark:text-white-light">
+                                            {{ $order->order_number }}
+                                        </h6>
+                                        <button
+                                            type="button"
+                                            onclick="copyDeliveryCode('{{ $order->order_number }}', 'order')"
+                                            class="btn btn-xs btn-outline-primary flex items-center gap-1"
+                                            title="نسخ رقم الطلب"
+                                        >
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                            </svg>
+                                            نسخ
+                                        </button>
+                                    </div>
                                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ $order->customer_name }}</p>
                                 </div>
                                 @if($order->trashed())
@@ -412,6 +425,72 @@
     </div>
 
     <script>
+        // دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
+        function copyDeliveryCode(text, type = '') {
+            // تحديد نوع الرسالة
+            let successMessage = 'تم النسخ بنجاح!';
+            let errorMessage = 'فشل في النسخ';
+
+            if (type === 'order') {
+                successMessage = 'تم نسخ رقم الطلب بنجاح!';
+                errorMessage = 'فشل في نسخ رقم الطلب';
+            } else if (type === 'delivery') {
+                successMessage = 'تم نسخ كود الوسيط بنجاح!';
+                errorMessage = 'فشل في نسخ كود الوسيط';
+            }
+
+            // إنشاء عنصر مؤقت
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+
+            // تحديد ونسخ النص
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // للهواتف المحمولة
+
+            try {
+                document.execCommand('copy');
+                showCopyNotification(successMessage);
+            } catch (err) {
+                // استخدام Clipboard API إذا كان متاحاً
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(function() {
+                        showCopyNotification(successMessage);
+                    }).catch(function() {
+                        showCopyNotification(errorMessage, 'error');
+                    });
+                } else {
+                    showCopyNotification(errorMessage, 'error');
+                }
+            }
+
+            // إزالة العنصر المؤقت
+            document.body.removeChild(textarea);
+        }
+
+        // دالة إظهار إشعار النسخ
+        function showCopyNotification(message, type = 'success') {
+            // إنشاء عنصر الإشعار
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
+            notification.textContent = message;
+
+            // إضافة الإشعار للصفحة
+            document.body.appendChild(notification);
+
+            // إزالة الإشعار بعد 3 ثوان
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
         function deleteOrder(orderId) {
             if (confirm('هل أنت متأكد من حذف هذا الطلب؟ سيتم إرجاع جميع المنتجات للمخزن.')) {
                 const form = document.createElement('form');
