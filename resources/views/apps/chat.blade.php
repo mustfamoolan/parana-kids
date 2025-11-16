@@ -857,6 +857,12 @@
     <script>
         document.addEventListener("alpine:init", () => {
             Alpine.data("chat", () => ({
+                init() {
+                    // بدء polling للمحادثات عند تحميل المكون
+                    setTimeout(() => {
+                        this.startConversationsPolling();
+                    }, 1000);
+                },
                 isShowUserChat: false,
                 isShowChatMenu: false,
                 loginUser: {
@@ -879,6 +885,8 @@
                 productSearchQuery: '',
                 productSearchResults: [],
                 selectedProduct: null,
+                pollingInterval: null,
+                conversationsPollingInterval: null,
 
                 get contactList() {
                     // إرجاع القائمة المناسبة حسب التبويب النشط
@@ -903,6 +911,9 @@
                 },
 
                 async selectUser(user) {
+                    // إيقاف polling السابق
+                    this.stopPolling();
+
                     this.selectedUser = user;
                     this.isShowUserChat = true;
                     this.isShowChatMenu = false;
@@ -936,6 +947,8 @@
                                 }
                                 // جلب الرسائل بعد إنشاء المحادثة
                                 await this.loadMessages(data.conversation_id);
+                                // بدء polling للرسائل
+                                this.startPolling();
                             }
                         } catch (error) {
                             console.error('Error creating conversation:', error);
@@ -944,6 +957,8 @@
                     } else if (user.conversationId) {
                         // جلب الرسائل إذا كانت المحادثة موجودة
                         await this.loadMessages(user.conversationId);
+                        // بدء polling للرسائل
+                        this.startPolling();
                     }
 
                     this.scrollToBottom;
@@ -953,6 +968,11 @@
                     try {
                         const response = await fetch(`{{ route("chat.messages") }}?conversation_id=${conversationId}`);
                         const messages = await response.json();
+
+                        // التحقق من وجود رسائل جديدة
+                        const currentMessagesCount = this.selectedUser?.messages?.length || 0;
+                        const hasNewMessages = messages.length > currentMessagesCount;
+
                         // تحديث الرسائل في selectedUser مباشرة
                         if (this.selectedUser) {
                             this.selectedUser.messages = messages;
@@ -961,14 +981,102 @@
                         let user = this.conversationsList.find((d) => d.conversationId === conversationId);
                         if (user) {
                             user.messages = messages;
+                            // تحديث preview و time إذا كانت هناك رسائل جديدة
+                            if (hasNewMessages && messages.length > 0) {
+                                const lastMessage = messages[messages.length - 1];
+                                user.preview = lastMessage.text || '';
+                                user.time = lastMessage.time || '';
+                            }
                         }
                         user = this.availableUsersList.find((d) => d.conversationId === conversationId);
                         if (user) {
                             user.messages = messages;
+                            // تحديث preview و time إذا كانت هناك رسائل جديدة
+                            if (hasNewMessages && messages.length > 0) {
+                                const lastMessage = messages[messages.length - 1];
+                                user.preview = lastMessage.text || '';
+                                user.time = lastMessage.time || '';
+                            }
                         }
-                        this.scrollToBottom;
+
+                        // التمرير للأسفل فقط إذا كانت هناك رسائل جديدة
+                        if (hasNewMessages) {
+                            this.scrollToBottom;
+                        }
                     } catch (error) {
                         console.error('Error loading messages:', error);
+                    }
+                },
+
+                startPolling() {
+                    // إيقاف أي polling سابق
+                    this.stopPolling();
+
+                    // بدء polling جديد كل ثانية واحدة
+                    this.pollingInterval = setInterval(async () => {
+                        if (this.selectedUser && this.selectedUser.conversationId) {
+                            await this.loadMessages(this.selectedUser.conversationId);
+                        }
+                    }, 1000); // ثانية واحدة
+                },
+
+                stopPolling() {
+                    if (this.pollingInterval) {
+                        clearInterval(this.pollingInterval);
+                        this.pollingInterval = null;
+                    }
+                },
+
+                startConversationsPolling() {
+                    // إيقاف أي polling سابق
+                    if (this.conversationsPollingInterval) {
+                        clearInterval(this.conversationsPollingInterval);
+                    }
+
+                    // بدء polling لقائمة المحادثات كل 10 ثوانٍ
+                    this.conversationsPollingInterval = setInterval(async () => {
+                        await this.loadConversations();
+                    }, 10000); // 10 ثوانٍ
+                },
+
+                stopConversationsPolling() {
+                    if (this.conversationsPollingInterval) {
+                        clearInterval(this.conversationsPollingInterval);
+                        this.conversationsPollingInterval = null;
+                    }
+                },
+
+                async loadConversations() {
+                    try {
+                        const response = await fetch('{{ route("chat.conversations") }}');
+                        const conversations = await response.json();
+
+                        // تحديث conversationsList مع الحفاظ على الرسائل المحلية
+                        conversations.forEach(conv => {
+                            const existingConv = this.conversationsList.find(c => c.conversationId === conv.id);
+                            if (existingConv) {
+                                // تحديث البيانات مع الحفاظ على الرسائل
+                                existingConv.preview = conv.preview;
+                                existingConv.time = conv.time;
+                                existingConv.unread_count = conv.unread_count;
+                            } else {
+                                // إضافة محادثة جديدة
+                                this.conversationsList.push({
+                                    userId: conv.userId,
+                                    name: conv.name,
+                                    code: conv.code,
+                                    path: conv.path,
+                                    time: conv.time,
+                                    preview: conv.preview,
+                                    messages: [],
+                                    active: conv.active,
+                                    conversationId: conv.id,
+                                    unread_count: conv.unread_count
+                                });
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error loading conversations:', error);
                     }
                 },
 
@@ -1191,6 +1299,35 @@
                     }
                 },
             }));
+        });
+
+        // إيقاف polling عند إغلاق الصفحة
+        window.addEventListener('beforeunload', function() {
+            const chatElement = document.querySelector('[x-data="chat"]');
+            if (chatElement && chatElement._x_dataStack) {
+                const chatComponent = chatElement._x_dataStack[0];
+                if (chatComponent) {
+                    chatComponent.stopPolling();
+                    chatComponent.stopConversationsPolling();
+                }
+            }
+        });
+
+        // إيقاف polling عندما تكون الصفحة غير مرئية
+        document.addEventListener('visibilitychange', function() {
+            const chatElement = document.querySelector('[x-data="chat"]');
+            if (chatElement && chatElement._x_dataStack) {
+                const chatComponent = chatElement._x_dataStack[0];
+                if (chatComponent) {
+                    if (document.hidden) {
+                        chatComponent.stopPolling();
+                    } else {
+                        if (chatComponent.selectedUser && chatComponent.selectedUser.conversationId) {
+                            chatComponent.startPolling();
+                        }
+                    }
+                }
+            }
         });
     </script>
 
