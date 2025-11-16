@@ -78,15 +78,15 @@
                 </p>
             </a>
 
-            <!-- 3. الرسائل (placeholder) -->
-            <a href="#" onclick="alert('قريباً'); return false;" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
+            <!-- 3. المراسلة -->
+            <a href="{{ route('chat.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-info mb-2">الرسائل</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">الإشعارات والرسائل</p>
+                <h3 class="text-lg font-bold text-info mb-2">المراسلة</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">المراسلة مع الفريق</p>
             </a>
 
             <!-- 4. المنتجات -->
