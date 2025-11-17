@@ -93,23 +93,23 @@ async function loadFirebaseConfig() {
   try {
     const response = await fetch('/api/firebase/config');
     firebaseConfig = await response.json();
-    
+
     if (firebaseConfig && firebaseConfig.apiKey) {
       // تهيئة Firebase مباشرة
       if (typeof firebase !== 'undefined') {
         if (!firebase.apps.length) {
           firebase.initializeApp(firebaseConfig);
         }
-        
+
         const messaging = firebase.messaging();
-        
+
         // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
         messaging.onBackgroundMessage((payload) => {
           console.log('Background message received:', payload);
-          
+
           const notification = payload.notification || {};
           const data = payload.data || {};
-          
+
           const notificationTitle = notification.title || 'رسالة جديدة';
           const notificationOptions = {
             body: notification.body || 'لديك رسالة جديدة',
@@ -121,7 +121,7 @@ async function loadFirebaseConfig() {
             vibrate: [200, 100, 200],
             sound: '/assets/sounds/notification.mp3',
           };
-          
+
           return self.registration.showNotification(notificationTitle, notificationOptions);
         });
       }

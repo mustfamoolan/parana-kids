@@ -2238,7 +2238,7 @@
 
                 async initFCM() {
                     console.log('Initializing FCM...');
-                    
+
                     // التحقق من دعم Firebase
                     if (typeof firebase === 'undefined') {
                         console.error('Firebase SDK not loaded');
@@ -2249,7 +2249,7 @@
                         // جلب Firebase config من .env
                         const configResponse = await fetch('{{ route("firebase.config") }}');
                         const firebaseConfig = await configResponse.json();
-                        
+
                         if (!firebaseConfig.apiKey) {
                             console.error('Firebase config not found. Please check .env file.');
                             return;
