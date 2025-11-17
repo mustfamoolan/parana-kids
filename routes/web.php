@@ -309,6 +309,10 @@ Route::get('/api/chat/search-order', [App\Http\Controllers\ChatController::class
 Route::post('/api/chat/send-order', [App\Http\Controllers\ChatController::class, 'sendOrderMessage'])->name('chat.send-order');
 Route::get('/api/chat/search-product', [App\Http\Controllers\ChatController::class, 'searchProduct'])->name('chat.search-product');
 Route::post('/api/chat/send-product', [App\Http\Controllers\ChatController::class, 'sendProductMessage'])->name('chat.send-product');
+Route::post('/api/chat/create-group', [App\Http\Controllers\ChatController::class, 'createGroup'])->name('chat.create-group');
+Route::post('/api/chat/add-participants', [App\Http\Controllers\ChatController::class, 'addParticipantsToGroup'])->name('chat.add-participants');
+Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController::class, 'removeParticipantFromGroup'])->name('chat.remove-participant');
+Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

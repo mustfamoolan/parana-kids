@@ -155,6 +155,18 @@
                         </svg>
                         Notification </button>
                 </div>
+                @if(auth()->user()->isAdmin())
+                <div class="flex justify-center">
+                    <button type="button"
+                        class="btn btn-primary btn-sm w-full"
+                        @click="showCreateGroupModal = true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ltr:mr-2 rtl:ml-2">
+                            <path d="M12 5v14m7-7H5"></path>
+                        </svg>
+                        إنشاء مجموعة
+                    </button>
+                </div>
+                @endif
                 <div class="h-px w-full border-b border-[#e0e6ed] dark:border-[#1b2e4b]"></div>
                 <div class="!mt-0">
                     <div
@@ -164,16 +176,28 @@
                                 class="w-full flex justify-between items-center p-2 hover:bg-gray-100 dark:hover:bg-[#050b14] rounded-md dark:hover:text-primary hover:text-primary "
                                 :class="{
                                     'bg-gray-100 dark:bg-[#050b14] dark:text-primary text-primary': selectedUser
-                                        .userId === person.userId
+                                        .conversationId === person.conversationId
                                 }"
                                 @click="selectUser(person)">
                                 <div class="flex-1">
                                     <div class="flex items-center">
-                                        <div class="flex-shrink-0 relative"><img :src="`/assets/images/${person.path}`"
+                                        <div class="flex-shrink-0 relative">
+                                            <template x-if="person.type === 'group'">
+                                                <div class="rounded-full h-12 w-12 bg-primary/20 flex items-center justify-center">
+                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary">
+                                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                                        <circle cx="9" cy="7" r="4"></circle>
+                                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                                    </svg>
+                                                </div>
+                                            </template>
+                                            <template x-if="person.type !== 'group'">
+                                                <img :src="`/assets/images/${person.path}`"
                                                 class="rounded-full h-12 w-12 object-cover" />
-                                            <template x-if="person.active">
+                                            </template>
+                                            <template x-if="person.active && person.type !== 'group'">
                                                 <div class="absolute bottom-0 ltr:right-0 rtl:left-0">
-
                                                     <div class="w-4 h-4 bg-success rounded-full"></div>
                                                 </div>
                                             </template>
@@ -181,8 +205,11 @@
                                         <div class="mx-3 ltr:text-left rtl:text-right">
                                             <div class="flex items-center gap-2 mb-1">
                                                 <p class="font-semibold" x-text="person.name"></p>
-                                                <template x-if="person.code">
+                                                <template x-if="person.code && person.type !== 'group'">
                                                     <span class="badge badge-outline-primary text-xs" x-text="person.code"></span>
+                                                </template>
+                                                <template x-if="person.type === 'group' && person.participants_count">
+                                                    <span class="badge badge-outline-info text-xs" x-text="person.participants_count + ' مشارك'"></span>
                                                 </template>
                                             </div>
                                             <p class="text-xs text-white-dark truncate max-w-[185px]"
@@ -190,8 +217,18 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="font-semibold whitespace-nowrap text-xs">
+                                <div class="font-semibold whitespace-nowrap text-xs flex flex-col items-end gap-1">
                                     <p x-text="person.time"></p>
+                                    <template x-if="person.type === 'group' && loginUser.role === 'admin'">
+                                        <button type="button"
+                                            class="text-primary hover:text-primary-dark"
+                                            @click.stop="openGroupManageModal(person.conversationId)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                                <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m8.24 8.24l-4.24-4.24m0-8.48l4.24 4.24M18.36 18.36l-4.24-4.24"></path>
+                                            </svg>
+                                        </button>
+                                    </template>
                                 </div>
                             </button>
                         </template>
@@ -316,6 +353,20 @@
                     <div class="relative h-full flex flex-col">
                         <div class="flex justify-between items-center p-4">
                             <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                                <template x-if="selectedUser.type === 'group'">
+                                    <div class="rounded-full h-10 w-10 bg-primary/20 flex items-center justify-center">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="9" cy="7" r="4"></circle>
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                        </svg>
+                                    </div>
+                                </template>
+                                <template x-if="selectedUser.type !== 'group'">
+                                    <img :src="`/assets/images/${selectedUser.path}`"
+                                        class="rounded-full h-10 w-10 object-cover" />
+                                </template>
                                 <button type="button" class="xl:hidden hover:text-primary"
                                     @click="isShowChatMenu = !isShowChatMenu">
 
@@ -330,21 +381,52 @@
                                     </svg>
                                 </button>
                                 <div class="relative flex-none">
+                                    <template x-if="selectedUser.type === 'group'">
+                                        <div class="rounded-full w-10 h-10 sm:h-12 sm:w-12 bg-primary/20 flex items-center justify-center">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary">
+                                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                                <circle cx="9" cy="7" r="4"></circle>
+                                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                            </svg>
+                                        </div>
+                                    </template>
+                                    <template x-if="selectedUser.type !== 'group'">
                                     <img :src="`/assets/images/${selectedUser.path}`"
                                         class="rounded-full w-10 h-10 sm:h-12 sm:w-12 object-cover" />
+                                    </template>
+                                    <template x-if="selectedUser.type !== 'group'">
                                     <div class="absolute bottom-0 ltr:right-0 rtl:left-0">
-
                                         <div class="w-4 h-4 bg-success rounded-full"></div>
                                     </div>
+                                    </template>
                                 </div>
                                 <div class="mx-3">
                                     <p class="font-semibold" x-text="selectedUser.name"></p>
+                                    <template x-if="selectedUser.type === 'group'">
+                                        <p class="text-white-dark text-xs" x-text="(selectedUser.participants_count || 0) + ' مشارك'"></p>
+                                    </template>
+                                    <template x-if="selectedUser.type !== 'group'">
                                     <p class="text-white-dark text-xs"
-                                        x-text="selectedUser.active ? 'Active now' : 'Last seen at '+selectedUser.time">
-                                    </p>
+                                            x-text="selectedUser.active ? 'Active now' : 'Last seen at '+selectedUser.time"></p>
+                                    </template>
                                 </div>
                             </div>
                             <div class="flex sm:gap-5 gap-3">
+                                <!-- زر إعدادات الإشعارات -->
+                                <button type="button"
+                                    class="hover:text-primary relative"
+                                    @click="showNotificationSettings = true">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <!-- Badge للرسائل غير المقروءة -->
+                                    <template x-if="unreadCount > 0">
+                                        <span class="absolute -top-1 -right-1 bg-danger text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                                              x-text="unreadCount > 9 ? '9+' : unreadCount"></span>
+                                    </template>
+                                </button>
                                 <button type="button">
 
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -504,19 +586,29 @@
                                 </div>
                                 <template x-for="message in selectedUser.messages">
                                     <div class="flex items-start gap-3"
-                                        :class="{ 'justify-end': loginUser.id === message.fromUserId }">
+                                        :class="{ 'justify-end': loginUser.id === message.fromUserId && selectedUser.type !== 'group' }">
                                         <div class="flex-none"
-                                            :class="{ 'order-2': loginUser.id === message.fromUserId }">
-                                            <template x-if="loginUser.id === message.fromUserId">
+                                            :class="{ 'order-2': loginUser.id === message.fromUserId && selectedUser.type !== 'group' }">
+                                            <template x-if="selectedUser.type === 'group'">
+                                                <img :src="`/assets/images/profile-${(message.sender_id || message.fromUserId) % 20 + 1}.jpeg`"
+                                                    class="rounded-full h-10 w-10 object-cover" />
+                                            </template>
+                                            <template x-if="selectedUser.type !== 'group'">
+                                                <template x-if="loginUser.id === message.fromUserId">
                                                 <img :src="`/assets/images/${loginUser.path}`"
                                                     class="rounded-full h-10 w-10 object-cover" />
                                             </template>
-                                            <template x-if="loginUser.id !== message.fromUserId">
+                                                <template x-if="loginUser.id !== message.fromUserId">
                                                 <img :src="`/assets/images/${selectedUser.path}`"
                                                     class="rounded-full h-10 w-10 object-cover" />
+                                                </template>
                                             </template>
                                         </div>
-                                        <div class="space-y-2">
+                                        <div class="flex flex-col space-y-2"
+                                            :class="(loginUser.id === message.fromUserId && selectedUser.type !== 'group') ? 'items-end' : 'items-start'">
+                                            <template x-if="selectedUser.type === 'group' && message.sender_name">
+                                                <p class="text-xs text-gray-500 dark:text-gray-400" x-text="message.sender_name"></p>
+                                            </template>
                                             <div class="flex items-center gap-3">
                                                 <!-- عرض card الطلب إذا كانت الرسالة من نوع order -->
                                                 <template x-if="message.type === 'order' && message.order">
@@ -599,13 +691,24 @@
                                                         </div>
                                                     </div>
                                                 </template>
+                                                <!-- عرض الصورة إذا كانت موجودة -->
+                                                <template x-if="message.image_url">
+                                                    <div class="mb-2">
+                                                        <img :src="message.image_url"
+                                                             class="max-w-xs rounded-lg cursor-pointer hover:opacity-90"
+                                                             @click="window.open(message.image_url, '_blank')"
+                                                             alt="صورة" />
+                                                    </div>
+                                                </template>
                                                 <!-- عرض الرسالة النصية العادية -->
                                                 <template x-if="message.type !== 'order' && message.type !== 'product' || (!message.order && !message.product)">
+                                                    <template x-if="message.text">
                                                 <div class="dark:bg-gray-800 p-4 py-2 rounded-md bg-black/10"
-                                                        :class="loginUser.id === message.fromUserId ?
+                                                                :class="loginUser.id === message.fromUserId ?
                                                         'ltr:rounded-br-none rtl:rounded-bl-none !bg-primary text-white' :
                                                         'ltr:rounded-bl-none rtl:rounded-br-none'"
                                                     x-text="message.text"></div>
+                                                    </template>
                                                 </template>
                                                 <div :class="{ 'hidden': loginUser.id === message.fromUserId }">
 
@@ -674,11 +777,22 @@
                                         </svg>
                                     </button>
                                 </div>
-                                <div class="flex items-center space-x-2 rtl:space-x-reverse py-2">
-                                    <!-- زر البحث عن منتج -->
+                            <div class="flex items-center space-x-2 rtl:space-x-reverse py-2">
+                                <!-- زر رفع صورة -->
                                     <button type="button"
-                                        class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary"
-                                        @click="showProductSearch = true">
+                                    class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary"
+                                    @click="document.getElementById('imageInput').click()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                        <polyline points="21 15 16 10 5 21"></polyline>
+                                        </svg>
+                                    </button>
+                                <input type="file" id="imageInput" accept="image/*" class="hidden" @change="handleImageUpload($event)">
+                                <!-- زر البحث عن منتج -->
+                                    <button type="button"
+                                    class="bg-[#f4f4f4] dark:bg-[#1b2e4b] hover:bg-primary-light rounded-md p-2 hover:text-primary"
+                                    @click="showProductSearch = true">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
                                             <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
@@ -853,6 +967,222 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal إنشاء مجموعة -->
+        <div class="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto hidden"
+            :class="showCreateGroupModal && '!block'">
+            <div class="flex items-center justify-center min-h-screen px-4"
+                @click.self="showCreateGroupModal = false">
+                <div x-show="showCreateGroupModal" x-transition x-transition.duration.300
+                    class="panel border-0 p-0 rounded-lg overflow-hidden md:w-full max-w-lg w-[90%] my-8">
+                                    <button type="button"
+                        class="absolute top-4 ltr:right-4 rtl:left-4 text-white-dark hover:text-dark"
+                        @click="showCreateGroupModal = false">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h3 class="text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3 ltr:pr-[50px] rtl:pl-[50px]">إنشاء مجموعة جديدة</h3>
+                    <div class="p-5">
+                        <div class="mb-5">
+                            <label class="block text-sm font-semibold mb-2">اسم المجموعة</label>
+                            <input type="text"
+                                   x-model="groupTitle"
+                                   placeholder="أدخل اسم المجموعة..."
+                                   class="form-input" />
+                        </div>
+                        <div class="mb-5">
+                            <label class="block text-sm font-semibold mb-2">اختر المستخدمين</label>
+                            <div class="max-h-[300px] overflow-y-auto space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                                <template x-for="user in availableUsersForGroup" :key="user.id">
+                                    <label class="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded cursor-pointer">
+                                        <input type="checkbox"
+                                               :value="user.id"
+                                               x-model="selectedUserIds"
+                                               class="form-checkbox" />
+                                        <img :src="`/assets/images/profile-${user.id % 20 + 1}.jpeg`"
+                                             class="rounded-full h-10 w-10 object-cover" />
+                                        <div class="flex-1">
+                                            <p class="font-semibold" x-text="user.name"></p>
+                                            <p class="text-xs text-gray-500" x-text="user.role"></p>
+                                        </div>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3">
+                            <button type="button"
+                                class="btn btn-outline-danger"
+                                @click="showCreateGroupModal = false; groupTitle = ''; selectedUserIds = []">
+                                إلغاء
+                            </button>
+                            <button type="button"
+                                class="btn btn-primary"
+                                @click="createGroup()">
+                                إنشاء المجموعة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal إدارة المجموعة -->
+        <div class="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto hidden"
+            :class="showGroupManageModal && '!block'">
+            <div class="flex items-center justify-center min-h-screen px-4"
+                @click.self="showGroupManageModal = false">
+                <div x-show="showGroupManageModal" x-transition x-transition.duration.300
+                    class="panel border-0 p-0 rounded-lg overflow-hidden md:w-full max-w-lg w-[90%] my-8">
+                    <button type="button"
+                        class="absolute top-4 ltr:right-4 rtl:left-4 text-white-dark hover:text-dark"
+                        @click="showGroupManageModal = false">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                    <h3 class="text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3 ltr:pr-[50px] rtl:pl-[50px]">إدارة المجموعة</h3>
+                    <div class="p-5">
+                        <div class="mb-5">
+                            <h4 class="font-semibold mb-3">المشاركون الحاليون</h4>
+                            <div class="max-h-[200px] overflow-y-auto space-y-2">
+                                <template x-for="participant in currentGroupParticipants" :key="participant.id">
+                                    <div class="flex items-center justify-between p-2 border border-gray-200 dark:border-gray-700 rounded-lg">
+                                        <div class="flex items-center gap-3">
+                                            <img :src="`/assets/images/${participant.path}`"
+                                                 class="rounded-full h-10 w-10 object-cover" />
+                                            <div>
+                                                <p class="font-semibold" x-text="participant.name"></p>
+                                                <p class="text-xs text-gray-500" x-text="participant.role"></p>
+                                </div>
+                            </div>
+                                        <template x-if="loginUser.role === 'admin' && participant.id !== loginUser.id">
+                                            <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                @click="removeParticipant(participant.id)">
+                                                إزالة
+                                            </button>
+                                        </template>
+                        </div>
+                                </template>
+                    </div>
+                        </div>
+                        <template x-if="loginUser.role === 'admin'">
+                            <div class="mb-5">
+                                <h4 class="font-semibold mb-3">إضافة مستخدمين جدد</h4>
+                                <div class="max-h-[200px] overflow-y-auto space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                                    <template x-for="user in availableUsersForGroup" :key="user.id">
+                                        <label class="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded cursor-pointer"
+                                               x-show="!currentGroupParticipants.find(p => p.id === user.id)">
+                                            <input type="checkbox"
+                                                   :value="user.id"
+                                                   x-model="selectedUserIds"
+                                                   class="form-checkbox" />
+                                            <img :src="`/assets/images/profile-${user.id % 20 + 1}.jpeg`"
+                                                 class="rounded-full h-10 w-10 object-cover" />
+                                            <div class="flex-1">
+                                                <p class="font-semibold" x-text="user.name"></p>
+                                                <p class="text-xs text-gray-500" x-text="user.role"></p>
+                                            </div>
+                                        </label>
+                </template>
+            </div>
+                                <button type="button"
+                                    class="btn btn-primary btn-sm mt-3"
+                                    @click="addParticipantsToGroup()">
+                                    إضافة المستخدمين المختارين
+                                </button>
+                            </div>
+                        </template>
+                        <div class="flex justify-end">
+                            <button type="button"
+                                class="btn btn-outline-primary"
+                                @click="showGroupManageModal = false; selectedUserIds = []; currentGroupParticipants = []">
+                                إغلاق
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal إعدادات الإشعارات -->
+        <div class="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto hidden"
+            :class="showNotificationSettings && '!block'">
+            <div class="flex items-center justify-center min-h-screen px-4"
+                @click.self="showNotificationSettings = false">
+                <div x-show="showNotificationSettings" x-transition x-transition.duration.300
+                    class="panel border-0 p-0 rounded-lg overflow-hidden md:w-full max-w-md w-[90%] my-8">
+                    <button type="button"
+                        class="absolute top-4 ltr:right-4 rtl:left-4 text-white-dark hover:text-dark"
+                        @click="showNotificationSettings = false">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h3 class="text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3 ltr:pr-[50px] rtl:pl-[50px]">إعدادات الإشعارات</h3>
+                    <div class="p-5">
+                        <div class="space-y-4">
+                            <!-- تفعيل/إيقاف الصوت -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="font-semibold mb-1">صوت التنبيه</h4>
+                                    <p class="text-sm text-gray-500">تشغيل صوت عند وصول رسالة جديدة</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox"
+                                           class="sr-only peer"
+                                           :checked="soundEnabled"
+                                           @change="toggleSound()" />
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:ltr:left-[2px] after:rtl:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+
+                            <!-- تفعيل/إيقاف الإشعارات -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="font-semibold mb-1">إشعارات المتصفح</h4>
+                                    <p class="text-sm text-gray-500">عرض إشعارات عند وصول رسالة جديدة</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox"
+                                           class="sr-only peer"
+                                           :checked="notificationsEnabled"
+                                           @change="toggleNotifications()" />
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:ltr:left-[2px] after:rtl:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+
+                            <!-- حالة إذن الإشعارات -->
+                            <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-gray-500">حالة الإذن:</span>
+                                    <span class="text-sm font-semibold"
+                                          :class="{
+                                              'text-success': notificationPermission === 'granted',
+                                              'text-warning': notificationPermission === 'default',
+                                              'text-danger': notificationPermission === 'denied'
+                                          }"
+                                          x-text="notificationPermission === 'granted' ? 'مفعل' :
+                                                  notificationPermission === 'denied' ? 'مرفوض' :
+                                                  notificationPermission === 'unsupported' ? 'غير مدعوم' : 'في الانتظار'"></span>
+                                </div>
+                                <template x-if="notificationPermission !== 'granted' && notificationPermission !== 'unsupported'">
+                                    <button type="button"
+                                        class="btn btn-primary btn-sm w-full"
+                                        @click="requestPermissionIfNeeded()">
+                                        طلب إذن الإشعارات
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         document.addEventListener("alpine:init", () => {
@@ -862,6 +1192,12 @@
                     setTimeout(() => {
                         this.startConversationsPolling();
                     }, 1000);
+                    // جلب المستخدمين المتاحين للمجموعات
+                    this.loadAvailableUsersForGroup();
+                    // طلب إذن الإشعارات
+                    this.requestNotificationPermission();
+                    // تحميل الإعدادات من localStorage
+                    this.loadNotificationSettings();
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
@@ -870,9 +1206,11 @@
                     name: '{{ auth()->user()->name }}',
                     path: 'profile-{{ (auth()->id() % 20) + 1 }}.jpeg',
                     designation: '{{ auth()->user()->role }}',
+                    role: '{{ auth()->user()->role }}',
                 },
                 conversationsList: @json($conversationsList->values()->all()),
                 availableUsersList: @json($availableUsersList->values()->all()),
+                availableUsersForGroup: @json($availableUsersForGroup ?? []),
                 activeTab: 'contacts', // 'chats' أو 'contacts' - افتراضي contacts
                 searchUser: '',
                 textMessage: '',
@@ -887,6 +1225,21 @@
                 selectedProduct: null,
                 pollingInterval: null,
                 conversationsPollingInterval: null,
+                showCreateGroupModal: false,
+                selectedImage: null,
+                imagePreview: null,
+                showGroupManageModal: false,
+                showNotificationSettings: false,
+                notificationPermission: 'default',
+                soundEnabled: true,
+                notificationsEnabled: true,
+                lastMessageIds: {},
+                unreadCount: 0,
+                groupTitle: '',
+                selectedUserIds: [],
+                availableUsersForGroup: [],
+                currentGroupParticipants: [],
+                currentGroupId: null,
 
                 get contactList() {
                     // إرجاع القائمة المناسبة حسب التبويب النشط
@@ -918,6 +1271,14 @@
                     this.isShowUserChat = true;
                     this.isShowChatMenu = false;
 
+                    // إذا كانت المجموعة، جلب الرسائل مباشرة
+                    if (user.type === 'group' && user.conversationId) {
+                        await this.loadMessages(user.conversationId);
+                        this.startPolling();
+                        this.scrollToBottom;
+                        return;
+                    }
+
                     // إذا لم تكن هناك محادثة، أنشئ واحدة
                     if (!user.conversationId && user.userId) {
                         try {
@@ -941,7 +1302,7 @@
                                         time: '',
                                         preview: '',
                                         messages: [],
-                                        active: true,
+                        active: true,
                                         conversationId: data.conversation_id
                                     });
                                 }
@@ -973,6 +1334,9 @@
                         const currentMessagesCount = this.selectedUser?.messages?.length || 0;
                         const hasNewMessages = messages.length > currentMessagesCount;
 
+                        // التحقق من رسائل جديدة للإشعارات
+                        this.checkForNewMessages(messages, conversationId);
+
                         // تحديث الرسائل في selectedUser مباشرة
                         if (this.selectedUser) {
                             this.selectedUser.messages = messages;
@@ -984,7 +1348,7 @@
                             // تحديث preview و time إذا كانت هناك رسائل جديدة
                             if (hasNewMessages && messages.length > 0) {
                                 const lastMessage = messages[messages.length - 1];
-                                user.preview = lastMessage.text || '';
+                                user.preview = lastMessage.text || (lastMessage.image_url ? 'صورة' : '') || '';
                                 user.time = lastMessage.time || '';
                             }
                         }
@@ -994,8 +1358,16 @@
                             // تحديث preview و time إذا كانت هناك رسائل جديدة
                             if (hasNewMessages && messages.length > 0) {
                                 const lastMessage = messages[messages.length - 1];
-                                user.preview = lastMessage.text || '';
+                                user.preview = lastMessage.text || (lastMessage.image_url ? 'صورة' : '') || '';
                                 user.time = lastMessage.time || '';
+                            }
+                        }
+
+                        // تحديث lastMessageId
+                        if (messages.length > 0) {
+                            const lastMessage = messages[messages.length - 1];
+                            if (lastMessage.id) {
+                                this.lastMessageIds[conversationId] = lastMessage.id;
                             }
                         }
 
@@ -1071,16 +1443,188 @@
                                     messages: [],
                                     active: conv.active,
                                     conversationId: conv.id,
-                                    unread_count: conv.unread_count
+                                    unread_count: conv.unread_count,
+                                    type: conv.type || 'direct',
+                                    participants_count: conv.participants_count
                                 });
                             }
                         });
+
+                        // تحديث Badge بعدد الرسائل غير المقروءة
+                        this.updateBadge();
                     } catch (error) {
                         console.error('Error loading conversations:', error);
                     }
                 },
 
+                handleImageUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        return;
+                    }
+
+                    // التحقق من نوع الملف
+                    if (!file.type.startsWith('image/')) {
+                        alert('يرجى اختيار ملف صورة');
+                        event.target.value = '';
+                        return;
+                    }
+
+                    // التحقق من حجم الملف (5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('حجم الصورة يجب أن يكون أقل من 5MB');
+                        event.target.value = '';
+                        return;
+                    }
+
+                    // حفظ الملف وعرض preview
+                    this.selectedImage = file;
+                    const reader = new FileReader();
+                    const self = this;
+                    reader.onload = function(e) {
+                        self.imagePreview = e.target.result;
+                        // إرسال الصورة مباشرة بعد تحميل preview
+                        self.sendImageMessage();
+                    };
+                    reader.readAsDataURL(file);
+                },
+
+                async sendImageMessage() {
+                    if (!this.selectedImage || !this.selectedUser) {
+                        return;
+                    }
+
+                    const messageText = this.textMessage.trim();
+                    const imageFile = this.selectedImage;
+                    const imagePreviewUrl = this.imagePreview;
+
+                    // إضافة الرسالة محلياً أولاً
+                    if (!this.selectedUser.messages) {
+                        this.selectedUser.messages = [];
+                    }
+                    this.selectedUser.messages.push({
+                        fromUserId: this.loginUser.id,
+                        toUserId: this.selectedUser.userId,
+                        text: messageText || '',
+                        image_url: imagePreviewUrl,
+                        type: 'image',
+                        time: 'Just now',
+                    });
+
+                    this.scrollToBottom;
+
+                    // إرسال الرسالة للخادم
+                    try {
+                        let url;
+                        const conversationId = this.selectedUser.conversationId;
+                        const formData = new FormData();
+
+                        if (conversationId) {
+                            url = '{{ route("chat.send") }}';
+                            formData.append('conversation_id', conversationId);
+                        } else if (this.selectedUser.userId) {
+                            url = '{{ route("chat.send-to-user") }}';
+                            formData.append('user_id', this.selectedUser.userId);
+                        } else {
+                            return;
+                        }
+
+                        formData.append('message', messageText);
+                        formData.append('image', imageFile);
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: formData
+                        });
+
+                        // التحقق من نوع الاستجابة
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            const text = await response.text();
+                            console.error('Expected JSON but got:', contentType, text.substring(0, 200));
+                            alert('حدث خطأ في إرسال الصورة. يرجى المحاولة مرة أخرى.');
+                            // إزالة الرسالة المحلية في حالة الخطأ
+                            if (this.selectedUser.messages.length > 0) {
+                                this.selectedUser.messages.pop();
+                            }
+                            return;
+                        }
+
+                        const data = await response.json();
+                        if (data.success && data.message) {
+                            // تحديث الرسالة بالبيانات من الخادم
+                            if (this.selectedUser.messages.length > 0) {
+                                const lastMessage = this.selectedUser.messages[this.selectedUser.messages.length - 1];
+                                if (lastMessage.image_url === imagePreviewUrl) {
+                                    lastMessage.id = data.message.id;
+                                    lastMessage.time = data.message.time;
+                                    lastMessage.text = data.message.text;
+                                    if (data.message.image_url) {
+                                        lastMessage.image_url = data.message.image_url;
+                                    }
+                                }
+                            }
+                            // تحديث preview و time في conversationsList
+                            let conv = this.conversationsList.find(c => c.conversationId === conversationId);
+                            if (conv) {
+                                conv.preview = messageText || 'صورة';
+                                conv.time = data.message.time;
+                            }
+                            // تحديث preview و time في availableUsersList
+                            let userInAvailable = this.availableUsersList.find(u => u.conversationId === conversationId);
+                            if (userInAvailable) {
+                                userInAvailable.preview = messageText || 'صورة';
+                                userInAvailable.time = data.message.time;
+                            }
+
+                            // إذا تم إنشاء محادثة جديدة
+                            if (data.conversation_id) {
+                                this.selectedUser.conversationId = data.conversation_id;
+                                const userInList = this.conversationsList.find(c => c.userId === this.selectedUser.userId);
+                                if (userInList) {
+                                    userInList.conversationId = data.conversation_id;
+                                }
+                                const userInAvailable = this.availableUsersList.find(c => c.userId === this.selectedUser.userId);
+                                if (userInAvailable) {
+                                    userInAvailable.conversationId = data.conversation_id;
+                                }
+                            }
+
+                            // إعادة تعيين الحقول
+                            this.textMessage = '';
+                            this.selectedImage = null;
+                            this.imagePreview = null;
+                            document.getElementById('imageInput').value = '';
+
+                            this.scrollToBottom;
+                        } else {
+                            alert(data.error || 'حدث خطأ في إرسال الصورة');
+                            // إزالة الرسالة المحلية في حالة الخطأ
+                            if (this.selectedUser.messages.length > 0) {
+                                this.selectedUser.messages.pop();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error sending image:', error);
+                        // إزالة الرسالة المحلية في حالة الخطأ
+                        if (this.selectedUser.messages.length > 0) {
+                            this.selectedUser.messages.pop();
+                        }
+                        alert('حدث خطأ في إرسال الصورة');
+                    }
+                },
+
                 async sendMessage() {
+                    // إذا كانت هناك صورة محدد، استخدم sendImageMessage
+                    if (this.selectedImage) {
+                        await this.sendImageMessage();
+                        return;
+                    }
+
                     if (!this.textMessage.trim() || !this.selectedUser) {
                         return;
                     }
@@ -1296,6 +1840,439 @@
                     } catch (error) {
                         console.error('Error sending product message:', error);
                         alert('حدث خطأ في إرسال المنتج');
+                    }
+                },
+
+                async loadAvailableUsersForGroup() {
+                    // استخدام البيانات من الخادم
+                    this.availableUsersForGroup = @json($availableUsersForGroup ?? []);
+                },
+
+                async createGroup() {
+                    if (!this.groupTitle.trim()) {
+                        alert('يرجى إدخال اسم المجموعة');
+                        return;
+                    }
+
+                    if (this.selectedUserIds.length === 0) {
+                        alert('يرجى اختيار مستخدم واحد على الأقل');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('{{ route("chat.create-group") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                title: this.groupTitle,
+                                user_ids: this.selectedUserIds
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success && data.conversation) {
+                            // إضافة المجموعة إلى قائمة المحادثات
+                            const newGroup = {
+                                userId: null,
+                                name: data.conversation.title,
+                                code: null,
+                                path: 'group-icon.svg',
+                                time: 'Just now',
+                                preview: '',
+                        messages: [],
+                        active: true,
+                                conversationId: data.conversation.id,
+                                type: 'group',
+                                participants_count: data.conversation.participants_count,
+                            };
+                            this.conversationsList.push(newGroup);
+
+                            // إغلاق modal وإعادة تعيين الحقول
+                            this.showCreateGroupModal = false;
+                            this.groupTitle = '';
+                            this.selectedUserIds = [];
+
+                            // فتح المحادثة الجديدة
+                            await this.selectUser(newGroup);
+
+                            alert('تم إنشاء المجموعة بنجاح');
+                        } else {
+                            alert(data.error || 'حدث خطأ في إنشاء المجموعة');
+                        }
+                    } catch (error) {
+                        console.error('Error creating group:', error);
+                        alert('حدث خطأ في إنشاء المجموعة');
+                    }
+                },
+
+                async openGroupManageModal(conversationId) {
+                    this.currentGroupId = conversationId;
+                    this.selectedUserIds = [];
+
+                    try {
+                        const response = await fetch(`{{ url('/api/chat/group-participants') }}/${conversationId}`);
+                        const data = await response.json();
+
+                        if (data.participants) {
+                            this.currentGroupParticipants = data.participants;
+                            this.showGroupManageModal = true;
+                        } else {
+                            alert(data.error || 'حدث خطأ في جلب بيانات المجموعة');
+                        }
+                    } catch (error) {
+                        console.error('Error loading group participants:', error);
+                        alert('حدث خطأ في جلب بيانات المجموعة');
+                    }
+                },
+
+                async addParticipantsToGroup() {
+                    if (this.selectedUserIds.length === 0) {
+                        alert('يرجى اختيار مستخدم واحد على الأقل');
+                        return;
+                    }
+
+                    if (!this.currentGroupId) {
+                        alert('خطأ: لا توجد مجموعة محددة');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('{{ route("chat.add-participants") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                conversation_id: this.currentGroupId,
+                                user_ids: this.selectedUserIds
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            // تحديث قائمة المشاركين
+                            await this.openGroupManageModal(this.currentGroupId);
+                            this.selectedUserIds = [];
+
+                            // تحديث conversationsList
+                            const group = this.conversationsList.find(c => c.conversationId === this.currentGroupId);
+                            if (group) {
+                                group.participants_count = data.participants_count;
+                            }
+
+                            alert(`تم إضافة ${data.added_count} مستخدم بنجاح`);
+                        } else {
+                            alert(data.error || 'حدث خطأ في إضافة المستخدمين');
+                        }
+                    } catch (error) {
+                        console.error('Error adding participants:', error);
+                        alert('حدث خطأ في إضافة المستخدمين');
+                    }
+                },
+
+                async removeParticipant(userId) {
+                    if (!confirm('هل أنت متأكد من إزالة هذا المستخدم من المجموعة؟')) {
+                        return;
+                    }
+
+                    if (!this.currentGroupId) {
+                        alert('خطأ: لا توجد مجموعة محددة');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('{{ route("chat.remove-participant") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                conversation_id: this.currentGroupId,
+                                user_id: userId
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            // تحديث قائمة المشاركين
+                            await this.openGroupManageModal(this.currentGroupId);
+
+                            // تحديث conversationsList
+                            const group = this.conversationsList.find(c => c.conversationId === this.currentGroupId);
+                            if (group) {
+                                group.participants_count = data.participants_count;
+                            }
+
+                            alert('تم إزالة المستخدم بنجاح');
+                        } else {
+                            alert(data.error || 'حدث خطأ في إزالة المستخدم');
+                        }
+                    } catch (error) {
+                        console.error('Error removing participant:', error);
+                        alert('حدث خطأ في إزالة المستخدم');
+                    }
+                },
+
+                async requestNotificationPermission() {
+                    if (!('Notification' in window)) {
+                        console.log('This browser does not support notifications');
+                        this.notificationPermission = 'unsupported';
+                        return false;
+                    }
+
+                    if (Notification.permission === 'granted') {
+                        this.notificationPermission = 'granted';
+                        return true;
+                    }
+
+                    if (Notification.permission === 'denied') {
+                        this.notificationPermission = 'denied';
+                        return false;
+                    }
+
+                    // طلب الإذن فقط إذا كان المستخدم في صفحة المحادثة
+                    // سنطلب الإذن عند أول رسالة واردة بدلاً من فوراً
+                    this.notificationPermission = Notification.permission;
+                    return false;
+                },
+
+                async requestPermissionIfNeeded() {
+                    if (this.notificationPermission === 'granted') {
+                        return true;
+                    }
+
+                    if (this.notificationPermission === 'denied' || this.notificationPermission === 'unsupported') {
+                        return false;
+                    }
+
+                    const permission = await Notification.requestPermission();
+                    this.notificationPermission = permission;
+
+                    // حفظ الإذن في localStorage
+                    localStorage.setItem('chat_notification_permission', permission);
+
+                    return permission === 'granted';
+                },
+
+                showNotification(title, body, icon, conversationId) {
+                    // التحقق من تفعيل الإشعارات
+                    if (!this.notificationsEnabled) {
+                        return;
+                    }
+
+                    // التحقق من الإذن
+                    if (this.notificationPermission !== 'granted') {
+                        // محاولة طلب الإذن
+                        this.requestPermissionIfNeeded().then(granted => {
+                            if (granted) {
+                                this.showNotification(title, body, icon, conversationId);
+                            }
+                        });
+                        return;
+                    }
+
+                    // التحقق من أن الصفحة غير مرئية أو المحادثة غير مفتوحة
+                    const isPageVisible = document.visibilityState === 'visible';
+                    const isConversationOpen = this.selectedUser &&
+                                               this.selectedUser.conversationId === conversationId;
+
+                    if (isPageVisible && isConversationOpen) {
+                        return; // لا نعرض إشعار إذا كانت المحادثة مفتوحة والصفحة مرئية
+                    }
+
+                    try {
+                        const notification = new Notification(title, {
+                            body: body,
+                            icon: icon || '/assets/images/icons/icon-192x192.png',
+                            badge: '/assets/images/icons/icon-192x192.png',
+                            tag: `chat-${conversationId}`, // لمنع الإشعارات المكررة
+                            requireInteraction: false,
+                            silent: false,
+                        });
+
+                        notification.onclick = () => {
+                            window.focus();
+                            // فتح المحادثة
+                            const conversation = this.conversationsList.find(c => c.conversationId === conversationId);
+                            if (conversation) {
+                                this.selectUser(conversation);
+                            }
+                            notification.close();
+                        };
+
+                        // إغلاق الإشعار تلقائياً بعد 5 ثوانٍ
+                        setTimeout(() => notification.close(), 5000);
+                    } catch (error) {
+                        console.error('Error showing notification:', error);
+                    }
+                },
+
+                playNotificationSound() {
+                    if (!this.soundEnabled) {
+                        return;
+                    }
+
+                    try {
+                        const audio = new Audio('/assets/sounds/notification.mp3');
+                        audio.volume = 0.5; // 50% volume
+                        audio.play().catch(error => {
+                            console.log('Error playing notification sound:', error);
+                            // إذا فشل تحميل الصوت، استخدم صوت المتصفح الافتراضي
+                            if (audio.error) {
+                                // محاولة استخدام Web Audio API كبديل
+                                this.playFallbackSound();
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error creating audio:', error);
+                        this.playFallbackSound();
+                    }
+                },
+
+                playFallbackSound() {
+                    // استخدام Web Audio API لإنشاء صوت بسيط
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+
+                        oscillator.frequency.value = 800;
+                        oscillator.type = 'sine';
+
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.2);
+                    } catch (error) {
+                        console.log('Fallback sound not supported');
+                    }
+                },
+
+                updateBadge() {
+                    if (!('setAppBadge' in navigator)) {
+                        return;
+                    }
+
+                    try {
+                        const totalUnread = this.conversationsList.reduce((sum, conv) => {
+                            return sum + (conv.unread_count || 0);
+                        }, 0);
+
+                        this.unreadCount = totalUnread;
+
+                        if (totalUnread > 0) {
+                            navigator.setAppBadge(totalUnread);
+                        } else {
+                            navigator.clearAppBadge();
+                        }
+                    } catch (error) {
+                        console.error('Error updating badge:', error);
+                    }
+                },
+
+                checkForNewMessages(messages, conversationId) {
+                    if (!messages || messages.length === 0) {
+                        return;
+                    }
+
+                    const lastMessageId = this.lastMessageIds[conversationId] || 0;
+                    const newMessages = messages.filter(msg => {
+                        return msg.id &&
+                               msg.id > lastMessageId &&
+                               msg.fromUserId !== this.loginUser.id;
+                    });
+
+                    if (newMessages.length > 0) {
+                        // تحديث lastMessageId
+                        const latestMessage = newMessages[newMessages.length - 1];
+                        if (latestMessage.id) {
+                            this.lastMessageIds[conversationId] = latestMessage.id;
+                        }
+
+                        // الحصول على معلومات المحادثة
+                        const conversation = this.conversationsList.find(c => c.conversationId === conversationId) ||
+                                          this.availableUsersList.find(c => c.conversationId === conversationId);
+
+                        // استخدام sender_name من الرسالة إذا كانت متوفرة (للمجموعات)، وإلا استخدم اسم المحادثة
+                        let senderName = latestMessage.sender_name || (conversation ? conversation.name : 'مستخدم');
+                        let messageText = latestMessage.text || '';
+
+                        if (!messageText) {
+                            if (latestMessage.image_url) {
+                                messageText = 'صورة';
+                            } else if (latestMessage.type === 'order' && latestMessage.order) {
+                                messageText = 'طلب: ' + (latestMessage.order.order_number || '');
+                            } else if (latestMessage.type === 'product' && latestMessage.product) {
+                                messageText = 'منتج: ' + (latestMessage.product.name || '');
+                            } else {
+                                messageText = 'رسالة جديدة';
+                            }
+                        }
+
+                        // تقصير النص إذا كان طويلاً
+                        if (messageText.length > 50) {
+                            messageText = messageText.substring(0, 50) + '...';
+                        }
+
+                        // عرض إشعار وصوت
+                        this.showNotification(
+                            `رسالة جديدة من ${senderName}`,
+                            messageText,
+                            null,
+                            conversationId
+                        );
+                        this.playNotificationSound();
+                    }
+                },
+
+                loadNotificationSettings() {
+                    // تحميل الإعدادات من localStorage
+                    const savedSoundEnabled = localStorage.getItem('chat_sound_enabled');
+                    const savedNotificationsEnabled = localStorage.getItem('chat_notifications_enabled');
+                    const savedPermission = localStorage.getItem('chat_notification_permission');
+
+                    if (savedSoundEnabled !== null) {
+                        this.soundEnabled = savedSoundEnabled === 'true';
+                    }
+
+                    if (savedNotificationsEnabled !== null) {
+                        this.notificationsEnabled = savedNotificationsEnabled === 'true';
+                    }
+
+                    if (savedPermission) {
+                        this.notificationPermission = savedPermission;
+                    } else if ('Notification' in window) {
+                        this.notificationPermission = Notification.permission;
+                    }
+                },
+
+                saveNotificationSettings() {
+                    // حفظ الإعدادات في localStorage
+                    localStorage.setItem('chat_sound_enabled', this.soundEnabled.toString());
+                    localStorage.setItem('chat_notifications_enabled', this.notificationsEnabled.toString());
+                    localStorage.setItem('chat_notification_permission', this.notificationPermission);
+                },
+
+                toggleSound() {
+                    this.soundEnabled = !this.soundEnabled;
+                    this.saveNotificationSettings();
+                },
+
+                toggleNotifications() {
+                    this.notificationsEnabled = !this.notificationsEnabled;
+                    this.saveNotificationSettings();
+
+                    if (this.notificationsEnabled && this.notificationPermission !== 'granted') {
+                        this.requestPermissionIfNeeded();
                     }
                 },
             }));

@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
@@ -43,12 +44,15 @@ class ChatController extends Controller
 
                 return [
                     'id' => $conversation->id,
+                    'type' => $conversation->type,
+                    'title' => $conversation->isGroup() ? $conversation->title : null,
                     'other_user' => $otherParticipant ? [
                         'id' => $otherParticipant->id,
                         'name' => $otherParticipant->name,
                         'code' => $otherParticipant->code,
                         'path' => 'profile-' . ($otherParticipant->id % 20 + 1) . '.jpeg',
                     ] : null,
+                    'participants_count' => $conversation->isGroup() ? $conversation->participants()->count() : null,
                     'latest_message' => $conversation->latestMessage ? [
                         'text' => $conversation->latestMessage->message,
                         'time' => $conversation->latestMessage->created_at->format('g:i A'),
@@ -60,17 +64,34 @@ class ChatController extends Controller
 
         // تحويل المحادثات إلى تنسيق contactList
         $conversationsList = $conversationsData->map(function($conv) {
-            return [
-                'userId' => $conv['other_user']['id'] ?? null,
-                'name' => $conv['other_user']['name'] ?? 'Unknown',
-                'code' => $conv['other_user']['code'] ?? null,
-                'path' => $conv['other_user']['path'] ?? 'profile-1.jpeg',
-                'time' => $conv['time'],
-                'preview' => $conv['latest_message']['text'] ?? '',
-                'messages' => [],
-                'active' => true,
-                'conversationId' => $conv['id'],
-            ];
+            if ($conv['type'] === 'group') {
+                return [
+                    'userId' => null,
+                    'name' => $conv['title'] ?? 'Group',
+                    'code' => null,
+                    'path' => 'group-icon.svg',
+                    'time' => $conv['time'],
+                    'preview' => $conv['latest_message']['text'] ?? '',
+                    'messages' => [],
+                    'active' => true,
+                    'conversationId' => $conv['id'],
+                    'type' => 'group',
+                    'participants_count' => $conv['participants_count'],
+                ];
+            } else {
+                return [
+                    'userId' => $conv['other_user']['id'] ?? null,
+                    'name' => $conv['other_user']['name'] ?? 'Unknown',
+                    'code' => $conv['other_user']['code'] ?? null,
+                    'path' => $conv['other_user']['path'] ?? 'profile-1.jpeg',
+                    'time' => $conv['time'],
+                    'preview' => $conv['latest_message']['text'] ?? '',
+                    'messages' => [],
+                    'active' => true,
+                    'conversationId' => $conv['id'],
+                    'type' => 'direct',
+                ];
+            }
         });
 
         // تحويل المستخدمين المتاحين إلى تنسيق مناسب للعرض
@@ -95,8 +116,24 @@ class ChatController extends Controller
             ];
         });
 
+        // جلب جميع المستخدمين المتاحين للمجموعات (للمدير فقط)
+        $availableUsersForGroup = collect();
+        if ($user->isAdmin()) {
+            $availableUsersForGroup = User::where('id', '!=', $user->id)
+                ->select('id', 'name', 'role', 'code')
+                ->get()
+                ->map(function($u) {
+                    return [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'role' => $u->role,
+                        'code' => $u->code,
+                    ];
+                });
+        }
+
         // إرجاع القائمتين منفصلتين
-        return view('apps.chat', compact('availableUsers', 'conversationsList', 'availableUsersList'));
+        return view('apps.chat', compact('availableUsers', 'conversationsList', 'availableUsersList', 'availableUsersForGroup'));
     }
 
     /**
@@ -113,17 +150,34 @@ class ChatController extends Controller
                 $otherParticipant = $conversation->getOtherParticipant($user->id);
                 $unreadCount = $conversation->unreadCount($user->id);
 
-                return [
-                    'id' => $conversation->id,
-                    'userId' => $otherParticipant ? $otherParticipant->id : null,
-                    'name' => $otherParticipant ? $otherParticipant->name : 'Unknown',
-                    'code' => $otherParticipant ? $otherParticipant->code : null,
-                    'path' => $otherParticipant ? 'profile-' . ($otherParticipant->id % 20 + 1) . '.jpeg' : 'profile-1.jpeg',
-                    'preview' => $conversation->latestMessage ? substr($conversation->latestMessage->message, 0, 50) : '',
-                    'time' => $conversation->updated_at->format('g:i A'),
-                    'active' => $otherParticipant ? true : false,
-                    'unread_count' => $unreadCount,
-                ];
+                if ($conversation->isGroup()) {
+                    return [
+                        'id' => $conversation->id,
+                        'type' => 'group',
+                        'userId' => null,
+                        'name' => $conversation->title,
+                        'code' => null,
+                        'path' => 'group-icon.svg',
+                        'preview' => $conversation->latestMessage ? substr($conversation->latestMessage->message, 0, 50) : '',
+                        'time' => $conversation->updated_at->format('g:i A'),
+                        'active' => true,
+                        'unread_count' => $unreadCount,
+                        'participants_count' => $conversation->participants()->count(),
+                    ];
+                } else {
+                    return [
+                        'id' => $conversation->id,
+                        'type' => 'direct',
+                        'userId' => $otherParticipant ? $otherParticipant->id : null,
+                        'name' => $otherParticipant ? $otherParticipant->name : 'Unknown',
+                        'code' => $otherParticipant ? $otherParticipant->code : null,
+                        'path' => $otherParticipant ? 'profile-' . ($otherParticipant->id % 20 + 1) . '.jpeg' : 'profile-1.jpeg',
+                        'preview' => $conversation->latestMessage ? substr($conversation->latestMessage->message, 0, 50) : '',
+                        'time' => $conversation->updated_at->format('g:i A'),
+                        'active' => $otherParticipant ? true : false,
+                        'unread_count' => $unreadCount,
+                    ];
+                }
             });
 
         return response()->json($conversations);
@@ -205,8 +259,9 @@ class ChatController extends Controller
             ->with(['user', 'order.delegate', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
             ->orderBy('created_at', 'asc')
             ->get()
-            ->map(function($message) use ($user, $otherParticipant) {
+            ->map(function($message) use ($user, $otherParticipant, $conversation) {
                 $data = [
+                    'id' => $message->id,
                     'fromUserId' => $message->user_id,
                     'toUserId' => $message->user_id == $user->id ? ($otherParticipant ? $otherParticipant->id : 0) : $user->id,
                     'text' => $message->message,
@@ -253,6 +308,17 @@ class ChatController extends Controller
                     ];
                 }
 
+                // إذا كانت المحادثة مجموعة، أضف اسم المرسل
+                if ($conversation->type === 'group') {
+                    $data['sender_name'] = $message->user->name;
+                    $data['sender_id'] = $message->user_id;
+                }
+
+                // إذا كانت الرسالة تحتوي على صورة
+                if ($message->image_path) {
+                    $data['image_url'] = asset('storage/' . $message->image_path);
+                }
+
                 return $data;
             });
 
@@ -269,44 +335,85 @@ class ChatController extends Controller
      */
     public function sendMessage(Request $request)
     {
-        $request->validate([
-            'conversation_id' => 'required|exists:conversations,id',
-            'message' => 'required|string|max:5000',
-        ]);
+        try {
+            $request->validate([
+                'conversation_id' => 'required|exists:conversations,id',
+                'message' => 'nullable|string|max:5000',
+                'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'خطأ في التحقق من البيانات',
+                'errors' => $e->errors()
+            ], 422);
+        }
 
         $user = Auth::user();
         $conversationId = $request->input('conversation_id');
 
-        // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
-            $q->where('user_id', $user->id);
-        })->findOrFail($conversationId);
+        try {
+            // التحقق من أن المستخدم مشارك في المحادثة
+            $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })->findOrFail($conversationId);
 
-        // إنشاء الرسالة
-        $message = Message::create([
-            'conversation_id' => $conversationId,
-            'user_id' => $user->id,
-            'message' => $request->input('message'),
-        ]);
+            // معالجة رفع الصورة
+            $imagePath = null;
+            $messageType = 'text';
 
-        // تحديث وقت المحادثة
-        $conversation->touch();
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $imagePath = $image->store('messages', 'public');
+                $messageType = 'image';
+            }
 
-        // Log للتأكد من إرسال الرسالة
-        \Log::info('Chat - Send message');
-        \Log::info('Chat - Conversation ID: ' . $conversationId);
-        \Log::info('Chat - User: ' . $user->name . ' (' . $user->role . ')');
-        \Log::info('Chat - Message: ' . $request->input('message'));
+            // التحقق من وجود نص أو صورة
+            if (empty($request->input('message')) && !$imagePath) {
+                return response()->json(['error' => 'يجب إدخال رسالة أو رفع صورة'], 400);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => [
-                'id' => $message->id,
-                'fromUserId' => $message->user_id,
-                'text' => $message->message,
-                'time' => $message->created_at->format('g:i A'),
-            ]
-        ]);
+            // إنشاء الرسالة
+            $message = Message::create([
+                'conversation_id' => $conversationId,
+                'user_id' => $user->id,
+                'message' => $request->input('message', ''),
+                'type' => $messageType,
+                'image_path' => $imagePath,
+            ]);
+
+            // تحديث وقت المحادثة
+            $conversation->touch();
+
+            // Log للتأكد من إرسال الرسالة
+            \Log::info('Chat - Send message');
+            \Log::info('Chat - Conversation ID: ' . $conversationId);
+            \Log::info('Chat - User: ' . $user->name . ' (' . $user->role . ')');
+            \Log::info('Chat - Message: ' . $request->input('message'));
+            \Log::info('Chat - Image: ' . ($imagePath ? 'Yes' : 'No'));
+
+            $responseData = [
+                'success' => true,
+                'message' => [
+                    'id' => $message->id,
+                    'fromUserId' => $message->user_id,
+                    'text' => $message->message,
+                    'type' => $message->type,
+                    'time' => $message->created_at->format('g:i A'),
+                ]
+            ];
+
+            if ($imagePath) {
+                $responseData['message']['image_url'] = asset('storage/' . $imagePath);
+            }
+
+            return response()->json($responseData);
+        } catch (\Exception $e) {
+            \Log::error('Chat - Error sending message: ' . $e->getMessage());
+            \Log::error('Chat - Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'error' => 'حدث خطأ في إرسال الرسالة: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -314,29 +421,53 @@ class ChatController extends Controller
      */
     public function sendMessageToUser(Request $request)
     {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'message' => 'required|string|max:5000',
-        ]);
+        try {
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'message' => 'nullable|string|max:5000',
+                'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'خطأ في التحقق من البيانات',
+                'errors' => $e->errors()
+            ], 422);
+        }
 
         $user = Auth::user();
         $otherUserId = $request->input('user_id');
 
-        // الحصول على أو إنشاء المحادثة
-        $conversationResponse = $this->getOrCreateConversation(new Request(['user_id' => $otherUserId]));
-        $conversationData = json_decode($conversationResponse->getContent(), true);
+        try {
+            // الحصول على أو إنشاء المحادثة
+            $conversationResponse = $this->getOrCreateConversation(new Request(['user_id' => $otherUserId]));
+            $conversationData = json_decode($conversationResponse->getContent(), true);
 
-        if (isset($conversationData['error'])) {
-            return response()->json($conversationData, 403);
+            if (isset($conversationData['error'])) {
+                return response()->json($conversationData, 403);
+            }
+
+            $conversationId = $conversationData['conversation_id'];
+
+            // إنشاء request جديد مع جميع البيانات
+            $newRequest = new Request([
+                'conversation_id' => $conversationId,
+                'message' => $request->input('message'),
+            ]);
+
+            // إضافة الصورة إذا كانت موجودة
+            if ($request->hasFile('image')) {
+                $newRequest->files->set('image', $request->file('image'));
+            }
+
+            // إرسال الرسالة
+            return $this->sendMessage($newRequest);
+        } catch (\Exception $e) {
+            \Log::error('Chat - Error sending message to user: ' . $e->getMessage());
+            \Log::error('Chat - Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'error' => 'حدث خطأ في إرسال الرسالة: ' . $e->getMessage()
+            ], 500);
         }
-
-        $conversationId = $conversationData['conversation_id'];
-
-        // إرسال الرسالة
-        return $this->sendMessage(new Request([
-            'conversation_id' => $conversationId,
-            'message' => $request->input('message'),
-        ]));
     }
 
     /**
@@ -585,6 +716,174 @@ class ChatController extends Controller
                 ],
                 'time' => $message->created_at->format('g:i A'),
             ]
+        ]);
+    }
+
+    /**
+     * إنشاء مجموعة جديدة (للمدير فقط)
+     */
+    public function createGroup(Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير
+        if (!$user->isAdmin()) {
+            return response()->json(['error' => 'غير مصرح - المدير فقط يمكنه إنشاء المجموعات'], 403);
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+
+        // إنشاء المجموعة
+        $conversation = Conversation::create([
+            'type' => 'group',
+            'title' => $request->input('title'),
+            'warehouse_id' => null, // المجموعات لا ترتبط بمخزن محدد
+        ]);
+
+        // إضافة المدير والمستخدمين المختارين
+        $participants = array_merge([$user->id], $request->input('user_ids'));
+        $conversation->participants()->attach($participants);
+
+        // جلب بيانات المجموعة الكاملة
+        $conversation->load('participants');
+
+        return response()->json([
+            'success' => true,
+            'conversation_id' => $conversation->id,
+            'conversation' => [
+                'id' => $conversation->id,
+                'title' => $conversation->title,
+                'type' => 'group',
+                'participants_count' => $conversation->participants()->count(),
+                'participants' => $conversation->participants->map(function($participant) {
+                    return [
+                        'id' => $participant->id,
+                        'name' => $participant->name,
+                        'code' => $participant->code,
+                        'role' => $participant->role,
+                    ];
+                }),
+            ]
+        ]);
+    }
+
+    /**
+     * إضافة مستخدمين للمجموعة (للمدير فقط)
+     */
+    public function addParticipantsToGroup(Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير
+        if (!$user->isAdmin()) {
+            return response()->json(['error' => 'غير مصرح - المدير فقط يمكنه إضافة مستخدمين'], 403);
+        }
+
+        $request->validate([
+            'conversation_id' => 'required|exists:conversations,id',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+
+        $conversation = Conversation::findOrFail($request->input('conversation_id'));
+
+        // التحقق من أن المحادثة مجموعة
+        if (!$conversation->isGroup()) {
+            return response()->json(['error' => 'هذه المحادثة ليست مجموعة'], 400);
+        }
+
+        // إضافة المستخدمين (تجنب التكرار)
+        $existingParticipants = $conversation->participants()->pluck('user_id')->toArray();
+        $newParticipants = array_diff($request->input('user_ids'), $existingParticipants);
+
+        if (!empty($newParticipants)) {
+            $conversation->participants()->attach($newParticipants);
+        }
+
+        return response()->json([
+            'success' => true,
+            'added_count' => count($newParticipants),
+            'participants_count' => $conversation->participants()->count(),
+        ]);
+    }
+
+    /**
+     * إزالة مستخدم من المجموعة (للمدير فقط)
+     */
+    public function removeParticipantFromGroup(Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير
+        if (!$user->isAdmin()) {
+            return response()->json(['error' => 'غير مصرح - المدير فقط يمكنه إزالة مستخدمين'], 403);
+        }
+
+        $request->validate([
+            'conversation_id' => 'required|exists:conversations,id',
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $conversation = Conversation::findOrFail($request->input('conversation_id'));
+
+        // التحقق من أن المحادثة مجموعة
+        if (!$conversation->isGroup()) {
+            return response()->json(['error' => 'هذه المحادثة ليست مجموعة'], 400);
+        }
+
+        // منع إزالة المدير من المجموعة
+        if ($request->input('user_id') == $user->id) {
+            return response()->json(['error' => 'لا يمكنك إزالة نفسك من المجموعة'], 400);
+        }
+
+        // إزالة المستخدم
+        $conversation->participants()->detach($request->input('user_id'));
+
+        return response()->json([
+            'success' => true,
+            'participants_count' => $conversation->participants()->count(),
+        ]);
+    }
+
+    /**
+     * جلب قائمة المشاركين في المجموعة
+     */
+    public function getGroupParticipants(Request $request, $conversationId)
+    {
+        $user = Auth::user();
+
+        $conversation = Conversation::findOrFail($conversationId);
+
+        // التحقق من أن المستخدم مشارك في المجموعة
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['error' => 'غير مصرح'], 403);
+        }
+
+        // التحقق من أن المحادثة مجموعة
+        if (!$conversation->isGroup()) {
+            return response()->json(['error' => 'هذه المحادثة ليست مجموعة'], 400);
+        }
+
+        $participants = $conversation->participants()->get()->map(function($participant) {
+            return [
+                'id' => $participant->id,
+                'name' => $participant->name,
+                'code' => $participant->code,
+                'role' => $participant->role,
+                'path' => 'profile-' . ($participant->id % 20 + 1) . '.jpeg',
+            ];
+        });
+
+        return response()->json([
+            'conversation_id' => $conversation->id,
+            'title' => $conversation->title,
+            'participants' => $participants,
+            'participants_count' => $participants->count(),
+            'is_admin' => $user->isAdmin(),
         ]);
     }
 }

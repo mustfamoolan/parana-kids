@@ -70,6 +70,35 @@ class Conversation extends Model
      */
     public function getOtherParticipant($userId)
     {
+        // للمجموعات، لا يوجد "مشارك آخر" واحد
+        if ($this->type === 'group') {
+            return null;
+        }
         return $this->participants()->where('user_id', '!=', $userId)->first();
+    }
+
+    /**
+     * Check if this is a group conversation
+     */
+    public function isGroup()
+    {
+        return $this->type === 'group';
+    }
+
+    /**
+     * Get the group title (for groups) or participant name (for direct)
+     */
+    public function getGroupTitle($userId = null)
+    {
+        if ($this->isGroup()) {
+            return $this->title;
+        }
+
+        if ($userId) {
+            $otherParticipant = $this->getOtherParticipant($userId);
+            return $otherParticipant ? $otherParticipant->name : 'Unknown';
+        }
+
+        return 'Direct Chat';
     }
 }

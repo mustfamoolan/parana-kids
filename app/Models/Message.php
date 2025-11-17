@@ -16,6 +16,7 @@ class Message extends Model
         'type',
         'order_id',
         'product_id',
+        'image_path',
         'is_read',
         'read_at',
     ];
@@ -68,5 +69,24 @@ class Message extends Model
                 'read_at' => now(),
             ]);
         }
+    }
+
+    /**
+     * Get the full URL for the image
+     */
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image_path) {
+            return null;
+        }
+        return asset('storage/' . $this->image_path);
+    }
+
+    /**
+     * Check if message has an image
+     */
+    public function hasImage()
+    {
+        return !empty($this->image_path);
     }
 }
