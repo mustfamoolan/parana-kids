@@ -83,7 +83,25 @@ class FcmService
                 ->withNotification($notification)
                 ->withData(array_merge([
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                ], $data));
+                ], $data))
+                ->withAndroidConfig([
+                    'priority' => 'high',
+                    'notification' => [
+                        'sound' => 'default',
+                        'channel_id' => 'high_importance_channel',
+                    ],
+                ])
+                ->withApnsConfig([
+                    'headers' => [
+                        'apns-priority' => '10',
+                    ],
+                    'payload' => [
+                        'aps' => [
+                            'sound' => 'default',
+                            'badge' => 1,
+                        ],
+                    ],
+                ]);
 
             // إرسال لجميع الـ tokens
             $report = $this->messaging->sendMulticast($message, $tokens);

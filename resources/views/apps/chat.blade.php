@@ -2259,16 +2259,6 @@
                             firebase.initializeApp(firebaseConfig);
                         }
 
-                        // إرسال config إلى service worker
-                        if ('serviceWorker' in navigator) {
-                            navigator.serviceWorker.ready.then((registration) => {
-                                registration.active.postMessage({
-                                    type: 'FIREBASE_CONFIG',
-                                    config: firebaseConfig,
-                                });
-                            });
-                        }
-
                         const messaging = firebase.messaging();
 
                         // طلب الإذن للحصول على token
