@@ -193,6 +193,25 @@ async function loadFirebaseConfigFromAPI() {
 console.log('[SW] Service Worker loaded, initializing Firebase...');
 loadFirebaseConfigFromAPI();
 
+// Test notification بعد 3 ثواني للتأكد من أن Service Worker يعمل
+setTimeout(() => {
+  if (self.registration) {
+    console.log('[SW] Testing notification system...');
+    self.registration.showNotification('Service Worker Test', {
+      body: 'Service Worker is working correctly',
+      icon: '/assets/images/icons/icon-192x192.png',
+      badge: '/assets/images/icons/icon-192x192.png',
+      tag: 'test-notification',
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+    }).then(() => {
+      console.log('[SW] Test notification shown successfully');
+    }).catch((error) => {
+      console.error('[SW] Error showing test notification:', error);
+    });
+  }
+}, 3000);
+
 // معالجة رسائل من الصفحة الرئيسية
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -228,7 +247,9 @@ self.addEventListener('activate', (event) => {
 
 // معالجة push events مباشرة (fallback إذا لم يعمل Firebase)
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push event received:', event);
+  console.log('[SW] ========== PUSH EVENT RECEIVED ==========');
+  console.log('[SW] Push event:', event);
+  console.log('[SW] Event data:', event.data);
   
   let notificationData = {
     title: 'رسالة جديدة',
@@ -239,21 +260,41 @@ self.addEventListener('push', (event) => {
 
   try {
     if (event.data) {
-      const payload = event.data.json();
-      console.log('[SW] Push payload:', payload);
-      
-      if (payload.notification) {
-        notificationData.title = payload.notification.title || notificationData.title;
-        notificationData.body = payload.notification.body || notificationData.body;
-        notificationData.icon = payload.notification.icon || notificationData.icon;
+      let payload;
+      try {
+        payload = event.data.json();
+        console.log('[SW] Push payload (JSON):', payload);
+      } catch (e) {
+        // إذا لم يكن JSON، حاول text
+        const text = event.data.text();
+        console.log('[SW] Push payload (text):', text);
+        try {
+          payload = JSON.parse(text);
+        } catch (e2) {
+          console.error('[SW] Cannot parse push data as JSON or text');
+          payload = null;
+        }
       }
       
-      if (payload.data) {
-        notificationData.data = payload.data;
+      if (payload) {
+        if (payload.notification) {
+          notificationData.title = payload.notification.title || notificationData.title;
+          notificationData.body = payload.notification.body || notificationData.body;
+          notificationData.icon = payload.notification.icon || notificationData.icon;
+          console.log('[SW] Notification data from payload:', payload.notification);
+        }
+        
+        if (payload.data) {
+          notificationData.data = payload.data;
+          console.log('[SW] Data from payload:', payload.data);
+        }
       }
+    } else {
+      console.log('[SW] No data in push event');
     }
   } catch (error) {
     console.error('[SW] Error parsing push data:', error);
+    console.error('[SW] Error stack:', error.stack);
   }
 
   const notificationOptions = {
@@ -267,9 +308,18 @@ self.addEventListener('push', (event) => {
     silent: false,
   };
 
+  console.log('[SW] Notification options:', notificationOptions);
   console.log('[SW] Showing push notification:', notificationData.title);
+  
   event.waitUntil(
     self.registration.showNotification(notificationData.title, notificationOptions)
+      .then(() => {
+        console.log('[SW] Push notification shown successfully');
+      })
+      .catch((error) => {
+        console.error('[SW] Error showing push notification:', error);
+        console.error('[SW] Error stack:', error.stack);
+      })
   );
 });
 
