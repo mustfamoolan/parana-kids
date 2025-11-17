@@ -93,21 +93,21 @@ function initializeFirebase(firebaseConfig) {
   if (firebaseInitialized || !firebaseConfig || !firebaseConfig.apiKey || typeof firebase === 'undefined') {
     return;
   }
-  
+
   try {
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
-    
+
     const messaging = firebase.messaging();
-    
+
     // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
     messaging.onBackgroundMessage((payload) => {
-      console.log('Background message received:', payload);
-      
+      console.log('[SW] Background message received:', payload);
+
       const notification = payload.notification || {};
       const data = payload.data || {};
-      
+
       const notificationTitle = notification.title || 'رسالة جديدة';
       const notificationOptions = {
         body: notification.body || 'لديك رسالة جديدة',
@@ -117,11 +117,15 @@ function initializeFirebase(firebaseConfig) {
         tag: `chat-${data.conversation_id || 'new'}`,
         requireInteraction: false,
         vibrate: [200, 100, 200],
+        silent: false,
       };
-      
+
+      console.log('[SW] Showing notification:', notificationTitle);
       return self.registration.showNotification(notificationTitle, notificationOptions);
     });
     
+    console.log('[SW] onBackgroundMessage registered');
+
     firebaseInitialized = true;
     console.log('Firebase initialized in service worker');
   } catch (error) {
@@ -132,11 +136,11 @@ function initializeFirebase(firebaseConfig) {
 // محاولة جلب config من API كـ fallback
 async function loadFirebaseConfigFromAPI() {
   if (firebaseInitialized) return;
-  
+
   try {
     const response = await fetch('/api/firebase/config');
     const firebaseConfig = await response.json();
-    
+
     if (firebaseConfig && firebaseConfig.apiKey) {
       initializeFirebase(firebaseConfig);
     }
@@ -145,19 +149,34 @@ async function loadFirebaseConfigFromAPI() {
   }
 }
 
-// محاولة جلب config بعد 2 ثانية (fallback)
-setTimeout(loadFirebaseConfigFromAPI, 2000);
+// محاولة جلب config بعد 1 ثانية (fallback)
+setTimeout(loadFirebaseConfigFromAPI, 1000);
 
 // معالجة رسائل من الصفحة الرئيسية
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
+
   // استقبال Firebase config من الصفحة الرئيسية
   if (event.data && event.data.type === 'FIREBASE_CONFIG') {
+    console.log('Received Firebase config from main page');
     initializeFirebase(event.data.config);
   }
+});
+
+// تهيئة Firebase عند تحميل Service Worker (install event)
+self.addEventListener('install', (event) => {
+  console.log('Service Worker installing...');
+  // محاولة جلب config فوراً
+  loadFirebaseConfigFromAPI();
+});
+
+// تهيئة Firebase عند تفعيل Service Worker (activate event)
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker activating...');
+  // محاولة جلب config فوراً
+  loadFirebaseConfigFromAPI();
 });
 
 // معالجة الإشعارات في الخلفية (عندما يكون الموقع مغلق)
