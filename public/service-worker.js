@@ -115,52 +115,58 @@ try {
     console.log('[SW] Firebase messaging instance created');
 
     // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
-    // هذا يجب أن يكون مسجل قبل استقبال أي رسائل
+    // الحل النهائي: استخدام data-only message وإظهار الإشعار يدوياً
     messaging.onBackgroundMessage((payload) => {
       console.log('[SW] ========== FIREBASE BACKGROUND MESSAGE ==========');
-      console.log('[SW] Full payload:', payload);
-      console.log('[SW] Payload notification:', payload.notification);
-      console.log('[SW] Payload data:', payload.data);
+      console.log('[SW] Full payload:', JSON.stringify(payload));
 
       const notification = payload.notification || {};
       const data = payload.data || {};
 
-      console.log('[SW] Raw notification object:', JSON.stringify(notification));
-      console.log('[SW] Raw data object:', JSON.stringify(data));
+      console.log('[SW] Notification object:', JSON.stringify(notification));
+      console.log('[SW] Data object:', JSON.stringify(data));
 
-      // تحديد نص الإشعار - أولوية: notification.body ثم data.notification_body ثم data.message_text
+      // الحل النهائي: استخدام data مباشرة (data-only message)
+      // أولوية: data.body → data.notification_body → data.message_text
       let notificationTitle = 'رسالة جديدة';
       let notificationBody = 'لديك رسالة جديدة';
       
-      // استخدام notification.body إذا كان موجوداً
-      if (notification && notification.body && notification.body.trim() !== '' && notification.body !== 'لديك رسالة جديدة') {
+      // استخدام data.body أولاً (الحل النهائي)
+      if (data.body && data.body.trim() !== '' && data.body !== 'لديك رسالة جديدة') {
+        notificationBody = data.body;
+        console.log('[SW] Using data.body:', notificationBody);
+      }
+      // إذا لم يكن موجوداً، استخدم notification.body
+      else if (notification && notification.body && notification.body.trim() !== '' && notification.body !== 'لديك رسالة جديدة') {
         notificationBody = notification.body;
         console.log('[SW] Using notification.body:', notificationBody);
-      } 
+      }
       // إذا لم يكن موجوداً، استخدم data.notification_body
-      else if (data && data.notification_body && data.notification_body.trim() !== '' && data.notification_body !== 'لديك رسالة جديدة') {
+      else if (data.notification_body && data.notification_body.trim() !== '' && data.notification_body !== 'لديك رسالة جديدة') {
         notificationBody = data.notification_body;
         console.log('[SW] Using data.notification_body:', notificationBody);
       }
       // إذا لم يكن موجوداً، استخدم data.message_text
-      else if (data && data.message_text && data.message_text.trim() !== '' && data.message_text !== 'لديك رسالة جديدة') {
+      else if (data.message_text && data.message_text.trim() !== '' && data.message_text !== 'لديك رسالة جديدة') {
         notificationBody = data.message_text;
         console.log('[SW] Using data.message_text:', notificationBody);
       }
       
-      // استخدام notification.title إذا كان موجوداً
-      if (notification && notification.title && notification.title.trim() !== '') {
+      // استخدام data.title أولاً
+      if (data.title && data.title.trim() !== '') {
+        notificationTitle = data.title;
+      } else if (notification && notification.title && notification.title.trim() !== '') {
         notificationTitle = notification.title;
-      } else if (data && data.notification_title && data.notification_title.trim() !== '') {
+      } else if (data.notification_title && data.notification_title.trim() !== '') {
         notificationTitle = data.notification_title;
       }
 
       console.log('[SW] Final notification title:', notificationTitle);
       console.log('[SW] Final notification body:', notificationBody);
-
+      
       const notificationOptions = {
         body: notificationBody,
-        icon: notification.icon || '/assets/images/icons/icon-192x192.png',
+        icon: notification.icon || data.icon || '/assets/images/icons/icon-192x192.png',
         badge: '/assets/images/icons/icon-192x192.png',
         data: data,
         tag: `chat-${data.conversation_id || 'new'}`,
@@ -169,15 +175,16 @@ try {
         silent: false, // false = يستخدم صوت الجهاز الافتراضي
       };
 
-      console.log('[SW] Showing Firebase notification:', notificationTitle);
+      console.log('[SW] Showing notification:', notificationTitle);
+      console.log('[SW] Notification body:', notificationBody);
       console.log('[SW] Notification options:', notificationOptions);
-
+      
       return self.registration.showNotification(notificationTitle, notificationOptions)
         .then(() => {
-          console.log('[SW] Firebase notification shown successfully');
+          console.log('[SW] Notification shown successfully');
         })
         .catch((error) => {
-          console.error('[SW] Error showing Firebase notification:', error);
+          console.error('[SW] Error showing notification:', error);
           console.error('[SW] Error stack:', error.stack);
         });
     });
@@ -293,20 +300,45 @@ self.addEventListener('push', (event) => {
       }
 
       if (payload) {
-        if (payload.notification) {
-          notificationData.title = payload.notification.title || notificationData.title;
-          notificationData.body = payload.notification.body || payload.data?.message_text || notificationData.body;
-          notificationData.icon = payload.notification.icon || notificationData.icon;
-          console.log('[SW] Notification data from payload:', payload.notification);
-        }
-
+        // الحل النهائي: استخدام data مباشرة (data-only message)
         if (payload.data) {
           notificationData.data = payload.data;
-          // استخدام message_text من data إذا لم يكن في notification
-          if (!notificationData.body || notificationData.body === 'لديك رسالة جديدة') {
-            notificationData.body = payload.data.message_text || notificationData.body;
+          // استخدام data.body أولاً
+          if (payload.data.body && payload.data.body.trim() !== '' && payload.data.body !== 'لديك رسالة جديدة') {
+            notificationData.body = payload.data.body;
+            console.log('[SW] Push - Using data.body:', notificationData.body);
           }
+          // استخدام data.notification_body
+          else if (payload.data.notification_body && payload.data.notification_body.trim() !== '' && payload.data.notification_body !== 'لديك رسالة جديدة') {
+            notificationData.body = payload.data.notification_body;
+            console.log('[SW] Push - Using data.notification_body:', notificationData.body);
+          }
+          // استخدام data.message_text
+          else if (payload.data.message_text && payload.data.message_text.trim() !== '' && payload.data.message_text !== 'لديك رسالة جديدة') {
+            notificationData.body = payload.data.message_text;
+            console.log('[SW] Push - Using data.message_text:', notificationData.body);
+          }
+          
+          // استخدام data.title
+          if (payload.data.title && payload.data.title.trim() !== '') {
+            notificationData.title = payload.data.title;
+          } else if (payload.data.notification_title && payload.data.notification_title.trim() !== '') {
+            notificationData.title = payload.data.notification_title;
+          }
+          
           console.log('[SW] Data from payload:', payload.data);
+        }
+        
+        // استخدام notification كـ fallback
+        if (payload.notification) {
+          if (!notificationData.title || notificationData.title === 'رسالة جديدة') {
+            notificationData.title = payload.notification.title || notificationData.title;
+          }
+          if (!notificationData.body || notificationData.body === 'لديك رسالة جديدة') {
+            notificationData.body = payload.notification.body || notificationData.body;
+          }
+          notificationData.icon = payload.notification.icon || notificationData.icon;
+          console.log('[SW] Notification data from payload:', payload.notification);
         }
       }
     } else {
@@ -319,12 +351,12 @@ self.addEventListener('push', (event) => {
 
   // تحديد نص الإشعار بشكل أفضل - أولوية: notification.body ثم data.notification_body ثم data.message_text
   let finalBody = 'لديك رسالة جديدة';
-  
+
   // استخدام notification.body إذا كان موجوداً
   if (notificationData.body && notificationData.body.trim() !== '' && notificationData.body !== 'لديك رسالة جديدة') {
     finalBody = notificationData.body;
     console.log('[SW] Push - Using notification.body:', finalBody);
-  } 
+  }
   // إذا لم يكن موجوداً، استخدم data.notification_body
   else if (notificationData.data && notificationData.data.notification_body && notificationData.data.notification_body.trim() !== '' && notificationData.data.notification_body !== 'لديك رسالة جديدة') {
     finalBody = notificationData.data.notification_body;
