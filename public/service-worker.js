@@ -115,7 +115,9 @@ function initializeFirebase(firebaseConfig) {
 
     // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
     messaging.onBackgroundMessage((payload) => {
-      console.log('[SW] Background message received:', payload);
+      console.log('[SW] Firebase background message received:', payload);
+      console.log('[SW] Payload notification:', payload.notification);
+      console.log('[SW] Payload data:', payload.data);
 
       const notification = payload.notification || {};
       const data = payload.data || {};
@@ -132,8 +134,12 @@ function initializeFirebase(firebaseConfig) {
         silent: false,
       };
 
-      console.log('[SW] Showing notification:', notificationTitle);
-      return self.registration.showNotification(notificationTitle, notificationOptions);
+      console.log('[SW] Showing Firebase notification:', notificationTitle);
+      return self.registration.showNotification(notificationTitle, notificationOptions).then(() => {
+        console.log('[SW] Firebase notification shown successfully');
+      }).catch((error) => {
+        console.error('[SW] Error showing Firebase notification:', error);
+      });
     });
 
     console.log('[SW] onBackgroundMessage registered successfully');
@@ -217,6 +223,53 @@ self.addEventListener('activate', (event) => {
     loadFirebaseConfigFromAPI().then(() => {
       return self.clients.claim();
     })
+  );
+});
+
+// معالجة push events مباشرة (fallback إذا لم يعمل Firebase)
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push event received:', event);
+  
+  let notificationData = {
+    title: 'رسالة جديدة',
+    body: 'لديك رسالة جديدة',
+    icon: '/assets/images/icons/icon-192x192.png',
+    data: {},
+  };
+
+  try {
+    if (event.data) {
+      const payload = event.data.json();
+      console.log('[SW] Push payload:', payload);
+      
+      if (payload.notification) {
+        notificationData.title = payload.notification.title || notificationData.title;
+        notificationData.body = payload.notification.body || notificationData.body;
+        notificationData.icon = payload.notification.icon || notificationData.icon;
+      }
+      
+      if (payload.data) {
+        notificationData.data = payload.data;
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error parsing push data:', error);
+  }
+
+  const notificationOptions = {
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: '/assets/images/icons/icon-192x192.png',
+    data: notificationData.data,
+    tag: `chat-${notificationData.data.conversation_id || 'new'}`,
+    requireInteraction: false,
+    vibrate: [200, 100, 200],
+    silent: false,
+  };
+
+  console.log('[SW] Showing push notification:', notificationData.title);
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, notificationOptions)
   );
 });
 
