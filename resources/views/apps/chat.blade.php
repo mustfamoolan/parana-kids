@@ -1198,6 +1198,8 @@
                     this.requestNotificationPermission();
                     // تحميل الإعدادات من localStorage
                     this.loadNotificationSettings();
+                    // تهيئة FCM
+                    this.initFCM();
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
@@ -2231,6 +2233,107 @@
                             conversationId
                         );
                         this.playNotificationSound();
+                    }
+                },
+
+                async initFCM() {
+                    // التحقق من دعم Firebase
+                    if (typeof firebase === 'undefined') {
+                        console.log('Firebase SDK not loaded');
+                        return;
+                    }
+
+                    try {
+                        // تهيئة Firebase
+                        const firebaseConfig = {
+                            apiKey: "AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU",
+                            authDomain: "parana-kids.firebaseapp.com",
+                            projectId: "parana-kids",
+                            storageBucket: "parana-kids.firebasestorage.app",
+                            messagingSenderId: "130151352064",
+                            appId: "1:130151352064:web:42335c43d67f4ac49515e5",
+                            measurementId: "G-HCTDLM0P9Y"
+                        };
+
+                        if (!firebase.apps.length) {
+                            firebase.initializeApp(firebaseConfig);
+                        }
+
+                        // إرسال config إلى service worker
+                        if ('serviceWorker' in navigator) {
+                            navigator.serviceWorker.ready.then((registration) => {
+                                registration.active.postMessage({
+                                    type: 'FIREBASE_CONFIG',
+                                    config: firebaseConfig,
+                                });
+                            });
+                        }
+
+                        const messaging = firebase.messaging();
+
+                        // طلب الإذن للحصول على token
+                        const permission = await Notification.requestPermission();
+                        if (permission === 'granted') {
+                            // الحصول على FCM token
+                            const token = await messaging.getToken({
+                                vapidKey: "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0",
+                            });
+
+                            if (token) {
+                                // إرسال token للـ backend
+                                await this.registerFCMToken(token);
+                            }
+
+                            // معالجة الرسائل في المقدمة (foreground)
+                            messaging.onMessage((payload) => {
+                                console.log('Message received in foreground:', payload);
+
+                                const notification = payload.notification || {};
+                                const data = payload.data || {};
+
+                                // عرض إشعار محلي
+                                this.showNotification(
+                                    notification.title || 'رسالة جديدة',
+                                    notification.body || 'لديك رسالة جديدة',
+                                    notification.icon,
+                                    data.conversation_id
+                                );
+
+                                // تشغيل الصوت
+                                this.playNotificationSound();
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error initializing FCM:', error);
+                    }
+                },
+
+                async registerFCMToken(token) {
+                    try {
+                        const response = await fetch('{{ route("fcm.register") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            },
+                            body: JSON.stringify({
+                                token: token,
+                                device_type: 'web',
+                                device_info: {
+                                    userAgent: navigator.userAgent,
+                                    platform: navigator.platform,
+                                },
+                            }),
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            console.log('FCM token registered successfully');
+                        } else {
+                            console.error('Failed to register FCM token:', data.error);
+                        }
+                    } catch (error) {
+                        console.error('Error registering FCM token:', error);
                     }
                 },
 

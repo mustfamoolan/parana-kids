@@ -1,0 +1,152 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use App\Models\FcmToken;
+use Kreait\Firebase\Factory;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification;
+use Kreait\Firebase\Exception\MessagingException;
+use Illuminate\Support\Facades\Log;
+
+class FcmService
+{
+    protected $messaging;
+
+    public function __construct()
+    {
+        try {
+            $credentialsPath = config('services.firebase.credentials');
+
+            if (!file_exists($credentialsPath)) {
+                Log::warning('Firebase credentials file not found: ' . $credentialsPath);
+                return;
+            }
+
+            $factory = (new Factory)->withServiceAccount($credentialsPath);
+            $this->messaging = $factory->createMessaging();
+        } catch (\Exception $e) {
+            Log::error('Failed to initialize Firebase: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * إرسال إشعار FCM لمستخدم واحد
+     */
+    public function sendToUser($userId, $title = 'رسالة جديدة', $body = 'لديك رسالة جديدة', $data = [])
+    {
+        if (!$this->messaging) {
+            return false;
+        }
+
+        $tokens = FcmToken::where('user_id', $userId)->pluck('token')->toArray();
+
+        if (empty($tokens)) {
+            return false;
+        }
+
+        return $this->sendToTokens($tokens, $title, $body, $data);
+    }
+
+    /**
+     * إرسال إشعار FCM لعدة مستخدمين
+     */
+    public function sendToUsers(array $userIds, $title = 'رسالة جديدة', $body = 'لديك رسالة جديدة', $data = [])
+    {
+        if (!$this->messaging) {
+            return false;
+        }
+
+        $tokens = FcmToken::whereIn('user_id', $userIds)->pluck('token')->toArray();
+
+        if (empty($tokens)) {
+            return false;
+        }
+
+        return $this->sendToTokens($tokens, $title, $body, $data);
+    }
+
+    /**
+     * إرسال إشعار FCM إلى tokens محددة
+     */
+    protected function sendToTokens(array $tokens, $title, $body, $data = [])
+    {
+        if (!$this->messaging || empty($tokens)) {
+            return false;
+        }
+
+        try {
+            $notification = Notification::create($title, $body);
+
+            $message = CloudMessage::new()
+                ->withNotification($notification)
+                ->withData(array_merge([
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                ], $data));
+
+            // إرسال لجميع الـ tokens
+            $report = $this->messaging->sendMulticast($message, $tokens);
+
+            // حذف الـ tokens الفاشلة
+            if ($report->hasFailures()) {
+                $invalidTokens = [];
+                foreach ($report->failures() as $failure) {
+                    $invalidTokens[] = $failure->target()->value();
+                }
+
+                if (!empty($invalidTokens)) {
+                    FcmToken::whereIn('token', $invalidTokens)->delete();
+                }
+            }
+
+            Log::info('FCM notification sent', [
+                'success' => $report->successes()->count(),
+                'failures' => $report->failures()->count(),
+            ]);
+
+            return true;
+        } catch (MessagingException $e) {
+            Log::error('FCM messaging error: ' . $e->getMessage());
+            return false;
+        } catch (\Exception $e) {
+            Log::error('FCM error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * إرسال إشعار عند وصول رسالة جديدة
+     */
+    public function sendNewMessageNotification($conversationId, $senderId, $messageText = null)
+    {
+        // جلب جميع المشاركين في المحادثة عدا المرسل
+        $conversation = \App\Models\Conversation::with('participants')->find($conversationId);
+
+        if (!$conversation) {
+            return false;
+        }
+
+        $recipientIds = $conversation->participants()
+            ->where('user_id', '!=', $senderId)
+            ->pluck('user_id')
+            ->toArray();
+
+        if (empty($recipientIds)) {
+            return false;
+        }
+
+        // إرسال الإشعار
+        return $this->sendToUsers(
+            $recipientIds,
+            'رسالة جديدة',
+            'لديك رسالة جديدة',
+            [
+                'type' => 'new_message',
+                'conversation_id' => $conversationId,
+                'sender_id' => $senderId,
+            ]
+        );
+    }
+}
+

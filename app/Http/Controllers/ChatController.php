@@ -7,6 +7,7 @@ use App\Models\Message;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -384,6 +385,14 @@ class ChatController extends Controller
             // تحديث وقت المحادثة
             $conversation->touch();
 
+            // إرسال إشعار FCM
+            try {
+                $fcmService = new FcmService();
+                $fcmService->sendNewMessageNotification($conversationId, $user->id);
+            } catch (\Exception $e) {
+                \Log::error('Failed to send FCM notification: ' . $e->getMessage());
+            }
+
             // Log للتأكد من إرسال الرسالة
             \Log::info('Chat - Send message');
             \Log::info('Chat - Conversation ID: ' . $conversationId);
@@ -572,6 +581,14 @@ class ChatController extends Controller
         // تحديث وقت المحادثة
         $conversation->touch();
 
+        // إرسال إشعار FCM
+        try {
+            $fcmService = new FcmService();
+            $fcmService->sendNewMessageNotification($conversationId, $user->id);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send FCM notification: ' . $e->getMessage());
+        }
+
         // جلب بيانات الطلب الكاملة
         $order->load(['delegate', 'items.product.warehouse']);
 
@@ -685,6 +702,14 @@ class ChatController extends Controller
 
         // تحديث وقت المحادثة
         $conversation->touch();
+
+        // إرسال إشعار FCM
+        try {
+            $fcmService = new FcmService();
+            $fcmService->sendNewMessageNotification($conversationId, $user->id);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send FCM notification: ' . $e->getMessage());
+        }
 
         // جلب بيانات المنتج الكاملة
         $product->load(['primaryImage', 'warehouse', 'sizes.reservations']);

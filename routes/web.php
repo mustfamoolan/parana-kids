@@ -313,6 +313,11 @@ Route::post('/api/chat/create-group', [App\Http\Controllers\ChatController::clas
 Route::post('/api/chat/add-participants', [App\Http\Controllers\ChatController::class, 'addParticipantsToGroup'])->name('chat.add-participants');
 Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController::class, 'removeParticipantFromGroup'])->name('chat.remove-participant');
 Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
+
+// FCM routes
+Route::post('/api/fcm/register', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('fcm.register');
+Route::post('/api/fcm/delete', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('fcm.delete');
+
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

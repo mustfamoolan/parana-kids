@@ -183,6 +183,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all FCM tokens for this user
+     */
+    public function fcmTokens()
+    {
+        return $this->hasMany(FcmToken::class);
+    }
+
+    /**
      * Get users that share warehouses with this user
      * الآن يعيد جميع المستخدمين (إزالة قيد المخزن المشترك)
      */

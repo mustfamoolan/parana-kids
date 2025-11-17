@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'firebase' => [
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json')),
+        'project_id' => env('FIREBASE_PROJECT_ID', 'parana-kids'),
+    ],
+
 ];
