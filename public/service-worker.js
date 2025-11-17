@@ -317,16 +317,23 @@ self.addEventListener('push', (event) => {
     console.error('[SW] Error stack:', error.stack);
   }
 
-  // تحديد نص الإشعار بشكل أفضل
+  // تحديد نص الإشعار بشكل أفضل - أولوية: notification.body ثم data.notification_body ثم data.message_text
   let finalBody = 'لديك رسالة جديدة';
-
+  
   // استخدام notification.body إذا كان موجوداً
-  if (notificationData.body && notificationData.body.trim() !== '') {
+  if (notificationData.body && notificationData.body.trim() !== '' && notificationData.body !== 'لديك رسالة جديدة') {
     finalBody = notificationData.body;
+    console.log('[SW] Push - Using notification.body:', finalBody);
+  } 
+  // إذا لم يكن موجوداً، استخدم data.notification_body
+  else if (notificationData.data && notificationData.data.notification_body && notificationData.data.notification_body.trim() !== '' && notificationData.data.notification_body !== 'لديك رسالة جديدة') {
+    finalBody = notificationData.data.notification_body;
+    console.log('[SW] Push - Using data.notification_body:', finalBody);
   }
   // إذا لم يكن موجوداً، استخدم data.message_text
-  else if (notificationData.data && notificationData.data.message_text && notificationData.data.message_text.trim() !== '') {
+  else if (notificationData.data && notificationData.data.message_text && notificationData.data.message_text.trim() !== '' && notificationData.data.message_text !== 'لديك رسالة جديدة') {
     finalBody = notificationData.data.message_text;
+    console.log('[SW] Push - Using data.message_text:', finalBody);
   }
 
   console.log('[SW] Push - Final notification body:', finalBody);
