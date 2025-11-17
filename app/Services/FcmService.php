@@ -18,7 +18,7 @@ class FcmService
     {
         try {
             $credentialsPath = config('services.firebase.credentials');
-            
+
             // إذا كان المسار نسبي، تحويله إلى مسار مطلق
             if (!str_starts_with($credentialsPath, '/') && !preg_match('/^[A-Za-z]:\\\\/', $credentialsPath)) {
                 $credentialsPath = storage_path('app/' . basename($credentialsPath));
@@ -27,7 +27,7 @@ class FcmService
             if (!file_exists($credentialsPath)) {
                 Log::warning('Firebase credentials file not found: ' . $credentialsPath);
                 Log::warning('Trying alternative path: ' . storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json'));
-                
+
                 // محاولة المسار البديل
                 $alternativePath = storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json');
                 if (file_exists($alternativePath)) {
@@ -118,6 +118,13 @@ class FcmService
                         ],
                     ],
                 ]);
+
+            Log::info('FCM message prepared', [
+                'title' => $title,
+                'body' => $body,
+                'data' => $data,
+                'tokens_count' => count($tokens),
+            ]);
 
             // إرسال لجميع الـ tokens
             $report = $this->messaging->sendMulticast($message, $tokens);
