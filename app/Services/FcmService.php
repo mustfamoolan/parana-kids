@@ -104,11 +104,17 @@ class FcmService
 
         try {
             $notification = Notification::create($title, $body);
+            
+            Log::info('FCM notification created', [
+                'title' => $title,
+                'body' => $body,
+            ]);
 
             $message = CloudMessage::new()
                 ->withNotification($notification)
                 ->withData(array_merge([
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'message_text' => $body, // إضافة message_text في data كـ backup
                 ], $data))
                 ->withAndroidConfig([
                     'priority' => 'high',
@@ -195,7 +201,7 @@ class FcmService
                 ->where('user_id', $senderId)
                 ->latest()
                 ->first();
-            
+
             if ($lastMessage) {
                 if ($lastMessage->type === 'image') {
                     $messageText = 'صورة';
@@ -218,7 +224,7 @@ class FcmService
         // تحديد نص الإشعار
         $notificationTitle = 'رسالة جديدة';
         $notificationBody = $messageText;
-        
+
         // إذا كان النص طويلاً، اختصره
         if (mb_strlen($notificationBody) > 100) {
             $notificationBody = mb_substr($notificationBody, 0, 100) . '...';

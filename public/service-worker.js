@@ -125,18 +125,27 @@ try {
       const notification = payload.notification || {};
       const data = payload.data || {};
 
+      console.log('[SW] Raw notification object:', JSON.stringify(notification));
+      console.log('[SW] Raw data object:', JSON.stringify(data));
+
       // تحديد نص الإشعار - أولوية: notification.body ثم data.message_text
-      let notificationTitle = notification.title || 'رسالة جديدة';
-      let notificationBody = notification.body || data.message_text || 'لديك رسالة جديدة';
+      let notificationTitle = 'رسالة جديدة';
+      let notificationBody = 'لديك رسالة جديدة';
       
-      // إذا كان body فارغ أو النص الافتراضي، استخدم message_text
-      if (!notificationBody || notificationBody === 'لديك رسالة جديدة' || notificationBody.trim() === '') {
-        notificationBody = data.message_text || 'لديك رسالة جديدة';
+      // استخدام notification.body إذا كان موجوداً
+      if (notification && notification.body && notification.body.trim() !== '') {
+        notificationBody = notification.body;
+        console.log('[SW] Using notification.body:', notificationBody);
+      } 
+      // إذا لم يكن موجوداً، استخدم data.message_text
+      else if (data && data.message_text && data.message_text.trim() !== '') {
+        notificationBody = data.message_text;
+        console.log('[SW] Using data.message_text:', notificationBody);
       }
       
-      // إذا كان title فارغ، استخدم "رسالة جديدة"
-      if (!notificationTitle || notificationTitle.trim() === '') {
-        notificationTitle = 'رسالة جديدة';
+      // استخدام notification.title إذا كان موجوداً
+      if (notification && notification.title && notification.title.trim() !== '') {
+        notificationTitle = notification.title;
       }
 
       console.log('[SW] Final notification title:', notificationTitle);
@@ -150,23 +159,12 @@ try {
         tag: `chat-${data.conversation_id || 'new'}`,
         requireInteraction: false,
         vibrate: [200, 100, 200],
-        silent: false,
+        silent: false, // false = يستخدم صوت الجهاز الافتراضي
       };
 
       console.log('[SW] Showing Firebase notification:', notificationTitle);
       console.log('[SW] Notification options:', notificationOptions);
-      
-      // تشغيل الصوت
-      try {
-        const audio = new Audio('/assets/sounds/notification.mp3');
-        audio.volume = 0.5;
-        audio.play().catch((error) => {
-          console.error('[SW] Error playing notification sound:', error);
-        });
-      } catch (error) {
-        console.error('[SW] Error creating audio:', error);
-      }
-      
+
       return self.registration.showNotification(notificationTitle, notificationOptions)
         .then(() => {
           console.log('[SW] Firebase notification shown successfully');
@@ -313,10 +311,18 @@ self.addEventListener('push', (event) => {
   }
 
   // تحديد نص الإشعار بشكل أفضل
-  let finalBody = notificationData.body;
-  if (!finalBody || finalBody === 'لديك رسالة جديدة' || finalBody.trim() === '') {
-    finalBody = notificationData.data?.message_text || 'لديك رسالة جديدة';
+  let finalBody = 'لديك رسالة جديدة';
+  
+  // استخدام notification.body إذا كان موجوداً
+  if (notificationData.body && notificationData.body.trim() !== '') {
+    finalBody = notificationData.body;
+  } 
+  // إذا لم يكن موجوداً، استخدم data.message_text
+  else if (notificationData.data && notificationData.data.message_text && notificationData.data.message_text.trim() !== '') {
+    finalBody = notificationData.data.message_text;
   }
+
+  console.log('[SW] Push - Final notification body:', finalBody);
 
   const notificationOptions = {
     body: finalBody,
@@ -326,19 +332,8 @@ self.addEventListener('push', (event) => {
     tag: `chat-${notificationData.data.conversation_id || 'new'}`,
     requireInteraction: false,
     vibrate: [200, 100, 200],
-    silent: false,
+    silent: false, // false = يستخدم صوت الجهاز الافتراضي
   };
-
-  // تشغيل الصوت
-  try {
-    const audio = new Audio('/assets/sounds/notification.mp3');
-    audio.volume = 0.5;
-    audio.play().catch((error) => {
-      console.error('[SW] Error playing notification sound:', error);
-    });
-  } catch (error) {
-    console.error('[SW] Error creating audio:', error);
-  }
 
   console.log('[SW] Notification options:', notificationOptions);
   console.log('[SW] Showing push notification:', notificationData.title);
