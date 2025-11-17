@@ -385,20 +385,26 @@ class ChatController extends Controller
             // تحديث وقت المحادثة
             $conversation->touch();
 
-            // إرسال إشعار FCM
-            try {
-                $fcmService = new FcmService();
-                $fcmService->sendNewMessageNotification($conversationId, $user->id);
-            } catch (\Exception $e) {
-                \Log::error('Failed to send FCM notification: ' . $e->getMessage());
-            }
-
             // Log للتأكد من إرسال الرسالة
             \Log::info('Chat - Send message');
             \Log::info('Chat - Conversation ID: ' . $conversationId);
             \Log::info('Chat - User: ' . $user->name . ' (' . $user->role . ')');
             \Log::info('Chat - Message: ' . $request->input('message'));
             \Log::info('Chat - Image: ' . ($imagePath ? 'Yes' : 'No'));
+
+            // إرسال إشعار FCM (بعد إنشاء الرسالة)
+            try {
+                $fcmService = new FcmService();
+                $result = $fcmService->sendNewMessageNotification($conversationId, $user->id);
+                \Log::info('FCM notification sent from ChatController', [
+                    'conversation_id' => $conversationId,
+                    'sender_id' => $user->id,
+                    'result' => $result,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to send FCM notification: ' . $e->getMessage());
+                \Log::error('FCM notification error stack: ' . $e->getTraceAsString());
+            }
 
             $responseData = [
                 'success' => true,
@@ -581,12 +587,18 @@ class ChatController extends Controller
         // تحديث وقت المحادثة
         $conversation->touch();
 
-        // إرسال إشعار FCM
+        // إرسال إشعار FCM (بعد إنشاء الرسالة)
         try {
             $fcmService = new FcmService();
-            $fcmService->sendNewMessageNotification($conversationId, $user->id);
+            $result = $fcmService->sendNewMessageNotification($conversationId, $user->id);
+            \Log::info('FCM notification sent from ChatController (order)', [
+                'conversation_id' => $conversationId,
+                'sender_id' => $user->id,
+                'result' => $result,
+            ]);
         } catch (\Exception $e) {
             \Log::error('Failed to send FCM notification: ' . $e->getMessage());
+            \Log::error('FCM notification error stack: ' . $e->getTraceAsString());
         }
 
         // جلب بيانات الطلب الكاملة
@@ -703,12 +715,18 @@ class ChatController extends Controller
         // تحديث وقت المحادثة
         $conversation->touch();
 
-        // إرسال إشعار FCM
+        // إرسال إشعار FCM (بعد إنشاء الرسالة)
         try {
             $fcmService = new FcmService();
-            $fcmService->sendNewMessageNotification($conversationId, $user->id);
+            $result = $fcmService->sendNewMessageNotification($conversationId, $user->id);
+            \Log::info('FCM notification sent from ChatController (order)', [
+                'conversation_id' => $conversationId,
+                'sender_id' => $user->id,
+                'result' => $result,
+            ]);
         } catch (\Exception $e) {
             \Log::error('Failed to send FCM notification: ' . $e->getMessage());
+            \Log::error('FCM notification error stack: ' . $e->getTraceAsString());
         }
 
         // جلب بيانات المنتج الكاملة

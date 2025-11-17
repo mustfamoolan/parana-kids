@@ -71,14 +71,24 @@ class FcmService
     public function sendToUsers(array $userIds, $title = 'رسالة جديدة', $body = 'لديك رسالة جديدة', $data = [])
     {
         if (!$this->messaging) {
+            Log::warning('FCM messaging not initialized');
             return false;
         }
 
         $tokens = FcmToken::whereIn('user_id', $userIds)->pluck('token')->toArray();
 
         if (empty($tokens)) {
+            Log::warning('No FCM tokens found for users', [
+                'user_ids' => $userIds,
+                'tokens_count' => 0,
+            ]);
             return false;
         }
+
+        Log::info('FCM tokens found for users', [
+            'user_ids' => $userIds,
+            'tokens_count' => count($tokens),
+        ]);
 
         return $this->sendToTokens($tokens, $title, $body, $data);
     }
