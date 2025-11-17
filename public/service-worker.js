@@ -85,24 +85,24 @@ workbox.routing.registerRoute(
 workbox.precaching.cleanupOutdatedCaches();
 
 // Firebase Messaging - تهيئة مباشرة في Service Worker
-// هذا يضمن عمل الإشعارات حتى لو كان التطبيق مغلقاً تماماً
-let firebaseInitialized = false;
+// وفقاً للوثائق الرسمية: يجب تهيئة Firebase مباشرة في Service Worker
+console.log('[SW] Service Worker loaded, initializing Firebase...');
 
-// دالة تهيئة Firebase
-function initializeFirebase(firebaseConfig) {
-  if (firebaseInitialized || !firebaseConfig || !firebaseConfig.apiKey || typeof firebase === 'undefined') {
-    if (firebaseInitialized) {
-      console.log('[SW] Firebase already initialized');
-    }
-    return;
-  }
+// Firebase Config - استخدام config افتراضي مباشرة (يمكن جلبها من API لاحقاً)
+const firebaseConfig = {
+  apiKey: 'AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU',
+  authDomain: 'parana-kids.firebaseapp.com',
+  projectId: 'parana-kids',
+  storageBucket: 'parana-kids.firebasestorage.app',
+  messagingSenderId: '130151352064',
+  appId: '1:130151352064:web:42335c43d67f4ac49515e5',
+  measurementId: 'G-HCTDLM0P9Y',
+};
 
-  try {
-    console.log('[SW] Initializing Firebase with config:', {
-      apiKey: firebaseConfig.apiKey ? firebaseConfig.apiKey.substring(0, 10) + '...' : 'missing',
-      projectId: firebaseConfig.projectId || 'missing',
-    });
-
+// تهيئة Firebase مباشرة (وفقاً للوثائق الرسمية)
+try {
+  if (typeof firebase !== 'undefined') {
+    // تهيئة Firebase App
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
       console.log('[SW] Firebase app initialized');
@@ -110,12 +110,15 @@ function initializeFirebase(firebaseConfig) {
       console.log('[SW] Firebase app already exists');
     }
 
+    // الحصول على Firebase Messaging instance
     const messaging = firebase.messaging();
     console.log('[SW] Firebase messaging instance created');
 
     // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
+    // هذا يجب أن يكون مسجل قبل استقبال أي رسائل
     messaging.onBackgroundMessage((payload) => {
-      console.log('[SW] Firebase background message received:', payload);
+      console.log('[SW] ========== FIREBASE BACKGROUND MESSAGE ==========');
+      console.log('[SW] Full payload:', payload);
       console.log('[SW] Payload notification:', payload.notification);
       console.log('[SW] Payload data:', payload.data);
 
@@ -135,63 +138,44 @@ function initializeFirebase(firebaseConfig) {
       };
 
       console.log('[SW] Showing Firebase notification:', notificationTitle);
-      return self.registration.showNotification(notificationTitle, notificationOptions).then(() => {
-        console.log('[SW] Firebase notification shown successfully');
-      }).catch((error) => {
-        console.error('[SW] Error showing Firebase notification:', error);
-      });
+      console.log('[SW] Notification options:', notificationOptions);
+      
+      return self.registration.showNotification(notificationTitle, notificationOptions)
+        .then(() => {
+          console.log('[SW] Firebase notification shown successfully');
+        })
+        .catch((error) => {
+          console.error('[SW] Error showing Firebase notification:', error);
+          console.error('[SW] Error stack:', error.stack);
+        });
     });
 
     console.log('[SW] onBackgroundMessage registered successfully');
-    firebaseInitialized = true;
     console.log('[SW] Firebase initialized successfully in service worker');
-  } catch (error) {
-    console.error('[SW] Error initializing Firebase in service worker:', error);
-    console.error('[SW] Error stack:', error.stack);
+  } else {
+    console.error('[SW] Firebase SDK not loaded');
   }
+} catch (error) {
+  console.error('[SW] Error initializing Firebase in service worker:', error);
+  console.error('[SW] Error stack:', error.stack);
 }
 
-// جلب config من API مباشرة
-async function loadFirebaseConfigFromAPI() {
-  if (firebaseInitialized) {
-    console.log('[SW] Firebase already initialized, skipping config load');
-    return;
-  }
-
-  console.log('[SW] Loading Firebase config from API...');
+// محاولة جلب config من API كـ backup (لكن Firebase مهيأ بالفعل)
+async function updateFirebaseConfigFromAPI() {
   try {
     const response = await fetch('/api/firebase/config');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const firebaseConfig = await response.json();
-    console.log('[SW] Firebase config loaded from API');
-
-    if (firebaseConfig && firebaseConfig.apiKey) {
-      initializeFirebase(firebaseConfig);
-    } else {
-      console.error('[SW] Invalid Firebase config received');
+    if (response.ok) {
+      const config = await response.json();
+      console.log('[SW] Firebase config updated from API');
+      // يمكن تحديث config هنا إذا لزم الأمر
     }
   } catch (error) {
-    console.error('[SW] Error loading Firebase config from API:', error);
-    // محاولة استخدام config افتراضي
-    console.log('[SW] Trying default Firebase config...');
-    const defaultConfig = {
-      apiKey: 'AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU',
-      authDomain: 'parana-kids.firebaseapp.com',
-      projectId: 'parana-kids',
-      storageBucket: 'parana-kids.firebasestorage.app',
-      messagingSenderId: '130151352064',
-      appId: '1:130151352064:web:42335c43d67f4ac49515e5',
-      measurementId: 'G-HCTDLM0P9Y',
-    };
-    initializeFirebase(defaultConfig);
+    console.log('[SW] Could not load config from API, using default');
   }
 }
 
-// تهيئة Firebase فوراً عند تحميل Service Worker
-console.log('[SW] Service Worker loaded, initializing Firebase...');
-loadFirebaseConfigFromAPI();
+// محاولة تحديث config من API (اختياري)
+updateFirebaseConfigFromAPI();
 
 // Test notification بعد 3 ثواني للتأكد من أن Service Worker يعمل
 setTimeout(() => {
@@ -250,7 +234,7 @@ self.addEventListener('push', (event) => {
   console.log('[SW] ========== PUSH EVENT RECEIVED ==========');
   console.log('[SW] Push event:', event);
   console.log('[SW] Event data:', event.data);
-  
+
   let notificationData = {
     title: 'رسالة جديدة',
     body: 'لديك رسالة جديدة',
@@ -275,7 +259,7 @@ self.addEventListener('push', (event) => {
           payload = null;
         }
       }
-      
+
       if (payload) {
         if (payload.notification) {
           notificationData.title = payload.notification.title || notificationData.title;
@@ -283,7 +267,7 @@ self.addEventListener('push', (event) => {
           notificationData.icon = payload.notification.icon || notificationData.icon;
           console.log('[SW] Notification data from payload:', payload.notification);
         }
-        
+
         if (payload.data) {
           notificationData.data = payload.data;
           console.log('[SW] Data from payload:', payload.data);
@@ -310,7 +294,7 @@ self.addEventListener('push', (event) => {
 
   console.log('[SW] Notification options:', notificationOptions);
   console.log('[SW] Showing push notification:', notificationData.title);
-  
+
   event.waitUntil(
     self.registration.showNotification(notificationData.title, notificationOptions)
       .then(() => {
