@@ -2260,6 +2260,25 @@
                             console.log('Firebase initialized');
                         }
 
+                        // إرسال config إلى Service Worker
+                        if ('serviceWorker' in navigator) {
+                            navigator.serviceWorker.ready.then((registration) => {
+                                if (registration.active) {
+                                    registration.active.postMessage({
+                                        type: 'FIREBASE_CONFIG',
+                                        config: firebaseConfig,
+                                    });
+                                    console.log('Firebase config sent to service worker');
+                                } else if (registration.waiting) {
+                                    registration.waiting.postMessage({
+                                        type: 'FIREBASE_CONFIG',
+                                        config: firebaseConfig,
+                                    });
+                                    console.log('Firebase config sent to waiting service worker');
+                                }
+                            });
+                        }
+
                         const messaging = firebase.messaging();
 
                         // طلب الإذن للحصول على token

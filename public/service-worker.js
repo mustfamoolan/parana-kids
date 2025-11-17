@@ -86,58 +86,77 @@ workbox.precaching.cleanupOutdatedCaches();
 
 // Firebase Messaging - تهيئة مباشرة في Service Worker
 // هذا يضمن عمل الإشعارات حتى لو كان التطبيق مغلقاً تماماً
-let firebaseConfig = null;
+let firebaseInitialized = false;
 
-// جلب Firebase config من API
-async function loadFirebaseConfig() {
+// دالة تهيئة Firebase
+function initializeFirebase(firebaseConfig) {
+  if (firebaseInitialized || !firebaseConfig || !firebaseConfig.apiKey || typeof firebase === 'undefined') {
+    return;
+  }
+  
   try {
-    const response = await fetch('/api/firebase/config');
-    firebaseConfig = await response.json();
-
-    if (firebaseConfig && firebaseConfig.apiKey) {
-      // تهيئة Firebase مباشرة
-      if (typeof firebase !== 'undefined') {
-        if (!firebase.apps.length) {
-          firebase.initializeApp(firebaseConfig);
-        }
-
-        const messaging = firebase.messaging();
-
-        // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
-        messaging.onBackgroundMessage((payload) => {
-          console.log('Background message received:', payload);
-
-          const notification = payload.notification || {};
-          const data = payload.data || {};
-
-          const notificationTitle = notification.title || 'رسالة جديدة';
-          const notificationOptions = {
-            body: notification.body || 'لديك رسالة جديدة',
-            icon: notification.icon || '/assets/images/icons/icon-192x192.png',
-            badge: '/assets/images/icons/icon-192x192.png',
-            data: data,
-            tag: `chat-${data.conversation_id || 'new'}`,
-            requireInteraction: false,
-            vibrate: [200, 100, 200],
-            sound: '/assets/sounds/notification.mp3',
-          };
-
-          return self.registration.showNotification(notificationTitle, notificationOptions);
-        });
-      }
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
     }
+    
+    const messaging = firebase.messaging();
+    
+    // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
+    messaging.onBackgroundMessage((payload) => {
+      console.log('Background message received:', payload);
+      
+      const notification = payload.notification || {};
+      const data = payload.data || {};
+      
+      const notificationTitle = notification.title || 'رسالة جديدة';
+      const notificationOptions = {
+        body: notification.body || 'لديك رسالة جديدة',
+        icon: notification.icon || '/assets/images/icons/icon-192x192.png',
+        badge: '/assets/images/icons/icon-192x192.png',
+        data: data,
+        tag: `chat-${data.conversation_id || 'new'}`,
+        requireInteraction: false,
+        vibrate: [200, 100, 200],
+      };
+      
+      return self.registration.showNotification(notificationTitle, notificationOptions);
+    });
+    
+    firebaseInitialized = true;
+    console.log('Firebase initialized in service worker');
   } catch (error) {
-    console.error('Error loading Firebase config:', error);
+    console.error('Error initializing Firebase in service worker:', error);
   }
 }
 
-// تحميل config عند تحميل Service Worker
-loadFirebaseConfig();
+// محاولة جلب config من API كـ fallback
+async function loadFirebaseConfigFromAPI() {
+  if (firebaseInitialized) return;
+  
+  try {
+    const response = await fetch('/api/firebase/config');
+    const firebaseConfig = await response.json();
+    
+    if (firebaseConfig && firebaseConfig.apiKey) {
+      initializeFirebase(firebaseConfig);
+    }
+  } catch (error) {
+    console.error('Error loading Firebase config from API:', error);
+  }
+}
 
-// معالجة رسائل أخرى من الصفحة الرئيسية
+// محاولة جلب config بعد 2 ثانية (fallback)
+setTimeout(loadFirebaseConfigFromAPI, 2000);
+
+// معالجة رسائل من الصفحة الرئيسية
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  
+  // استقبال Firebase config من الصفحة الرئيسية
+  if (event.data && event.data.type === 'FIREBASE_CONFIG') {
+    initializeFirebase(event.data.config);
   }
 });
 
