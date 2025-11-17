@@ -125,8 +125,22 @@ try {
       const notification = payload.notification || {};
       const data = payload.data || {};
 
-      const notificationTitle = notification.title || 'رسالة جديدة';
-      const notificationBody = notification.body || data.message_text || 'لديك رسالة جديدة';
+      // تحديد نص الإشعار - أولوية: notification.body ثم data.message_text
+      let notificationTitle = notification.title || 'رسالة جديدة';
+      let notificationBody = notification.body || data.message_text || 'لديك رسالة جديدة';
+      
+      // إذا كان body فارغ أو النص الافتراضي، استخدم message_text
+      if (!notificationBody || notificationBody === 'لديك رسالة جديدة' || notificationBody.trim() === '') {
+        notificationBody = data.message_text || 'لديك رسالة جديدة';
+      }
+      
+      // إذا كان title فارغ، استخدم "رسالة جديدة"
+      if (!notificationTitle || notificationTitle.trim() === '') {
+        notificationTitle = 'رسالة جديدة';
+      }
+
+      console.log('[SW] Final notification title:', notificationTitle);
+      console.log('[SW] Final notification body:', notificationBody);
       
       const notificationOptions = {
         body: notificationBody,
@@ -137,12 +151,22 @@ try {
         requireInteraction: false,
         vibrate: [200, 100, 200],
         silent: false,
-        sound: '/assets/sounds/notification.mp3', // صوت الإشعار
       };
 
       console.log('[SW] Showing Firebase notification:', notificationTitle);
       console.log('[SW] Notification options:', notificationOptions);
-
+      
+      // تشغيل الصوت
+      try {
+        const audio = new Audio('/assets/sounds/notification.mp3');
+        audio.volume = 0.5;
+        audio.play().catch((error) => {
+          console.error('[SW] Error playing notification sound:', error);
+        });
+      } catch (error) {
+        console.error('[SW] Error creating audio:', error);
+      }
+      
       return self.registration.showNotification(notificationTitle, notificationOptions)
         .then(() => {
           console.log('[SW] Firebase notification shown successfully');
@@ -270,7 +294,7 @@ self.addEventListener('push', (event) => {
           notificationData.icon = payload.notification.icon || notificationData.icon;
           console.log('[SW] Notification data from payload:', payload.notification);
         }
-        
+
         if (payload.data) {
           notificationData.data = payload.data;
           // استخدام message_text من data إذا لم يكن في notification
@@ -288,8 +312,14 @@ self.addEventListener('push', (event) => {
     console.error('[SW] Error stack:', error.stack);
   }
 
+  // تحديد نص الإشعار بشكل أفضل
+  let finalBody = notificationData.body;
+  if (!finalBody || finalBody === 'لديك رسالة جديدة' || finalBody.trim() === '') {
+    finalBody = notificationData.data?.message_text || 'لديك رسالة جديدة';
+  }
+
   const notificationOptions = {
-    body: notificationData.body,
+    body: finalBody,
     icon: notificationData.icon,
     badge: '/assets/images/icons/icon-192x192.png',
     data: notificationData.data,
@@ -297,8 +327,18 @@ self.addEventListener('push', (event) => {
     requireInteraction: false,
     vibrate: [200, 100, 200],
     silent: false,
-    sound: '/assets/sounds/notification.mp3', // صوت الإشعار
   };
+
+  // تشغيل الصوت
+  try {
+    const audio = new Audio('/assets/sounds/notification.mp3');
+    audio.volume = 0.5;
+    audio.play().catch((error) => {
+      console.error('[SW] Error playing notification sound:', error);
+    });
+  } catch (error) {
+    console.error('[SW] Error creating audio:', error);
+  }
 
   console.log('[SW] Notification options:', notificationOptions);
   console.log('[SW] Showing push notification:', notificationData.title);
