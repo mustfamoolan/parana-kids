@@ -315,6 +315,7 @@ Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController
 Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
 
 // FCM routes
+Route::get('/api/firebase/config', [App\Http\Controllers\FirebaseConfigController::class, 'getConfig'])->name('firebase.config');
 Route::post('/api/fcm/register', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('fcm.register');
 Route::post('/api/fcm/delete', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('fcm.delete');
 

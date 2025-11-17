@@ -2246,16 +2246,14 @@
                     }
 
                     try {
-                        // تهيئة Firebase
-                        const firebaseConfig = {
-                            apiKey: "AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU",
-                            authDomain: "parana-kids.firebaseapp.com",
-                            projectId: "parana-kids",
-                            storageBucket: "parana-kids.firebasestorage.app",
-                            messagingSenderId: "130151352064",
-                            appId: "1:130151352064:web:42335c43d67f4ac49515e5",
-                            measurementId: "G-HCTDLM0P9Y"
-                        };
+                        // جلب Firebase config من .env
+                        const configResponse = await fetch('{{ route("firebase.config") }}');
+                        const firebaseConfig = await configResponse.json();
+                        
+                        if (!firebaseConfig.apiKey) {
+                            console.error('Firebase config not found. Please check .env file.');
+                            return;
+                        }
 
                         if (!firebase.apps.length) {
                             firebase.initializeApp(firebaseConfig);
@@ -2269,7 +2267,7 @@
                             try {
                                 const registration = await navigator.serviceWorker.ready;
                                 console.log('Service Worker ready');
-                                
+
                                 // تعيين Service Worker للـ messaging
                                 await messaging.useServiceWorker(registration);
                             } catch (swError) {
@@ -2279,7 +2277,7 @@
 
                         // طلب الإذن للحصول على token
                         let permission = Notification.permission;
-                        
+
                         if (permission === 'default') {
                             permission = await Notification.requestPermission();
                             console.log('Notification permission:', permission);
@@ -2289,7 +2287,7 @@
                             try {
                                 // الحصول على FCM token
                                 const token = await messaging.getToken({
-                                    vapidKey: "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0",
+                                    vapidKey: firebaseConfig.vapidKey,
                                     serviceWorkerRegistration: await navigator.serviceWorker.ready,
                                 });
 
@@ -2353,7 +2351,7 @@
 
                         const data = await response.json();
                         console.log('FCM registration response:', data);
-                        
+
                         if (data.success) {
                             console.log('FCM token registered successfully');
                         } else {

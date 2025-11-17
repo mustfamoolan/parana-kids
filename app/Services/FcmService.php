@@ -142,6 +142,7 @@ class FcmService
         $conversation = \App\Models\Conversation::with('participants')->find($conversationId);
 
         if (!$conversation) {
+            Log::warning('Conversation not found for FCM notification', ['conversation_id' => $conversationId]);
             return false;
         }
 
@@ -151,20 +152,31 @@ class FcmService
             ->toArray();
 
         if (empty($recipientIds)) {
+            Log::warning('No recipients found for FCM notification', ['conversation_id' => $conversationId, 'sender_id' => $senderId]);
             return false;
         }
 
+        Log::info('Sending FCM notification', [
+            'conversation_id' => $conversationId,
+            'sender_id' => $senderId,
+            'recipient_ids' => $recipientIds,
+        ]);
+
         // إرسال الإشعار
-        return $this->sendToUsers(
+        $result = $this->sendToUsers(
             $recipientIds,
             'رسالة جديدة',
             'لديك رسالة جديدة',
             [
                 'type' => 'new_message',
-                'conversation_id' => $conversationId,
-                'sender_id' => $senderId,
+                'conversation_id' => (string)$conversationId,
+                'sender_id' => (string)$senderId,
             ]
         );
+
+        Log::info('FCM notification result', ['result' => $result]);
+
+        return $result;
     }
 }
 

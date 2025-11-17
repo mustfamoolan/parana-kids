@@ -86,46 +86,53 @@ workbox.precaching.cleanupOutdatedCaches();
 
 // Firebase Messaging - تهيئة مباشرة في Service Worker
 // هذا يضمن عمل الإشعارات حتى لو كان التطبيق مغلقاً تماماً
-const firebaseConfig = {
-  apiKey: "AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU",
-  authDomain: "parana-kids.firebaseapp.com",
-  projectId: "parana-kids",
-  storageBucket: "parana-kids.firebasestorage.app",
-  messagingSenderId: "130151352064",
-  appId: "1:130151352064:web:42335c43d67f4ac49515e5",
-  measurementId: "G-HCTDLM0P9Y"
-};
+let firebaseConfig = null;
 
-// تهيئة Firebase مباشرة
-if (typeof firebase !== 'undefined') {
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+// جلب Firebase config من API
+async function loadFirebaseConfig() {
+  try {
+    const response = await fetch('/api/firebase/config');
+    firebaseConfig = await response.json();
+    
+    if (firebaseConfig && firebaseConfig.apiKey) {
+      // تهيئة Firebase مباشرة
+      if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        
+        const messaging = firebase.messaging();
+        
+        // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
+        messaging.onBackgroundMessage((payload) => {
+          console.log('Background message received:', payload);
+          
+          const notification = payload.notification || {};
+          const data = payload.data || {};
+          
+          const notificationTitle = notification.title || 'رسالة جديدة';
+          const notificationOptions = {
+            body: notification.body || 'لديك رسالة جديدة',
+            icon: notification.icon || '/assets/images/icons/icon-192x192.png',
+            badge: '/assets/images/icons/icon-192x192.png',
+            data: data,
+            tag: `chat-${data.conversation_id || 'new'}`,
+            requireInteraction: false,
+            vibrate: [200, 100, 200],
+            sound: '/assets/sounds/notification.mp3',
+          };
+          
+          return self.registration.showNotification(notificationTitle, notificationOptions);
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error loading Firebase config:', error);
   }
-
-  const messaging = firebase.messaging();
-
-  // معالجة الرسائل في الخلفية (عندما يكون التطبيق مغلقاً)
-  messaging.onBackgroundMessage((payload) => {
-    console.log('Background message received:', payload);
-
-    const notification = payload.notification || {};
-    const data = payload.data || {};
-
-    const notificationTitle = notification.title || 'رسالة جديدة';
-    const notificationOptions = {
-      body: notification.body || 'لديك رسالة جديدة',
-      icon: notification.icon || '/assets/images/icons/icon-192x192.png',
-      badge: '/assets/images/icons/icon-192x192.png',
-      data: data,
-      tag: `chat-${data.conversation_id || 'new'}`,
-      requireInteraction: false,
-      vibrate: [200, 100, 200],
-      sound: '/assets/sounds/notification.mp3',
-    };
-
-    return self.registration.showNotification(notificationTitle, notificationOptions);
-  });
 }
+
+// تحميل config عند تحميل Service Worker
+loadFirebaseConfig();
 
 // معالجة رسائل أخرى من الصفحة الرئيسية
 self.addEventListener('message', (event) => {
