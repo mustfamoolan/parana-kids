@@ -126,8 +126,10 @@ try {
       const data = payload.data || {};
 
       const notificationTitle = notification.title || 'رسالة جديدة';
+      const notificationBody = notification.body || data.message_text || 'لديك رسالة جديدة';
+      
       const notificationOptions = {
-        body: notification.body || 'لديك رسالة جديدة',
+        body: notificationBody,
         icon: notification.icon || '/assets/images/icons/icon-192x192.png',
         badge: '/assets/images/icons/icon-192x192.png',
         data: data,
@@ -135,11 +137,12 @@ try {
         requireInteraction: false,
         vibrate: [200, 100, 200],
         silent: false,
+        sound: '/assets/sounds/notification.mp3', // صوت الإشعار
       };
 
       console.log('[SW] Showing Firebase notification:', notificationTitle);
       console.log('[SW] Notification options:', notificationOptions);
-      
+
       return self.registration.showNotification(notificationTitle, notificationOptions)
         .then(() => {
           console.log('[SW] Firebase notification shown successfully');
@@ -263,13 +266,17 @@ self.addEventListener('push', (event) => {
       if (payload) {
         if (payload.notification) {
           notificationData.title = payload.notification.title || notificationData.title;
-          notificationData.body = payload.notification.body || notificationData.body;
+          notificationData.body = payload.notification.body || payload.data?.message_text || notificationData.body;
           notificationData.icon = payload.notification.icon || notificationData.icon;
           console.log('[SW] Notification data from payload:', payload.notification);
         }
-
+        
         if (payload.data) {
           notificationData.data = payload.data;
+          // استخدام message_text من data إذا لم يكن في notification
+          if (!notificationData.body || notificationData.body === 'لديك رسالة جديدة') {
+            notificationData.body = payload.data.message_text || notificationData.body;
+          }
           console.log('[SW] Data from payload:', payload.data);
         }
       }
@@ -290,6 +297,7 @@ self.addEventListener('push', (event) => {
     requireInteraction: false,
     vibrate: [200, 100, 200],
     silent: false,
+    sound: '/assets/sounds/notification.mp3', // صوت الإشعار
   };
 
   console.log('[SW] Notification options:', notificationOptions);

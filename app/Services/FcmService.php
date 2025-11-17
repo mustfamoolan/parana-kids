@@ -189,21 +189,60 @@ class FcmService
             return false;
         }
 
+        // جلب آخر رسالة إذا لم يتم تمرير نص الرسالة
+        if (!$messageText) {
+            $lastMessage = \App\Models\Message::where('conversation_id', $conversationId)
+                ->where('user_id', $senderId)
+                ->latest()
+                ->first();
+            
+            if ($lastMessage) {
+                if ($lastMessage->type === 'image') {
+                    $messageText = 'صورة';
+                } elseif ($lastMessage->type === 'order') {
+                    $messageText = 'طلب';
+                } elseif ($lastMessage->type === 'product') {
+                    $messageText = 'منتج';
+                } else {
+                    $messageText = $lastMessage->message ?: 'رسالة جديدة';
+                }
+            } else {
+                $messageText = 'رسالة جديدة';
+            }
+        }
+
+        // جلب اسم المرسل
+        $sender = \App\Models\User::find($senderId);
+        $senderName = $sender ? $sender->name : 'مستخدم';
+
+        // تحديد نص الإشعار
+        $notificationTitle = 'رسالة جديدة';
+        $notificationBody = $messageText;
+        
+        // إذا كان النص طويلاً، اختصره
+        if (mb_strlen($notificationBody) > 100) {
+            $notificationBody = mb_substr($notificationBody, 0, 100) . '...';
+        }
+
         Log::info('Sending FCM notification', [
             'conversation_id' => $conversationId,
             'sender_id' => $senderId,
+            'sender_name' => $senderName,
             'recipient_ids' => $recipientIds,
+            'message_text' => $messageText,
         ]);
 
         // إرسال الإشعار
         $result = $this->sendToUsers(
             $recipientIds,
-            'رسالة جديدة',
-            'لديك رسالة جديدة',
+            $notificationTitle,
+            $notificationBody,
             [
                 'type' => 'new_message',
                 'conversation_id' => (string)$conversationId,
                 'sender_id' => (string)$senderId,
+                'sender_name' => $senderName,
+                'message_text' => $messageText,
             ]
         );
 
