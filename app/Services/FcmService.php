@@ -104,23 +104,28 @@ class FcmService
 
         try {
             $notification = Notification::create($title, $body);
-            
+
             Log::info('FCM notification created', [
                 'title' => $title,
                 'body' => $body,
             ]);
 
+            // إرسال notification + data معاً لضمان وصول notification.body
             $message = CloudMessage::new()
                 ->withNotification($notification)
                 ->withData(array_merge([
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     'message_text' => $body, // إضافة message_text في data كـ backup
+                    'notification_title' => $title, // إضافة title في data كـ backup
+                    'notification_body' => $body, // إضافة body في data كـ backup
                 ], $data))
                 ->withAndroidConfig([
                     'priority' => 'high',
                     'notification' => [
                         'sound' => 'default',
                         'channel_id' => 'high_importance_channel',
+                        'title' => $title, // التأكد من إرسال title
+                        'body' => $body, // التأكد من إرسال body
                     ],
                 ])
                 ->withApnsConfig([
@@ -129,6 +134,10 @@ class FcmService
                     ],
                     'payload' => [
                         'aps' => [
+                            'alert' => [
+                                'title' => $title,
+                                'body' => $body,
+                            ],
                             'sound' => 'default',
                             'badge' => 1,
                         ],

@@ -128,17 +128,22 @@ try {
       console.log('[SW] Raw notification object:', JSON.stringify(notification));
       console.log('[SW] Raw data object:', JSON.stringify(data));
 
-      // تحديد نص الإشعار - أولوية: notification.body ثم data.message_text
+      // تحديد نص الإشعار - أولوية: notification.body ثم data.notification_body ثم data.message_text
       let notificationTitle = 'رسالة جديدة';
       let notificationBody = 'لديك رسالة جديدة';
       
       // استخدام notification.body إذا كان موجوداً
-      if (notification && notification.body && notification.body.trim() !== '') {
+      if (notification && notification.body && notification.body.trim() !== '' && notification.body !== 'لديك رسالة جديدة') {
         notificationBody = notification.body;
         console.log('[SW] Using notification.body:', notificationBody);
       } 
+      // إذا لم يكن موجوداً، استخدم data.notification_body
+      else if (data && data.notification_body && data.notification_body.trim() !== '' && data.notification_body !== 'لديك رسالة جديدة') {
+        notificationBody = data.notification_body;
+        console.log('[SW] Using data.notification_body:', notificationBody);
+      }
       // إذا لم يكن موجوداً، استخدم data.message_text
-      else if (data && data.message_text && data.message_text.trim() !== '') {
+      else if (data && data.message_text && data.message_text.trim() !== '' && data.message_text !== 'لديك رسالة جديدة') {
         notificationBody = data.message_text;
         console.log('[SW] Using data.message_text:', notificationBody);
       }
@@ -146,11 +151,13 @@ try {
       // استخدام notification.title إذا كان موجوداً
       if (notification && notification.title && notification.title.trim() !== '') {
         notificationTitle = notification.title;
+      } else if (data && data.notification_title && data.notification_title.trim() !== '') {
+        notificationTitle = data.notification_title;
       }
 
       console.log('[SW] Final notification title:', notificationTitle);
       console.log('[SW] Final notification body:', notificationBody);
-      
+
       const notificationOptions = {
         body: notificationBody,
         icon: notification.icon || '/assets/images/icons/icon-192x192.png',
@@ -312,11 +319,11 @@ self.addEventListener('push', (event) => {
 
   // تحديد نص الإشعار بشكل أفضل
   let finalBody = 'لديك رسالة جديدة';
-  
+
   // استخدام notification.body إذا كان موجوداً
   if (notificationData.body && notificationData.body.trim() !== '') {
     finalBody = notificationData.body;
-  } 
+  }
   // إذا لم يكن موجوداً، استخدم data.message_text
   else if (notificationData.data && notificationData.data.message_text && notificationData.data.message_text.trim() !== '') {
     finalBody = notificationData.data.message_text;
