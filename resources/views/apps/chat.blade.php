@@ -2262,19 +2262,6 @@
 
                         const messaging = firebase.messaging();
 
-                        // التحقق من دعم Service Worker
-                        if ('serviceWorker' in navigator) {
-                            try {
-                                const registration = await navigator.serviceWorker.ready;
-                                console.log('Service Worker ready');
-
-                                // تعيين Service Worker للـ messaging
-                                await messaging.useServiceWorker(registration);
-                            } catch (swError) {
-                                console.error('Service Worker error:', swError);
-                            }
-                        }
-
                         // طلب الإذن للحصول على token
                         let permission = Notification.permission;
 
