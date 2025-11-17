@@ -2237,9 +2237,11 @@
                 },
 
                 async initFCM() {
+                    console.log('Initializing FCM...');
+                    
                     // التحقق من دعم Firebase
                     if (typeof firebase === 'undefined') {
-                        console.log('Firebase SDK not loaded');
+                        console.error('Firebase SDK not loaded');
                         return;
                     }
 
@@ -2257,21 +2259,49 @@
 
                         if (!firebase.apps.length) {
                             firebase.initializeApp(firebaseConfig);
+                            console.log('Firebase initialized');
                         }
 
                         const messaging = firebase.messaging();
 
-                        // طلب الإذن للحصول على token
-                        const permission = await Notification.requestPermission();
-                        if (permission === 'granted') {
-                            // الحصول على FCM token
-                            const token = await messaging.getToken({
-                                vapidKey: "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0",
-                            });
+                        // التحقق من دعم Service Worker
+                        if ('serviceWorker' in navigator) {
+                            try {
+                                const registration = await navigator.serviceWorker.ready;
+                                console.log('Service Worker ready');
+                                
+                                // تعيين Service Worker للـ messaging
+                                await messaging.useServiceWorker(registration);
+                            } catch (swError) {
+                                console.error('Service Worker error:', swError);
+                            }
+                        }
 
-                            if (token) {
-                                // إرسال token للـ backend
-                                await this.registerFCMToken(token);
+                        // طلب الإذن للحصول على token
+                        let permission = Notification.permission;
+                        
+                        if (permission === 'default') {
+                            permission = await Notification.requestPermission();
+                            console.log('Notification permission:', permission);
+                        }
+
+                        if (permission === 'granted') {
+                            try {
+                                // الحصول على FCM token
+                                const token = await messaging.getToken({
+                                    vapidKey: "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0",
+                                    serviceWorkerRegistration: await navigator.serviceWorker.ready,
+                                });
+
+                                if (token) {
+                                    console.log('FCM token obtained:', token.substring(0, 20) + '...');
+                                    // إرسال token للـ backend
+                                    await this.registerFCMToken(token);
+                                } else {
+                                    console.error('No FCM token received');
+                                }
+                            } catch (tokenError) {
+                                console.error('Error getting FCM token:', tokenError);
                             }
 
                             // معالجة الرسائل في المقدمة (foreground)
@@ -2292,19 +2322,24 @@
                                 // تشغيل الصوت
                                 this.playNotificationSound();
                             });
+                        } else {
+                            console.warn('Notification permission denied:', permission);
                         }
                     } catch (error) {
                         console.error('Error initializing FCM:', error);
+                        console.error('Error stack:', error.stack);
                     }
                 },
 
                 async registerFCMToken(token) {
                     try {
+                        console.log('Registering FCM token...');
                         const response = await fetch('{{ route("fcm.register") }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json',
                             },
                             body: JSON.stringify({
                                 token: token,
@@ -2317,6 +2352,8 @@
                         });
 
                         const data = await response.json();
+                        console.log('FCM registration response:', data);
+                        
                         if (data.success) {
                             console.log('FCM token registered successfully');
                         } else {
@@ -2324,6 +2361,7 @@
                         }
                     } catch (error) {
                         console.error('Error registering FCM token:', error);
+                        console.error('Error details:', error.message);
                     }
                 },
 
