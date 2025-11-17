@@ -18,16 +18,32 @@ class FcmService
     {
         try {
             $credentialsPath = config('services.firebase.credentials');
+            
+            // إذا كان المسار نسبي، تحويله إلى مسار مطلق
+            if (!str_starts_with($credentialsPath, '/') && !preg_match('/^[A-Za-z]:\\\\/', $credentialsPath)) {
+                $credentialsPath = storage_path('app/' . basename($credentialsPath));
+            }
 
             if (!file_exists($credentialsPath)) {
                 Log::warning('Firebase credentials file not found: ' . $credentialsPath);
-                return;
+                Log::warning('Trying alternative path: ' . storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json'));
+                
+                // محاولة المسار البديل
+                $alternativePath = storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json');
+                if (file_exists($alternativePath)) {
+                    $credentialsPath = $alternativePath;
+                    Log::info('Using alternative path: ' . $credentialsPath);
+                } else {
+                    return;
+                }
             }
 
             $factory = (new Factory)->withServiceAccount($credentialsPath);
             $this->messaging = $factory->createMessaging();
+            Log::info('Firebase initialized successfully');
         } catch (\Exception $e) {
             Log::error('Failed to initialize Firebase: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
         }
     }
 
