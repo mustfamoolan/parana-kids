@@ -2259,19 +2259,34 @@
                             const registration = await navigator.serviceWorker.ready;
                             console.log('Service Worker ready');
 
-                            // الحصول على push subscription
-                            try {
-                                const subscription = await registration.pushManager.subscribe({
-                                    userVisibleOnly: true,
-                                    applicationServerKey: this.urlBase64ToUint8Array('{{ env("FIREBASE_VAPID_KEY", "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0") }}'),
-                                });
+                            // التحقق من وجود subscription موجود أولاً
+                            let subscription = await registration.pushManager.getSubscription();
+                            
+                            if (!subscription) {
+                                // الحصول على push subscription جديد
+                                try {
+                                    const vapidKey = '{{ env("FIREBASE_VAPID_KEY", "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0") }}';
+                                    console.log('VAPID Key:', vapidKey.substring(0, 20) + '...');
+                                    
+                                    subscription = await registration.pushManager.subscribe({
+                                        userVisibleOnly: true,
+                                        applicationServerKey: this.urlBase64ToUint8Array(vapidKey),
+                                    });
 
-                                console.log('Push subscription obtained:', subscription.endpoint.substring(0, 50) + '...');
+                                    console.log('Push subscription obtained:', subscription.endpoint.substring(0, 50) + '...');
+                                } catch (subscriptionError) {
+                                    console.error('Error getting push subscription:', subscriptionError);
+                                    console.error('Error details:', subscriptionError.message);
+                                    console.error('Error stack:', subscriptionError.stack);
+                                    return;
+                                }
+                            } else {
+                                console.log('Existing push subscription found:', subscription.endpoint.substring(0, 50) + '...');
+                            }
 
-                                // إرسال subscription للـ backend
+                            // إرسال subscription للـ backend (سواء كان جديداً أو موجوداً)
+                            if (subscription) {
                                 await this.registerWebPushSubscription(subscription);
-                            } catch (subscriptionError) {
-                                console.error('Error getting push subscription:', subscriptionError);
                             }
                         } else {
                             console.warn('Notification permission denied:', permission);
