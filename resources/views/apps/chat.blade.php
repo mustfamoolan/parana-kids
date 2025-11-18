@@ -2262,7 +2262,7 @@
                 connectSSE() {
                     try {
                         console.log('Connecting to SSE stream...');
-                        
+
                         const eventSource = new EventSource('{{ route("sse.stream") }}', {
                             withCredentials: true
                         });
@@ -2273,35 +2273,51 @@
 
                         eventSource.onmessage = (event) => {
                             try {
+                                console.log('SSE raw message:', event.data);
                                 const data = JSON.parse(event.data);
-                                console.log('SSE message received:', data);
+                                console.log('SSE parsed message:', data);
+                                console.log('SSE message type:', data.type);
 
-                                if (data.type === 'notification' && data.data) {
-                                    const notification = data.data;
+                                if (data.type === 'notification') {
+                                    console.log('SSE notification received:', data);
+                                    
+                                    const notification = data.data || data;
+                                    console.log('SSE notification data:', notification);
+                                    
+                                    const title = notification.title || 'رسالة جديدة';
+                                    const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
+                                    
+                                    console.log('SSE showing notification:', title, '-', body);
                                     
                                     // إرسال الإشعار إلى Service Worker (للعمل حتى لو كان الموقع مغلق)
                                     if ('serviceWorker' in navigator) {
                                         navigator.serviceWorker.ready.then(registration => {
-                                            registration.active.postMessage({
-                                                type: 'SSE_NOTIFICATION',
-                                                notification: notification,
-                                            });
+                                            if (registration.active) {
+                                                registration.active.postMessage({
+                                                    type: 'SSE_NOTIFICATION',
+                                                    notification: notification,
+                                                });
+                                                console.log('SSE notification sent to service worker');
+                                            }
                                         });
                                     }
                                     
                                     // عرض الإشعار في الصفحة الرئيسية أيضاً
                                     this.showNotification(
-                                        notification.title || 'رسالة جديدة',
-                                        notification.body || notification.message_text || 'لديك رسالة جديدة',
+                                        title,
+                                        body,
                                         notification.icon,
-                                        notification.data?.conversation_id
+                                        notification.data?.conversation_id || notification.conversation_id
                                     );
                                     this.playNotificationSound();
                                 } else if (data.type === 'ping') {
                                     console.log('SSE ping received');
+                                } else {
+                                    console.log('SSE unknown message type:', data.type);
                                 }
                             } catch (error) {
                                 console.error('Error parsing SSE message:', error);
+                                console.error('Raw event data:', event.data);
                             }
                         };
 

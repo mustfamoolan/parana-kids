@@ -71,15 +71,15 @@ class SseNotificationService
         // حفظ الإشعار في cache للمستخدم
         $cacheKey = "sse_notification_{$userId}";
         $notifications = Cache::get($cacheKey, []);
-        
+
         // إضافة الإشعار الجديد في البداية
         array_unshift($notifications, $notification);
-        
+
         // الاحتفاظ بآخر 10 إشعارات فقط
         if (count($notifications) > 10) {
             $notifications = array_slice($notifications, 0, 10);
         }
-        
+
         Cache::put($cacheKey, $notifications, 300); // 5 دقائق
     }
 

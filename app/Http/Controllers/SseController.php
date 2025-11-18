@@ -61,13 +61,26 @@ class SseController extends Controller
                     $notifications = $this->sseService->getNotificationsForUser($user->id);
                     
                     if (!empty($notifications)) {
+                        Log::info('SSE sending notifications', [
+                            'user_id' => $user->id,
+                            'count' => count($notifications),
+                        ]);
+                        
                         foreach ($notifications as $notification) {
-                            echo "data: " . json_encode([
+                            $eventData = json_encode([
                                 'type' => 'notification',
                                 'data' => $notification,
-                            ]) . "\n\n";
+                            ]);
+                            
+                            echo "data: " . $eventData . "\n\n";
                             ob_flush();
                             flush();
+                            
+                            Log::info('SSE notification sent', [
+                                'user_id' => $user->id,
+                                'title' => $notification['title'] ?? 'N/A',
+                                'body' => $notification['body'] ?? 'N/A',
+                            ]);
                         }
 
                         // حذف الإشعارات بعد إرسالها
