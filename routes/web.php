@@ -323,6 +323,9 @@ Route::post('/api/fcm/delete', [App\Http\Controllers\FcmController::class, 'dele
 Route::post('/api/webpush/register', [App\Http\Controllers\WebPushController::class, 'registerSubscription'])->middleware('auth')->name('webpush.register');
 Route::post('/api/webpush/delete', [App\Http\Controllers\WebPushController::class, 'deleteSubscription'])->middleware('auth')->name('webpush.delete');
 
+// SSE routes
+Route::get('/api/sse/stream', [App\Http\Controllers\SseController::class, 'stream'])->middleware('auth')->name('sse.stream');
+
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

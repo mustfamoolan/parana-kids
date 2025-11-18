@@ -7,7 +7,7 @@ use App\Models\Message;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
-use App\Services\WebPushService;
+use App\Services\SseNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -392,18 +392,18 @@ class ChatController extends Controller
             \Log::info('Chat - Message: ' . $request->input('message'));
             \Log::info('Chat - Image: ' . ($imagePath ? 'Yes' : 'No'));
 
-            // إرسال إشعار Web Push (بعد إنشاء الرسالة)
+            // إرسال إشعار SSE (بعد إنشاء الرسالة)
             try {
-                $webPushService = new WebPushService();
-                $result = $webPushService->sendNewMessageNotification($conversationId, $user->id);
-                \Log::info('Web Push notification sent from ChatController', [
+                $sseService = new SseNotificationService();
+                $result = $sseService->sendNewMessageNotification($conversationId, $user->id);
+                \Log::info('SSE notification sent from ChatController', [
                     'conversation_id' => $conversationId,
                     'sender_id' => $user->id,
                     'result' => $result,
                 ]);
             } catch (\Exception $e) {
-                \Log::error('Failed to send Web Push notification: ' . $e->getMessage());
-                \Log::error('Web Push notification error stack: ' . $e->getTraceAsString());
+                \Log::error('Failed to send SSE notification: ' . $e->getMessage());
+                \Log::error('SSE notification error stack: ' . $e->getTraceAsString());
             }
 
             $responseData = [

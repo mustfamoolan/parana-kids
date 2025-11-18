@@ -282,7 +282,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   console.log('[SW] ========== WEB PUSH EVENT RECEIVED ==========');
   console.log('[SW] Push event received at:', new Date().toISOString());
-  
+
   // دالة لإظهار الإشعار
   const showNotification = (title, body, data = {}) => {
     const options = {
@@ -298,16 +298,16 @@ self.addEventListener('push', (event) => {
       data: data,
       timestamp: Date.now(),
     };
-    
+
     console.log('[SW] Showing notification:', title, '-', body);
     return self.registration.showNotification(title, options);
   };
-  
+
   // محاولة قراءة البيانات
   let notificationTitle = 'رسالة جديدة';
   let notificationBody = 'لديك رسالة جديدة';
   let notificationData = {};
-  
+
   // إظهار إشعار فوراً (حتى لو لم تصل البيانات)
   // هذا يضمن أن الإشعار يظهر دائماً
   event.waitUntil(
@@ -315,7 +315,7 @@ self.addEventListener('push', (event) => {
       try {
         if (event.data) {
           let payload = null;
-          
+
           // محاولة قراءة JSON
           try {
             payload = event.data.json();
@@ -332,7 +332,7 @@ self.addEventListener('push', (event) => {
               console.log('[SW] Will show default notification');
             }
           }
-          
+
           if (payload) {
             // استخدام payload.data أولاً
             if (payload.data) {
@@ -348,7 +348,7 @@ self.addEventListener('push', (event) => {
                 notificationTitle = payload.data.title;
               }
             }
-            
+
             // استخدام payload مباشرة
             if (payload.title && payload.title.trim() !== '') {
               notificationTitle = payload.title;
@@ -363,7 +363,7 @@ self.addEventListener('push', (event) => {
       } catch (error) {
         console.error('[SW] Error processing push:', error);
       }
-      
+
       // إظهار الإشعار (حتى لو لم تصل البيانات)
       return showNotification(notificationTitle, notificationBody, notificationData);
     }).then(() => {
@@ -374,6 +374,42 @@ self.addEventListener('push', (event) => {
       return showNotification('رسالة جديدة', 'لديك رسالة جديدة');
     })
   );
+});
+
+// معالجة messages من الصفحة الرئيسية (للإشعارات عبر SSE)
+self.addEventListener('message', (event) => {
+  console.log('[SW] Message received from page:', event.data);
+
+  if (event.data && event.data.type === 'SSE_NOTIFICATION') {
+    const notification = event.data.notification;
+    const title = notification.title || 'رسالة جديدة';
+    const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
+    const data = notification.data || {};
+
+    console.log('[SW] Showing SSE notification:', title, '-', body);
+
+    const options = {
+      body: body,
+      icon: '/assets/images/icons/icon-192x192.png',
+      badge: '/assets/images/icons/icon-192x192.png',
+      vibrate: [200, 100, 200],
+      silent: false,
+      dir: 'rtl',
+      lang: 'ar',
+      tag: `chat-${data.conversation_id || 'new'}`,
+      requireInteraction: false,
+      data: data,
+      timestamp: Date.now(),
+    };
+
+    self.registration.showNotification(title, options)
+      .then(() => {
+        console.log('[SW] ✅ SSE notification shown successfully');
+      })
+      .catch((error) => {
+        console.error('[SW] ❌ Error showing SSE notification:', error);
+      });
+  }
 });
 
 // معالجة الإشعارات في الخلفية (عندما يكون الموقع مغلق)

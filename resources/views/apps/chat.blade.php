@@ -1198,11 +1198,12 @@
                     this.requestNotificationPermission();
                     // تحميل الإعدادات من localStorage
                     this.loadNotificationSettings();
-                    // تهيئة FCM
-                    this.initWebPush();
+                    // تهيئة SSE للإشعارات
+                    this.initSSE();
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
+                sseEventSource: null,
                 loginUser: {
                     id: {{ auth()->id() }},
                     name: '{{ auth()->user()->name }}',
@@ -2236,130 +2237,90 @@
                     }
                 },
 
-                async initWebPush() {
-                    console.log('Initializing Web Push...');
+                initSSE() {
+                    console.log('Initializing SSE notifications...');
 
-                    // التحقق من دعم Service Worker و Push API
-                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                        console.error('Web Push not supported in this browser');
-                        return;
-                    }
-
-                    try {
-                        // طلب الإذن للإشعارات
-                        let permission = Notification.permission;
-
-                        if (permission === 'default') {
-                            permission = await Notification.requestPermission();
-                            console.log('Notification permission:', permission);
-                        }
-
-                        if (permission === 'granted') {
-                            // انتظار تسجيل Service Worker
-                            const registration = await navigator.serviceWorker.ready;
-                            console.log('Service Worker ready');
-
-                            // التحقق من وجود subscription موجود أولاً
-                            let subscription = await registration.pushManager.getSubscription();
-
-                            if (!subscription) {
-                                // الحصول على push subscription جديد
-                                try {
-                                    const vapidKey = '{{ env("FIREBASE_VAPID_KEY", "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0") }}';
-                                    console.log('VAPID Key:', vapidKey.substring(0, 20) + '...');
-
-                                    subscription = await registration.pushManager.subscribe({
-                                        userVisibleOnly: true,
-                                        applicationServerKey: this.urlBase64ToUint8Array(vapidKey),
-                                    });
-
-                                    console.log('Push subscription obtained:', subscription.endpoint.substring(0, 50) + '...');
-                                } catch (subscriptionError) {
-                                    console.error('Error getting push subscription:', subscriptionError);
-                                    console.error('Error details:', subscriptionError.message);
-                                    console.error('Error stack:', subscriptionError.stack);
-                                    return;
+                    // طلب الإذن للإشعارات
+                    if ('Notification' in window) {
+                        if (Notification.permission === 'default') {
+                            Notification.requestPermission().then(permission => {
+                                console.log('Notification permission:', permission);
+                                if (permission === 'granted') {
+                                    this.connectSSE();
                                 }
-                            } else {
-                                console.log('Existing push subscription found:', subscription.endpoint.substring(0, 50) + '...');
-                            }
-
-                            // إرسال subscription للـ backend (سواء كان جديداً أو موجوداً)
-                            if (subscription) {
-                                await this.registerWebPushSubscription(subscription);
-                            }
+                            });
+                        } else if (Notification.permission === 'granted') {
+                            this.connectSSE();
                         } else {
-                            console.warn('Notification permission denied:', permission);
+                            console.warn('Notification permission denied');
                         }
-                    } catch (error) {
-                        console.error('Error initializing Web Push:', error);
-                        console.error('Error stack:', error.stack);
+                    } else {
+                        console.error('Notifications not supported in this browser');
                     }
                 },
 
-                urlBase64ToUint8Array(base64String) {
-                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                    const base64 = (base64String + padding)
-                        .replace(/\-/g, '+')
-                        .replace(/_/g, '/');
-
-                    const rawData = window.atob(base64);
-                    const outputArray = new Uint8Array(rawData.length);
-
-                    for (let i = 0; i < rawData.length; ++i) {
-                        outputArray[i] = rawData.charCodeAt(i);
-                    }
-                    return outputArray;
-                },
-
-                async registerWebPushSubscription(subscription) {
+                connectSSE() {
                     try {
-                        console.log('Registering Web Push subscription...');
-
-                        const keys = subscription.getKey ? {
-                            p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh')),
-                            auth: this.arrayBufferToBase64(subscription.getKey('auth')),
-                        } : {};
-
-                        const response = await fetch('{{ route("webpush.register") }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                endpoint: subscription.endpoint,
-                                keys: keys,
-                                device_type: 'web',
-                                device_info: {
-                                    userAgent: navigator.userAgent,
-                                    platform: navigator.platform,
-                                },
-                            }),
+                        console.log('Connecting to SSE stream...');
+                        
+                        const eventSource = new EventSource('{{ route("sse.stream") }}', {
+                            withCredentials: true
                         });
 
-                        const data = await response.json();
-                        console.log('Web Push registration response:', data);
+                        eventSource.onopen = () => {
+                            console.log('SSE connection opened');
+                        };
 
-                        if (data.success) {
-                            console.log('Web Push subscription registered successfully');
-                        } else {
-                            console.error('Failed to register Web Push subscription:', data.error);
-                        }
+                        eventSource.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+                                console.log('SSE message received:', data);
+
+                                if (data.type === 'notification' && data.data) {
+                                    const notification = data.data;
+                                    
+                                    // إرسال الإشعار إلى Service Worker (للعمل حتى لو كان الموقع مغلق)
+                                    if ('serviceWorker' in navigator) {
+                                        navigator.serviceWorker.ready.then(registration => {
+                                            registration.active.postMessage({
+                                                type: 'SSE_NOTIFICATION',
+                                                notification: notification,
+                                            });
+                                        });
+                                    }
+                                    
+                                    // عرض الإشعار في الصفحة الرئيسية أيضاً
+                                    this.showNotification(
+                                        notification.title || 'رسالة جديدة',
+                                        notification.body || notification.message_text || 'لديك رسالة جديدة',
+                                        notification.icon,
+                                        notification.data?.conversation_id
+                                    );
+                                    this.playNotificationSound();
+                                } else if (data.type === 'ping') {
+                                    console.log('SSE ping received');
+                                }
+                            } catch (error) {
+                                console.error('Error parsing SSE message:', error);
+                            }
+                        };
+
+                        eventSource.onerror = (error) => {
+                            console.error('SSE connection error:', error);
+                            // إعادة الاتصال بعد 5 ثوان
+                            setTimeout(() => {
+                                if (eventSource.readyState === EventSource.CLOSED) {
+                                    console.log('Reconnecting to SSE...');
+                                    this.connectSSE();
+                                }
+                            }, 5000);
+                        };
+
+                        // حفظ eventSource للاستخدام لاحقاً
+                        this.sseEventSource = eventSource;
                     } catch (error) {
-                        console.error('Error registering Web Push subscription:', error);
-                        console.error('Error details:', error.message);
+                        console.error('Error connecting to SSE:', error);
                     }
-                },
-
-                arrayBufferToBase64(buffer) {
-                    const bytes = new Uint8Array(buffer);
-                    let binary = '';
-                    for (let i = 0; i < bytes.byteLength; i++) {
-                        binary += String.fromCharCode(bytes[i]);
-                    }
-                    return window.btoa(binary);
                 },
 
                 loadNotificationSettings() {
