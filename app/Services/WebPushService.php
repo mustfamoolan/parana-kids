@@ -148,9 +148,9 @@ class WebPushService
                     'message_text' => $body,
                 ], $data),
             ];
-            
+
             $payload = json_encode($payloadData);
-            
+
             Log::info('Web Push payload prepared', [
                 'subscription_id' => $subscription->id,
                 'payload' => $payloadData,
@@ -162,7 +162,7 @@ class WebPushService
                 $pushSubscription,
                 $payload
             );
-            
+
             Log::info('Web Push send result', [
                 'subscription_id' => $subscription->id,
                 'success' => $result->isSuccess(),

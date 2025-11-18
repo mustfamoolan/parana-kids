@@ -273,6 +273,22 @@ self.addEventListener('push', (event) => {
   console.log('[SW] ========== WEB PUSH EVENT RECEIVED ==========');
   console.log('[SW] Push event received at:', new Date().toISOString());
   console.log('[SW] Has data:', !!event.data);
+  console.log('[SW] Event type:', event.type);
+  console.log('[SW] Event target:', event.target);
+  
+  // إظهار إشعار فوراً حتى لو لم تصل البيانات (fallback)
+  const showNotificationFallback = () => {
+    return self.registration.showNotification('رسالة جديدة', {
+      body: 'لديك رسالة جديدة',
+      icon: '/assets/images/icons/icon-192x192.png',
+      badge: '/assets/images/icons/icon-192x192.png',
+      vibrate: [200, 100, 200],
+      silent: false,
+      sound: '/assets/sounds/notification.mp3',
+      dir: 'rtl',
+      lang: 'ar',
+    });
+  };
 
   let notificationTitle = 'رسالة جديدة';
   let notificationBody = 'لديك رسالة جديدة';
@@ -281,7 +297,7 @@ self.addEventListener('push', (event) => {
   try {
     if (event.data) {
       let payload;
-      
+
       // محاولة قراءة البيانات
       try {
         // محاولة JSON أولاً
@@ -305,12 +321,12 @@ self.addEventListener('push', (event) => {
 
       if (payload) {
         console.log('[SW] Payload parsed successfully');
-        
+
         // الحل النهائي: استخدام data مباشرة (Web Push API)
         if (payload.data) {
           notificationData = payload.data;
           console.log('[SW] Found payload.data:', JSON.stringify(payload.data, null, 2));
-          
+
           // استخدام data.body أولاً
           if (payload.data.body && payload.data.body.trim() !== '' && payload.data.body !== 'لديك رسالة جديدة') {
             notificationBody = payload.data.body;
@@ -321,14 +337,14 @@ self.addEventListener('push', (event) => {
             notificationBody = payload.data.message_text;
             console.log('[SW] Using data.message_text:', notificationBody);
           }
-          
+
           // استخدام data.title
           if (payload.data.title && payload.data.title.trim() !== '') {
             notificationTitle = payload.data.title;
             console.log('[SW] Using data.title:', notificationTitle);
           }
         }
-        
+
         // استخدام payload مباشرة إذا كان object (للتوافق مع web-push-php)
         if (payload.title && payload.title.trim() !== '') {
           notificationTitle = payload.title;
@@ -338,7 +354,7 @@ self.addEventListener('push', (event) => {
           notificationBody = payload.body;
           console.log('[SW] Using payload.body:', notificationBody);
         }
-        
+
         // استخدام notification object كـ fallback
         if (payload.notification) {
           if (payload.notification.title && payload.notification.title.trim() !== '') {
@@ -350,9 +366,15 @@ self.addEventListener('push', (event) => {
         }
       } else {
         console.warn('[SW] No valid payload found, using default notification');
+        // حتى لو لم تصل البيانات، أظهر إشعار افتراضي
+        notificationTitle = 'رسالة جديدة';
+        notificationBody = 'لديك رسالة جديدة';
       }
     } else {
       console.warn('[SW] No data in push event, using default notification');
+      // حتى لو لم تصل البيانات، أظهر إشعار افتراضي
+      notificationTitle = 'رسالة جديدة';
+      notificationBody = 'لديك رسالة جديدة';
     }
   } catch (error) {
     console.error('[SW] Error parsing push data:', error);
@@ -374,8 +396,13 @@ self.addEventListener('push', (event) => {
     tag: `chat-${notificationData.conversation_id || 'new'}`,
     requireInteraction: false,
     vibrate: [200, 100, 200],
+    sound: '/assets/sounds/notification.mp3', // صوت الإشعار
     silent: false, // false = يستخدم صوت الجهاز الافتراضي
     timestamp: Date.now(),
+    // إضافة options إضافية للتوافق مع Android
+    actions: [],
+    dir: 'rtl', // اتجاه النص من اليمين لليسار
+    lang: 'ar',
   };
 
   console.log('[SW] ========== SHOWING NOTIFICATION ==========');
@@ -383,8 +410,12 @@ self.addEventListener('push', (event) => {
   console.log('[SW] Notification body:', notificationBody);
   console.log('[SW] Notification options:', JSON.stringify(notificationOptions, null, 2));
 
+  // إظهار الإشعار مع fallback
   event.waitUntil(
-    self.registration.showNotification(notificationTitle, notificationOptions)
+    Promise.resolve()
+      .then(() => {
+        return self.registration.showNotification(notificationTitle, notificationOptions);
+      })
       .then(() => {
         console.log('[SW] ✅ Web Push notification shown successfully');
       })
@@ -393,6 +424,10 @@ self.addEventListener('push', (event) => {
         console.error('[SW] Error name:', error.name);
         console.error('[SW] Error message:', error.message);
         console.error('[SW] Error stack:', error.stack);
+        
+        // Fallback: إظهار إشعار بسيط
+        console.log('[SW] Trying fallback notification...');
+        return showNotificationFallback();
       })
   );
 });
