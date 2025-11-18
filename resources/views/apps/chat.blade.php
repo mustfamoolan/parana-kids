@@ -1200,7 +1200,7 @@
                     this.loadNotificationSettings();
                     // تهيئة SSE للإشعارات
                     this.initSSE();
-                    
+
                     // الاستماع للإشعارات الجديدة لتحديث القائمة الجانبية فوراً
                     window.addEventListener('newNotification', (e) => {
                         const notification = e.detail;
@@ -1435,7 +1435,7 @@
                 updateConversationPreview(conversationId, messageText) {
                     const now = new Date();
                     const time = now.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    
+
                     // تحديث في conversationsList
                     let conv = this.conversationsList.find(c => c.conversationId === conversationId);
                     if (conv) {
@@ -1448,7 +1448,7 @@
                             this.conversationsList.unshift(conv);
                         }
                     }
-                    
+
                     // تحديث في availableUsersList
                     let userInAvailable = this.availableUsersList.find(u => u.conversationId === conversationId);
                     if (userInAvailable) {

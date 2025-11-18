@@ -168,7 +168,7 @@
             </a>
 
             <!-- 7. المراسلة -->
-            <a href="{{ route('chat.index') }}" 
+            <a href="{{ route('chat.index') }}"
                x-data="{ unreadCount: {{ $unreadMessagesCount ?? 0 }} }"
                x-init="
                    window.addEventListener('unreadCountUpdated', (e) => {

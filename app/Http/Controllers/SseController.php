@@ -74,6 +74,8 @@ class SseController extends Controller
                                 }, $notifications),
                             ]);
 
+                            $sentNotificationIds = [];
+                            
                             foreach ($notifications as $notification) {
                                 $eventData = json_encode([
                                     'type' => 'notification',
@@ -84,6 +86,10 @@ class SseController extends Controller
                                 ob_flush();
                                 flush();
 
+                                if (isset($notification['id'])) {
+                                    $sentNotificationIds[] = $notification['id'];
+                                }
+
                                 Log::info('SSE notification sent to client', [
                                     'user_id' => $user->id,
                                     'notification_id' => $notification['id'] ?? null,
@@ -92,12 +98,15 @@ class SseController extends Controller
                                 ]);
                             }
 
-                            // تحديد الإشعارات كمقروءة بعد إرسالها
-                            $cleared = $this->sseService->clearNotificationsForUser($user->id);
-                            Log::info('SSE notifications marked as read', [
-                                'user_id' => $user->id,
-                                'cleared_count' => $cleared,
-                            ]);
+                            // تحديد الإشعارات التي تم إرسالها كمقروءة فقط
+                            if (!empty($sentNotificationIds)) {
+                                $cleared = $this->sseService->clearNotificationsForUser($user->id, $sentNotificationIds);
+                                Log::info('SSE notifications marked as read', [
+                                    'user_id' => $user->id,
+                                    'cleared_count' => $cleared,
+                                    'notification_ids' => $sentNotificationIds,
+                                ]);
+                            }
                         } else {
                             // Log فقط كل 10 ثوان لتقليل الـ logs
                             if (($currentTime - $lastCheck) >= 10) {

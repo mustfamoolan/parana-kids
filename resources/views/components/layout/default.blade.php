@@ -366,7 +366,7 @@
     <script>
         // تعيين user ID للإشعارات
         window.authUserId = {{ auth()->id() }};
-        
+
         // Toast Notification Function - يعمل في كل الصفحات
         window.showMessage = (msg = 'Example notification text.', position = 'top', showCloseButton = true, closeButtonHtml = '', duration = 5000) => {
             if (typeof window.Swal === 'undefined') {

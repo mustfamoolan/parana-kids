@@ -45,17 +45,23 @@ class NotificationManager {
 
             this.sseEventSource.onmessage = (event) => {
                 try {
+                    console.log('NotificationManager: SSE raw message:', event.data);
                     const data = JSON.parse(event.data);
-                    console.log('NotificationManager: SSE message received:', data);
+                    console.log('NotificationManager: SSE parsed message:', data);
 
-                    if (data.type === 'notification' && data.data) {
-                        this.handleNotification(data.data);
+                    if (data.type === 'notification') {
+                        console.log('NotificationManager: Notification received via SSE:', data);
+                        const notification = data.data || data;
+                        this.handleNotification(notification);
                     } else if (data.type === 'ping') {
                         // Ping - للحفاظ على الاتصال
                         console.log('NotificationManager: SSE ping received');
+                    } else {
+                        console.log('NotificationManager: Unknown message type:', data.type);
                     }
                 } catch (error) {
                     console.error('NotificationManager: Error parsing SSE message:', error);
+                    console.error('NotificationManager: Raw event data:', event.data);
                 }
             };
 
@@ -123,35 +129,58 @@ class NotificationManager {
      * عرض Toast Notification باستخدام SweetAlert
      */
     showToastNotification(notification) {
+        console.log('NotificationManager: showToastNotification called', notification);
+        
+        // انتظار حتى يكون SweetAlert متاحاً
         if (typeof window.Swal === 'undefined') {
-            console.warn('NotificationManager: SweetAlert not available');
+            console.warn('NotificationManager: SweetAlert not available, waiting...');
+            // محاولة مرة أخرى بعد 500ms
+            setTimeout(() => {
+                if (typeof window.Swal !== 'undefined') {
+                    this.showToastNotification(notification);
+                } else {
+                    console.error('NotificationManager: SweetAlert still not available after wait');
+                }
+            }, 500);
             return;
         }
 
         const title = notification.title || 'رسالة جديدة';
-        const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
+        const body = notification.body || notification.message_text || notification.data?.message_text || 'لديك رسالة جديدة';
         const message = `${title}: ${body}`;
 
-        const toast = window.Swal.mixin({
-            toast: true,
-            position: 'top',
-            showConfirmButton: false,
-            timer: 5000,
-            showCloseButton: true,
-            didOpen: (toast) => {
-                toast.addEventListener('click', () => {
-                    // الانتقال للمحادثة عند الضغط على Toast
-                    if (notification.data?.conversation_id) {
-                        window.location.href = `/apps/chat?conversation=${notification.data.conversation_id}`;
-                    }
-                });
-            }
-        });
+        console.log('NotificationManager: Showing toast:', message);
 
-        toast.fire({
-            title: message,
-            icon: 'info',
-        });
+        try {
+            const toast = window.Swal.mixin({
+                toast: true,
+                position: 'top',
+                showConfirmButton: false,
+                timer: 5000,
+                showCloseButton: true,
+                didOpen: (toastEl) => {
+                    console.log('NotificationManager: Toast opened');
+                    toastEl.addEventListener('click', () => {
+                        // الانتقال للمحادثة عند الضغط على Toast
+                        if (notification.data?.conversation_id || notification.conversation_id) {
+                            const convId = notification.data?.conversation_id || notification.conversation_id;
+                            window.location.href = `/apps/chat?conversation=${convId}`;
+                        }
+                    });
+                }
+            });
+
+            toast.fire({
+                title: message,
+                icon: 'info',
+            }).then(() => {
+                console.log('NotificationManager: Toast shown successfully');
+            }).catch((error) => {
+                console.error('NotificationManager: Error showing toast:', error);
+            });
+        } catch (error) {
+            console.error('NotificationManager: Exception in showToastNotification:', error);
+        }
     }
 
     /**
@@ -159,6 +188,7 @@ class NotificationManager {
      */
     async updateUnreadCount() {
         try {
+            console.log('NotificationManager: Updating unread count...');
             const response = await fetch('/api/notifications/unread-count?type=message', {
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
@@ -170,14 +200,18 @@ class NotificationManager {
             if (response.ok) {
                 const data = await response.json();
                 const newCount = data.count || 0;
+                console.log('NotificationManager: Unread count:', newCount, '(previous:', this.unreadCount, ')');
 
                 if (this.unreadCount !== newCount) {
                     this.unreadCount = newCount;
                     // إرسال event لتحديث Dashboard
+                    console.log('NotificationManager: Dispatching unreadCountUpdated event with count:', newCount);
                     window.dispatchEvent(new CustomEvent('unreadCountUpdated', {
                         detail: { count: newCount }
                     }));
                 }
+            } else {
+                console.error('NotificationManager: Failed to fetch unread count, status:', response.status);
             }
         } catch (error) {
             console.error('NotificationManager: Error updating unread count:', error);

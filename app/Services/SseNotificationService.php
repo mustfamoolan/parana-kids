@@ -106,18 +106,26 @@ class SseNotificationService
 
     /**
      * حذف الإشعارات بعد إرسالها (تحديدها كمقروءة)
+     * نحدد فقط الإشعارات التي تم إرسالها (حسب IDs)
      */
-    public function clearNotificationsForUser($userId)
+    public function clearNotificationsForUser($userId, $notificationIds = [])
     {
         try {
-            $deleted = AppNotification::forUser($userId)
+            $query = AppNotification::forUser($userId)
                 ->unread()
-                ->ofType('message')
-                ->update(['read_at' => now()]);
+                ->ofType('message');
+            
+            // إذا تم تمرير IDs، نحدد فقط هذه الإشعارات
+            if (!empty($notificationIds)) {
+                $query->whereIn('id', $notificationIds);
+            }
+            
+            $deleted = $query->update(['read_at' => now()]);
 
             Log::info('SSE notifications marked as read', [
                 'user_id' => $userId,
                 'count' => $deleted,
+                'notification_ids' => $notificationIds,
             ]);
 
             return $deleted;
