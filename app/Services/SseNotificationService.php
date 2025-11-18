@@ -3,39 +3,44 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Models\SseNotification;
+use App\Models\AppNotification;
 use Illuminate\Support\Facades\Log;
 
 class SseNotificationService
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * إرسال إشعار عبر SSE لمستخدم واحد
      */
     public function sendToUser($userId, $title = 'رسالة جديدة', $body = 'لديك رسالة جديدة', $data = [])
     {
         try {
-            // حفظ الإشعار في Database
-            $notificationData = array_merge([
-                'title' => $title,
-                'body' => $body,
-                'message_text' => $body,
-            ], $data);
+            // استخدام NotificationService لحفظ الإشعار
+            $notification = $this->notificationService->send(
+                $userId,
+                'message',
+                $title,
+                $body,
+                array_merge(['message_text' => $body], $data)
+            );
 
-            $notification = SseNotification::create([
-                'user_id' => $userId,
-                'title' => $title,
-                'body' => $body,
-                'data' => $notificationData,
-            ]);
+            if ($notification) {
+                Log::info('SSE notification saved', [
+                    'user_id' => $userId,
+                    'notification_id' => $notification->id,
+                    'title' => $title,
+                    'body' => $body,
+                ]);
+                return true;
+            }
 
-            Log::info('SSE notification saved to database', [
-                'user_id' => $userId,
-                'notification_id' => $notification->id,
-                'title' => $title,
-                'body' => $body,
-            ]);
-
-            return true;
+            return false;
         } catch (\Exception $e) {
             Log::error('SSE notification error: ' . $e->getMessage());
             Log::error('SSE notification error stack: ' . $e->getTraceAsString());
@@ -70,8 +75,9 @@ class SseNotificationService
     public function getNotificationsForUser($userId)
     {
         try {
-            $notifications = SseNotification::forUser($userId)
+            $notifications = AppNotification::forUser($userId)
                 ->unread()
+                ->ofType('message')
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()
@@ -79,14 +85,14 @@ class SseNotificationService
                     return [
                         'id' => $notification->id,
                         'title' => $notification->title,
-                        'body' => $notification->body,
+                        'body' => $notification->message, // استخدام message من الجدول
                         'data' => $notification->data ?? [],
                         'timestamp' => $notification->created_at->timestamp,
                     ];
                 })
                 ->toArray();
 
-            Log::info('SSE notifications retrieved from database', [
+            Log::info('SSE notifications retrieved', [
                 'user_id' => $userId,
                 'count' => count($notifications),
             ]);
@@ -104,8 +110,9 @@ class SseNotificationService
     public function clearNotificationsForUser($userId)
     {
         try {
-            $deleted = SseNotification::forUser($userId)
+            $deleted = AppNotification::forUser($userId)
                 ->unread()
+                ->ofType('message')
                 ->update(['read_at' => now()]);
 
             Log::info('SSE notifications marked as read', [
@@ -125,78 +132,8 @@ class SseNotificationService
      */
     public function sendNewMessageNotification($conversationId, $senderId, $messageText = null)
     {
-        // جلب جميع المشاركين في المحادثة عدا المرسل
-        $conversation = \App\Models\Conversation::with('participants')->find($conversationId);
-
-        if (!$conversation) {
-            Log::warning('Conversation not found for SSE notification', ['conversation_id' => $conversationId]);
-            return false;
-        }
-
-        $recipientIds = $conversation->participants()
-            ->where('user_id', '!=', $senderId)
-            ->pluck('user_id')
-            ->toArray();
-
-        if (empty($recipientIds)) {
-            Log::warning('No recipients found for SSE notification', ['conversation_id' => $conversationId, 'sender_id' => $senderId]);
-            return false;
-        }
-
-        // جلب آخر رسالة إذا لم يتم تمرير نص الرسالة
-        if (!$messageText) {
-            $lastMessage = \App\Models\Message::where('conversation_id', $conversationId)
-                ->where('user_id', $senderId)
-                ->latest()
-                ->first();
-
-            if ($lastMessage) {
-                if ($lastMessage->type === 'image') {
-                    $messageText = 'صورة';
-                } elseif ($lastMessage->type === 'order') {
-                    $messageText = 'طلب';
-                } elseif ($lastMessage->type === 'product') {
-                    $messageText = 'منتج';
-                } else {
-                    $messageText = $lastMessage->message ?: 'رسالة جديدة';
-                }
-            } else {
-                $messageText = 'رسالة جديدة';
-            }
-        }
-
-        // تحديد نص الإشعار
-        $notificationTitle = 'رسالة جديدة';
-        $notificationBody = $messageText;
-
-        // إذا كان النص طويلاً، اختصره
-        if (mb_strlen($notificationBody) > 100) {
-            $notificationBody = mb_substr($notificationBody, 0, 100) . '...';
-        }
-
-        Log::info('Sending SSE notification', [
-            'conversation_id' => $conversationId,
-            'sender_id' => $senderId,
-            'recipient_ids' => $recipientIds,
-            'message_text' => $messageText,
-        ]);
-
-        // إرسال الإشعار
-        $result = $this->sendToUsers(
-            $recipientIds,
-            $notificationTitle,
-            $notificationBody,
-            [
-                'type' => 'new_message',
-                'conversation_id' => (string)$conversationId,
-                'sender_id' => (string)$senderId,
-                'message_text' => $messageText,
-            ]
-        );
-
-        Log::info('SSE notification result', ['result' => $result]);
-
-        return $result;
+        // استخدام NotificationService
+        return $this->notificationService->sendNewMessageNotification($conversationId, $senderId, $messageText);
     }
 }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ArchivedOrder;
 use App\Models\Cart;
 use App\Models\Order;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -26,6 +27,10 @@ class DashboardController extends Controller
             'archived_orders' => ArchivedOrder::where('delegate_id', auth()->id())->count(),
         ];
 
-        return view('delegate.dashboard', compact('activeOrder', 'stats'));
+        // عدد الرسائل غير المقروءة
+        $notificationService = new NotificationService();
+        $unreadMessagesCount = $notificationService->getUnreadCount(auth()->id(), 'message');
+
+        return view('delegate.dashboard', compact('activeOrder', 'stats', 'unreadMessagesCount'));
     }
 }

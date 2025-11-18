@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\Expense;
 use App\Models\ProductSize;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,11 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        return view('admin.dashboard');
+        // عدد الرسائل غير المقروءة
+        $notificationService = new NotificationService();
+        $unreadMessagesCount = $notificationService->getUnreadCount(auth()->id(), 'message');
+
+        return view('admin.dashboard', compact('unreadMessagesCount'));
     }
 
     /**

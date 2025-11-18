@@ -326,6 +326,14 @@ Route::post('/api/webpush/delete', [App\Http\Controllers\WebPushController::clas
 // SSE routes
 Route::get('/api/sse/stream', [App\Http\Controllers\SseController::class, 'stream'])->middleware('auth')->name('sse.stream');
 
+// Notification routes
+Route::middleware('auth')->group(function () {
+    Route::get('/api/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'getUnreadCount'])->name('notifications.unread-count');
+    Route::get('/api/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications'])->name('notifications.index');
+    Route::post('/api/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::post('/api/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+});
+
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

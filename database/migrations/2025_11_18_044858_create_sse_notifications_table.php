@@ -19,7 +19,7 @@ return new class extends Migration
             $table->json('data')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
-            
+
             // Indexes للبحث السريع
             $table->index('user_id');
             $table->index('read_at');

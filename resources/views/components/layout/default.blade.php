@@ -360,6 +360,16 @@
             }
         })();
     </script>
+
+    <!-- Global Notifications System -->
+    @auth
+    <script>
+        // تعيين user ID للإشعارات
+        window.authUserId = {{ auth()->id() }};
+    </script>
+    <script src="{{ asset('js/notifications.js') }}"></script>
+    @include('components.global-notifications')
+    @endauth
 </body>
 
 </html>

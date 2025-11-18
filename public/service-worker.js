@@ -291,6 +291,7 @@ self.addEventListener('push', (event) => {
       badge: '/assets/images/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
       silent: false, // false = يستخدم صوت الجهاز الافتراضي
+      sound: '/assets/sounds/notification.mp3', // صوت الإشعار
       dir: 'rtl',
       lang: 'ar',
       tag: `chat-${data.conversation_id || 'new'}`,
@@ -298,8 +299,19 @@ self.addEventListener('push', (event) => {
       data: data,
       timestamp: Date.now(),
     };
-
+    
     console.log('[SW] Showing notification:', title, '-', body);
+    
+    // تشغيل الصوت إذا كان متاحاً
+    if (options.sound) {
+      try {
+        const audio = new Audio(options.sound);
+        audio.play().catch(err => console.log('[SW] Could not play notification sound:', err));
+      } catch (error) {
+        console.log('[SW] Error playing sound:', error);
+      }
+    }
+    
     return self.registration.showNotification(title, options);
   };
 
@@ -394,6 +406,7 @@ self.addEventListener('message', (event) => {
       badge: '/assets/images/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
       silent: false,
+      sound: '/assets/sounds/notification.mp3', // صوت الإشعار
       dir: 'rtl',
       lang: 'ar',
       tag: `chat-${data.conversation_id || 'new'}`,
@@ -401,6 +414,16 @@ self.addEventListener('message', (event) => {
       data: data,
       timestamp: Date.now(),
     };
+    
+    // تشغيل الصوت إذا كان متاحاً
+    if (options.sound) {
+      try {
+        const audio = new Audio(options.sound);
+        audio.play().catch(err => console.log('[SW] Could not play notification sound:', err));
+      } catch (error) {
+        console.log('[SW] Error playing sound:', error);
+      }
+    }
 
     self.registration.showNotification(title, options)
       .then(() => {
