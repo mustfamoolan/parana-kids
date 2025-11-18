@@ -58,7 +58,7 @@ class NotificationManager {
 
             this.sseEventSource.onerror = (error) => {
                 console.error('NotificationManager: SSE connection error:', error);
-                
+
                 // إعادة الاتصال بعد 5 ثوان
                 setTimeout(() => {
                     if (this.sseEventSource && this.sseEventSource.readyState === EventSource.CLOSED) {

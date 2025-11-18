@@ -299,9 +299,9 @@ self.addEventListener('push', (event) => {
       data: data,
       timestamp: Date.now(),
     };
-    
+
     console.log('[SW] Showing notification:', title, '-', body);
-    
+
     // تشغيل الصوت إذا كان متاحاً
     if (options.sound) {
       try {
@@ -311,7 +311,7 @@ self.addEventListener('push', (event) => {
         console.log('[SW] Error playing sound:', error);
       }
     }
-    
+
     return self.registration.showNotification(title, options);
   };
 
@@ -414,7 +414,7 @@ self.addEventListener('message', (event) => {
       data: data,
       timestamp: Date.now(),
     };
-    
+
     // تشغيل الصوت إذا كان متاحاً
     if (options.sound) {
       try {

@@ -1,6 +1,6 @@
 <div x-data="globalNotifications()" x-init="init()" class="fixed top-4 ltr:right-4 rtl:left-4 z-50 space-y-2 max-w-md w-full">
     <template x-for="notification in notifications" :key="notification.id">
-        <div 
+        <div
             x-show="notification.visible"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 transform translate-x-full"
@@ -44,7 +44,7 @@
                     <h4 class="font-semibold text-sm mb-1" x-text="notification.title"></h4>
                     <p class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2" x-text="notification.body"></p>
                 </div>
-                <button 
+                <button
                     @click.stop="removeNotification(notification.id)"
                     class="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
@@ -61,7 +61,7 @@
 function globalNotifications() {
     return {
         notifications: [],
-        
+
         init() {
             // الاستماع للإشعارات من SSE
             if (window.notificationManager) {
@@ -70,7 +70,7 @@ function globalNotifications() {
                 });
             }
         },
-        
+
         addNotification(notification) {
             const notificationData = {
                 id: notification.id || Date.now() + Math.random(),
@@ -80,14 +80,14 @@ function globalNotifications() {
                 data: notification.data || {},
                 visible: true,
             };
-            
+
             this.notifications.unshift(notificationData);
-            
+
             // إزالة الإشعار بعد 5 ثوان
             setTimeout(() => {
                 this.removeNotification(notificationData.id);
             }, 5000);
-            
+
             // تحديد كمقروء
             if (notificationData.id && typeof notificationData.id === 'number') {
                 fetch(`/api/notifications/${notificationData.id}/mark-read`, {
@@ -99,7 +99,7 @@ function globalNotifications() {
                 }).catch(err => console.error('Error marking notification as read:', err));
             }
         },
-        
+
         removeNotification(id) {
             const index = this.notifications.findIndex(n => n.id === id);
             if (index > -1) {
@@ -109,7 +109,7 @@ function globalNotifications() {
                 }, 200);
             }
         },
-        
+
         handleNotificationClick(notification) {
             // الانتقال للمحادثة إذا كان نوع الإشعار message
             if (notification.type === 'message' && notification.data?.conversation_id) {
@@ -119,7 +119,7 @@ function globalNotifications() {
             } else if (notification.type === 'product' && notification.data?.product_id) {
                 window.location.href = `/admin/products?search=${notification.data.product_id}`;
             }
-            
+
             this.removeNotification(notification.id);
         }
     }

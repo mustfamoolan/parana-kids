@@ -11,6 +11,11 @@ class AppNotification extends Model
 {
     use HasFactory;
 
+    /**
+     * اسم الجدول في قاعدة البيانات
+     */
+    protected $table = 'notifications';
+
     protected $fillable = [
         'user_id',
         'type',
