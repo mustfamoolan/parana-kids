@@ -1199,7 +1199,7 @@
                     // تحميل الإعدادات من localStorage
                     this.loadNotificationSettings();
                     // تهيئة FCM
-                    this.initFCM();
+                    this.initWebPush();
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
@@ -2236,52 +2236,17 @@
                     }
                 },
 
-                async initFCM() {
-                    console.log('Initializing FCM...');
+                async initWebPush() {
+                    console.log('Initializing Web Push...');
 
-                    // التحقق من دعم Firebase
-                    if (typeof firebase === 'undefined') {
-                        console.error('Firebase SDK not loaded');
+                    // التحقق من دعم Service Worker و Push API
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                        console.error('Web Push not supported in this browser');
                         return;
                     }
 
                     try {
-                        // جلب Firebase config من .env
-                        const configResponse = await fetch('{{ route("firebase.config") }}');
-                        const firebaseConfig = await configResponse.json();
-
-                        if (!firebaseConfig.apiKey) {
-                            console.error('Firebase config not found. Please check .env file.');
-                            return;
-                        }
-
-                        if (!firebase.apps.length) {
-                            firebase.initializeApp(firebaseConfig);
-                            console.log('Firebase initialized');
-                        }
-
-                        // إرسال config إلى Service Worker
-                        if ('serviceWorker' in navigator) {
-                            navigator.serviceWorker.ready.then((registration) => {
-                                if (registration.active) {
-                                    registration.active.postMessage({
-                                        type: 'FIREBASE_CONFIG',
-                                        config: firebaseConfig,
-                                    });
-                                    console.log('Firebase config sent to service worker');
-                                } else if (registration.waiting) {
-                                    registration.waiting.postMessage({
-                                        type: 'FIREBASE_CONFIG',
-                                        config: firebaseConfig,
-                                    });
-                                    console.log('Firebase config sent to waiting service worker');
-                                }
-                            });
-                        }
-
-                        const messaging = firebase.messaging();
-
-                        // طلب الإذن للحصول على token
+                        // طلب الإذن للإشعارات
                         let permission = Notification.permission;
 
                         if (permission === 'default') {
@@ -2290,55 +2255,58 @@
                         }
 
                         if (permission === 'granted') {
+                            // انتظار تسجيل Service Worker
+                            const registration = await navigator.serviceWorker.ready;
+                            console.log('Service Worker ready');
+
+                            // الحصول على push subscription
                             try {
-                                // الحصول على FCM token
-                                const token = await messaging.getToken({
-                                    vapidKey: firebaseConfig.vapidKey,
-                                    serviceWorkerRegistration: await navigator.serviceWorker.ready,
+                                const subscription = await registration.pushManager.subscribe({
+                                    userVisibleOnly: true,
+                                    applicationServerKey: this.urlBase64ToUint8Array('{{ env("FIREBASE_VAPID_KEY", "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0") }}'),
                                 });
 
-                                if (token) {
-                                    console.log('FCM token obtained:', token.substring(0, 20) + '...');
-                                    // إرسال token للـ backend
-                                    await this.registerFCMToken(token);
-                                } else {
-                                    console.error('No FCM token received');
-                                }
-                            } catch (tokenError) {
-                                console.error('Error getting FCM token:', tokenError);
+                                console.log('Push subscription obtained:', subscription.endpoint.substring(0, 50) + '...');
+
+                                // إرسال subscription للـ backend
+                                await this.registerWebPushSubscription(subscription);
+                            } catch (subscriptionError) {
+                                console.error('Error getting push subscription:', subscriptionError);
                             }
-
-                            // معالجة الرسائل في المقدمة (foreground)
-                            messaging.onMessage((payload) => {
-                                console.log('Message received in foreground:', payload);
-
-                                const notification = payload.notification || {};
-                                const data = payload.data || {};
-
-                                // عرض إشعار محلي
-                                this.showNotification(
-                                    notification.title || 'رسالة جديدة',
-                                    notification.body || 'لديك رسالة جديدة',
-                                    notification.icon,
-                                    data.conversation_id
-                                );
-
-                                // تشغيل الصوت
-                                this.playNotificationSound();
-                            });
                         } else {
                             console.warn('Notification permission denied:', permission);
                         }
                     } catch (error) {
-                        console.error('Error initializing FCM:', error);
+                        console.error('Error initializing Web Push:', error);
                         console.error('Error stack:', error.stack);
                     }
                 },
 
-                async registerFCMToken(token) {
+                urlBase64ToUint8Array(base64String) {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding)
+                        .replace(/\-/g, '+')
+                        .replace(/_/g, '/');
+
+                    const rawData = window.atob(base64);
+                    const outputArray = new Uint8Array(rawData.length);
+
+                    for (let i = 0; i < rawData.length; ++i) {
+                        outputArray[i] = rawData.charCodeAt(i);
+                    }
+                    return outputArray;
+                },
+
+                async registerWebPushSubscription(subscription) {
                     try {
-                        console.log('Registering FCM token...');
-                        const response = await fetch('{{ route("fcm.register") }}', {
+                        console.log('Registering Web Push subscription...');
+
+                        const keys = subscription.getKey ? {
+                            p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh')),
+                            auth: this.arrayBufferToBase64(subscription.getKey('auth')),
+                        } : {};
+
+                        const response = await fetch('{{ route("webpush.register") }}', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -2346,7 +2314,8 @@
                                 'Accept': 'application/json',
                             },
                             body: JSON.stringify({
-                                token: token,
+                                endpoint: subscription.endpoint,
+                                keys: keys,
                                 device_type: 'web',
                                 device_info: {
                                     userAgent: navigator.userAgent,
@@ -2356,17 +2325,26 @@
                         });
 
                         const data = await response.json();
-                        console.log('FCM registration response:', data);
+                        console.log('Web Push registration response:', data);
 
                         if (data.success) {
-                            console.log('FCM token registered successfully');
+                            console.log('Web Push subscription registered successfully');
                         } else {
-                            console.error('Failed to register FCM token:', data.error);
+                            console.error('Failed to register Web Push subscription:', data.error);
                         }
                     } catch (error) {
-                        console.error('Error registering FCM token:', error);
+                        console.error('Error registering Web Push subscription:', error);
                         console.error('Error details:', error.message);
                     }
+                },
+
+                arrayBufferToBase64(buffer) {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return window.btoa(binary);
                 },
 
                 loadNotificationSettings() {

@@ -190,6 +190,11 @@ class User extends Authenticatable
         return $this->hasMany(FcmToken::class);
     }
 
+    public function pushSubscriptions()
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
     /**
      * Get users that share warehouses with this user
      * الآن يعيد جميع المستخدمين (إزالة قيد المخزن المشترك)

@@ -319,6 +319,10 @@ Route::get('/api/firebase/config', [App\Http\Controllers\FirebaseConfigControlle
 Route::post('/api/fcm/register', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('fcm.register');
 Route::post('/api/fcm/delete', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('fcm.delete');
 
+// Web Push routes
+Route::post('/api/webpush/register', [App\Http\Controllers\WebPushController::class, 'registerSubscription'])->middleware('auth')->name('webpush.register');
+Route::post('/api/webpush/delete', [App\Http\Controllers\WebPushController::class, 'deleteSubscription'])->middleware('auth')->name('webpush.delete');
+
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');
