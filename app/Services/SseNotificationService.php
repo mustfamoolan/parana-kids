@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\SseNotification;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 class SseNotificationService
 {
@@ -14,23 +14,23 @@ class SseNotificationService
     public function sendToUser($userId, $title = 'رسالة جديدة', $body = 'لديك رسالة جديدة', $data = [])
     {
         try {
-            // حفظ الإشعار في cache للمستخدم
-            $notification = [
+            // حفظ الإشعار في Database
+            $notificationData = array_merge([
                 'title' => $title,
                 'body' => $body,
-                'data' => array_merge([
-                    'title' => $title,
-                    'body' => $body,
-                    'message_text' => $body,
-                ], $data),
-                'timestamp' => time(),
-            ];
+                'message_text' => $body,
+            ], $data);
 
-            // حفظ الإشعار في قائمة إشعارات المستخدم
-            $this->sendSseEvent($userId, $notification);
-
-            Log::info('SSE notification sent', [
+            $notification = SseNotification::create([
                 'user_id' => $userId,
+                'title' => $title,
+                'body' => $body,
+                'data' => $notificationData,
+            ]);
+
+            Log::info('SSE notification saved to database', [
+                'user_id' => $userId,
+                'notification_id' => $notification->id,
                 'title' => $title,
                 'body' => $body,
             ]);
@@ -38,6 +38,7 @@ class SseNotificationService
             return true;
         } catch (\Exception $e) {
             Log::error('SSE notification error: ' . $e->getMessage());
+            Log::error('SSE notification error stack: ' . $e->getTraceAsString());
             return false;
         }
     }
@@ -64,41 +65,59 @@ class SseNotificationService
     }
 
     /**
-     * إرسال SSE event للمستخدم
-     */
-    protected function sendSseEvent($userId, $notification)
-    {
-        // حفظ الإشعار في cache للمستخدم
-        $cacheKey = "sse_notification_{$userId}";
-        $notifications = Cache::get($cacheKey, []);
-
-        // إضافة الإشعار الجديد في البداية
-        array_unshift($notifications, $notification);
-
-        // الاحتفاظ بآخر 10 إشعارات فقط
-        if (count($notifications) > 10) {
-            $notifications = array_slice($notifications, 0, 10);
-        }
-
-        Cache::put($cacheKey, $notifications, 300); // 5 دقائق
-    }
-
-    /**
-     * جلب الإشعارات للمستخدم
+     * جلب الإشعارات غير المقروءة للمستخدم
      */
     public function getNotificationsForUser($userId)
     {
-        $cacheKey = "sse_notification_{$userId}";
-        return Cache::get($cacheKey, []);
+        try {
+            $notifications = SseNotification::forUser($userId)
+                ->unread()
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+                ->map(function ($notification) {
+                    return [
+                        'id' => $notification->id,
+                        'title' => $notification->title,
+                        'body' => $notification->body,
+                        'data' => $notification->data ?? [],
+                        'timestamp' => $notification->created_at->timestamp,
+                    ];
+                })
+                ->toArray();
+
+            Log::info('SSE notifications retrieved from database', [
+                'user_id' => $userId,
+                'count' => count($notifications),
+            ]);
+
+            return $notifications;
+        } catch (\Exception $e) {
+            Log::error('Error getting SSE notifications: ' . $e->getMessage());
+            return [];
+        }
     }
 
     /**
-     * حذف الإشعارات للمستخدم
+     * حذف الإشعارات بعد إرسالها (تحديدها كمقروءة)
      */
     public function clearNotificationsForUser($userId)
     {
-        $cacheKey = "sse_notification_{$userId}";
-        Cache::forget($cacheKey);
+        try {
+            $deleted = SseNotification::forUser($userId)
+                ->unread()
+                ->update(['read_at' => now()]);
+
+            Log::info('SSE notifications marked as read', [
+                'user_id' => $userId,
+                'count' => $deleted,
+            ]);
+
+            return $deleted;
+        } catch (\Exception $e) {
+            Log::error('Error clearing SSE notifications: ' . $e->getMessage());
+            return 0;
+        }
     }
 
     /**

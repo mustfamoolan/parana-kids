@@ -2066,7 +2066,7 @@
                     console.log('showNotification called:', { title, body, icon, conversationId });
                     console.log('notificationsEnabled:', this.notificationsEnabled);
                     console.log('notificationPermission:', this.notificationPermission);
-                    
+
                     // التحقق من تفعيل الإشعارات
                     if (!this.notificationsEnabled) {
                         console.log('Notifications disabled, skipping');
