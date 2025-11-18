@@ -369,6 +369,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // بدء polling لتحديث عدد الإشعارات
     window.notificationManager.startPolling();
+    
+    // Test notification بعد 2 ثوان للتحقق من عمل النظام
+    setTimeout(() => {
+        console.log('NotificationManager: Testing notification system...');
+        if (typeof window.Swal !== 'undefined') {
+            console.log('NotificationManager: SweetAlert is available');
+            // Test toast
+            window.showMessage('نظام الإشعارات يعمل!', 'top');
+        } else {
+            console.error('NotificationManager: SweetAlert is NOT available');
+        }
+    }, 2000);
 });
 
 // إغلاق SSE عند إغلاق الصفحة
