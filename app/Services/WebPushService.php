@@ -139,7 +139,7 @@ class WebPushService
             ]);
 
             // إعداد payload للإشعار
-            $payload = json_encode([
+            $payloadData = [
                 'title' => $title,
                 'body' => $body,
                 'data' => array_merge([
@@ -147,6 +147,14 @@ class WebPushService
                     'body' => $body,
                     'message_text' => $body,
                 ], $data),
+            ];
+            
+            $payload = json_encode($payloadData);
+            
+            Log::info('Web Push payload prepared', [
+                'subscription_id' => $subscription->id,
+                'payload' => $payloadData,
+                'payload_length' => strlen($payload),
             ]);
 
             // إرسال الإشعار
@@ -154,6 +162,11 @@ class WebPushService
                 $pushSubscription,
                 $payload
             );
+            
+            Log::info('Web Push send result', [
+                'subscription_id' => $subscription->id,
+                'success' => $result->isSuccess(),
+            ]);
 
             // التحقق من النتيجة
             if ($result->isSuccess()) {
