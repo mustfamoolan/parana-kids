@@ -29,8 +29,10 @@ class WebPushService
                     'privateKey' => $this->vapidPrivateKey,
                 ],
             ]);
+            Log::info('WebPush initialized with VAPID keys');
         } else {
             // بدون VAPID keys - قد لا يعمل على بعض المتصفحات
+            Log::warning('WebPush initialized without VAPID_PRIVATE_KEY - Push notifications may not work. Please add VAPID_PRIVATE_KEY to .env file.');
             $this->webPush = new WebPush();
         }
     }
@@ -75,10 +77,30 @@ class WebPushService
     {
         $subscriptions = PushSubscription::whereIn('user_id', $userIds)->get();
 
+        // Log تفصيلي للمستخدمين والـ subscriptions
+        $usersWithSubscriptions = $subscriptions->pluck('user_id')->unique()->toArray();
+        $usersWithoutSubscriptions = array_diff($userIds, $usersWithSubscriptions);
+
+        if (!empty($usersWithoutSubscriptions)) {
+            Log::info('Users without push subscriptions', [
+                'user_ids' => $usersWithoutSubscriptions,
+                'message' => 'These users need to open the chat page to register push subscription',
+            ]);
+        }
+
         if ($subscriptions->isEmpty()) {
-            Log::warning('No push subscriptions found for users', ['user_ids' => $userIds]);
+            Log::warning('No push subscriptions found for users', [
+                'user_ids' => $userIds,
+                'message' => 'All users need to open the chat page and grant notification permission to receive push notifications',
+            ]);
             return false;
         }
+
+        Log::info('Found push subscriptions', [
+            'total_subscriptions' => $subscriptions->count(),
+            'users_with_subscriptions' => $usersWithSubscriptions,
+            'users_without_subscriptions' => $usersWithoutSubscriptions,
+        ]);
 
         $successCount = 0;
         $failCount = 0;

@@ -2261,13 +2261,13 @@
 
                             // التحقق من وجود subscription موجود أولاً
                             let subscription = await registration.pushManager.getSubscription();
-                            
+
                             if (!subscription) {
                                 // الحصول على push subscription جديد
                                 try {
                                     const vapidKey = '{{ env("FIREBASE_VAPID_KEY", "BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0") }}';
                                     console.log('VAPID Key:', vapidKey.substring(0, 20) + '...');
-                                    
+
                                     subscription = await registration.pushManager.subscribe({
                                         userVisibleOnly: true,
                                         applicationServerKey: this.urlBase64ToUint8Array(vapidKey),
