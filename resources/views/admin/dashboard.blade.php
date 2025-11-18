@@ -168,22 +168,30 @@
             </a>
 
             <!-- 7. المراسلة -->
-            <a href="{{ route('chat.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20 relative">
+            <a href="{{ route('chat.index') }}" 
+               x-data="{ unreadCount: {{ $unreadMessagesCount ?? 0 }} }"
+               x-init="
+                   window.addEventListener('unreadCountUpdated', (e) => {
+                       unreadCount = e.detail.count;
+                   });
+               "
+               class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20 relative">
                 <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center relative">
                     <svg class="w-8 h-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                     </svg>
-                    @if(isset($unreadMessagesCount) && $unreadMessagesCount > 0)
-                    <span class="absolute -top-1 -right-1 bg-danger text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{{ $unreadMessagesCount > 9 ? '9+' : $unreadMessagesCount }}</span>
-                    @endif
+                    <template x-if="unreadCount > 0">
+                        <span class="absolute -top-1 -right-1 bg-danger text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" x-text="unreadCount > 9 ? '9+' : unreadCount"></span>
+                    </template>
                 </div>
                 <h3 class="text-lg font-bold text-info mb-2">المراسلة</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    @if(isset($unreadMessagesCount) && $unreadMessagesCount > 0)
-                        <span class="badge bg-danger">{{ $unreadMessagesCount }} رسالة غير مقروءة</span>
-                    @else
-                        المراسلة مع الفريق
-                    @endif
+                    <template x-if="unreadCount > 0">
+                        <span class="badge bg-danger" x-text="unreadCount + ' رسالة غير مقروءة'"></span>
+                    </template>
+                    <template x-if="unreadCount === 0">
+                        <span>المراسلة مع الفريق</span>
+                    </template>
                 </p>
             </a>
 

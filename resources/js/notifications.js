@@ -5,6 +5,9 @@ class NotificationManager {
         this.sseEventSource = null;
         this.notificationCallbacks = [];
         this.isInitialized = false;
+        this.unreadCount = 0;
+        this.pollingInterval = null;
+        this.pollInterval = 3000; // 3 ثوان
     }
 
     /**
@@ -79,6 +82,9 @@ class NotificationManager {
     handleNotification(notification) {
         console.log('NotificationManager: Handling notification:', notification);
 
+        // عرض Toast Notification فوراً
+        this.showToastNotification(notification);
+
         // إرسال الإشعار إلى Service Worker (للعمل حتى لو كان الموقع مغلق)
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(registration => {
@@ -97,6 +103,12 @@ class NotificationManager {
             this.showPushNotification(notification);
         }
 
+        // تحديث عدد الإشعارات غير المقروءة فوراً
+        this.updateUnreadCount();
+
+        // إرسال custom event لتحديث Dashboard
+        this.dispatchNotificationEvent(notification);
+
         // استدعاء callbacks
         this.notificationCallbacks.forEach(callback => {
             try {
@@ -105,6 +117,110 @@ class NotificationManager {
                 console.error('NotificationManager: Error in notification callback:', error);
             }
         });
+    }
+
+    /**
+     * عرض Toast Notification باستخدام SweetAlert
+     */
+    showToastNotification(notification) {
+        if (typeof window.Swal === 'undefined') {
+            console.warn('NotificationManager: SweetAlert not available');
+            return;
+        }
+
+        const title = notification.title || 'رسالة جديدة';
+        const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
+        const message = `${title}: ${body}`;
+
+        const toast = window.Swal.mixin({
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 5000,
+            showCloseButton: true,
+            didOpen: (toast) => {
+                toast.addEventListener('click', () => {
+                    // الانتقال للمحادثة عند الضغط على Toast
+                    if (notification.data?.conversation_id) {
+                        window.location.href = `/apps/chat?conversation=${notification.data.conversation_id}`;
+                    }
+                });
+            }
+        });
+
+        toast.fire({
+            title: message,
+            icon: 'info',
+        });
+    }
+
+    /**
+     * تحديث عدد الإشعارات غير المقروءة
+     */
+    async updateUnreadCount() {
+        try {
+            const response = await fetch('/api/notifications/unread-count?type=message', {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const newCount = data.count || 0;
+
+                if (this.unreadCount !== newCount) {
+                    this.unreadCount = newCount;
+                    // إرسال event لتحديث Dashboard
+                    window.dispatchEvent(new CustomEvent('unreadCountUpdated', {
+                        detail: { count: newCount }
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('NotificationManager: Error updating unread count:', error);
+        }
+    }
+
+    /**
+     * إرسال custom event لتحديث Dashboard
+     */
+    dispatchNotificationEvent(notification) {
+        window.dispatchEvent(new CustomEvent('newNotification', {
+            detail: notification
+        }));
+    }
+
+    /**
+     * بدء polling لتحديث عدد الإشعارات
+     */
+    startPolling() {
+        if (this.pollingInterval) {
+            return; // Polling يعمل بالفعل
+        }
+
+        // تحديث فوري
+        this.updateUnreadCount();
+
+        // Polling كل 3 ثوان
+        this.pollingInterval = setInterval(() => {
+            this.updateUnreadCount();
+        }, this.pollInterval);
+
+        console.log('NotificationManager: Polling started');
+    }
+
+    /**
+     * إيقاف polling
+     */
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+            console.log('NotificationManager: Polling stopped');
+        }
     }
 
     /**
@@ -196,6 +312,7 @@ class NotificationManager {
             this.sseEventSource = null;
             this.isInitialized = false;
         }
+        this.stopPolling();
     }
 }
 
@@ -215,6 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // تهيئة SSE
     window.notificationManager.initSSE();
+
+    // بدء polling لتحديث عدد الإشعارات
+    window.notificationManager.startPolling();
 });
 
 // إغلاق SSE عند إغلاق الصفحة

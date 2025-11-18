@@ -1200,6 +1200,14 @@
                     this.loadNotificationSettings();
                     // تهيئة SSE للإشعارات
                     this.initSSE();
+                    
+                    // الاستماع للإشعارات الجديدة لتحديث القائمة الجانبية فوراً
+                    window.addEventListener('newNotification', (e) => {
+                        const notification = e.detail;
+                        if (notification.data?.conversation_id) {
+                            this.updateConversationPreview(notification.data.conversation_id, notification.body || notification.message_text);
+                        }
+                    });
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
@@ -1418,6 +1426,34 @@
                     if (this.conversationsPollingInterval) {
                         clearInterval(this.conversationsPollingInterval);
                         this.conversationsPollingInterval = null;
+                    }
+                },
+
+                /**
+                 * تحديث preview و time في القائمة الجانبية فوراً عند وصول رسالة جديدة
+                 */
+                updateConversationPreview(conversationId, messageText) {
+                    const now = new Date();
+                    const time = now.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    
+                    // تحديث في conversationsList
+                    let conv = this.conversationsList.find(c => c.conversationId === conversationId);
+                    if (conv) {
+                        conv.preview = messageText || 'رسالة جديدة';
+                        conv.time = time;
+                        // نقل المحادثة للأعلى (الأحدث أولاً)
+                        const index = this.conversationsList.indexOf(conv);
+                        if (index > 0) {
+                            this.conversationsList.splice(index, 1);
+                            this.conversationsList.unshift(conv);
+                        }
+                    }
+                    
+                    // تحديث في availableUsersList
+                    let userInAvailable = this.availableUsersList.find(u => u.conversationId === conversationId);
+                    if (userInAvailable) {
+                        userInAvailable.preview = messageText || 'رسالة جديدة';
+                        userInAvailable.time = time;
                     }
                 },
 

@@ -366,6 +366,24 @@
     <script>
         // تعيين user ID للإشعارات
         window.authUserId = {{ auth()->id() }};
+        
+        // Toast Notification Function - يعمل في كل الصفحات
+        window.showMessage = (msg = 'Example notification text.', position = 'top', showCloseButton = true, closeButtonHtml = '', duration = 5000) => {
+            if (typeof window.Swal === 'undefined') {
+                console.warn('SweetAlert not available');
+                return;
+            }
+            const toast = window.Swal.mixin({
+                toast: true,
+                position: position || 'top',
+                showConfirmButton: false,
+                timer: duration,
+                showCloseButton: showCloseButton,
+            });
+            toast.fire({
+                title: msg,
+            });
+        };
     </script>
     <script src="{{ asset('js/notifications.js') }}"></script>
     @include('components.global-notifications')
