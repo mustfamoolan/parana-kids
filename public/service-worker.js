@@ -264,6 +264,16 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     loadFirebaseConfigFromAPI().then(() => {
       return self.clients.claim();
+    }).then(() => {
+      // Test notification للتأكد من أن Service Worker يعمل
+      console.log('[SW] Service Worker activated successfully');
+      // يمكن إزالة هذا الإشعار بعد التأكد
+      // return self.registration.showNotification('Service Worker', {
+      //   body: 'Service Worker is active',
+      //   icon: '/assets/images/icons/icon-192x192.png',
+      //   tag: 'sw-test',
+      //   silent: true
+      // });
     })
   );
 });
@@ -271,90 +281,88 @@ self.addEventListener('activate', (event) => {
 // معالجة push events مباشرة - الحل النهائي بدون Firebase
 self.addEventListener('push', (event) => {
   console.log('[SW] ========== WEB PUSH EVENT RECEIVED ==========');
-  console.log('[SW] Push event received at:', new Date().toISOString());
-  console.log('[SW] Has data:', !!event.data);
-  console.log('[SW] Event type:', event.type);
-  console.log('[SW] Event target:', event.target);
   
-  // إظهار إشعار فوراً حتى لو لم تصل البيانات (fallback)
-  const showNotificationFallback = (title = 'رسالة جديدة', body = 'لديك رسالة جديدة') => {
-    return self.registration.showNotification(title, {
+  // دالة لإظهار الإشعار
+  const showNotification = (title, body, data = {}) => {
+    const options = {
       body: body,
       icon: '/assets/images/icons/icon-192x192.png',
       badge: '/assets/images/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
-      silent: false,
-      sound: '/assets/sounds/notification.mp3',
+      silent: false, // false = يستخدم صوت الجهاز الافتراضي
       dir: 'rtl',
       lang: 'ar',
-      tag: 'chat-notification',
+      tag: `chat-${data.conversation_id || 'new'}`,
       requireInteraction: false,
-    });
+      data: data,
+      timestamp: Date.now(),
+    };
+    
+    return self.registration.showNotification(title, options);
   };
   
-  // إظهار إشعار فوراً (حتى لو لم تصل البيانات)
-  // هذا يضمن أن الإشعار يظهر دائماً
-  event.waitUntil(
-    Promise.resolve().then(() => {
-      // محاولة قراءة البيانات أولاً
-      return new Promise((resolve) => {
+  // محاولة قراءة البيانات
+  let notificationTitle = 'رسالة جديدة';
+  let notificationBody = 'لديك رسالة جديدة';
+  let notificationData = {};
+  
+  try {
+    if (event.data) {
+      let payload = null;
+      
+      // محاولة قراءة JSON
+      try {
+        payload = event.data.json();
+      } catch (e1) {
+        // محاولة قراءة text
         try {
-          if (event.data) {
-            let payload;
-            try {
-              payload = event.data.json();
-              console.log('[SW] Push payload (JSON):', JSON.stringify(payload, null, 2));
-            } catch (jsonError) {
-              try {
-                const text = event.data.text();
-                console.log('[SW] Push payload (text):', text);
-                payload = JSON.parse(text);
-                console.log('[SW] Parsed text to JSON:', JSON.stringify(payload, null, 2));
-              } catch (textError) {
-                console.error('[SW] Cannot parse push data');
-                payload = null;
-              }
-            }
-            
-            if (payload) {
-              let notificationTitle = 'رسالة جديدة';
-              let notificationBody = 'لديك رسالة جديدة';
-              
-              // استخدام payload.data
-              if (payload.data) {
-                if (payload.data.body && payload.data.body.trim() !== '' && payload.data.body !== 'لديك رسالة جديدة') {
-                  notificationBody = payload.data.body;
-                } else if (payload.data.message_text && payload.data.message_text.trim() !== '' && payload.data.message_text !== 'لديك رسالة جديدة') {
-                  notificationBody = payload.data.message_text;
-                }
-                if (payload.data.title && payload.data.title.trim() !== '') {
-                  notificationTitle = payload.data.title;
-                }
-              }
-              
-              // استخدام payload مباشرة
-              if (payload.title && payload.title.trim() !== '') {
-                notificationTitle = payload.title;
-              }
-              if (payload.body && payload.body.trim() !== '' && payload.body !== 'لديك رسالة جديدة') {
-                notificationBody = payload.body;
-              }
-              
-              console.log('[SW] Final notification:', notificationTitle, '-', notificationBody);
-              
-              return showNotificationFallback(notificationTitle, notificationBody);
-            }
+          const text = event.data.text();
+          payload = JSON.parse(text);
+        } catch (e2) {
+          // البيانات مشفرة أو غير قابلة للقراءة
+          console.log('[SW] Data is encrypted or not readable');
+        }
+      }
+      
+      if (payload) {
+        // استخدام payload.data أولاً
+        if (payload.data) {
+          notificationData = payload.data;
+          if (payload.data.body && payload.data.body.trim() !== '' && payload.data.body !== 'لديك رسالة جديدة') {
+            notificationBody = payload.data.body;
+          } else if (payload.data.message_text && payload.data.message_text.trim() !== '' && payload.data.message_text !== 'لديك رسالة جديدة') {
+            notificationBody = payload.data.message_text;
           }
-        } catch (error) {
-          console.error('[SW] Error processing push data:', error);
+          if (payload.data.title && payload.data.title.trim() !== '') {
+            notificationTitle = payload.data.title;
+          }
         }
         
-        // Fallback: إظهار إشعار افتراضي
-        return showNotificationFallback();
-      });
-    })
-  );
+        // استخدام payload مباشرة
+        if (payload.title && payload.title.trim() !== '') {
+          notificationTitle = payload.title;
+        }
+        if (payload.body && payload.body.trim() !== '' && payload.body !== 'لديك رسالة جديدة') {
+          notificationBody = payload.body;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Error processing push:', error);
+  }
   
+  // إظهار الإشعار
+  event.waitUntil(
+    showNotification(notificationTitle, notificationBody, notificationData)
+      .then(() => {
+        console.log('[SW] Notification shown:', notificationTitle, '-', notificationBody);
+      })
+      .catch((error) => {
+        console.error('[SW] Error showing notification:', error);
+        // Fallback: إظهار إشعار بسيط
+        return showNotification('رسالة جديدة', 'لديك رسالة جديدة');
+      })
+  );
 });
 
 // معالجة الإشعارات في الخلفية (عندما يكون الموقع مغلق)
