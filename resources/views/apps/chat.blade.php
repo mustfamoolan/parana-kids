@@ -2063,15 +2063,22 @@
                 },
 
                 showNotification(title, body, icon, conversationId) {
+                    console.log('showNotification called:', { title, body, icon, conversationId });
+                    console.log('notificationsEnabled:', this.notificationsEnabled);
+                    console.log('notificationPermission:', this.notificationPermission);
+                    
                     // التحقق من تفعيل الإشعارات
                     if (!this.notificationsEnabled) {
+                        console.log('Notifications disabled, skipping');
                         return;
                     }
 
                     // التحقق من الإذن
                     if (this.notificationPermission !== 'granted') {
+                        console.log('Notification permission not granted, requesting...');
                         // محاولة طلب الإذن
                         this.requestPermissionIfNeeded().then(granted => {
+                            console.log('Permission request result:', granted);
                             if (granted) {
                                 this.showNotification(title, body, icon, conversationId);
                             }
@@ -2084,9 +2091,14 @@
                     const isConversationOpen = this.selectedUser &&
                                                this.selectedUser.conversationId === conversationId;
 
+                    console.log('Page visibility:', isPageVisible, 'Conversation open:', isConversationOpen);
+
                     if (isPageVisible && isConversationOpen) {
+                        console.log('Page visible and conversation open, skipping notification');
                         return; // لا نعرض إشعار إذا كانت المحادثة مفتوحة والصفحة مرئية
                     }
+
+                    console.log('Showing notification:', title, '-', body);
 
                     try {
                         const notification = new Notification(title, {
@@ -2280,15 +2292,15 @@
 
                                 if (data.type === 'notification') {
                                     console.log('SSE notification received:', data);
-                                    
+
                                     const notification = data.data || data;
                                     console.log('SSE notification data:', notification);
-                                    
+
                                     const title = notification.title || 'رسالة جديدة';
                                     const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
-                                    
+
                                     console.log('SSE showing notification:', title, '-', body);
-                                    
+
                                     // إرسال الإشعار إلى Service Worker (للعمل حتى لو كان الموقع مغلق)
                                     if ('serviceWorker' in navigator) {
                                         navigator.serviceWorker.ready.then(registration => {
@@ -2301,7 +2313,7 @@
                                             }
                                         });
                                     }
-                                    
+
                                     // عرض الإشعار في الصفحة الرئيسية أيضاً
                                     this.showNotification(
                                         title,
