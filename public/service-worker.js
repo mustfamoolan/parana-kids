@@ -281,6 +281,7 @@ self.addEventListener('activate', (event) => {
 // معالجة push events مباشرة - الحل النهائي بدون Firebase
 self.addEventListener('push', (event) => {
   console.log('[SW] ========== WEB PUSH EVENT RECEIVED ==========');
+  console.log('[SW] Push event received at:', new Date().toISOString());
   
   // دالة لإظهار الإشعار
   const showNotification = (title, body, data = {}) => {
@@ -298,6 +299,7 @@ self.addEventListener('push', (event) => {
       timestamp: Date.now(),
     };
     
+    console.log('[SW] Showing notification:', title, '-', body);
     return self.registration.showNotification(title, options);
   };
   
@@ -306,62 +308,71 @@ self.addEventListener('push', (event) => {
   let notificationBody = 'لديك رسالة جديدة';
   let notificationData = {};
   
-  try {
-    if (event.data) {
-      let payload = null;
-      
-      // محاولة قراءة JSON
-      try {
-        payload = event.data.json();
-      } catch (e1) {
-        // محاولة قراءة text
-        try {
-          const text = event.data.text();
-          payload = JSON.parse(text);
-        } catch (e2) {
-          // البيانات مشفرة أو غير قابلة للقراءة
-          console.log('[SW] Data is encrypted or not readable');
-        }
-      }
-      
-      if (payload) {
-        // استخدام payload.data أولاً
-        if (payload.data) {
-          notificationData = payload.data;
-          if (payload.data.body && payload.data.body.trim() !== '' && payload.data.body !== 'لديك رسالة جديدة') {
-            notificationBody = payload.data.body;
-          } else if (payload.data.message_text && payload.data.message_text.trim() !== '' && payload.data.message_text !== 'لديك رسالة جديدة') {
-            notificationBody = payload.data.message_text;
-          }
-          if (payload.data.title && payload.data.title.trim() !== '') {
-            notificationTitle = payload.data.title;
-          }
-        }
-        
-        // استخدام payload مباشرة
-        if (payload.title && payload.title.trim() !== '') {
-          notificationTitle = payload.title;
-        }
-        if (payload.body && payload.body.trim() !== '' && payload.body !== 'لديك رسالة جديدة') {
-          notificationBody = payload.body;
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[SW] Error processing push:', error);
-  }
-  
-  // إظهار الإشعار
+  // إظهار إشعار فوراً (حتى لو لم تصل البيانات)
+  // هذا يضمن أن الإشعار يظهر دائماً
   event.waitUntil(
-    showNotification(notificationTitle, notificationBody, notificationData)
-      .then(() => {
-        console.log('[SW] Notification shown:', notificationTitle, '-', notificationBody);
-      })
-      .catch((error) => {
-        console.error('[SW] Error showing notification:', error);
-        // Fallback: إظهار إشعار بسيط
-        return showNotification('رسالة جديدة', 'لديك رسالة جديدة');
-      })
+    Promise.resolve().then(() => {
+      try {
+        if (event.data) {
+          let payload = null;
+          
+          // محاولة قراءة JSON
+          try {
+            payload = event.data.json();
+            console.log('[SW] Payload (JSON):', JSON.stringify(payload));
+          } catch (e1) {
+            // محاولة قراءة text
+            try {
+              const text = event.data.text();
+              console.log('[SW] Payload (text):', text);
+              payload = JSON.parse(text);
+            } catch (e2) {
+              // البيانات مشفرة أو غير قابلة للقراءة
+              console.log('[SW] Data is encrypted or not readable');
+              console.log('[SW] Will show default notification');
+            }
+          }
+          
+          if (payload) {
+            // استخدام payload.data أولاً
+            if (payload.data) {
+              notificationData = payload.data;
+              if (payload.data.body && payload.data.body.trim() !== '' && payload.data.body !== 'لديك رسالة جديدة') {
+                notificationBody = payload.data.body;
+                console.log('[SW] Using data.body:', notificationBody);
+              } else if (payload.data.message_text && payload.data.message_text.trim() !== '' && payload.data.message_text !== 'لديك رسالة جديدة') {
+                notificationBody = payload.data.message_text;
+                console.log('[SW] Using data.message_text:', notificationBody);
+              }
+              if (payload.data.title && payload.data.title.trim() !== '') {
+                notificationTitle = payload.data.title;
+              }
+            }
+            
+            // استخدام payload مباشرة
+            if (payload.title && payload.title.trim() !== '') {
+              notificationTitle = payload.title;
+            }
+            if (payload.body && payload.body.trim() !== '' && payload.body !== 'لديك رسالة جديدة') {
+              notificationBody = payload.body;
+            }
+          }
+        } else {
+          console.log('[SW] No data in push event, using default notification');
+        }
+      } catch (error) {
+        console.error('[SW] Error processing push:', error);
+      }
+      
+      // إظهار الإشعار (حتى لو لم تصل البيانات)
+      return showNotification(notificationTitle, notificationBody, notificationData);
+    }).then(() => {
+      console.log('[SW] ✅ Notification shown successfully');
+    }).catch((error) => {
+      console.error('[SW] ❌ Error showing notification:', error);
+      // Fallback: إظهار إشعار بسيط
+      return showNotification('رسالة جديدة', 'لديك رسالة جديدة');
+    })
   );
 });
 
