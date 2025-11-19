@@ -64,7 +64,7 @@ function globalNotifications() {
 
         init() {
             console.log('GlobalNotifications: Initializing...');
-            
+
             // الاستماع للإشعارات من SSE
             if (window.notificationManager) {
                 console.log('GlobalNotifications: NotificationManager found, registering callback');
@@ -84,7 +84,7 @@ function globalNotifications() {
                     }
                 }, 1000);
             }
-            
+
             // الاستماع للإشعارات من custom events أيضاً
             window.addEventListener('newNotification', (e) => {
                 console.log('GlobalNotifications: Notification received via event:', e.detail);
@@ -94,7 +94,7 @@ function globalNotifications() {
 
         addNotification(notification) {
             console.log('GlobalNotifications: addNotification called', notification);
-            
+
             const notificationData = {
                 id: notification.id || Date.now() + Math.random(),
                 type: notification.type || notification.data?.type || 'message',
@@ -103,16 +103,16 @@ function globalNotifications() {
                 data: notification.data || {},
                 visible: true,
             };
-            
+
             console.log('GlobalNotifications: Adding notification:', notificationData);
             this.notifications.unshift(notificationData);
             console.log('GlobalNotifications: Notifications count:', this.notifications.length);
-            
+
             // إزالة الإشعار بعد 5 ثوان
             setTimeout(() => {
                 this.removeNotification(notificationData.id);
             }, 5000);
-            
+
             // تحديد كمقروء
             if (notificationData.id && typeof notificationData.id === 'number') {
                 fetch(`/api/notifications/${notificationData.id}/mark-read`, {

@@ -114,12 +114,12 @@ class SseNotificationService
             $query = AppNotification::forUser($userId)
                 ->unread()
                 ->ofType('message');
-            
+
             // إذا تم تمرير IDs، نحدد فقط هذه الإشعارات
             if (!empty($notificationIds)) {
                 $query->whereIn('id', $notificationIds);
             }
-            
+
             $deleted = $query->update(['read_at' => now()]);
 
             Log::info('SSE notifications marked as read', [

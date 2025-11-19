@@ -313,27 +313,6 @@ Route::post('/api/chat/create-group', [App\Http\Controllers\ChatController::clas
 Route::post('/api/chat/add-participants', [App\Http\Controllers\ChatController::class, 'addParticipantsToGroup'])->name('chat.add-participants');
 Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController::class, 'removeParticipantFromGroup'])->name('chat.remove-participant');
 Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
-
-// FCM routes
-Route::get('/api/firebase/config', [App\Http\Controllers\FirebaseConfigController::class, 'getConfig'])->name('firebase.config');
-Route::post('/api/fcm/register', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('fcm.register');
-Route::post('/api/fcm/delete', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('fcm.delete');
-
-// Web Push routes
-Route::post('/api/webpush/register', [App\Http\Controllers\WebPushController::class, 'registerSubscription'])->middleware('auth')->name('webpush.register');
-Route::post('/api/webpush/delete', [App\Http\Controllers\WebPushController::class, 'deleteSubscription'])->middleware('auth')->name('webpush.delete');
-
-// SSE routes
-Route::get('/api/sse/stream', [App\Http\Controllers\SseController::class, 'stream'])->middleware('auth')->name('sse.stream');
-
-// Notification routes
-Route::middleware('auth')->group(function () {
-    Route::get('/api/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'getUnreadCount'])->name('notifications.unread-count');
-    Route::get('/api/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications'])->name('notifications.index');
-    Route::post('/api/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
-    Route::post('/api/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
-});
-
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

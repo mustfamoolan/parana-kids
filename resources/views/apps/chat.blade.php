@@ -1059,7 +1059,7 @@
                                 </div>
                             </div>
                                         <template x-if="loginUser.role === 'admin' && participant.id !== loginUser.id">
-                                            <button type="button"
+                                    <button type="button"
                                                 class="btn btn-sm btn-outline-danger"
                                                 @click="removeParticipant(participant.id)">
                                                 إزالة
@@ -1121,8 +1121,8 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
+                                        </svg>
+                                    </button>
                     <h3 class="text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3 ltr:pr-[50px] rtl:pl-[50px]">إعدادات الإشعارات</h3>
                     <div class="p-5">
                         <div class="space-y-4">
@@ -1146,7 +1146,7 @@
                                 <div>
                                     <h4 class="font-semibold mb-1">إشعارات المتصفح</h4>
                                     <p class="text-sm text-gray-500">عرض إشعارات عند وصول رسالة جديدة</p>
-                                </div>
+                        </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox"
                                            class="sr-only peer"
@@ -1154,7 +1154,7 @@
                                            @change="toggleNotifications()" />
                                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:ltr:left-[2px] after:rtl:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
                                 </label>
-                            </div>
+                    </div>
 
                             <!-- حالة إذن الإشعارات -->
                             <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -1176,7 +1176,7 @@
                                         @click="requestPermissionIfNeeded()">
                                         طلب إذن الإشعارات
                                     </button>
-                                </template>
+                </template>
                             </div>
                         </div>
                     </div>
@@ -1198,20 +1198,9 @@
                     this.requestNotificationPermission();
                     // تحميل الإعدادات من localStorage
                     this.loadNotificationSettings();
-                    // تهيئة SSE للإشعارات
-                    this.initSSE();
-
-                    // الاستماع للإشعارات الجديدة لتحديث القائمة الجانبية فوراً
-                    window.addEventListener('newNotification', (e) => {
-                        const notification = e.detail;
-                        if (notification.data?.conversation_id) {
-                            this.updateConversationPreview(notification.data.conversation_id, notification.body || notification.message_text);
-                        }
-                    });
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
-                sseEventSource: null,
                 loginUser: {
                     id: {{ auth()->id() }},
                     name: '{{ auth()->user()->name }}',
@@ -1426,34 +1415,6 @@
                     if (this.conversationsPollingInterval) {
                         clearInterval(this.conversationsPollingInterval);
                         this.conversationsPollingInterval = null;
-                    }
-                },
-
-                /**
-                 * تحديث preview و time في القائمة الجانبية فوراً عند وصول رسالة جديدة
-                 */
-                updateConversationPreview(conversationId, messageText) {
-                    const now = new Date();
-                    const time = now.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                    // تحديث في conversationsList
-                    let conv = this.conversationsList.find(c => c.conversationId === conversationId);
-                    if (conv) {
-                        conv.preview = messageText || 'رسالة جديدة';
-                        conv.time = time;
-                        // نقل المحادثة للأعلى (الأحدث أولاً)
-                        const index = this.conversationsList.indexOf(conv);
-                        if (index > 0) {
-                            this.conversationsList.splice(index, 1);
-                            this.conversationsList.unshift(conv);
-                        }
-                    }
-
-                    // تحديث في availableUsersList
-                    let userInAvailable = this.availableUsersList.find(u => u.conversationId === conversationId);
-                    if (userInAvailable) {
-                        userInAvailable.preview = messageText || 'رسالة جديدة';
-                        userInAvailable.time = time;
                     }
                 },
 
@@ -2099,22 +2060,15 @@
                 },
 
                 showNotification(title, body, icon, conversationId) {
-                    console.log('showNotification called:', { title, body, icon, conversationId });
-                    console.log('notificationsEnabled:', this.notificationsEnabled);
-                    console.log('notificationPermission:', this.notificationPermission);
-
                     // التحقق من تفعيل الإشعارات
                     if (!this.notificationsEnabled) {
-                        console.log('Notifications disabled, skipping');
                         return;
                     }
 
                     // التحقق من الإذن
                     if (this.notificationPermission !== 'granted') {
-                        console.log('Notification permission not granted, requesting...');
                         // محاولة طلب الإذن
                         this.requestPermissionIfNeeded().then(granted => {
-                            console.log('Permission request result:', granted);
                             if (granted) {
                                 this.showNotification(title, body, icon, conversationId);
                             }
@@ -2127,14 +2081,9 @@
                     const isConversationOpen = this.selectedUser &&
                                                this.selectedUser.conversationId === conversationId;
 
-                    console.log('Page visibility:', isPageVisible, 'Conversation open:', isConversationOpen);
-
                     if (isPageVisible && isConversationOpen) {
-                        console.log('Page visible and conversation open, skipping notification');
                         return; // لا نعرض إشعار إذا كانت المحادثة مفتوحة والصفحة مرئية
                     }
-
-                    console.log('Showing notification:', title, '-', body);
 
                     try {
                         const notification = new Notification(title, {
@@ -2282,108 +2231,6 @@
                             conversationId
                         );
                         this.playNotificationSound();
-                    }
-                },
-
-                initSSE() {
-                    console.log('Initializing SSE notifications...');
-
-                    // طلب الإذن للإشعارات
-                    if ('Notification' in window) {
-                        if (Notification.permission === 'default') {
-                            Notification.requestPermission().then(permission => {
-                                console.log('Notification permission:', permission);
-                                if (permission === 'granted') {
-                                    this.connectSSE();
-                                }
-                            });
-                        } else if (Notification.permission === 'granted') {
-                            this.connectSSE();
-                        } else {
-                            console.warn('Notification permission denied');
-                        }
-                    } else {
-                        console.error('Notifications not supported in this browser');
-                    }
-                },
-
-                connectSSE() {
-                    try {
-                        console.log('Connecting to SSE stream...');
-
-                        const eventSource = new EventSource('{{ route("sse.stream") }}', {
-                            withCredentials: true
-                        });
-
-                        eventSource.onopen = () => {
-                            console.log('SSE connection opened');
-                        };
-
-                        eventSource.onmessage = (event) => {
-                            try {
-                                console.log('SSE raw message:', event.data);
-                                const data = JSON.parse(event.data);
-                                console.log('SSE parsed message:', data);
-                                console.log('SSE message type:', data.type);
-
-                                if (data.type === 'notification') {
-                                    console.log('SSE notification received:', data);
-
-                                    const notification = data.data || data;
-                                    console.log('SSE notification data:', notification);
-
-                                    const title = notification.title || 'رسالة جديدة';
-                                    const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
-
-                                    console.log('SSE showing notification:', title, '-', body);
-
-                                    // إرسال الإشعار إلى Service Worker (للعمل حتى لو كان الموقع مغلق)
-                                    if ('serviceWorker' in navigator) {
-                                        navigator.serviceWorker.ready.then(registration => {
-                                            if (registration.active) {
-                                                registration.active.postMessage({
-                                                    type: 'SSE_NOTIFICATION',
-                                                    notification: notification,
-                                                });
-                                                console.log('SSE notification sent to service worker');
-                                            }
-                                        });
-                                    }
-
-                                    // عرض الإشعار في الصفحة الرئيسية أيضاً
-                                    this.showNotification(
-                                        title,
-                                        body,
-                                        notification.icon,
-                                        notification.data?.conversation_id || notification.conversation_id
-                                    );
-                                    this.playNotificationSound();
-                                } else if (data.type === 'ping') {
-                                    console.log('SSE ping received');
-                                } else {
-                                    console.log('SSE unknown message type:', data.type);
-                                }
-                            } catch (error) {
-                                console.error('Error parsing SSE message:', error);
-                                console.error('Raw event data:', event.data);
-                            }
-                        };
-
-                        eventSource.onerror = (error) => {
-                            console.error('SSE connection error:', error);
-                            // إعادة الاتصال بعد 5 ثوان
-                            setTimeout(() => {
-                                if (eventSource.readyState === EventSource.CLOSED) {
-                                    console.log('Reconnecting to SSE...');
-                                    this.connectSSE();
-                                }
-                            }, 5000);
-                        };
-
-                        // حفظ eventSource للاستخدام لاحقاً
-                        this.sseEventSource = eventSource;
-                    } catch (error) {
-                        console.error('Error connecting to SSE:', error);
                     }
                 },
 

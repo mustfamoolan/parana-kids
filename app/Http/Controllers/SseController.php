@@ -75,7 +75,7 @@ class SseController extends Controller
                             ]);
 
                             $sentNotificationIds = [];
-                            
+
                             foreach ($notifications as $notification) {
                                 $eventData = json_encode([
                                     'type' => 'notification',

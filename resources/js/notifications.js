@@ -130,7 +130,7 @@ class NotificationManager {
      */
     showToastNotification(notification) {
         console.log('NotificationManager: showToastNotification called', notification);
-        
+
         // انتظار حتى يكون SweetAlert متاحاً
         if (typeof window.Swal === 'undefined') {
             console.warn('NotificationManager: SweetAlert not available, waiting...');
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // بدء polling لتحديث عدد الإشعارات
     window.notificationManager.startPolling();
-    
+
     // Test notification بعد 2 ثوان للتحقق من عمل النظام
     setTimeout(() => {
         console.log('NotificationManager: Testing notification system...');

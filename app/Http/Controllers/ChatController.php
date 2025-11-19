@@ -7,7 +7,6 @@ use App\Models\Message;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
-use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -392,20 +391,6 @@ class ChatController extends Controller
             \Log::info('Chat - Message: ' . $request->input('message'));
             \Log::info('Chat - Image: ' . ($imagePath ? 'Yes' : 'No'));
 
-            // إرسال إشعار (بعد إنشاء الرسالة)
-            try {
-                $notificationService = new NotificationService();
-                $result = $notificationService->sendNewMessageNotification($conversationId, $user->id);
-                \Log::info('Notification sent from ChatController', [
-                    'conversation_id' => $conversationId,
-                    'sender_id' => $user->id,
-                    'result' => $result,
-                ]);
-            } catch (\Exception $e) {
-                \Log::error('Failed to send notification: ' . $e->getMessage());
-                \Log::error('Notification error stack: ' . $e->getTraceAsString());
-            }
-
             $responseData = [
                 'success' => true,
                 'message' => [
@@ -587,20 +572,6 @@ class ChatController extends Controller
         // تحديث وقت المحادثة
         $conversation->touch();
 
-        // إرسال إشعار FCM (بعد إنشاء الرسالة)
-        try {
-            $fcmService = new FcmService();
-            $result = $fcmService->sendNewMessageNotification($conversationId, $user->id);
-            \Log::info('FCM notification sent from ChatController (order)', [
-                'conversation_id' => $conversationId,
-                'sender_id' => $user->id,
-                'result' => $result,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to send FCM notification: ' . $e->getMessage());
-            \Log::error('FCM notification error stack: ' . $e->getTraceAsString());
-        }
-
         // جلب بيانات الطلب الكاملة
         $order->load(['delegate', 'items.product.warehouse']);
 
@@ -714,20 +685,6 @@ class ChatController extends Controller
 
         // تحديث وقت المحادثة
         $conversation->touch();
-
-        // إرسال إشعار FCM (بعد إنشاء الرسالة)
-        try {
-            $fcmService = new FcmService();
-            $result = $fcmService->sendNewMessageNotification($conversationId, $user->id);
-            \Log::info('FCM notification sent from ChatController (order)', [
-                'conversation_id' => $conversationId,
-                'sender_id' => $user->id,
-                'result' => $result,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to send FCM notification: ' . $e->getMessage());
-            \Log::error('FCM notification error stack: ' . $e->getTraceAsString());
-        }
 
         // جلب بيانات المنتج الكاملة
         $product->load(['primaryImage', 'warehouse', 'sizes.reservations']);
