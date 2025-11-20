@@ -327,6 +327,11 @@ Route::middleware('auth')->group(function () {
     // FCM Token Routes
     Route::post('/api/fcm/token', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('api.fcm.token');
     Route::delete('/api/fcm/token', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('api.fcm.token.delete');
+
+    // SSE route - تم إزالته (استخدام Firebase FCM بدلاً منه)
+    Route::get('/api/sse/stream', function() {
+        abort(404, 'SSE endpoint has been removed. Please use Firebase FCM instead.');
+    })->name('api.sse.stream');
 });
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');

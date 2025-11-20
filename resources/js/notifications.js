@@ -1,116 +1,117 @@
-// نظام الإشعارات الشامل - يعمل من أي صفحة
+// نظام الإشعارات الشامل - يعتمد على Firebase FCM فقط (أخف على النظام)
 
 class NotificationManager {
     constructor() {
-        this.sseEventSource = null;
         this.notificationCallbacks = [];
-        this.isInitialized = false;
         this.unreadCount = 0;
         this.pollingInterval = null;
-        this.pollInterval = 5000; // 5 ثوان (تم تحسينه من 3 ثوان)
+        this.pollInterval = 30000; // 30 ثانية (محسّن للأداء - FCM يعمل push)
+        this.firebaseMessaging = null;
     }
 
     /**
-     * تهيئة SSE من أي صفحة
+     * تهيئة Firebase Messaging
      */
-    initSSE() {
-        if (this.isInitialized) {
-            return;
-        }
-
+    async initFirebase() {
         // التحقق من وجود المستخدم المسجل دخوله
         if (!window.authUserId) {
-            console.log('NotificationManager: User not authenticated, skipping SSE initialization');
+            console.log('NotificationManager: User not authenticated, skipping Firebase initialization');
             return;
         }
 
-        // التحقق من دعم EventSource
-        if (typeof EventSource === 'undefined') {
-            console.warn('NotificationManager: EventSource not supported');
+        // التحقق من أن Firebase متاح
+        if (typeof firebase === 'undefined' || !firebase.messaging) {
+            console.log('NotificationManager: Firebase not available (will use Web Push only)');
             return;
         }
 
         try {
-            const sseUrl = '/api/sse/stream';
-            console.log('NotificationManager: Connecting to SSE stream...', sseUrl);
+            // تهيئة Firebase App إذا لم يكن مهيأ
+            if (!firebase.apps || firebase.apps.length === 0) {
+                const firebaseConfig = {
+                    apiKey: 'AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU',
+                    authDomain: 'parana-kids.firebaseapp.com',
+                    projectId: 'parana-kids',
+                    storageBucket: 'parana-kids.firebasestorage.app',
+                    messagingSenderId: '130151352064',
+                    appId: '1:130151352064:web:42335c43d67f4ac49515e5',
+                    measurementId: 'G-HCTDLM0P9Y',
+                };
+                firebase.initializeApp(firebaseConfig);
+                console.log('NotificationManager: Firebase app initialized');
+            }
 
-            this.sseEventSource = new EventSource(sseUrl, {
-                withCredentials: true
+            // تهيئة Firebase Messaging
+            this.firebaseMessaging = firebase.messaging();
+
+            // الحصول على FCM token
+            const token = await this.firebaseMessaging.getToken({
+                vapidKey: 'BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0'
             });
 
-            this.sseEventSource.onopen = () => {
-                console.log('NotificationManager: SSE connection opened');
-                this.isInitialized = true;
-            };
+            if (token) {
+                // حفظ token في قاعدة البيانات
+                await this.saveFcmToken(token);
+                console.log('NotificationManager: FCM token obtained and saved');
+            }
 
-            this.sseEventSource.onmessage = (event) => {
-                try {
-                    console.log('NotificationManager: SSE raw message:', event.data);
-                    const data = JSON.parse(event.data);
-                    console.log('NotificationManager: SSE parsed message:', data);
+            // معالجة الإشعارات عند فتح التطبيق (foreground messages)
+            // ملاحظة: onBackgroundMessage موجود في Service Worker
+            this.firebaseMessaging.onMessage((payload) => {
+                console.log('NotificationManager: Foreground message received:', payload);
+                // معالجة الإشعار في المقدمة
+                const notification = payload.data || payload.notification || payload;
+                this.handleNotification(notification);
+            });
 
-                    if (data.type === 'notification') {
-                        console.log('NotificationManager: Notification received via SSE:', data);
-                        const notification = data.data || data;
-                        this.handleNotification(notification);
-                    } else if (data.type === 'ping') {
-                        // Ping - للحفاظ على الاتصال
-                        console.log('NotificationManager: SSE ping received');
-                    } else {
-                        console.log('NotificationManager: Unknown message type:', data.type);
-                    }
-                } catch (error) {
-                    console.error('NotificationManager: Error parsing SSE message:', error);
-                    console.error('NotificationManager: Raw event data:', event.data);
-                }
-            };
-
-            this.sseEventSource.onerror = (error) => {
-                console.error('NotificationManager: SSE connection error:', error);
-
-                // إعادة الاتصال بعد 5 ثوان
-                setTimeout(() => {
-                    if (this.sseEventSource && this.sseEventSource.readyState === EventSource.CLOSED) {
-                        console.log('NotificationManager: Reconnecting to SSE...');
-                        this.isInitialized = false;
-                        this.initSSE();
-                    }
-                }, 5000);
-            };
+            console.log('NotificationManager: Firebase initialized successfully');
         } catch (error) {
-            console.error('NotificationManager: Error connecting to SSE:', error);
+            console.error('NotificationManager: Error initializing Firebase:', error);
         }
     }
 
     /**
-     * معالجة الإشعار الوارد
+     * حفظ FCM token في قاعدة البيانات
+     */
+    async saveFcmToken(token) {
+        try {
+            const response = await fetch('/api/fcm/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ token: token })
+            });
+
+            if (response.ok) {
+                console.log('NotificationManager: FCM token saved successfully');
+            } else {
+                console.warn('NotificationManager: Failed to save FCM token');
+            }
+        } catch (error) {
+            console.error('NotificationManager: Error saving FCM token:', error);
+        }
+    }
+
+    /**
+     * معالجة الإشعار الوارد (من Firebase أو Web Push)
      */
     handleNotification(notification) {
         console.log('NotificationManager: Handling notification:', notification);
 
-        // عرض Toast Notification فوراً
-        this.showToastNotification(notification);
-
-        // إرسال الإشعار إلى Service Worker (للعمل حتى لو كان الموقع مغلق)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(registration => {
-                if (registration.active) {
-                    registration.active.postMessage({
-                        type: 'SSE_NOTIFICATION',
-                        notification: notification,
-                    });
-                    console.log('NotificationManager: Notification sent to service worker');
-                }
-            });
+        // عرض Toast Notification فوراً (إذا كانت الصفحة مفتوحة)
+        if (!document.hidden) {
+            this.showToastNotification(notification);
         }
 
-        // عرض Push Notification إذا كان المستخدم ليس في الصفحة
-        if (document.visibilityState === 'hidden') {
-            this.showPushNotification(notification);
-        }
-
-        // تحديث عدد الإشعارات غير المقروءة فوراً
+        // تحديث عدد الإشعارات غير المقروءة
         this.updateUnreadCount();
+
+        // تحديث Badge counter
+        this.updateBadge(this.unreadCount + 1);
 
         // إرسال custom event لتحديث Dashboard
         this.dispatchNotificationEvent(notification);
@@ -127,6 +128,7 @@ class NotificationManager {
 
     /**
      * عرض Toast Notification باستخدام SweetAlert
+     * يعمل لجميع أنواع الإشعارات: رسائل، طلبات، تحديثات حالة
      */
     showToastNotification(notification) {
         console.log('NotificationManager: showToastNotification called', notification);
@@ -134,7 +136,6 @@ class NotificationManager {
         // انتظار حتى يكون SweetAlert متاحاً
         if (typeof window.Swal === 'undefined') {
             console.warn('NotificationManager: SweetAlert not available, waiting...');
-            // محاولة مرة أخرى بعد 500ms
             setTimeout(() => {
                 if (typeof window.Swal !== 'undefined') {
                     this.showToastNotification(notification);
@@ -145,38 +146,78 @@ class NotificationManager {
             return;
         }
 
-        const title = notification.title || 'رسالة جديدة';
-        const body = notification.body || notification.message_text || notification.data?.message_text || 'لديك رسالة جديدة';
-        const message = `${title}: ${body}`;
+        // تحديد نوع الإشعار والرابط المناسب
+        const notificationType = notification.type || notification.data?.type || 'message';
+        const title = notification.title || notification.data?.title || 'إشعار جديد';
+        const body = notification.body || notification.message || notification.message_text || notification.data?.message_text || notification.data?.body || 'لديك إشعار جديد';
 
-        console.log('NotificationManager: Showing toast:', message);
+        // تحديد الرابط حسب نوع الإشعار
+        let clickUrl = null;
+        let iconType = 'info';
+
+        if (notificationType === 'message' || notification.data?.conversation_id || notification.conversation_id) {
+            // رسالة جديدة
+            const convId = notification.data?.conversation_id || notification.conversation_id;
+            if (convId) {
+                clickUrl = `/apps/chat?conversation=${convId}`;
+            } else {
+                clickUrl = '/apps/chat';
+            }
+            iconType = 'info';
+        } else if (notificationType.startsWith('order_') || notification.data?.order_id || notification.order_id) {
+            // جميع أنواع إشعارات الطلبات
+            const orderId = notification.data?.order_id || notification.order_id;
+            if (orderId) {
+                if (window.location.pathname.includes('/admin/')) {
+                    clickUrl = `/admin/orders/${orderId}/process`;
+                } else if (window.location.pathname.includes('/delegate/')) {
+                    clickUrl = `/delegate/orders/${orderId}`;
+                } else {
+                    clickUrl = `/delegate/orders/${orderId}`;
+                }
+            } else {
+                if (window.location.pathname.includes('/admin/')) {
+                    clickUrl = '/admin/orders';
+                } else {
+                    clickUrl = '/delegate/orders';
+                }
+            }
+            // تحديد أيقونة حسب نوع الطلب
+            if (notificationType === 'order_created') {
+                iconType = 'success';
+            } else if (notificationType === 'order_cancelled' || notificationType === 'order_returned') {
+                iconType = 'error';
+            } else {
+                iconType = 'warning';
+            }
+        } else {
+            // أنواع أخرى من الإشعارات
+            iconType = 'info';
+        }
+
+        const message = body.length > 100 ? body.substring(0, 100) + '...' : body;
 
         try {
             const toast = window.Swal.mixin({
                 toast: true,
                 position: 'top',
                 showConfirmButton: false,
-                timer: 5000,
+                timer: 6000,
                 showCloseButton: true,
                 didOpen: (toastEl) => {
-                    console.log('NotificationManager: Toast opened');
-                    toastEl.addEventListener('click', () => {
-                        // الانتقال للمحادثة عند الضغط على Toast
-                        if (notification.data?.conversation_id || notification.conversation_id) {
-                            const convId = notification.data?.conversation_id || notification.conversation_id;
-                            window.location.href = `/apps/chat?conversation=${convId}`;
-                        }
-                    });
+                    if (clickUrl) {
+                        toastEl.style.cursor = 'pointer';
+                        toastEl.addEventListener('click', () => {
+                            window.location.href = clickUrl;
+                        });
+                    }
                 }
             });
 
             toast.fire({
-                title: message,
-                icon: 'info',
-            }).then(() => {
-                console.log('NotificationManager: Toast shown successfully');
-            }).catch((error) => {
-                console.error('NotificationManager: Error showing toast:', error);
+                title: `<strong>${title}</strong><br><small>${message}</small>`,
+                icon: iconType,
+                html: true,
             });
         } catch (error) {
             console.error('NotificationManager: Exception in showToastNotification:', error);
@@ -188,7 +229,6 @@ class NotificationManager {
      */
     async updateUnreadCount() {
         try {
-            console.log('NotificationManager: Updating unread count...');
             const response = await fetch('/api/notifications/unread-count', {
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
@@ -200,22 +240,14 @@ class NotificationManager {
             if (response.ok) {
                 const data = await response.json();
                 const newCount = data.count || 0;
-                console.log('NotificationManager: Unread count:', newCount, '(previous:', this.unreadCount, ')');
 
                 if (this.unreadCount !== newCount) {
                     this.unreadCount = newCount;
-
-                    // تحديث Badge counter
                     this.updateBadge(newCount);
-
-                    // إرسال event لتحديث Dashboard
-                    console.log('NotificationManager: Dispatching unreadCountUpdated event with count:', newCount);
                     window.dispatchEvent(new CustomEvent('unreadCountUpdated', {
                         detail: { count: newCount }
                     }));
                 }
-            } else {
-                console.error('NotificationManager: Failed to fetch unread count, status:', response.status);
             }
         } catch (error) {
             console.error('NotificationManager: Error updating unread count:', error);
@@ -230,10 +262,8 @@ class NotificationManager {
             try {
                 if (count > 0) {
                     await navigator.setAppBadge(count);
-                    console.log('NotificationManager: Badge updated to', count);
                 } else {
                     await navigator.clearAppBadge();
-                    console.log('NotificationManager: Badge cleared');
                 }
 
                 // إرسال رسالة إلى Service Worker لتحديث Badge
@@ -263,22 +293,25 @@ class NotificationManager {
     }
 
     /**
-     * بدء polling لتحديث عدد الإشعارات
+     * بدء polling لتحديث عدد الإشعارات (خفيف - كل 30 ثانية)
      */
     startPolling() {
         if (this.pollingInterval) {
-            return; // Polling يعمل بالفعل
+            return;
         }
 
         // تحديث فوري
         this.updateUnreadCount();
 
-        // Polling كل 3 ثوان
+        // Polling كل 30 ثانية (خفيف - FCM يعمل push)
         this.pollingInterval = setInterval(() => {
+            if (document.hidden) {
+                return;
+            }
             this.updateUnreadCount();
         }, this.pollInterval);
 
-        console.log('NotificationManager: Polling started');
+        console.log('NotificationManager: Polling started (lightweight)');
     }
 
     /**
@@ -289,49 +322,6 @@ class NotificationManager {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
             console.log('NotificationManager: Polling stopped');
-        }
-    }
-
-    /**
-     * عرض Push Notification
-     */
-    showPushNotification(notification) {
-        if (!('Notification' in window)) {
-            return;
-        }
-
-        if (Notification.permission === 'granted') {
-            const title = notification.title || 'رسالة جديدة';
-            const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
-            const icon = notification.icon || '/assets/images/icons/icon-192x192.png';
-
-            const notificationOptions = {
-                body: body,
-                icon: icon,
-                badge: '/assets/images/icons/icon-192x192.png',
-                vibrate: [200, 100, 200],
-                silent: false,
-                dir: 'rtl',
-                lang: 'ar',
-                tag: `notification-${notification.data?.conversation_id || notification.id || 'new'}`,
-                requireInteraction: false,
-                data: notification.data || {},
-                timestamp: Date.now(),
-            };
-
-            const notif = new Notification(title, notificationOptions);
-
-            notif.onclick = () => {
-                window.focus();
-                // الانتقال للمحادثة إذا كان نوع الإشعار message
-                if (notification.data?.conversation_id) {
-                    window.location.href = `/chat?conversation=${notification.data.conversation_id}`;
-                }
-                notif.close();
-            };
-
-            // إغلاق الإشعار تلقائياً بعد 5 ثوان
-            setTimeout(() => notif.close(), 5000);
         }
     }
 
@@ -373,14 +363,9 @@ class NotificationManager {
     }
 
     /**
-     * إغلاق SSE connection
+     * إغلاق (تنظيف)
      */
     close() {
-        if (this.sseEventSource) {
-            this.sseEventSource.close();
-            this.sseEventSource = null;
-            this.isInitialized = false;
-        }
         this.stopPolling();
     }
 }
@@ -399,29 +384,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // تهيئة SSE
-    window.notificationManager.initSSE();
+    // تهيئة Firebase Messaging (إذا كان متاحاً)
+    window.notificationManager.initFirebase();
 
-    // بدء polling لتحديث عدد الإشعارات
+    // بدء polling خفيف لتحديث عدد الإشعارات (كل 30 ثانية)
     window.notificationManager.startPolling();
 
-    // Test notification بعد 2 ثوان للتحقق من عمل النظام
-    setTimeout(() => {
-        console.log('NotificationManager: Testing notification system...');
-        if (typeof window.Swal !== 'undefined') {
-            console.log('NotificationManager: SweetAlert is available');
-            // Test toast
-            window.showMessage('نظام الإشعارات يعمل!', 'top');
+    // إيقاف polling عند إخفاء الصفحة (تحسين الأداء)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            window.notificationManager.stopPolling();
         } else {
-            console.error('NotificationManager: SweetAlert is NOT available');
+            window.notificationManager.startPolling();
         }
-    }, 2000);
+    });
+
+    console.log('NotificationManager: Initialized successfully (Firebase-based)');
 });
 
-// إغلاق SSE عند إغلاق الصفحة
+// تنظيف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
     if (window.notificationManager) {
         window.notificationManager.close();
     }
 });
-
