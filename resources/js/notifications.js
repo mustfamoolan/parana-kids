@@ -7,7 +7,7 @@ class NotificationManager {
         this.isInitialized = false;
         this.unreadCount = 0;
         this.pollingInterval = null;
-        this.pollInterval = 3000; // 3 ثوان
+        this.pollInterval = 5000; // 5 ثوان (تم تحسينه من 3 ثوان)
     }
 
     /**
@@ -189,7 +189,7 @@ class NotificationManager {
     async updateUnreadCount() {
         try {
             console.log('NotificationManager: Updating unread count...');
-            const response = await fetch('/api/notifications/unread-count?type=message', {
+            const response = await fetch('/api/notifications/unread-count', {
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                     'Accept': 'application/json',
@@ -204,6 +204,10 @@ class NotificationManager {
 
                 if (this.unreadCount !== newCount) {
                     this.unreadCount = newCount;
+
+                    // تحديث Badge counter
+                    this.updateBadge(newCount);
+
                     // إرسال event لتحديث Dashboard
                     console.log('NotificationManager: Dispatching unreadCountUpdated event with count:', newCount);
                     window.dispatchEvent(new CustomEvent('unreadCountUpdated', {
@@ -215,6 +219,37 @@ class NotificationManager {
             }
         } catch (error) {
             console.error('NotificationManager: Error updating unread count:', error);
+        }
+    }
+
+    /**
+     * تحديث Badge counter
+     */
+    async updateBadge(count) {
+        if ('setAppBadge' in navigator) {
+            try {
+                if (count > 0) {
+                    await navigator.setAppBadge(count);
+                    console.log('NotificationManager: Badge updated to', count);
+                } else {
+                    await navigator.clearAppBadge();
+                    console.log('NotificationManager: Badge cleared');
+                }
+
+                // إرسال رسالة إلى Service Worker لتحديث Badge
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        if (registration.active) {
+                            registration.active.postMessage({
+                                type: 'UPDATE_BADGE',
+                                count: count
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('NotificationManager: Error updating badge:', error);
+            }
         }
     }
 

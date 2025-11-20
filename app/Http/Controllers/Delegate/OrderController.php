@@ -10,11 +10,19 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductSize;
 use App\Models\ProductMovement;
+use App\Services\UnifiedNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(UnifiedNotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -303,6 +311,13 @@ class OrderController extends Controller
 
             return $order;
         });
+
+        // إرسال إشعار إنشاء طلب جديد
+        try {
+            $this->notificationService->sendOrderNotification($order, 'order_created');
+        } catch (\Exception $e) {
+            \Log::error('Delegate/OrderController: Error sending order_created notification: ' . $e->getMessage());
+        }
 
         return redirect()->route('delegate.orders.show', $order)
                         ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number);
@@ -850,6 +865,13 @@ class OrderController extends Controller
 
             return $order;
         });
+
+        // إرسال إشعار إنشاء طلب جديد
+        try {
+            $this->notificationService->sendOrderNotification($order, 'order_created');
+        } catch (\Exception $e) {
+            \Log::error('Delegate/OrderController: Error sending order_created notification: ' . $e->getMessage());
+        }
 
         // مسح session
         session()->forget(['current_cart_id', 'customer_data']);

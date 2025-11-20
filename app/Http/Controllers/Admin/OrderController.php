@@ -12,6 +12,7 @@ use App\Models\ReturnItem;
 use App\Models\ExchangeItem;
 use App\Models\OrderItem;
 use App\Services\ProfitCalculator;
+use App\Services\UnifiedNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,13 @@ use Illuminate\Support\Facades\Route;
 
 class OrderController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(UnifiedNotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * صفحة إدارة الطلبات الموحدة (pending + confirmed فقط كبداية)
      */
@@ -1028,6 +1036,13 @@ class OrderController extends Controller
                 'profit_margin_at_confirmation' => $profitMargin,
             ]);
 
+            // إرسال إشعار تأكيد الطلب
+            try {
+                $this->notificationService->sendOrderNotification($order, 'order_confirmed');
+            } catch (\Exception $e) {
+                \Log::error('OrderController: Error sending order_confirmed notification: ' . $e->getMessage());
+            }
+
             // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب (فقط للتسجيل، بدون خصم من المخزن)
             $order->load('items.product', 'items.size');
             foreach ($order->items as $item) {
@@ -1490,6 +1505,13 @@ class OrderController extends Controller
 
             $order->processReturn($returnData, auth()->id());
 
+            // إرسال إشعار إرجاع الطلب
+            try {
+                $this->notificationService->sendOrderNotification($order, 'order_returned');
+            } catch (\Exception $e) {
+                \Log::error('OrderController: Error sending order_returned notification: ' . $e->getMessage());
+            }
+
             return redirect()->route('admin.orders.returned')
                             ->with('success', 'تم إرجاع المنتجات بنجاح');
         } catch (\Exception $e) {
@@ -1545,6 +1567,14 @@ class OrderController extends Controller
 
         try {
             $order->processExchange($request->exchanges, auth()->id());
+
+            // إرسال إشعار استبدال الطلب
+            try {
+                $this->notificationService->sendOrderNotification($order, 'order_exchanged');
+            } catch (\Exception $e) {
+                \Log::error('OrderController: Error sending order_exchanged notification: ' . $e->getMessage());
+            }
+
             return redirect()->route('admin.orders.exchanged')
                             ->with('success', 'تم استبدال المنتجات بنجاح');
         } catch (\Exception $e) {
@@ -1572,6 +1602,14 @@ class OrderController extends Controller
             $order->load('items.size');
 
             $order->cancel($request->cancellation_reason, auth()->id());
+
+            // إرسال إشعار إلغاء الطلب
+            try {
+                $this->notificationService->sendOrderNotification($order, 'order_cancelled');
+            } catch (\Exception $e) {
+                \Log::error('OrderController: Error sending order_cancelled notification: ' . $e->getMessage());
+            }
+
             return redirect()->route('admin.orders.cancelled')
                             ->with('success', 'تم إلغاء الطلب بنجاح');
         } catch (\Exception $e) {

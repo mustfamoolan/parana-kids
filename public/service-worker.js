@@ -278,38 +278,79 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// دالة لتحديث Badge counter
+async function updateBadge(count) {
+  if ('setAppBadge' in navigator) {
+    try {
+      if (count > 0) {
+        await navigator.setAppBadge(count);
+      } else {
+        await navigator.clearAppBadge();
+      }
+    } catch (error) {
+      console.log('[SW] Error updating badge:', error);
+    }
+  }
+}
+
+// دالة للحصول على صوت الإشعار حسب النوع
+function getNotificationSound(notificationType) {
+  const sounds = {
+    'message': '/assets/sounds/notification.mp3',
+    'order_created': '/assets/sounds/notification.mp3',
+    'order_confirmed': '/assets/sounds/notification.mp3',
+    'order_cancelled': '/assets/sounds/notification.mp3',
+    'order_returned': '/assets/sounds/notification.mp3',
+    'order_exchanged': '/assets/sounds/notification.mp3',
+  };
+  return sounds[notificationType] || '/assets/sounds/notification.mp3';
+}
+
 // معالجة push events مباشرة - الحل النهائي بدون Firebase
 self.addEventListener('push', (event) => {
   console.log('[SW] ========== WEB PUSH EVENT RECEIVED ==========');
   console.log('[SW] Push event received at:', new Date().toISOString());
 
   // دالة لإظهار الإشعار
-  const showNotification = (title, body, data = {}) => {
+  const showNotification = async (title, body, data = {}) => {
+    const notificationType = data.type || 'message';
+    const soundFile = getNotificationSound(notificationType);
+
     const options = {
       body: body,
       icon: '/assets/images/icons/icon-192x192.png',
       badge: '/assets/images/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
       silent: false, // false = يستخدم صوت الجهاز الافتراضي
-      sound: '/assets/sounds/notification.mp3', // صوت الإشعار
       dir: 'rtl',
       lang: 'ar',
-      tag: `chat-${data.conversation_id || 'new'}`,
+      tag: `${notificationType}-${data.conversation_id || data.order_id || 'new'}`,
       requireInteraction: false,
       data: data,
       timestamp: Date.now(),
     };
 
-    console.log('[SW] Showing notification:', title, '-', body);
+    console.log('[SW] Showing notification:', title, '-', body, '- Type:', notificationType);
 
     // تشغيل الصوت إذا كان متاحاً
-    if (options.sound) {
-      try {
-        const audio = new Audio(options.sound);
-        audio.play().catch(err => console.log('[SW] Could not play notification sound:', err));
-      } catch (error) {
-        console.log('[SW] Error playing sound:', error);
-      }
+    try {
+      const audio = new Audio(soundFile);
+      audio.volume = 0.5;
+      await audio.play().catch(err => {
+        console.log('[SW] Could not play notification sound:', err);
+      });
+    } catch (error) {
+      console.log('[SW] Error playing sound:', error);
+    }
+
+    // تحديث Badge counter
+    try {
+      // جلب عدد الإشعارات غير المقروءة (سيتم تحديثه من الصفحة الرئيسية)
+      // هنا نزيد العدد بمقدار 1
+      const currentBadge = await navigator.getAppBadge ? await navigator.getAppBadge() : 0;
+      await updateBadge((currentBadge || 0) + 1);
+    } catch (error) {
+      console.log('[SW] Error updating badge:', error);
     }
 
     return self.registration.showNotification(title, options);
@@ -389,7 +430,7 @@ self.addEventListener('push', (event) => {
 });
 
 // معالجة messages من الصفحة الرئيسية (للإشعارات عبر SSE)
-self.addEventListener('message', (event) => {
+self.addEventListener('message', async (event) => {
   console.log('[SW] Message received from page:', event.data);
 
   if (event.data && event.data.type === 'SSE_NOTIFICATION') {
@@ -397,8 +438,10 @@ self.addEventListener('message', (event) => {
     const title = notification.title || 'رسالة جديدة';
     const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
     const data = notification.data || {};
+    const notificationType = data.type || notification.type || 'message';
+    const soundFile = getNotificationSound(notificationType);
 
-    console.log('[SW] Showing SSE notification:', title, '-', body);
+    console.log('[SW] Showing SSE notification:', title, '-', body, '- Type:', notificationType);
 
     const options = {
       body: body,
@@ -406,23 +449,31 @@ self.addEventListener('message', (event) => {
       badge: '/assets/images/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
       silent: false,
-      sound: '/assets/sounds/notification.mp3', // صوت الإشعار
       dir: 'rtl',
       lang: 'ar',
-      tag: `chat-${data.conversation_id || 'new'}`,
+      tag: `${notificationType}-${data.conversation_id || data.order_id || 'new'}`,
       requireInteraction: false,
       data: data,
       timestamp: Date.now(),
     };
 
     // تشغيل الصوت إذا كان متاحاً
-    if (options.sound) {
-      try {
-        const audio = new Audio(options.sound);
-        audio.play().catch(err => console.log('[SW] Could not play notification sound:', err));
-      } catch (error) {
-        console.log('[SW] Error playing sound:', error);
-      }
+    try {
+      const audio = new Audio(soundFile);
+      audio.volume = 0.5;
+      await audio.play().catch(err => {
+        console.log('[SW] Could not play notification sound:', err);
+      });
+    } catch (error) {
+      console.log('[SW] Error playing sound:', error);
+    }
+
+    // تحديث Badge counter
+    try {
+      const currentBadge = await navigator.getAppBadge ? await navigator.getAppBadge() : 0;
+      await updateBadge((currentBadge || 0) + 1);
+    } catch (error) {
+      console.log('[SW] Error updating badge:', error);
     }
 
     self.registration.showNotification(title, options)
@@ -432,6 +483,10 @@ self.addEventListener('message', (event) => {
       .catch((error) => {
         console.error('[SW] ❌ Error showing SSE notification:', error);
       });
+  } else if (event.data && event.data.type === 'UPDATE_BADGE') {
+    // تحديث Badge من الصفحة الرئيسية
+    const count = event.data.count || 0;
+    await updateBadge(count);
   }
 });
 
@@ -440,19 +495,27 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const data = event.notification.data || {};
-  const conversationId = data.conversation_id;
+  const notificationType = data.type || 'message';
+  let url = '/';
+
+  // تحديد URL حسب نوع الإشعار
+  if (notificationType === 'message' || data.conversation_id) {
+    const conversationId = data.conversation_id;
+    url = conversationId ? `/apps/chat?conversation=${conversationId}` : '/apps/chat';
+  } else if (notificationType.startsWith('order_') && data.order_id) {
+    // إشعارات الطلبات - الانتقال لصفحة الطلب
+    url = `/admin/orders/${data.order_id}`;
+  }
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // إذا كان الموقع مفتوحاً، افتح المحادثة
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
+      // إذا كان الموقع مفتوحاً، افتح الصفحة المناسبة
       if (clientList.length > 0) {
-        const url = conversationId ? `/apps/chat?conversation=${conversationId}` : '/apps/chat';
-        return clientList[0].focus().then((client) => {
-          return client.navigate(url);
-        });
+        const client = await clientList[0].focus();
+        return client.navigate(url);
       }
       // إذا كان الموقع مغلقاً، افتح نافذة جديدة
-      return clients.openWindow(conversationId ? `/apps/chat?conversation=${conversationId}` : '/apps/chat');
+      return clients.openWindow(url);
     })
   );
 });

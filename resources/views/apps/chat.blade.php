@@ -2,10 +2,9 @@
 
 
     <div x-data="chat">
-        <div class="flex gap-5 relative sm:h-[calc(100vh_-_150px)] h-[calc(100vh_-_100px)] sm:min-h-0 overflow-hidden"
-            :class="{ 'min-h-[999px]': isShowChatMenu }">
-            <div class="panel p-4 flex-none overflow-hidden max-w-xs w-full absolute xl:relative z-10 space-y-4 xl:h-full hidden xl:block"
-                :class="isShowChatMenu && '!block'">
+        <div class="flex gap-0 xl:gap-5 relative h-screen sm:h-[calc(100vh_-_150px)] overflow-hidden">
+            <div class="panel p-4 flex-none overflow-hidden w-full xl:max-w-xs absolute xl:relative z-10 space-y-4 h-full xl:h-full block xl:block inset-0 xl:inset-auto"
+                :class="isShowUserChat && 'hidden xl:block'">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center">
                         <div class="flex-none"><img src="/assets/images/profile-{{ (auth()->id() % 20) + 1 }}.jpeg"
@@ -170,7 +169,7 @@
                 <div class="h-px w-full border-b border-[#e0e6ed] dark:border-[#1b2e4b]"></div>
                 <div class="!mt-0">
                     <div
-                        class="chat-users perfect-scrollbar relative h-full min-h-[100px] sm:h-[calc(100vh_-_357px)] space-y-0.5 pr-3.5 -mr-3.5">
+                        class="chat-users perfect-scrollbar relative h-full min-h-[100px] sm:h-[calc(100vh_-_357px)] xl:h-[calc(100vh_-_357px)] space-y-0.5 pr-3.5 -mr-3.5">
                         <template x-for="person in searchUsers">
                             <button type="button"
                                 class="w-full flex justify-between items-center p-2 hover:bg-gray-100 dark:hover:bg-[#050b14] rounded-md dark:hover:text-primary hover:text-primary "
@@ -236,8 +235,8 @@
                 </div>
             </div>
             <div class="bg-black/60 z-[5] w-full h-full absolute rounded-md hidden"
-                :class="isShowChatMenu && '!block xl:!hidden'" @click="isShowChatMenu = !isShowChatMenu"></div>
-            <div class="panel p-0 flex-1">
+                :class="isShowChatMenu && isShowUserChat && '!block xl:!hidden'" @click="isShowChatMenu = false; isShowUserChat = false"></div>
+            <div class="panel p-0 flex-1 w-full h-full">
                 <template x-if="!isShowUserChat">
                     <div class="flex items-center justify-center h-full relative p-4">
                         <button type="button"
@@ -351,33 +350,15 @@
                 </template>
                 <template x-if="isShowUserChat && selectedUser">
                     <div class="relative h-full flex flex-col">
-                        <div class="flex justify-between items-center p-4">
+                        <div class="flex justify-between items-center p-4 flex-shrink-0 fixed xl:relative top-0 left-0 right-0 xl:left-auto xl:right-auto bg-white dark:bg-[#0e1726] border-b border-[#e0e6ed] dark:border-[#1b2e4b] z-10">
                             <div class="flex items-center space-x-2 rtl:space-x-reverse">
-                                <template x-if="selectedUser.type === 'group'">
-                                    <div class="rounded-full h-10 w-10 bg-primary/20 flex items-center justify-center">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary">
-                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="9" cy="7" r="4"></circle>
-                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                                        </svg>
-                                    </div>
-                                </template>
-                                <template x-if="selectedUser.type !== 'group'">
-                                    <img :src="`/assets/images/${selectedUser.path}`"
-                                        class="rounded-full h-10 w-10 object-cover" />
-                                </template>
-                                <button type="button" class="xl:hidden hover:text-primary"
-                                    @click="isShowChatMenu = !isShowChatMenu">
+                                <button type="button" class="xl:hidden text-primary dark:text-gray-300 hover:text-primary-dark"
+                                    @click="isShowUserChat = false; isShowChatMenu = true">
 
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                         xmlns="http://www.w3.org/2000/svg" class="w-6 h-6">
-                                        <path d="M20 7L4 7" stroke="currentColor" stroke-width="1.5"
-                                            stroke-linecap="round" />
-                                        <path opacity="0.5" d="M20 12L4 12" stroke="currentColor"
-                                            stroke-width="1.5" stroke-linecap="round" />
-                                        <path d="M20 17L4 17" stroke="currentColor" stroke-width="1.5"
-                                            stroke-linecap="round" />
+                                        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                 </button>
                                 <div class="relative flex-none">
@@ -574,9 +555,9 @@
                             </div>
                         </div>
                         <div class="h-px w-full border-b border-[#e0e6ed] dark:border-[#1b2e4b]"></div>
-                        <div class="perfect-scrollbar relative overflow-y-auto flex-1 min-h-0">
+                        <div class="perfect-scrollbar relative overflow-y-auto flex-1 min-h-0 pb-24 xl:pb-0 pt-20 xl:pt-0">
                             <div
-                                class="space-y-5 p-4 chat-conversation-box sm:pb-0 pb-[68px] sm:min-h-[300px] min-h-[400px]">
+                                class="space-y-5 p-4 chat-conversation-box sm:pb-0 sm:min-h-[300px] min-h-[400px]">
                                 <div class="block m-6 mt-0">
                                     <h4
                                         class="text-xs text-center border-b border-[#f4f4f4] dark:border-gray-800 relative">
@@ -740,7 +721,7 @@
                                 </template>
                             </div>
                         </div>
-                        <div class="p-4 sticky bottom-0 left-0 w-full bg-white dark:bg-[#0e1726] border-t border-[#e0e6ed] dark:border-[#1b2e4b]">
+                        <div class="p-4 fixed xl:sticky bottom-0 left-0 right-0 xl:right-auto w-full bg-white dark:bg-[#0e1726] border-t border-[#e0e6ed] dark:border-[#1b2e4b] z-10 flex-shrink-0">
                             <div class="flex w-full space-x-2 rtl:space-x-reverse items-center">
                                 <div class="relative flex-1">
                                     <input id=""
@@ -1188,6 +1169,11 @@
         document.addEventListener("alpine:init", () => {
             Alpine.data("chat", () => ({
                 init() {
+                    // في الموبايل: إظهار القائمة افتراضياً
+                    if (window.innerWidth < 1280) { // xl breakpoint
+                        this.isShowChatMenu = true;
+                        this.isShowUserChat = false;
+                    }
                     // بدء polling للمحادثات عند تحميل المكون
                     setTimeout(() => {
                         this.startConversationsPolling();
@@ -1267,9 +1253,13 @@
                     // إيقاف polling السابق
                     this.stopPolling();
 
+                    // في الموبايل: إخفاء القائمة وإظهار المحادثة
+                    if (window.innerWidth < 1280) { // xl breakpoint
+                        this.isShowChatMenu = false;
+                    }
+
                     this.selectedUser = user;
                     this.isShowUserChat = true;
-                    this.isShowChatMenu = false;
 
                     // إذا كانت المجموعة، جلب الرسائل مباشرة
                     if (user.type === 'group' && user.conversationId) {
@@ -1384,12 +1374,13 @@
                     // إيقاف أي polling سابق
                     this.stopPolling();
 
-                    // بدء polling جديد كل ثانية واحدة
+                    // بدء polling جديد كل 5 ثوان (تم تحسينه من 1 ثانية لتقليل الحمل)
+                    // الاعتماد على الإشعارات الفورية (SSE + FCM + Web Push) بدلاً من polling المكثف
                     this.pollingInterval = setInterval(async () => {
                         if (this.selectedUser && this.selectedUser.conversationId) {
                             await this.loadMessages(this.selectedUser.conversationId);
                         }
-                    }, 1000); // ثانية واحدة
+                    }, 5000); // 5 ثوان (تم تحسينه من 1 ثانية)
                 },
 
                 stopPolling() {
@@ -1405,10 +1396,11 @@
                         clearInterval(this.conversationsPollingInterval);
                     }
 
-                    // بدء polling لقائمة المحادثات كل 10 ثوانٍ
+                    // بدء polling لقائمة المحادثات كل 15 ثانية (تم تحسينه من 10 ثوان)
+                    // الاعتماد على الإشعارات الفورية لتحديث القائمة
                     this.conversationsPollingInterval = setInterval(async () => {
                         await this.loadConversations();
-                    }, 10000); // 10 ثوانٍ
+                    }, 15000); // 15 ثانية (تم تحسينه من 10 ثوان)
                 },
 
                 stopConversationsPolling() {
@@ -2198,39 +2190,47 @@
                             this.lastMessageIds[conversationId] = latestMessage.id;
                         }
 
-                        // الحصول على معلومات المحادثة
-                        const conversation = this.conversationsList.find(c => c.conversationId === conversationId) ||
-                                          this.availableUsersList.find(c => c.conversationId === conversationId);
+                        // فقط إذا كانت الصفحة غير مرئية أو المستخدم ليس في هذه المحادثة
+                        // الاعتماد على نظام الإشعارات الموحد (NotificationManager) للإشعارات
+                        // هذا يمنع التكرار ويحسن الأداء
+                        if (document.visibilityState === 'hidden' ||
+                            !this.selectedUser ||
+                            this.selectedUser.conversationId !== conversationId) {
 
-                        // استخدام sender_name من الرسالة إذا كانت متوفرة (للمجموعات)، وإلا استخدم اسم المحادثة
-                        let senderName = latestMessage.sender_name || (conversation ? conversation.name : 'مستخدم');
-                        let messageText = latestMessage.text || '';
+                            // الحصول على معلومات المحادثة
+                            const conversation = this.conversationsList.find(c => c.conversationId === conversationId) ||
+                                              this.availableUsersList.find(c => c.conversationId === conversationId);
 
-                        if (!messageText) {
-                            if (latestMessage.image_url) {
-                                messageText = 'صورة';
-                            } else if (latestMessage.type === 'order' && latestMessage.order) {
-                                messageText = 'طلب: ' + (latestMessage.order.order_number || '');
-                            } else if (latestMessage.type === 'product' && latestMessage.product) {
-                                messageText = 'منتج: ' + (latestMessage.product.name || '');
-                            } else {
-                                messageText = 'رسالة جديدة';
+                            // استخدام sender_name من الرسالة إذا كانت متوفرة (للمجموعات)، وإلا استخدم اسم المحادثة
+                            let senderName = latestMessage.sender_name || (conversation ? conversation.name : 'مستخدم');
+                            let messageText = latestMessage.text || '';
+
+                            if (!messageText) {
+                                if (latestMessage.image_url) {
+                                    messageText = 'صورة';
+                                } else if (latestMessage.type === 'order' && latestMessage.order) {
+                                    messageText = 'طلب: ' + (latestMessage.order.order_number || '');
+                                } else if (latestMessage.type === 'product' && latestMessage.product) {
+                                    messageText = 'منتج: ' + (latestMessage.product.name || '');
+                                } else {
+                                    messageText = 'رسالة جديدة';
+                                }
                             }
-                        }
 
-                        // تقصير النص إذا كان طويلاً
-                        if (messageText.length > 50) {
-                            messageText = messageText.substring(0, 50) + '...';
-                        }
+                            // تقصير النص إذا كان طويلاً
+                            if (messageText.length > 50) {
+                                messageText = messageText.substring(0, 50) + '...';
+                            }
 
-                        // عرض إشعار وصوت
-                        this.showNotification(
-                            `رسالة جديدة من ${senderName}`,
-                            messageText,
-                            null,
-                            conversationId
-                        );
-                        this.playNotificationSound();
+                            // عرض إشعار وصوت (فقط إذا لم يكن المستخدم في المحادثة)
+                            this.showNotification(
+                                `رسالة جديدة من ${senderName}`,
+                                messageText,
+                                null,
+                                conversationId
+                            );
+                            this.playNotificationSound();
+                        }
                     }
                 },
 
