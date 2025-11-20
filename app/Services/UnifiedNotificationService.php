@@ -225,10 +225,23 @@ class UnifiedNotificationService
      */
     public function sendOrderNotification(Order $order, $eventType, $recipientIds = null)
     {
+        Log::info('UnifiedNotificationService: sendOrderNotification called', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'event_type' => $eventType,
+        ]);
+
         // تحديد المستلمين
         if ($recipientIds === null) {
             $recipientIds = $this->getOrderNotificationRecipients($order, $eventType);
         }
+
+        Log::info('UnifiedNotificationService: Recipients determined', [
+            'order_id' => $order->id,
+            'event_type' => $eventType,
+            'recipient_count' => count($recipientIds),
+            'recipient_ids' => $recipientIds,
+        ]);
 
         if (empty($recipientIds)) {
             Log::warning('UnifiedNotificationService: No recipients for order notification', [
@@ -241,7 +254,14 @@ class UnifiedNotificationService
         // تحديد نص الإشعار حسب نوع الحدث
         $notificationConfig = $this->getOrderNotificationConfig($order, $eventType);
 
-        return $this->send(
+        Log::info('UnifiedNotificationService: Notification config prepared', [
+            'order_id' => $order->id,
+            'event_type' => $eventType,
+            'title' => $notificationConfig['title'],
+            'body' => $notificationConfig['body'],
+        ]);
+
+        $result = $this->send(
             $recipientIds,
             $eventType,
             $notificationConfig['title'],
@@ -252,6 +272,14 @@ class UnifiedNotificationService
                 'order_status' => $order->status,
             ], $notificationConfig['data'])
         );
+
+        Log::info('UnifiedNotificationService: sendOrderNotification result', [
+            'order_id' => $order->id,
+            'event_type' => $eventType,
+            'result' => $result,
+        ]);
+
+        return $result;
     }
 
     /**
@@ -283,6 +311,16 @@ class UnifiedNotificationService
             case 'order_returned':
             case 'order_exchanged':
                 // إشعار للمندوب والمدير
+                $recipientIds = [];
+                if ($order->delegate_id) {
+                    $recipientIds[] = $order->delegate_id;
+                }
+                $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+                $recipientIds = array_merge($recipientIds, $adminIds);
+                break;
+
+            case 'order_deleted':
+                // إشعار للمندوب والمدير عند حذف الطلب
                 $recipientIds = [];
                 if ($order->delegate_id) {
                     $recipientIds[] = $order->delegate_id;
@@ -340,6 +378,15 @@ class UnifiedNotificationService
                 'data' => [
                     'action' => 'view_order',
                     'order_id' => (string)$order->id,
+                ],
+            ],
+            'order_deleted' => [
+                'title' => 'تم حذف الطلب',
+                'body' => "تم حذف الطلب: {$order->order_number}",
+                'data' => [
+                    'action' => 'view_order',
+                    'order_id' => (string)$order->id,
+                    'deletion_reason' => $order->deletion_reason ?? '',
                 ],
             ],
         ];

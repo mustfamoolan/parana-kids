@@ -158,8 +158,17 @@ class FcmService
         $tokens = FcmToken::where('user_id', $userId)->pluck('token')->toArray();
 
         if (empty($tokens)) {
+            Log::warning('FcmService: No FCM tokens found for user', [
+                'user_id' => $userId,
+                'message' => 'User needs to open the app and grant notification permission to receive push notifications',
+            ]);
             return false;
         }
+
+        Log::debug('FcmService: FCM tokens found', [
+            'user_id' => $userId,
+            'tokens_count' => count($tokens),
+        ]);
 
         return $this->sendToTokens($tokens, $title, $body, $data);
     }

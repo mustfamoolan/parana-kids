@@ -546,6 +546,13 @@ class OrderController extends Controller
                 $order->deleted_by = auth()->id();
                 $order->save();
 
+                // إرسال إشعار حذف الطلب
+                try {
+                    $this->notificationService->sendOrderNotification($order, 'order_deleted');
+                } catch (\Exception $e) {
+                    \Log::error('Delegate/OrderController: Error sending order_deleted notification: ' . $e->getMessage());
+                }
+
                 // soft delete للطلب
                 $order->delete();
             });
