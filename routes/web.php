@@ -317,15 +317,16 @@ Route::post('/api/chat/add-participants', [App\Http\Controllers\ChatController::
 Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController::class, 'removeParticipantFromGroup'])->name('chat.remove-participant');
 Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
 
-// Notification API Routes
+    // Notification API Routes
 Route::middleware('auth')->group(function () {
     Route::get('/api/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'getUnreadCount'])->name('api.notifications.unread-count');
     Route::get('/api/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications'])->name('api.notifications.index');
     Route::post('/api/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('api.notifications.mark-read');
     Route::post('/api/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('api.notifications.mark-all-read');
 
-    // SSE Stream Route
-    Route::get('/api/sse/stream', [App\Http\Controllers\SseController::class, 'stream'])->name('api.sse.stream');
+    // FCM Token Routes
+    Route::post('/api/fcm/token', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('api.fcm.token');
+    Route::delete('/api/fcm/token', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('api.fcm.token.delete');
 });
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');

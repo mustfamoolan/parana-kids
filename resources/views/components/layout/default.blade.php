@@ -26,11 +26,11 @@
     <script defer src="/assets/js/tippy-bundle.umd.min.js"></script>
     <script defer src="/assets/js/sweetalert.min.js"></script>
 
-    <!-- Firebase SDK for FCM -->
-    @if(request()->is('apps/chat'))
+    <!-- Firebase SDK for FCM - محمّل في جميع الصفحات للإشعارات -->
+    @auth
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
-    @endif
+    @endauth
 
     @vite(['resources/css/app.css'])
 </head>

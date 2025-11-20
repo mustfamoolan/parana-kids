@@ -429,65 +429,14 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// معالجة messages من الصفحة الرئيسية (للإشعارات عبر SSE)
+// معالجة messages من الصفحة الرئيسية (للتحديثات فقط)
 self.addEventListener('message', async (event) => {
-  console.log('[SW] Message received from page:', event.data);
-
-  if (event.data && event.data.type === 'SSE_NOTIFICATION') {
-    const notification = event.data.notification;
-    const title = notification.title || 'رسالة جديدة';
-    const body = notification.body || notification.message_text || 'لديك رسالة جديدة';
-    const data = notification.data || {};
-    const notificationType = data.type || notification.type || 'message';
-    const soundFile = getNotificationSound(notificationType);
-
-    console.log('[SW] Showing SSE notification:', title, '-', body, '- Type:', notificationType);
-
-    const options = {
-      body: body,
-      icon: '/assets/images/icons/icon-192x192.png',
-      badge: '/assets/images/icons/icon-192x192.png',
-      vibrate: [200, 100, 200],
-      silent: false,
-      dir: 'rtl',
-      lang: 'ar',
-      tag: `${notificationType}-${data.conversation_id || data.order_id || 'new'}`,
-      requireInteraction: false,
-      data: data,
-      timestamp: Date.now(),
-    };
-
-    // تشغيل الصوت إذا كان متاحاً
-    try {
-      const audio = new Audio(soundFile);
-      audio.volume = 0.5;
-      await audio.play().catch(err => {
-        console.log('[SW] Could not play notification sound:', err);
-      });
-    } catch (error) {
-      console.log('[SW] Error playing sound:', error);
-    }
-
-    // تحديث Badge counter
-    try {
-      const currentBadge = await navigator.getAppBadge ? await navigator.getAppBadge() : 0;
-      await updateBadge((currentBadge || 0) + 1);
-    } catch (error) {
-      console.log('[SW] Error updating badge:', error);
-    }
-
-    self.registration.showNotification(title, options)
-      .then(() => {
-        console.log('[SW] ✅ SSE notification shown successfully');
-      })
-      .catch((error) => {
-        console.error('[SW] ❌ Error showing SSE notification:', error);
-      });
-  } else if (event.data && event.data.type === 'UPDATE_BADGE') {
+  if (event.data && event.data.type === 'UPDATE_BADGE') {
     // تحديث Badge من الصفحة الرئيسية
     const count = event.data.count || 0;
     await updateBadge(count);
   }
+  // Firebase Messaging يتعامل مع الإشعارات تلقائياً - لا حاجة لـ SSE
 });
 
 // معالجة الإشعارات في الخلفية (عندما يكون الموقع مغلق)

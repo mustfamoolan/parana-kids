@@ -31,11 +31,10 @@ class SseNotificationService
             );
 
             if ($notification) {
-                Log::info('SSE notification saved', [
+                // تقليل الـ logs
+                Log::debug('SSE notification saved', [
                     'user_id' => $userId,
                     'notification_id' => $notification->id,
-                    'title' => $title,
-                    'body' => $body,
                 ]);
                 return true;
             }
@@ -61,8 +60,9 @@ class SseNotificationService
             }
         }
 
-        Log::info('SSE notification sent to users', [
-            'user_ids' => $userIds,
+        // تقليل الـ logs
+        Log::debug('SSE notification sent to users', [
+            'user_count' => count($userIds),
             'success_count' => $successCount,
         ]);
 
@@ -97,7 +97,8 @@ class SseNotificationService
                 })
                 ->toArray();
 
-            Log::info('SSE notifications retrieved', [
+            // تقليل الـ logs - فقط في حالة debug
+            Log::debug('SSE notifications retrieved', [
                 'user_id' => $userId,
                 'count' => count($notifications),
             ]);

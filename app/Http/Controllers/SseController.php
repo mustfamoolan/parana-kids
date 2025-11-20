@@ -37,7 +37,7 @@ class SseController extends Controller
             $lastPing = time();
             $pingInterval = 30;
             $lastCheck = 0;
-            $checkInterval = 0.1; // فحص كل 0.1 ثانية (100ms) لإشعارات فورية
+            $checkInterval = 2.5; // فحص كل 2.5 ثانية (محسّن للأداء - كان 0.1s)
 
             while (true) {
                 // التحقق من انقطاع الاتصال
@@ -62,16 +62,10 @@ class SseController extends Controller
                         $notifications = $this->sseService->getNotificationsForUser($user->id);
 
                         if (!empty($notifications)) {
-                            Log::info('SSE sending notifications', [
+                            // تقليل الـ logs - فقط عند وجود إشعارات جديدة
+                            Log::debug('SSE sending notifications', [
                                 'user_id' => $user->id,
                                 'count' => count($notifications),
-                                'notifications' => array_map(function($n) {
-                                    return [
-                                        'id' => $n['id'] ?? null,
-                                        'title' => $n['title'] ?? 'N/A',
-                                        'body' => substr($n['body'] ?? 'N/A', 0, 50),
-                                    ];
-                                }, $notifications),
                             ]);
 
                             $sentNotificationIds = [];
@@ -90,29 +84,24 @@ class SseController extends Controller
                                     $sentNotificationIds[] = $notification['id'];
                                 }
 
-                                Log::info('SSE notification sent to client', [
+                                // تقليل الـ logs - فقط في حالة debug
+                                Log::debug('SSE notification sent', [
                                     'user_id' => $user->id,
                                     'notification_id' => $notification['id'] ?? null,
-                                    'title' => $notification['title'] ?? 'N/A',
-                                    'body' => substr($notification['body'] ?? 'N/A', 0, 50),
                                 ]);
                             }
 
                             // تحديد الإشعارات التي تم إرسالها كمقروءة فقط
                             if (!empty($sentNotificationIds)) {
                                 $cleared = $this->sseService->clearNotificationsForUser($user->id, $sentNotificationIds);
-                                Log::info('SSE notifications marked as read', [
+                                // تقليل الـ logs
+                                Log::debug('SSE notifications marked as read', [
                                     'user_id' => $user->id,
                                     'cleared_count' => $cleared,
-                                    'notification_ids' => $sentNotificationIds,
                                 ]);
                             }
-                        } else {
-                            // Log فقط كل 10 ثوان لتقليل الـ logs
-                            if (($currentTime - $lastCheck) >= 10) {
-                                Log::debug('SSE no notifications found', ['user_id' => $user->id]);
-                            }
                         }
+                        // إزالة log "no notifications found" لتقليل الـ logs
                     } catch (\Exception $e) {
                         Log::error('SSE error getting notifications: ' . $e->getMessage(), [
                             'user_id' => $user->id,
@@ -123,8 +112,8 @@ class SseController extends Controller
                     $lastCheck = $currentTime;
                 }
 
-                // انتظار قصير لتقليل استهلاك CPU
-                usleep(100000); // 0.1 ثانية
+                // انتظار قصير لتقليل استهلاك CPU (محسّن)
+                usleep(500000); // 0.5 ثانية (كان 0.1s)
             }
         });
 

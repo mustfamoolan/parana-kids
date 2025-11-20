@@ -12,18 +12,15 @@ class UnifiedNotificationService
     protected $fcmService;
     protected $webPushService;
     protected $notificationService;
-    protected $sseNotificationService;
 
     public function __construct(
         FcmService $fcmService,
         WebPushService $webPushService,
-        NotificationService $notificationService,
-        SseNotificationService $sseNotificationService
+        NotificationService $notificationService
     ) {
         $this->fcmService = $fcmService;
         $this->webPushService = $webPushService;
         $this->notificationService = $notificationService;
-        $this->sseNotificationService = $sseNotificationService;
     }
 
     /**
@@ -63,7 +60,7 @@ class UnifiedNotificationService
         // إرسال عبر جميع القنوات لكل مستخدم
         foreach ($userIds as $userId) {
             try {
-                // 1. حفظ الإشعار في قاعدة البيانات (SSE + Database)
+                // 1. حفظ الإشعار في قاعدة البيانات (للتاريخ فقط)
                 $notification = $this->notificationService->send(
                     $userId,
                     $type,
@@ -72,15 +69,7 @@ class UnifiedNotificationService
                     $notificationData
                 );
 
-                if (!$notification) {
-                    Log::warning('UnifiedNotificationService: Failed to save notification', [
-                        'user_id' => $userId,
-                        'type' => $type,
-                    ]);
-                    continue;
-                }
-
-                // 2. إرسال عبر FCM (للموبايل)
+                // 2. إرسال عبر FCM (للموبايل والديسكتوب) - Push فوري بدون polling
                 try {
                     $this->fcmService->sendToUser($userId, $title, $body, $notificationData);
                 } catch (\Exception $e) {
@@ -90,11 +79,11 @@ class UnifiedNotificationService
                     ]);
                 }
 
-                // 3. إرسال عبر Web Push (للديسكتوب)
+                // 3. إرسال عبر Web Push (للديسكتوب - fallback)
                 try {
                     $this->webPushService->sendToUser($userId, $title, $body, $notificationData);
                 } catch (\Exception $e) {
-                    Log::warning('UnifiedNotificationService: Web Push failed', [
+                    Log::debug('UnifiedNotificationService: Web Push failed (non-critical)', [
                         'user_id' => $userId,
                         'error' => $e->getMessage(),
                     ]);
@@ -112,11 +101,19 @@ class UnifiedNotificationService
             }
         }
 
-        Log::info('UnifiedNotificationService: Notifications sent', [
-            'type' => $type,
-            'total_users' => $totalUsers,
-            'success_count' => $successCount,
-        ]);
+        // تقليل الـ logs - فقط عند وجود أخطاء أو معلومات مهمة
+        if ($successCount < $totalUsers) {
+            Log::warning('UnifiedNotificationService: Some notifications failed', [
+                'type' => $type,
+                'total_users' => $totalUsers,
+                'success_count' => $successCount,
+            ]);
+        } else {
+            Log::debug('UnifiedNotificationService: Notifications sent', [
+                'type' => $type,
+                'total_users' => $totalUsers,
+            ]);
+        }
 
         return $successCount > 0;
     }

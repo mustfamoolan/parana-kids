@@ -85,8 +85,9 @@ class FcmService
             return false;
         }
 
-        Log::info('FCM tokens found for users', [
-            'user_ids' => $userIds,
+        // تقليل الـ logs
+        Log::debug('FCM tokens found', [
+            'user_count' => count($userIds),
             'tokens_count' => count($tokens),
         ]);
 
@@ -130,10 +131,8 @@ class FcmService
                     ],
                 ]);
 
-            Log::info('FCM message prepared', [
-                'title' => $title,
-                'body' => $body,
-                'data' => $data,
+            // تقليل الـ logs
+            Log::debug('FCM message prepared', [
                 'tokens_count' => count($tokens),
             ]);
 
@@ -152,10 +151,17 @@ class FcmService
                 }
             }
 
-            Log::info('FCM notification sent', [
-                'success' => $report->successes()->count(),
-                'failures' => $report->failures()->count(),
-            ]);
+            // تقليل الـ logs - فقط عند وجود أخطاء
+            if ($report->hasFailures()) {
+                Log::warning('FCM notification partially failed', [
+                    'success' => $report->successes()->count(),
+                    'failures' => $report->failures()->count(),
+                ]);
+            } else {
+                Log::debug('FCM notification sent successfully', [
+                    'success' => $report->successes()->count(),
+                ]);
+            }
 
             return true;
         } catch (MessagingException $e) {
