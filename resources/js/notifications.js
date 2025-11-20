@@ -373,6 +373,37 @@ class NotificationManager {
 // إنشاء instance عام
 window.notificationManager = new NotificationManager();
 
+// إغلاق أي اتصالات SSE قديمة فوراً (للمتصفحات التي ما زالت تستخدم نسخة قديمة)
+if (window.notificationManager && window.notificationManager.sseEventSource) {
+    try {
+        window.notificationManager.sseEventSource.close();
+        window.notificationManager.sseEventSource = null;
+        window.notificationManager.isInitialized = false;
+        console.log('NotificationManager: Closed old SSE connection');
+    } catch (e) {
+        console.log('NotificationManager: Error closing old SSE connection:', e);
+    }
+}
+
+// إغلاق أي EventSource مفتوحة على /api/sse/stream
+if (typeof EventSource !== 'undefined') {
+    // البحث عن أي EventSource مفتوحة وإغلاقها
+    const closeAllSSE = () => {
+        // لا يمكن الوصول مباشرة إلى EventSource instances، لكن يمكن محاولة إغلاقها
+        // عبر إرسال رسالة إلى Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                if (registration.active) {
+                    registration.active.postMessage({
+                        type: 'CLOSE_SSE'
+                    });
+                }
+            });
+        }
+    };
+    closeAllSSE();
+}
+
 // تهيئة تلقائية عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', () => {
     // طلب إذن الإشعارات

@@ -22,6 +22,11 @@ class SseController extends Controller
      */
     public function stream()
     {
+        // SSE تم إزالته - استخدام Firebase FCM بدلاً منه
+        // إرجاع 404 فوراً لإغلاق أي اتصالات قديمة
+        abort(404, 'SSE endpoint has been removed. Please use Firebase FCM instead.');
+
+        // الكود التالي لن يتم تنفيذه أبداً (للأمان فقط)
         $user = Auth::user();
 
         if (!$user) {
