@@ -17,30 +17,61 @@ class FcmService
     public function __construct()
     {
         try {
-            $credentialsPath = config('services.firebase.credentials');
+            // محاولة قراءة من Base64 أولاً (لـ Laravel Cloud)
+            $credentialsBase64 = env('FIREBASE_CREDENTIALS_BASE64');
+            $tempPath = null;
 
-            // إذا كان المسار نسبي، تحويله إلى مسار مطلق
-            if (!str_starts_with($credentialsPath, '/') && !preg_match('/^[A-Za-z]:\\\\/', $credentialsPath)) {
-                $credentialsPath = storage_path('app/' . basename($credentialsPath));
-            }
-
-            if (!file_exists($credentialsPath)) {
-                Log::warning('Firebase credentials file not found: ' . $credentialsPath);
-                Log::warning('Trying alternative path: ' . storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json'));
-
-                // محاولة المسار البديل
-                $alternativePath = storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json');
-                if (file_exists($alternativePath)) {
-                    $credentialsPath = $alternativePath;
-                    Log::info('Using alternative path: ' . $credentialsPath);
-                } else {
+            if ($credentialsBase64) {
+                // فك تشفير Base64 وإنشاء ملف مؤقت
+                $credentialsJson = base64_decode($credentialsBase64);
+                if ($credentialsJson === false) {
+                    Log::error('Failed to decode FIREBASE_CREDENTIALS_BASE64');
                     return;
+                }
+
+                $tempPath = sys_get_temp_dir() . '/firebase-credentials-' . uniqid() . '.json';
+                $written = file_put_contents($tempPath, $credentialsJson);
+
+                if ($written === false) {
+                    Log::error('Failed to write Firebase credentials to temp file: ' . $tempPath);
+                    return;
+                }
+
+                $credentialsPath = $tempPath;
+                Log::info('Firebase credentials loaded from Base64');
+            } else {
+                // الطريقة القديمة (للتطوير المحلي)
+                $credentialsPath = config('services.firebase.credentials');
+
+                // إذا كان المسار نسبي، تحويله إلى مسار مطلق
+                if (!str_starts_with($credentialsPath, '/') && !preg_match('/^[A-Za-z]:\\\\/', $credentialsPath)) {
+                    $credentialsPath = storage_path('app/' . basename($credentialsPath));
+                }
+
+                if (!file_exists($credentialsPath)) {
+                    Log::warning('Firebase credentials file not found: ' . $credentialsPath);
+                    Log::warning('Trying alternative path: ' . storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json'));
+
+                    // محاولة المسار البديل
+                    $alternativePath = storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json');
+                    if (file_exists($alternativePath)) {
+                        $credentialsPath = $alternativePath;
+                        Log::info('Using alternative path: ' . $credentialsPath);
+                    } else {
+                        Log::error('Firebase credentials not found. Please set FIREBASE_CREDENTIALS_BASE64 in environment variables for Laravel Cloud.');
+                        return;
+                    }
                 }
             }
 
             $factory = (new Factory)->withServiceAccount($credentialsPath);
             $this->messaging = $factory->createMessaging();
             Log::info('Firebase initialized successfully');
+
+            // حذف الملف المؤقت إذا كان من Base64
+            if ($tempPath && file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
         } catch (\Exception $e) {
             Log::error('Failed to initialize Firebase: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
