@@ -37,7 +37,7 @@ class SseController extends Controller
             $lastPing = time();
             $pingInterval = 30;
             $lastCheck = 0;
-            $checkInterval = 0.5; // فحص كل 0.5 ثانية
+            $checkInterval = 0.1; // فحص كل 0.1 ثانية (100ms) لإشعارات فورية
 
             while (true) {
                 // التحقق من انقطاع الاتصال

@@ -61,8 +61,8 @@
         </svg>
     </div>
 
-    <div class="fixed bottom-6 ltr:right-6 rtl:left-6 z-50" x-data="scrollToTop">
-        <template x-if="showTopButton">
+    <div class="fixed bottom-6 ltr:right-6 rtl:left-6 z-50" x-data="scrollToTop" x-show="showTopButton && !window.location.pathname.includes('/apps/chat')">
+        <template x-if="showTopButton && !window.location.pathname.includes('/apps/chat')">
             <button type="button"
                 class="btn btn-outline-primary rounded-full p-2 animate-pulse bg-[#fafafa] dark:bg-[#060818] dark:hover:bg-primary"
                 @click="goToTop">
@@ -104,8 +104,6 @@
             }));
         });
     </script>
-
-    <x-common.theme-customiser />
 
     <div class="main-container text-black dark:text-white-dark min-h-screen" :class="[$store.app.navbar]">
 

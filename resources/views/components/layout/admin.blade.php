@@ -98,8 +98,6 @@
         });
     </script>
 
-    <x-common.theme-customiser />
-
     <div class="main-container text-black dark:text-white-dark min-h-screen" :class="[$store.app.navbar]">
 
         <!-- Admin Sidebar -->

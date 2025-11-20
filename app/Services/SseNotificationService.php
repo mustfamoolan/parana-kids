@@ -77,15 +77,20 @@ class SseNotificationService
         try {
             $notifications = AppNotification::forUser($userId)
                 ->unread()
-                ->ofType('message')
+                // إزالة ->ofType('message') لجلب جميع أنواع الإشعارات (رسائل، طلبات، إلخ)
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()
                 ->map(function ($notification) {
+                    // استخدام message أو body حسب ما هو متاح
+                    $body = $notification->message ?: ($notification->data['body'] ?? $notification->data['message_text'] ?? 'لديك إشعار جديد');
+
                     return [
                         'id' => $notification->id,
+                        'type' => $notification->type, // إضافة type للإشعار
                         'title' => $notification->title,
-                        'body' => $notification->message, // استخدام message من الجدول
+                        'body' => $body,
+                        'message' => $notification->message, // إضافة message أيضاً
                         'data' => $notification->data ?? [],
                         'timestamp' => $notification->created_at->timestamp,
                     ];
@@ -112,8 +117,8 @@ class SseNotificationService
     {
         try {
             $query = AppNotification::forUser($userId)
-                ->unread()
-                ->ofType('message');
+                ->unread();
+            // إزالة ->ofType('message') لجلب جميع أنواع الإشعارات
 
             // إذا تم تمرير IDs، نحدد فقط هذه الإشعارات
             if (!empty($notificationIds)) {

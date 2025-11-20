@@ -228,6 +228,9 @@ Route::prefix('delegate')->group(function () {
     Route::middleware(['delegate', 'check.cart.expiration'])->group(function () {
         Route::get('/dashboard', [DelegateDashboardController::class, 'index'])->name('delegate.dashboard');
 
+        // Settings routes
+        Route::get('settings', [\App\Http\Controllers\Delegate\SettingController::class, 'index'])->name('delegate.settings.index');
+
         // الصفحة الرئيسية - جميع المنتجات
         Route::get('/products', [DelegateProductController::class, 'allProducts'])->name('delegate.products.all');
 
@@ -313,6 +316,17 @@ Route::post('/api/chat/create-group', [App\Http\Controllers\ChatController::clas
 Route::post('/api/chat/add-participants', [App\Http\Controllers\ChatController::class, 'addParticipantsToGroup'])->name('chat.add-participants');
 Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController::class, 'removeParticipantFromGroup'])->name('chat.remove-participant');
 Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
+
+// Notification API Routes
+Route::middleware('auth')->group(function () {
+    Route::get('/api/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'getUnreadCount'])->name('api.notifications.unread-count');
+    Route::get('/api/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications'])->name('api.notifications.index');
+    Route::post('/api/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('api.notifications.mark-read');
+    Route::post('/api/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('api.notifications.mark-all-read');
+
+    // SSE Stream Route
+    Route::get('/api/sse/stream', [App\Http\Controllers\SseController::class, 'stream'])->name('api.sse.stream');
+});
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');
 Route::view('/apps/notes', 'apps.notes');

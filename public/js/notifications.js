@@ -130,6 +130,7 @@ class NotificationManager {
 
     /**
      * عرض Toast Notification باستخدام SweetAlert
+     * يعمل لجميع أنواع الإشعارات: رسائل، طلبات، تحديثات حالة
      */
     showToastNotification(notification) {
         console.log('NotificationManager: showToastNotification called', notification);
@@ -148,34 +149,86 @@ class NotificationManager {
             return;
         }
 
-        const title = notification.title || 'رسالة جديدة';
-        const body = notification.body || notification.message_text || notification.data?.message_text || 'لديك رسالة جديدة';
-        const message = `${title}: ${body}`;
+        // تحديد نوع الإشعار والرابط المناسب
+        const notificationType = notification.type || notification.data?.type || 'message';
+        const title = notification.title || 'إشعار جديد';
+        const body = notification.body || notification.message || notification.message_text || notification.data?.message_text || 'لديك إشعار جديد';
 
-        console.log('NotificationManager: Showing toast:', message);
+        // تحديد الرابط حسب نوع الإشعار
+        let clickUrl = null;
+        let iconType = 'info';
+
+        if (notificationType === 'message' || notification.data?.conversation_id || notification.conversation_id) {
+            // رسالة جديدة
+            const convId = notification.data?.conversation_id || notification.conversation_id;
+            if (convId) {
+                clickUrl = `/apps/chat?conversation=${convId}`;
+            } else {
+                clickUrl = '/apps/chat';
+            }
+            iconType = 'info';
+        } else if (notificationType.startsWith('order_') || notification.data?.order_id || notification.order_id) {
+            // جميع أنواع إشعارات الطلبات: order_created, order_confirmed, order_cancelled, order_returned, order_exchanged
+            const orderId = notification.data?.order_id || notification.order_id;
+            if (orderId) {
+                // تحديد الرابط حسب دور المستخدم
+                if (window.location.pathname.includes('/admin/')) {
+                    clickUrl = `/admin/orders/${orderId}/process`;
+                } else if (window.location.pathname.includes('/delegate/')) {
+                    clickUrl = `/delegate/orders/${orderId}`;
+                } else {
+                    clickUrl = `/delegate/orders/${orderId}`;
+                }
+            } else {
+                // إذا لم يكن هناك order_id، اذهب إلى صفحة الطلبات
+                if (window.location.pathname.includes('/admin/')) {
+                    clickUrl = '/admin/orders';
+                } else {
+                    clickUrl = '/delegate/orders';
+                }
+            }
+            // تحديد أيقونة حسب نوع الطلب
+            if (notificationType === 'order_created') {
+                iconType = 'success';
+            } else if (notificationType === 'order_cancelled' || notificationType === 'order_returned') {
+                iconType = 'error';
+            } else {
+                iconType = 'warning';
+            }
+        } else {
+            // أنواع أخرى من الإشعارات
+            iconType = 'info';
+        }
+
+        const message = body.length > 100 ? body.substring(0, 100) + '...' : body;
+
+        console.log('NotificationManager: Showing toast:', title, '-', message, '- URL:', clickUrl);
 
         try {
             const toast = window.Swal.mixin({
                 toast: true,
                 position: 'top',
                 showConfirmButton: false,
-                timer: 5000,
+                timer: 6000, // 6 ثوان للطلبات (أطول قليلاً)
                 showCloseButton: true,
                 didOpen: (toastEl) => {
                     console.log('NotificationManager: Toast opened');
-                    toastEl.addEventListener('click', () => {
-                        // الانتقال للمحادثة عند الضغط على Toast
-                        if (notification.data?.conversation_id || notification.conversation_id) {
-                            const convId = notification.data?.conversation_id || notification.conversation_id;
-                            window.location.href = `/apps/chat?conversation=${convId}`;
-                        }
-                    });
+
+                    // جعل Toast قابل للنقر إذا كان هناك رابط
+                    if (clickUrl) {
+                        toastEl.style.cursor = 'pointer';
+                        toastEl.addEventListener('click', () => {
+                            console.log('NotificationManager: Toast clicked, navigating to:', clickUrl);
+                            window.location.href = clickUrl;
+                        });
+                    }
                 }
             });
 
             toast.fire({
-                title: message,
-                icon: 'info',
+                title: `<strong>${title}</strong><br><small>${message}</small>`,
+                icon: iconType,
+                html: true,
             }).then(() => {
                 console.log('NotificationManager: Toast shown successfully');
             }).catch((error) => {
@@ -408,17 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // بدء polling لتحديث عدد الإشعارات
     window.notificationManager.startPolling();
 
-    // Test notification بعد 2 ثوان للتحقق من عمل النظام
-    setTimeout(() => {
-        console.log('NotificationManager: Testing notification system...');
-        if (typeof window.Swal !== 'undefined') {
-            console.log('NotificationManager: SweetAlert is available');
-            // Test toast
-            window.showMessage('نظام الإشعارات يعمل!', 'top');
-        } else {
-            console.error('NotificationManager: SweetAlert is NOT available');
-        }
-    }, 2000);
+    console.log('NotificationManager: Initialized successfully');
 });
 
 // إغلاق SSE عند إغلاق الصفحة

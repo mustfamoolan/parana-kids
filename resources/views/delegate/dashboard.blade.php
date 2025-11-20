@@ -111,6 +111,18 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">إنشاء رابط للمنتجات</p>
             </a>
 
+            <!-- 6. الإعدادات -->
+            <a href="{{ route('delegate.settings.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 border-2 border-secondary/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path opacity="0.5" d="M12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C22 4.92893 22 7.28595 22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22Z" fill="currentColor" />
+                        <path d="M12 15.5C13.933 15.5 15.5 13.933 15.5 12C15.5 10.067 13.933 8.5 12 8.5C10.067 8.5 8.5 10.067 8.5 12C8.5 13.933 10.067 15.5 12 15.5Z" fill="currentColor" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-secondary mb-2">الإعدادات</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إعدادات المظهر والتخصيص</p>
+            </a>
+
         </div>
     </div>
 
