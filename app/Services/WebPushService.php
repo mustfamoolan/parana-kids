@@ -45,7 +45,8 @@ class WebPushService
         $subscriptions = PushSubscription::where('user_id', $userId)->get();
 
         if ($subscriptions->isEmpty()) {
-            Log::warning('No push subscriptions found for user', ['user_id' => $userId]);
+            // هذا طبيعي - FCM يعمل كقناة أساسية، Web Push هو fallback فقط
+            Log::debug('No push subscriptions found for user (FCM is primary channel)', ['user_id' => $userId]);
             return false;
         }
 
@@ -89,9 +90,9 @@ class WebPushService
         }
 
         if ($subscriptions->isEmpty()) {
-            Log::warning('No push subscriptions found for users', [
+            // هذا طبيعي - FCM يعمل كقناة أساسية، Web Push هو fallback فقط
+            Log::debug('No push subscriptions found for users (FCM is primary channel)', [
                 'user_ids' => $userIds,
-                'message' => 'All users need to open the chat page and grant notification permission to receive push notifications',
             ]);
             return false;
         }

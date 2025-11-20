@@ -79,14 +79,20 @@ class UnifiedNotificationService
                     ]);
                 }
 
-                // 3. إرسال عبر Web Push (للديسكتوب - fallback)
+                // 3. إرسال عبر Web Push (للديسكتوب - fallback اختياري)
+                // ملاحظة: FCM يعمل كقناة أساسية، Web Push هو fallback فقط
+                // إذا لم يكن هناك Web Push subscriptions، هذا طبيعي ولا يؤثر على عمل النظام
                 try {
                     $this->webPushService->sendToUser($userId, $title, $body, $notificationData);
                 } catch (\Exception $e) {
-                    Log::debug('UnifiedNotificationService: Web Push failed (non-critical)', [
-                        'user_id' => $userId,
-                        'error' => $e->getMessage(),
-                    ]);
+                    // Web Push فشل - هذا غير حرج لأن FCM يعمل
+                    // لا نسجل خطأ إلا في حالة وجود مشكلة حقيقية
+                    if (strpos($e->getMessage(), 'No push subscriptions') === false) {
+                        Log::debug('UnifiedNotificationService: Web Push failed (non-critical)', [
+                            'user_id' => $userId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
                 $successCount++;

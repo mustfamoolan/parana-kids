@@ -22,11 +22,33 @@ class FcmService
             $tempPath = null;
 
             if ($credentialsBase64) {
+                // تنظيف Base64 string (إزالة المسافات والأحرف غير المرئية)
+                $credentialsBase64 = trim($credentialsBase64);
+                $credentialsBase64 = preg_replace('/\s+/', '', $credentialsBase64);
+
                 // فك تشفير Base64 وإنشاء ملف مؤقت
-                $credentialsJson = base64_decode($credentialsBase64);
+                $credentialsJson = base64_decode($credentialsBase64, true); // strict mode
+
                 if ($credentialsJson === false) {
-                    Log::error('Failed to decode FIREBASE_CREDENTIALS_BASE64');
+                    Log::error('Failed to decode FIREBASE_CREDENTIALS_BASE64 - Invalid Base64 string');
                     return;
+                }
+
+                // التحقق من أن النتيجة JSON صحيحة
+                $decoded = json_decode($credentialsJson, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    Log::error('FIREBASE_CREDENTIALS_BASE64 decoded but is not valid JSON: ' . json_last_error_msg());
+                    Log::error('First 200 chars of decoded string: ' . substr($credentialsJson, 0, 200));
+                    return;
+                }
+
+                // التحقق من وجود الحقول المطلوبة
+                $requiredFields = ['type', 'project_id', 'private_key', 'client_email'];
+                foreach ($requiredFields as $field) {
+                    if (!isset($decoded[$field])) {
+                        Log::error("FIREBASE_CREDENTIALS_BASE64 missing required field: {$field}");
+                        return;
+                    }
                 }
 
                 $tempPath = sys_get_temp_dir() . '/firebase-credentials-' . uniqid() . '.json';
@@ -37,8 +59,14 @@ class FcmService
                     return;
                 }
 
+                // التأكد من أن الملف تم كتابته بشكل صحيح
+                if (!file_exists($tempPath) || filesize($tempPath) === 0) {
+                    Log::error('Firebase credentials file was not written correctly');
+                    return;
+                }
+
                 $credentialsPath = $tempPath;
-                Log::info('Firebase credentials loaded from Base64');
+                Log::info('Firebase credentials loaded from Base64 and validated');
             } else {
                 // الطريقة القديمة (للتطوير المحلي)
                 $credentialsPath = config('services.firebase.credentials');
@@ -64,17 +92,57 @@ class FcmService
                 }
             }
 
+            // التحقق من صلاحيات الملف قبل الاستخدام
+            if (!is_readable($credentialsPath)) {
+                Log::error('Firebase credentials file is not readable: ' . $credentialsPath);
+                if ($tempPath && file_exists($tempPath)) {
+                    @unlink($tempPath);
+                }
+                return;
+            }
+
+            // محاولة قراءة الملف للتأكد من أنه JSON صحيح
+            $fileContent = file_get_contents($credentialsPath);
+            $testDecode = json_decode($fileContent, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Firebase credentials file contains invalid JSON: ' . json_last_error_msg());
+                if ($tempPath && file_exists($tempPath)) {
+                    @unlink($tempPath);
+                }
+                return;
+            }
+
             $factory = (new Factory)->withServiceAccount($credentialsPath);
             $this->messaging = $factory->createMessaging();
             Log::info('Firebase initialized successfully');
 
-            // حذف الملف المؤقت إذا كان من Base64
+            // حذف الملف المؤقت إذا كان من Base64 (بعد التأكد من نجاح التهيئة)
             if ($tempPath && file_exists($tempPath)) {
-                @unlink($tempPath);
+                // تأخير الحذف قليلاً للتأكد من أن Firebase انتهى من القراءة
+                register_shutdown_function(function() use ($tempPath) {
+                    if (file_exists($tempPath)) {
+                        @unlink($tempPath);
+                    }
+                });
             }
         } catch (\Exception $e) {
             Log::error('Failed to initialize Firebase: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Error class: ' . get_class($e));
+
+            // إذا كان هناك ملف مؤقت، احذفه
+            if (isset($tempPath) && $tempPath && file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
+
+            // تسجيل معلومات إضافية للمساعدة في التشخيص
+            if (isset($credentialsPath)) {
+                Log::error('Credentials path: ' . $credentialsPath);
+                Log::error('File exists: ' . (file_exists($credentialsPath) ? 'yes' : 'no'));
+                if (file_exists($credentialsPath)) {
+                    Log::error('File size: ' . filesize($credentialsPath) . ' bytes');
+                    Log::error('File readable: ' . (is_readable($credentialsPath) ? 'yes' : 'no'));
+                }
+            }
         }
     }
 
