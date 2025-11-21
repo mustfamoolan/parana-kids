@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\UnifiedNotificationService;
+use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +17,12 @@ use Illuminate\Support\Facades\Storage;
 class ChatController extends Controller
 {
     protected $notificationService;
+    protected $sweetAlertService;
 
-    public function __construct(UnifiedNotificationService $notificationService)
+    public function __construct(UnifiedNotificationService $notificationService, SweetAlertService $sweetAlertService)
     {
         $this->notificationService = $notificationService;
+        $this->sweetAlertService = $sweetAlertService;
     }
 
     /**
@@ -405,6 +408,40 @@ class ChatController extends Controller
                 );
             } catch (\Exception $e) {
                 \Log::error('Chat - Error sending notification: ' . $e->getMessage());
+            }
+
+            // إرسال SweetAlert للمستلم
+            try {
+                $otherParticipant = $conversation->getOtherParticipant($user->id);
+                if ($otherParticipant) {
+                    $messageText = $request->input('message', '');
+                    if ($messageType === 'image') {
+                        $messageText = 'صورة';
+                    }
+                    $this->sweetAlertService->notifyNewMessage(
+                        $conversationId,
+                        $user->id,
+                        $otherParticipant->id,
+                        $messageText
+                    );
+                } elseif ($conversation->isGroup()) {
+                    // للمجموعات: إرسال لجميع المشاركين عدا المرسل
+                    $participants = $conversation->participants()->where('user_id', '!=', $user->id)->get();
+                    foreach ($participants as $participant) {
+                        $messageText = $request->input('message', '');
+                        if ($messageType === 'image') {
+                            $messageText = 'صورة';
+                        }
+                        $this->sweetAlertService->notifyNewMessage(
+                            $conversationId,
+                            $user->id,
+                            $participant->id,
+                            $messageText
+                        );
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Chat - Error sending SweetAlert: ' . $e->getMessage());
             }
 
             // Log للتأكد من إرسال الرسالة

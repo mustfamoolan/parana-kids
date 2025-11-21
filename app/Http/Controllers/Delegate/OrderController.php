@@ -11,16 +11,19 @@ use App\Models\Product;
 use App\Models\ProductSize;
 use App\Models\ProductMovement;
 use App\Services\UnifiedNotificationService;
+use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
     protected $notificationService;
+    protected $sweetAlertService;
 
-    public function __construct(UnifiedNotificationService $notificationService)
+    public function __construct(UnifiedNotificationService $notificationService, SweetAlertService $sweetAlertService)
     {
         $this->notificationService = $notificationService;
+        $this->sweetAlertService = $sweetAlertService;
     }
 
     /**
@@ -319,6 +322,13 @@ class OrderController extends Controller
             \Log::error('Delegate/OrderController: Error sending order_created notification: ' . $e->getMessage());
         }
 
+        // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
+        try {
+            $this->sweetAlertService->notifyOrderCreated($order);
+        } catch (\Exception $e) {
+            \Log::error('Delegate/OrderController: Error sending SweetAlert for order_created: ' . $e->getMessage());
+        }
+
         return redirect()->route('delegate.orders.show', $order)
                         ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number);
     }
@@ -551,6 +561,13 @@ class OrderController extends Controller
                     $this->notificationService->sendOrderNotification($order, 'order_deleted');
                 } catch (\Exception $e) {
                     \Log::error('Delegate/OrderController: Error sending order_deleted notification: ' . $e->getMessage());
+                }
+
+                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
+                try {
+                    $this->sweetAlertService->notifyOrderDeleted($order);
+                } catch (\Exception $e) {
+                    \Log::error('Delegate/OrderController: Error sending SweetAlert for order_deleted: ' . $e->getMessage());
                 }
 
                 // soft delete للطلب
@@ -878,6 +895,13 @@ class OrderController extends Controller
             $this->notificationService->sendOrderNotification($order, 'order_created');
         } catch (\Exception $e) {
             \Log::error('Delegate/OrderController: Error sending order_created notification: ' . $e->getMessage());
+        }
+
+        // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
+        try {
+            $this->sweetAlertService->notifyOrderCreated($order);
+        } catch (\Exception $e) {
+            \Log::error('Delegate/OrderController: Error sending SweetAlert for order_created: ' . $e->getMessage());
         }
 
         // مسح session

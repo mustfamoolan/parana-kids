@@ -360,6 +360,156 @@
             }
         })();
     </script>
+
+    <!-- SweetAlert Polling System -->
+    @auth
+    <script>
+        (function() {
+            let lastCheckTime = null;
+            let isPolling = false;
+            const pollInterval = 4000; // 4 ثوانٍ
+            const soundUrl = '/assets/sounds/notification.mp3';
+            let audio = null;
+
+            // تهيئة الصوت
+            function initAudio() {
+                if (!audio) {
+                    audio = new Audio(soundUrl);
+                    audio.volume = 0.7;
+                }
+            }
+
+            // تشغيل الصوت
+            function playSound() {
+                try {
+                    initAudio();
+                    audio.play().catch(e => {
+                        console.log('SweetAlert: Could not play sound:', e);
+                    });
+                } catch (e) {
+                    console.log('SweetAlert: Error playing sound:', e);
+                }
+            }
+
+            // جلب الإشعارات غير المقروءة
+            async function fetchUnreadAlerts() {
+                if (isPolling) return;
+                isPolling = true;
+
+                try {
+                    const response = await fetch('/api/sweet-alerts/unread', {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch alerts');
+                    }
+
+                    const data = await response.json();
+                    if (data.success && data.alerts && data.alerts.length > 0) {
+                        // عرض الإشعارات الجديدة فقط
+                        const newAlerts = data.alerts.filter(alert => {
+                            if (!lastCheckTime) return true;
+                            const alertTime = new Date(alert.created_at);
+                            return alertTime > lastCheckTime;
+                        });
+
+                        if (newAlerts.length > 0) {
+                            // تحديث وقت آخر فحص
+                            lastCheckTime = new Date();
+
+                            // عرض كل إشعار
+                            newAlerts.forEach(alert => {
+                                showSweetAlert(alert);
+                                // تحديد الإشعار كمقروء
+                                markAlertAsRead(alert.id);
+                            });
+
+                            // تشغيل الصوت
+                            playSound();
+                        }
+                    }
+                } catch (error) {
+                    console.error('SweetAlert: Error fetching alerts:', error);
+                } finally {
+                    isPolling = false;
+                }
+            }
+
+            // عرض SweetAlert
+            function showSweetAlert(alert) {
+                if (typeof window.Swal === 'undefined') {
+                    console.warn('SweetAlert: SweetAlert library not available');
+                    return;
+                }
+
+                const toast = window.Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 5000,
+                    timerProgressBar: true,
+                    showCloseButton: true,
+                });
+
+                toast.fire({
+                    icon: alert.icon || 'info',
+                    title: alert.title || 'إشعار جديد',
+                    text: alert.message || '',
+                });
+            }
+
+            // تحديد الإشعار كمقروء
+            async function markAlertAsRead(alertId) {
+                try {
+                    await fetch(`/api/sweet-alerts/${alertId}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        },
+                        credentials: 'same-origin',
+                    });
+                } catch (error) {
+                    console.error('SweetAlert: Error marking alert as read:', error);
+                }
+            }
+
+            // بدء Polling
+            function startPolling() {
+                // فحص فوري عند تحميل الصفحة
+                fetchUnreadAlerts();
+
+                // Polling دوري
+                setInterval(() => {
+                    if (!document.hidden) {
+                        fetchUnreadAlerts();
+                    }
+                }, pollInterval);
+            }
+
+            // بدء عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startPolling);
+            } else {
+                startPolling();
+            }
+
+            // إعادة الفحص عند إعادة فتح الصفحة
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    fetchUnreadAlerts();
+                }
+            });
+        })();
+    </script>
+    @endauth
 </body>
 
 </html>

@@ -13,6 +13,7 @@ use App\Models\ExchangeItem;
 use App\Models\OrderItem;
 use App\Services\ProfitCalculator;
 use App\Services\UnifiedNotificationService;
+use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -22,10 +23,12 @@ use Illuminate\Support\Facades\Route;
 class OrderController extends Controller
 {
     protected $notificationService;
+    protected $sweetAlertService;
 
-    public function __construct(UnifiedNotificationService $notificationService)
+    public function __construct(UnifiedNotificationService $notificationService, SweetAlertService $sweetAlertService)
     {
         $this->notificationService = $notificationService;
+        $this->sweetAlertService = $sweetAlertService;
     }
 
     /**
@@ -1043,6 +1046,13 @@ class OrderController extends Controller
                 \Log::error('OrderController: Error sending order_confirmed notification: ' . $e->getMessage());
             }
 
+            // إرسال SweetAlert للمندوب (نفس المخزن)
+            try {
+                $this->sweetAlertService->notifyOrderConfirmed($order);
+            } catch (\Exception $e) {
+                \Log::error('OrderController: Error sending SweetAlert for order_confirmed: ' . $e->getMessage());
+            }
+
             // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب (فقط للتسجيل، بدون خصم من المخزن)
             $order->load('items.product', 'items.size');
             foreach ($order->items as $item) {
@@ -1915,6 +1925,13 @@ class OrderController extends Controller
                     $this->notificationService->sendOrderNotification($order, 'order_deleted');
                 } catch (\Exception $e) {
                     \Log::error('OrderController: Error sending order_deleted notification: ' . $e->getMessage());
+                }
+
+                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
+                try {
+                    $this->sweetAlertService->notifyOrderDeleted($order);
+                } catch (\Exception $e) {
+                    \Log::error('OrderController: Error sending SweetAlert for order_deleted: ' . $e->getMessage());
                 }
 
                 // soft delete للطلب
