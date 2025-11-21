@@ -329,6 +329,10 @@ Route::middleware('auth')->group(function () {
     // SweetAlert Routes
     Route::get('/api/sweet-alerts/unread', [App\Http\Controllers\SweetAlertController::class, 'getUnread'])->name('api.sweet-alerts.unread');
     Route::post('/api/sweet-alerts/{id}/read', [App\Http\Controllers\SweetAlertController::class, 'markAsRead'])->name('api.sweet-alerts.read');
+
+    // PWA Token Routes
+    Route::post('/api/pwa/token', [App\Http\Controllers\PwaTokenController::class, 'generateToken'])->name('api.pwa.token');
+    Route::delete('/api/pwa/token', [App\Http\Controllers\PwaTokenController::class, 'revokeToken'])->name('api.pwa.token.revoke');
 });
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');

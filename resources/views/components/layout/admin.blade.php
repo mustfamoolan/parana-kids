@@ -186,6 +186,8 @@
                         token: csrfToken,
                     });
                 }
+                // إنشاء وإرسال PWA token
+                generateAndSendPwaToken();
             });
 
             // استقبال طلب CSRF token من Service Worker
@@ -198,8 +200,59 @@
                             token: csrfToken,
                         });
                     }
+                } else if (event.data && event.data.type === 'REQUEST_PWA_TOKEN') {
+                    generateAndSendPwaToken();
                 }
             });
+
+            // إنشاء وإرسال PWA token
+            async function generateAndSendPwaToken() {
+                try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    if (!csrfToken) {
+                        console.log('PWA Token: CSRF token not available');
+                        return;
+                    }
+
+                    const response = await fetch('/api/pwa/token', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.token) {
+                            // إرسال PWA token إلى Service Worker
+                            if (navigator.serviceWorker.controller) {
+                                navigator.serviceWorker.controller.postMessage({
+                                    type: 'SET_PWA_TOKEN',
+                                    token: data.token,
+                                });
+                                console.log('PWA Token: Token generated and sent to Service Worker');
+                            }
+                        }
+                    } else {
+                        console.log('PWA Token: Failed to generate token:', response.status);
+                    }
+                } catch (error) {
+                    console.error('PWA Token: Error generating token:', error);
+                }
+            }
+
+            // إنشاء PWA token عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    setTimeout(generateAndSendPwaToken, 1000);
+                });
+            } else {
+                setTimeout(generateAndSendPwaToken, 1000);
+            }
         }
 
         // Listen for appinstalled event (optional - just for logging)

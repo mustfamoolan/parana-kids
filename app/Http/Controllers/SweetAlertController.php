@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\SweetAlertService;
+use App\Http\Controllers\PwaTokenController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,9 +19,22 @@ class SweetAlertController extends Controller
     /**
      * Get unread alerts for the current user
      */
-    public function getUnread()
+    public function getUnread(Request $request)
     {
         $user = Auth::user();
+
+        // إذا لم يكن المستخدم مسجلاً عبر session، جرب PWA token
+        if (!$user) {
+            $pwaToken = $request->header('X-PWA-Token');
+            if ($pwaToken) {
+                $user = PwaTokenController::validateToken($pwaToken);
+                if ($user) {
+                    // تسجيل دخول المستخدم مؤقتاً للطلب الحالي
+                    Auth::setUser($user);
+                }
+            }
+        }
+
         if (!$user) {
             \Log::warning('SweetAlertController: Unauthorized request');
             return response()->json(['error' => 'غير مصرح'], 401);
@@ -54,9 +68,22 @@ class SweetAlertController extends Controller
     /**
      * Mark alert as read
      */
-    public function markAsRead($id)
+    public function markAsRead(Request $request, $id)
     {
         $user = Auth::user();
+
+        // إذا لم يكن المستخدم مسجلاً عبر session، جرب PWA token
+        if (!$user) {
+            $pwaToken = $request->header('X-PWA-Token');
+            if ($pwaToken) {
+                $user = PwaTokenController::validateToken($pwaToken);
+                if ($user) {
+                    // تسجيل دخول المستخدم مؤقتاً للطلب الحالي
+                    Auth::setUser($user);
+                }
+            }
+        }
+
         if (!$user) {
             return response()->json(['error' => 'غير مصرح'], 401);
         }

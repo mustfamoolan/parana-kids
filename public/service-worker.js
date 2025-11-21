@@ -2,6 +2,7 @@
 const CACHE_NAME = 'parana-kids-v1';
 const NOTIFICATION_POLL_INTERVAL = 30000; // 30 ثانية
 let csrfToken = null;
+let pwaToken = null; // PWA token للوصول إلى API
 let autoCheckInterval = null;
 let lastCheckTime = null;
 let shownNotificationIds = new Set(); // تتبع الإشعارات التي تم عرضها
@@ -30,8 +31,18 @@ self.addEventListener('message', (event) => {
     } else if (event.data && event.data.type === 'SET_CSRF_TOKEN') {
         csrfToken = event.data.token;
         console.log('Service Worker: CSRF token received');
+    } else if (event.data && event.data.type === 'SET_PWA_TOKEN') {
+        pwaToken = event.data.token;
+        console.log('Service Worker: PWA token received');
     } else if (event.data && event.data.type === 'START_AUTO_CHECK') {
         startAutoCheck();
+    } else if (event.data && event.data.type === 'REQUEST_PWA_TOKEN') {
+        // طلب PWA token من الصفحة
+        self.clients.matchAll().then(clients => {
+            if (clients.length > 0) {
+                clients[0].postMessage({ type: 'REQUEST_PWA_TOKEN' });
+            }
+        });
     }
 });
 
@@ -58,15 +69,25 @@ async function checkForNotifications() {
     try {
         console.log('Service Worker: Checking notifications at', new Date().toISOString());
 
-        // التحقق من وجود CSRF token
-        if (!csrfToken) {
-            console.log('Service Worker: CSRF token not available, requesting from page...');
-            // محاولة الحصول على CSRF token من الصفحة
+        // استخدام PWA token أولاً (يعمل حتى لو كان التطبيق مغلق)
+        // إذا لم يكن موجوداً، استخدم CSRF token
+        let authHeader = null;
+
+        if (pwaToken) {
+            authHeader = { 'X-PWA-Token': pwaToken };
+            console.log('Service Worker: Using PWA token');
+        } else if (csrfToken) {
+            authHeader = { 'X-CSRF-TOKEN': csrfToken };
+            console.log('Service Worker: Using CSRF token');
+        } else {
+            console.log('Service Worker: No token available, requesting from page...');
+            // محاولة الحصول على token من الصفحة
             const clients = await self.clients.matchAll();
             if (clients.length > 0) {
+                clients[0].postMessage({ type: 'REQUEST_PWA_TOKEN' });
                 clients[0].postMessage({ type: 'REQUEST_CSRF_TOKEN' });
             } else {
-                console.log('Service Worker: No clients available to request CSRF token');
+                console.log('Service Worker: No clients available to request token');
             }
             return;
         }
@@ -74,11 +95,8 @@ async function checkForNotifications() {
         const headers = {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
+            ...authHeader,
         };
-
-        if (csrfToken) {
-            headers['X-CSRF-TOKEN'] = csrfToken;
-        }
 
         const response = await fetch('/api/sweet-alerts/unread', {
             method: 'GET',
@@ -88,12 +106,16 @@ async function checkForNotifications() {
 
         if (!response.ok) {
             console.log('Service Worker: Failed to fetch notifications:', response.status, response.statusText);
-            // إذا كان الخطأ 401، طلب CSRF token جديد
+            // إذا كان الخطأ 401، طلب token جديد
             if (response.status === 401) {
                 const clients = await self.clients.matchAll();
                 if (clients.length > 0) {
+                    clients[0].postMessage({ type: 'REQUEST_PWA_TOKEN' });
                     clients[0].postMessage({ type: 'REQUEST_CSRF_TOKEN' });
                 }
+                // مسح token القديم
+                pwaToken = null;
+                csrfToken = null;
             }
             return;
         }
@@ -148,7 +170,7 @@ function showNotification(alert) {
         return;
     }
 
-    const notificationOptions = {
+      const notificationOptions = {
         body: alert.message,
         icon: '/assets/images/icons/icon-192x192.png',
         badge: '/assets/images/icons/icon-192x192.png',
@@ -233,8 +255,15 @@ self.addEventListener('periodicsync', (event) => {
 // تحديد الإشعار كمقروء في قاعدة البيانات
 async function markAlertAsRead(alertId) {
     try {
-        if (!csrfToken) {
-            console.log('Service Worker: Cannot mark alert as read - CSRF token not available');
+        // استخدام PWA token أولاً، ثم CSRF token
+        let authHeader = null;
+
+        if (pwaToken) {
+            authHeader = { 'X-PWA-Token': pwaToken };
+        } else if (csrfToken) {
+            authHeader = { 'X-CSRF-TOKEN': csrfToken };
+        } else {
+            console.log('Service Worker: Cannot mark alert as read - no token available');
             return;
         }
 
@@ -242,7 +271,7 @@ async function markAlertAsRead(alertId) {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': csrfToken,
+            ...authHeader,
         };
 
         const response = await fetch(`/api/sweet-alerts/${alertId}/read`, {
@@ -256,7 +285,7 @@ async function markAlertAsRead(alertId) {
         } else {
             console.log('Service Worker: Failed to mark alert as read:', response.status);
         }
-    } catch (error) {
+      } catch (error) {
         console.error('Service Worker: Error marking alert as read:', error);
     }
 }
