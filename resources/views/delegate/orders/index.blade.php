@@ -648,5 +648,14 @@
         [id^="order-badge-"]:not(.hidden) {
             animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite, glow 2s ease-in-out infinite;
         }
+        /* تحسين الموضع للموبايل والديسكتوب */
+        @media (max-width: 640px) {
+            [id^="order-badge-"] {
+                width: 0.875rem !important;
+                height: 0.875rem !important;
+                top: -0.5rem !important;
+                right: -0.5rem !important;
+            }
+        }
     </style>
 </x-layout.default>

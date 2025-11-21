@@ -195,19 +195,20 @@
                                                 <img :src="`/assets/images/${person.path}`"
                                                 class="rounded-full h-12 w-12 object-cover" />
                                             </template>
+                                            <!-- Badge للإشعارات غير المقروءة - فوق صورة البروفايل -->
+                                            <template x-if="person.conversationId && person.type !== 'group'">
+                                                <span :id="`conversation-badge-${person.conversationId}`" class="hidden absolute -top-1 ltr:-right-1 rtl:-left-1 w-5 h-5 bg-danger rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-20"></span>
+                                            </template>
+                                            <!-- النقطة الخضراء (active status) - تظهر فقط إذا لم يكن هناك إشعار غير مقروء -->
                                             <template x-if="person.active && person.type !== 'group'">
-                                                <div class="absolute bottom-0 ltr:right-0 rtl:left-0">
+                                                <div :id="`active-indicator-${person.conversationId}`" class="absolute bottom-0 ltr:right-0 rtl:left-0">
                                                     <div class="w-4 h-4 bg-success rounded-full"></div>
                                                 </div>
                                             </template>
                                         </div>
                                         <div class="mx-3 ltr:text-left rtl:text-right">
                                             <div class="flex items-center gap-2 mb-1">
-                                                <p class="font-semibold relative inline-block" x-text="person.name"></p>
-                                                <!-- Badge للإشعارات غير المقروءة -->
-                                                <template x-if="person.conversationId">
-                                                    <span :id="`conversation-badge-${person.conversationId}`" class="hidden absolute -top-2 -right-2 w-4 h-4 bg-danger rounded-full border-2 border-white dark:border-gray-800 shadow-lg"></span>
-                                                </template>
+                                                <p class="font-semibold" x-text="person.name"></p>
                                                 <template x-if="person.code && person.type !== 'group'">
                                                     <span class="badge badge-outline-primary text-xs" x-text="person.code"></span>
                                                 </template>
@@ -2265,11 +2266,21 @@
                             if (response.ok) {
                                 const data = await response.json();
                                 const badge = document.getElementById(`conversation-badge-${conversation.conversationId}`);
+                                const activeIndicator = document.getElementById(`active-indicator-${conversation.conversationId}`);
+                                
                                 if (badge) {
                                     if (data.has_unread) {
                                         badge.classList.remove('hidden');
+                                        // إخفاء النقطة الخضراء إذا كان هناك إشعار
+                                        if (activeIndicator) {
+                                            activeIndicator.style.display = 'none';
+                                        }
                                     } else {
                                         badge.classList.add('hidden');
+                                        // إظهار النقطة الخضراء إذا لم يكن هناك إشعار وكان المستخدم نشط
+                                        if (activeIndicator && conversation.active) {
+                                            activeIndicator.style.display = 'block';
+                                        }
                                     }
                                 }
                             }
@@ -2370,6 +2381,25 @@
         }
         [id^="conversation-badge-"]:not(.hidden) {
             animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite, glow 2s ease-in-out infinite;
+        }
+        /* تحسين الموضع للـ badge فوق صورة البروفايل */
+        [id^="conversation-badge-"] {
+            z-index: 20 !important;
+        }
+        /* للموبايل */
+        @media (max-width: 640px) {
+            [id^="conversation-badge-"] {
+                width: 0.875rem !important;
+                height: 0.875rem !important;
+                top: -2px !important;
+            }
+        }
+        /* للديسكتوب */
+        @media (min-width: 641px) {
+            [id^="conversation-badge-"] {
+                width: 1.25rem !important;
+                height: 1.25rem !important;
+            }
         }
     </style>
 

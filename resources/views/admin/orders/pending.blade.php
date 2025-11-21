@@ -263,8 +263,10 @@
                             <div class="flex items-center justify-between mb-4">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <div class="text-lg font-bold text-primary dark:text-primary-light">
+                                        <div class="text-lg font-bold text-primary dark:text-primary-light relative inline-block">
                                             رقم الطلب: {{ $order->order_number }}
+                                            <!-- Badge للإشعارات غير المقروءة -->
+                                            <span id="order-badge-{{ $order->id }}" class="hidden absolute -top-2 -right-2 w-4 h-4 bg-danger rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-10"></span>
                                         </div>
                                         <button
                                             type="button"
@@ -582,6 +584,76 @@
                 }, 300);
             }, 3000);
         }
+
+        // التحقق من إشعارات الطلبات وإظهار badges
+        async function checkOrderAlerts() {
+            const orderCards = document.querySelectorAll('[id^="order-"]');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            for (const card of orderCards) {
+                const orderId = card.id.replace('order-', '');
+                try {
+                    const response = await fetch(`/api/sweet-alerts/check-order/${orderId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken || '',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const badge = document.getElementById(`order-badge-${orderId}`);
+                        if (badge) {
+                            if (data.has_unread) {
+                                badge.classList.remove('hidden');
+                            } else {
+                                badge.classList.add('hidden');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking order alert:', error);
+                }
+            }
+        }
+
+        // التحقق من الإشعارات عند تحميل الصفحة
+        checkOrderAlerts();
+
+        // تحديث الإشعارات كل 10 ثوانٍ
+        setInterval(checkOrderAlerts, 10000);
     </script>
+
+    <style>
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(239, 68, 68, 0.5), 0 0 10px rgba(239, 68, 68, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.5);
+            }
+        }
+        [id^="order-badge-"]:not(.hidden) {
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite, glow 2s ease-in-out infinite;
+        }
+        /* تحسين الموضع للموبايل والديسكتوب */
+        @media (max-width: 640px) {
+            [id^="order-badge-"] {
+                width: 0.875rem !important;
+                height: 0.875rem !important;
+                top: -0.5rem !important;
+                right: -0.5rem !important;
+            }
+        }
+    </style>
 </x-layout.admin>
 
