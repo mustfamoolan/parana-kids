@@ -102,7 +102,67 @@ class SweetAlertController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديد الإشعار كمقروء',
+            'message' => 'تم حذف الإشعار',
+        ]);
+    }
+
+    /**
+     * Check if user has unread alert for a specific order
+     */
+    public function checkOrder(Request $request, $orderId)
+    {
+        $user = Auth::user();
+
+        // إذا لم يكن المستخدم مسجلاً عبر session، جرب PWA token
+        if (!$user) {
+            $pwaToken = $request->header('X-PWA-Token');
+            if ($pwaToken) {
+                $user = PwaTokenController::validateToken($pwaToken);
+                if ($user) {
+                    Auth::setUser($user);
+                }
+            }
+        }
+
+        if (!$user) {
+            return response()->json(['error' => 'غير مصرح'], 401);
+        }
+
+        $hasUnread = $this->sweetAlertService->hasUnreadAlertForOrder($orderId, $user->id);
+
+        return response()->json([
+            'success' => true,
+            'has_unread' => $hasUnread,
+        ]);
+    }
+
+    /**
+     * Check if user has unread alert for a specific conversation
+     */
+    public function checkConversation(Request $request, $conversationId)
+    {
+        $user = Auth::user();
+
+        // إذا لم يكن المستخدم مسجلاً عبر session، جرب PWA token
+        if (!$user) {
+            $pwaToken = $request->header('X-PWA-Token');
+            if ($pwaToken) {
+                $user = PwaTokenController::validateToken($pwaToken);
+                if ($user) {
+                    Auth::setUser($user);
+                }
+            }
+        }
+
+        if (!$user) {
+            return response()->json(['error' => 'غير مصرح'], 401);
+        }
+
+        $hasUnread = $this->sweetAlertService->hasUnreadAlertForConversation($conversationId, $user->id);
+
+        return response()->json([
+            'success' => true,
+            'has_unread' => $hasUnread,
         ]);
     }
 }

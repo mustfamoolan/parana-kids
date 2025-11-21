@@ -334,6 +334,13 @@ class OrderController extends Controller
             abort(403);
         }
 
+        // حذف جميع إشعارات الطلب عند فتحه
+        try {
+            $this->sweetAlertService->deleteOrderAlerts($order->id, auth()->id());
+        } catch (\Exception $e) {
+            \Log::error('Delegate/OrderController: Error deleting order alerts: ' . $e->getMessage());
+        }
+
         $order->load(['items.product', 'cart', 'deletedByUser']);
 
         return view('delegate.orders.show', compact('order'));

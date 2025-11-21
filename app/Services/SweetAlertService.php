@@ -72,16 +72,70 @@ class SweetAlertService
     }
 
     /**
-     * Mark alert as read
+     * Mark alert as read and delete it
      */
     public function markAsRead($alertId)
     {
         $alert = SweetAlert::find($alertId);
         if ($alert) {
-            $alert->markAsRead();
+            $alert->delete();
             return true;
         }
         return false;
+    }
+
+    /**
+     * Delete all alerts for a specific order
+     */
+    public function deleteOrderAlerts($orderId, $userId = null)
+    {
+        $query = SweetAlert::whereIn('type', ['order_created', 'order_confirmed', 'order_deleted'])
+            ->where('data->order_id', $orderId);
+
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+
+        return $query->delete();
+    }
+
+    /**
+     * Delete all alerts for a specific conversation
+     */
+    public function deleteConversationAlerts($conversationId, $userId = null)
+    {
+        $query = SweetAlert::where('type', 'message')
+            ->where('data->conversation_id', $conversationId);
+
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+
+        return $query->delete();
+    }
+
+    /**
+     * Check if user has unread alert for a specific order
+     */
+    public function hasUnreadAlertForOrder($orderId, $userId)
+    {
+        return SweetAlert::where('user_id', $userId)
+            ->whereIn('type', ['order_created', 'order_confirmed', 'order_deleted'])
+            ->where('data->order_id', $orderId)
+            ->unread()
+            ->exists();
+    }
+
+    /**
+     * Check if user has unread alert for a specific conversation
+     */
+    public function hasUnreadAlertForConversation($conversationId, $userId)
+    {
+        return SweetAlert::where('user_id', $userId)
+            ->where('type', 'message')
+            ->where('data->conversation_id', $conversationId)
+            ->unread()
+            ->exists();
     }
 
     /**

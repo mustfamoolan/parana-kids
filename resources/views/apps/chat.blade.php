@@ -203,7 +203,11 @@
                                         </div>
                                         <div class="mx-3 ltr:text-left rtl:text-right">
                                             <div class="flex items-center gap-2 mb-1">
-                                                <p class="font-semibold" x-text="person.name"></p>
+                                                <p class="font-semibold relative" x-text="person.name"></p>
+                                                <!-- Badge للإشعارات غير المقروءة -->
+                                                <template x-if="person.conversationId">
+                                                    <span :id="`conversation-badge-${person.conversationId}`" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-danger rounded-full border-2 border-white dark:border-gray-800"></span>
+                                                </template>
                                                 <template x-if="person.code && person.type !== 'group'">
                                                     <span class="badge badge-outline-primary text-xs" x-text="person.code"></span>
                                                 </template>
@@ -1184,6 +1188,12 @@
                     this.requestNotificationPermission();
                     // تحميل الإعدادات من localStorage
                     this.loadNotificationSettings();
+                    // التحقق من إشعارات المحادثات
+                    this.checkConversationAlerts();
+                    // تحديث الإشعارات كل 10 ثوانٍ
+                    setInterval(() => {
+                        this.checkConversationAlerts();
+                    }, 10000);
                 },
                 isShowUserChat: false,
                 isShowChatMenu: false,
@@ -2230,6 +2240,41 @@
                                 conversationId
                             );
                             this.playNotificationSound();
+                        }
+                    }
+                },
+
+                async checkConversationAlerts() {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    const allConversations = [...this.conversationsList, ...this.availableUsersList];
+
+                    for (const conversation of allConversations) {
+                        if (!conversation.conversationId) continue;
+
+                        try {
+                            const response = await fetch(`/api/sweet-alerts/check-conversation/${conversation.conversationId}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'X-CSRF-TOKEN': csrfToken || '',
+                                },
+                                credentials: 'same-origin',
+                            });
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                const badge = document.getElementById(`conversation-badge-${conversation.conversationId}`);
+                                if (badge) {
+                                    if (data.has_unread) {
+                                        badge.classList.remove('hidden');
+                                    } else {
+                                        badge.classList.add('hidden');
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error checking conversation alert:', error);
                         }
                     }
                 },

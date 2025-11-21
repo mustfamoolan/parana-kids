@@ -261,6 +261,13 @@ class ChatController extends Controller
             'last_read_at' => now()
         ]);
 
+        // حذف جميع إشعارات المحادثة عند فتحها
+        try {
+            $this->sweetAlertService->deleteConversationAlerts($conversationId, $user->id);
+        } catch (\Exception $e) {
+            \Log::error('ChatController: Error deleting conversation alerts: ' . $e->getMessage());
+        }
+
         $otherParticipant = $conversation->getOtherParticipant($user->id);
 
         $messages = $conversation->messages()

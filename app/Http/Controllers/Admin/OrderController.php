@@ -725,6 +725,13 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
 
+        // حذف جميع إشعارات الطلب عند فتحه
+        try {
+            $this->sweetAlertService->deleteOrderAlerts($order->id, auth()->id());
+        } catch (\Exception $e) {
+            \Log::error('Admin/OrderController: Error deleting order alerts: ' . $e->getMessage());
+        }
+
         $order->load([
             'delegate',
             'items.product.primaryImage',

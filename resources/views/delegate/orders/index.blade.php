@@ -271,8 +271,10 @@
                             <div class="flex items-center justify-between sm:justify-start gap-3">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <h6 class="text-lg font-semibold dark:text-white-light">
+                                        <h6 class="text-lg font-semibold dark:text-white-light relative">
                                             {{ $order->order_number }}
+                                            <!-- Badge للإشعارات غير المقروءة -->
+                                            <span id="order-badge-{{ $order->id }}" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-danger rounded-full border-2 border-white dark:border-gray-800"></span>
                                         </h6>
                                         <button
                                             type="button"
@@ -585,6 +587,46 @@
                 sessionStorage.setItem('delegateOrdersScroll', window.scrollY);
             });
         });
+
+        // التحقق من إشعارات الطلبات وإظهار badges
+        async function checkOrderAlerts() {
+            const orders = @json($orders->pluck('id'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            for (const orderId of orders) {
+                try {
+                    const response = await fetch(`/api/sweet-alerts/check-order/${orderId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken || '',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const badge = document.getElementById(`order-badge-${orderId}`);
+                        if (badge) {
+                            if (data.has_unread) {
+                                badge.classList.remove('hidden');
+                            } else {
+                                badge.classList.add('hidden');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking order alert:', error);
+                }
+            }
+        }
+
+        // التحقق من الإشعارات عند تحميل الصفحة
+        checkOrderAlerts();
+
+        // تحديث الإشعارات كل 10 ثوانٍ
+        setInterval(checkOrderAlerts, 10000);
     });
     </script>
 </x-layout.default>

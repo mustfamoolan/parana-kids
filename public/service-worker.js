@@ -54,14 +54,29 @@ function startAutoCheck() {
     }
 
     // التحقق الفوري
-    checkForNotifications();
+    checkForNotifications().catch(error => {
+        console.error('Service Worker: Initial check error:', error);
+    });
 
     // التحقق الدوري كل 30 ثانية
     autoCheckInterval = setInterval(() => {
-        checkForNotifications();
+        checkForNotifications().catch(error => {
+            console.error('Service Worker: Periodic check error:', error);
+        });
     }, NOTIFICATION_POLL_INTERVAL);
 
     console.log('Service Worker: Auto-check started at', new Date().toISOString());
+
+    // محاولة تسجيل Periodic Background Sync
+    if ('serviceWorker' in self && 'periodicSync' in self.registration) {
+        self.registration.periodicSync.register('check-notifications-periodic', {
+            minInterval: 30000, // كل 30 ثانية
+        }).then(() => {
+            console.log('Service Worker: Periodic Background Sync registered');
+        }).catch(error => {
+            console.log('Service Worker: Periodic Background Sync not available:', error);
+        });
+    }
 }
 
 // التحقق من الإشعارات الجديدة
@@ -241,14 +256,39 @@ self.addEventListener('notificationclick', (event) => {
 // Background Sync للتحقق من الإشعارات
 self.addEventListener('sync', (event) => {
     if (event.tag === 'check-notifications') {
-        event.waitUntil(checkForNotifications());
+        event.waitUntil(
+            checkForNotifications().catch(error => {
+                console.error('Service Worker: Background sync error:', error);
+                // إعادة المحاولة بعد 30 ثانية
+                return new Promise(resolve => setTimeout(resolve, 30000))
+                    .then(() => checkForNotifications());
+            })
+        );
     }
 });
 
 // Periodic Background Sync (إذا كان مدعوماً)
 self.addEventListener('periodicsync', (event) => {
     if (event.tag === 'check-notifications-periodic') {
-        event.waitUntil(checkForNotifications());
+        event.waitUntil(
+            checkForNotifications().catch(error => {
+                console.error('Service Worker: Periodic sync error:', error);
+            })
+        );
+    }
+});
+
+// Push Notifications (إذا كان مدعوماً)
+self.addEventListener('push', (event) => {
+    if (event.data) {
+        try {
+            const data = event.data.json();
+            if (data.alert) {
+                showNotification(data.alert);
+            }
+        } catch (error) {
+            console.error('Service Worker: Push notification error:', error);
+        }
     }
 });
 

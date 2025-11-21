@@ -361,8 +361,10 @@
                             <div class="flex items-center justify-between mb-4">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <div class="text-lg font-bold text-primary dark:text-primary-light">
+                                        <div class="text-lg font-bold text-primary dark:text-primary-light relative">
                                             رقم الطلب: {{ $order->order_number }}
+                                            <!-- Badge للإشعارات غير المقروءة -->
+                                            <span id="order-badge-{{ $order->id }}" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-danger rounded-full border-2 border-white dark:border-gray-800"></span>
                                         </div>
                                         <button
                                             type="button"
@@ -864,5 +866,46 @@
                 }, 300);
             }, 3000);
         }
+
+        // التحقق من إشعارات الطلبات وإظهار badges
+        async function checkOrderAlerts() {
+            const orderCards = document.querySelectorAll('[id^="order-"]');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            for (const card of orderCards) {
+                const orderId = card.id.replace('order-', '');
+                try {
+                    const response = await fetch(`/api/sweet-alerts/check-order/${orderId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken || '',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const badge = document.getElementById(`order-badge-${orderId}`);
+                        if (badge) {
+                            if (data.has_unread) {
+                                badge.classList.remove('hidden');
+                            } else {
+                                badge.classList.add('hidden');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking order alert:', error);
+                }
+            }
+        }
+
+        // التحقق من الإشعارات عند تحميل الصفحة
+        checkOrderAlerts();
+
+        // تحديث الإشعارات كل 10 ثوانٍ
+        setInterval(checkOrderAlerts, 10000);
     </script>
 </x-layout.admin>
