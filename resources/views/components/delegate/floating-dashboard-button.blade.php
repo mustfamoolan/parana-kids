@@ -1,4 +1,4 @@
-@if(auth()->check() && auth()->user()->isDelegate() && !request()->routeIs('delegate.dashboard'))
+@if(auth()->check() && auth()->user()->isDelegate() && !request()->routeIs('delegate.dashboard') && !request()->routeIs('chat.index'))
     <div class="fixed bottom-6 ltr:left-6 rtl:right-6 z-50">
         <a href="{{ route('delegate.dashboard') }}"
            class="btn btn-primary rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center w-14 h-14">
