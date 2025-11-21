@@ -106,12 +106,24 @@
         <div class="main-content flex flex-col min-h-screen">
             <!-- Mobile Sidebar Toggle Button -->
             <button type="button"
-                class="fixed top-4 ltr:left-4 rtl:right-4 z-50 lg:hidden p-2 rounded-full bg-white dark:bg-[#0e1726] shadow-lg hover:bg-white-light/90 dark:hover:bg-dark/60 dark:text-[#d0d2d6] hover:text-primary dark:hover:text-primary transition-all"
+                class="fixed top-1/2 -translate-y-1/2 ltr:left-4 rtl:right-4 z-50 lg:hidden p-2 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 dark:hover:bg-primary/80 transition-all"
                 @click="$store.app.toggleSidebar()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M20 7L4 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                     <path opacity="0.5" d="M20 12L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                     <path d="M20 17L4 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </button>
+
+            <!-- Desktop Sidebar Show Button (يظهر فقط عندما يكون السايد بار مخفياً) -->
+            <button type="button"
+                class="fixed top-1/2 -translate-y-1/2 ltr:left-4 rtl:right-4 z-50 hidden lg:block p-2 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 dark:hover:bg-primary/80 transition-all"
+                :class="{ '!hidden': !$store.app.sidebar }"
+                @click="$store.app.toggleSidebar()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 7L20 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path opacity="0.5" d="M4 12L20 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M4 17L20 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                 </svg>
             </button>
 
