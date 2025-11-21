@@ -39,6 +39,19 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
+        // إنشاء المجلدات الفرعية المطلوبة إذا لم تكن موجودة
+        $requiredDirectories = ['products', 'messages', 'profiles'];
+        foreach ($requiredDirectories as $dir) {
+            $dirPath = $target . '/' . $dir;
+            if (!is_dir($dirPath)) {
+                if (!mkdir($dirPath, 0755, true)) {
+                    Log::warning('Failed to create storage subdirectory: ' . $dirPath);
+                } else {
+                    Log::info('Created storage subdirectory: ' . $dirPath);
+                }
+            }
+        }
+
         // التحقق من وجود الرابط
         if (!file_exists($link)) {
             try {

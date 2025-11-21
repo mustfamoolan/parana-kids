@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
@@ -378,9 +380,20 @@ class ChatController extends Controller
             $messageType = 'text';
 
             if ($request->hasFile('image')) {
-                $image = $request->file('image');
-                $imagePath = $image->store('messages', 'public');
-                $messageType = 'image';
+                try {
+                    // التأكد من وجود المجلد قبل الحفظ
+                    $messagesDir = storage_path('app/public/messages');
+                    if (!is_dir($messagesDir)) {
+                        File::makeDirectory($messagesDir, 0755, true);
+                    }
+
+                    $image = $request->file('image');
+                    $imagePath = $image->store('messages', 'public');
+                    $messageType = 'image';
+                } catch (\Exception $e) {
+                    Log::error('Failed to upload message image: ' . $e->getMessage());
+                    return response()->json(['error' => 'فشل رفع الصورة: ' . $e->getMessage()], 500);
+                }
             }
 
             // التحقق من وجود نص أو صورة

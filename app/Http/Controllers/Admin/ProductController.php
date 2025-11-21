@@ -11,6 +11,8 @@ use App\Models\ProductMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -124,14 +126,25 @@ class ProductController extends Controller
         $imageIndex = 0;
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
+                try {
+                    // التأكد من وجود المجلد قبل الحفظ
+                    $productsDir = storage_path('app/public/products');
+                    if (!is_dir($productsDir)) {
+                        File::makeDirectory($productsDir, 0755, true);
+                    }
 
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image_path' => $path,
-                    'is_primary' => $imageIndex === 0, // أول صورة = primary
-                ]);
-                $imageIndex++;
+                    $path = $image->store('products', 'public');
+
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_path' => $path,
+                        'is_primary' => $imageIndex === 0, // أول صورة = primary
+                    ]);
+                    $imageIndex++;
+                } catch (\Exception $e) {
+                    Log::error('Failed to upload product image: ' . $e->getMessage());
+                    return back()->withErrors(['images' => 'فشل رفع الصورة: ' . $e->getMessage()])->withInput();
+                }
             }
         }
 
@@ -383,14 +396,25 @@ class ProductController extends Controller
         // رفع صور جديدة من الملفات
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
+                try {
+                    // التأكد من وجود المجلد قبل الحفظ
+                    $productsDir = storage_path('app/public/products');
+                    if (!is_dir($productsDir)) {
+                        File::makeDirectory($productsDir, 0755, true);
+                    }
 
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image_path' => $path,
-                    'is_primary' => $imageIndex === 0,
-                ]);
-                $imageIndex++;
+                    $path = $image->store('products', 'public');
+
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_path' => $path,
+                        'is_primary' => $imageIndex === 0,
+                    ]);
+                    $imageIndex++;
+                } catch (\Exception $e) {
+                    Log::error('Failed to upload product image: ' . $e->getMessage());
+                    return back()->withErrors(['images' => 'فشل رفع الصورة: ' . $e->getMessage()])->withInput();
+                }
             }
         }
 
