@@ -433,7 +433,7 @@
                     </li>
                 @endif
 
-                @if(auth()->check() && auth()->user()->isAdmin())
+                @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSupplier()))
                 <li class="menu nav-item">
                     <a href="{{ route('admin.settings.index') }}" class="nav-link group">
                         <div class="flex items-center">

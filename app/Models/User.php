@@ -206,4 +206,12 @@ class User extends Authenticatable
         $defaultImageNumber = ($this->id % 20) + 1;
         return asset("assets/images/profile-{$defaultImageNumber}.jpeg");
     }
+
+    /**
+     * Get profile image URL attribute (accessor)
+     */
+    public function getProfileImageUrlAttribute()
+    {
+        return $this->getProfileImageUrl();
+    }
 }

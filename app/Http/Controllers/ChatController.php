@@ -59,7 +59,7 @@ class ChatController extends Controller
                         'id' => $otherParticipant->id,
                         'name' => $otherParticipant->name,
                         'code' => $otherParticipant->code,
-                        'path' => $otherParticipant->getProfileImageUrl(),
+                        'path' => $otherParticipant->profile_image_url,
                     ] : null,
                     'participants_count' => $conversation->isGroup() ? $conversation->participants()->count() : null,
                     'latest_message' => $conversation->latestMessage ? [
@@ -116,7 +116,7 @@ class ChatController extends Controller
                 'userId' => $user->id,
                 'name' => $user->name,
                 'code' => $user->code,
-                'path' => $user->getProfileImageUrl(),
+                'path' => $user->profile_image_url,
                 'time' => $existingConversation ? $existingConversation['time'] : '',
                 'preview' => $existingConversation ? ($existingConversation['latest_message']['text'] ?? '') : '',
                 'messages' => [],
@@ -137,7 +137,7 @@ class ChatController extends Controller
                         'name' => $u->name,
                         'role' => $u->role,
                         'code' => $u->code,
-                        'path' => $u->getProfileImageUrl(),
+                        'path' => $u->profile_image_url,
                     ];
                 });
         }
@@ -181,7 +181,7 @@ class ChatController extends Controller
                         'userId' => $otherParticipant ? $otherParticipant->id : null,
                         'name' => $otherParticipant ? $otherParticipant->name : 'Unknown',
                         'code' => $otherParticipant ? $otherParticipant->code : null,
-                        'path' => $otherParticipant ? $otherParticipant->getProfileImageUrl() : asset('assets/images/profile-1.jpeg'),
+                        'path' => $otherParticipant ? $otherParticipant->profile_image_url : asset('assets/images/profile-1.jpeg'),
                         'preview' => $conversation->latestMessage ? substr($conversation->latestMessage->message, 0, 50) : '',
                         'time' => $conversation->updated_at->format('g:i A'),
                         'active' => $otherParticipant ? true : false,

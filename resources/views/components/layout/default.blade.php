@@ -137,6 +137,9 @@
 
     <!-- زر عائم للداشبورد (للمندوبين فقط) -->
     <x-delegate.floating-dashboard-button />
+
+    <!-- زر عائم للرسائل (للمندوبين) -->
+    <x-delegate.floating-chat-button />
     <script src="/assets/js/alpine-collaspe.min.js"></script>
     <script src="/assets/js/alpine-persist.min.js"></script>
     <script defer src="/assets/js/alpine-ui.min.js"></script>
