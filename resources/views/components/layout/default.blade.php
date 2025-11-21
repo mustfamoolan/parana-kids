@@ -141,6 +141,17 @@
 
             wb.register().then((registration) => {
                 console.log('Service Worker registered successfully:', registration.scope);
+
+                // إرسال CSRF token إلى Service Worker
+                if (registration.active) {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    if (csrfToken) {
+                        registration.active.postMessage({
+                            type: 'SET_CSRF_TOKEN',
+                            token: csrfToken,
+                        });
+                    }
+                }
             }).catch((error) => {
                 console.log('Service Worker registration failed:', error);
             });
@@ -149,6 +160,17 @@
             wb.addEventListener('installed', (event) => {
                 if (event.isUpdate) {
                     console.log('New service worker available');
+                }
+            });
+
+            // إرسال CSRF token عند تفعيل Service Worker
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                if (csrfToken && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'SET_CSRF_TOKEN',
+                        token: csrfToken,
+                    });
                 }
             });
         }
@@ -495,6 +517,63 @@
                 });
 
                 console.log('SweetAlert: Alert displayed successfully');
+
+                // إرسال Browser Notification أيضاً
+                showBrowserNotification(alert);
+            }
+
+            // عرض Browser Notification
+            function showBrowserNotification(alert) {
+                if (!('Notification' in window)) {
+                    console.log('Browser Notifications: Not supported');
+                    return;
+                }
+
+                if (Notification.permission === 'granted') {
+                    const notificationOptions = {
+                        body: alert.message,
+                        icon: '/assets/images/icons/icon-192x192.png',
+                        badge: '/assets/images/icons/icon-192x192.png',
+                        tag: `sweet-alert-${alert.id}`,
+                        requireInteraction: false,
+                        silent: false, // تشغيل الصوت
+                        data: {
+                            url: getNotificationUrl(alert),
+                            alertId: alert.id,
+                        },
+                    };
+
+                    const notification = new Notification(alert.title, notificationOptions);
+
+                    notification.onclick = (event) => {
+                        event.preventDefault();
+                        const url = getNotificationUrl(alert);
+                        window.focus();
+                        window.location.href = url;
+                        notification.close();
+                    };
+
+                    // إرسال إلى Service Worker أيضاً
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'SHOW_NOTIFICATION',
+                            alert: alert,
+                        });
+                    }
+                } else if (Notification.permission === 'default') {
+                    // طلب الإذن إذا لم يكن موجوداً
+                    requestNotificationPermission();
+                }
+            }
+
+            // الحصول على رابط الإشعار
+            function getNotificationUrl(alert) {
+                if (alert.data && alert.data.action === 'view_order' && alert.data.order_id) {
+                    return `/admin/orders/${alert.data.order_id}/show`;
+                } else if (alert.data && alert.data.action === 'view_message' && alert.data.conversation_id) {
+                    return `/apps/chat?conversation_id=${alert.data.conversation_id}`;
+                }
+                return '/';
             }
 
             // تحديد الإشعار كمقروء
@@ -556,6 +635,87 @@
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden) {
                     fetchUnreadAlerts();
+                }
+            });
+        })();
+
+        // PWA Browser Notifications System
+        (function() {
+            let notificationPermission = null;
+            let notificationCheckInterval = null;
+
+            // طلب إذن الإشعارات
+            async function requestNotificationPermission() {
+                if (!('Notification' in window)) {
+                    console.log('Browser Notifications: Not supported');
+                    return false;
+                }
+
+                if (Notification.permission === 'granted') {
+                    notificationPermission = 'granted';
+                    startBackgroundNotifications();
+                    return true;
+                }
+
+                if (Notification.permission === 'default') {
+                    const permission = await Notification.requestPermission();
+                    notificationPermission = permission;
+
+                    if (permission === 'granted') {
+                        startBackgroundNotifications();
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            // بدء الإشعارات في الخلفية
+            function startBackgroundNotifications() {
+                if (!('serviceWorker' in navigator)) {
+                    console.log('Browser Notifications: Service Worker not supported');
+                    return;
+                }
+
+                // إرسال رسالة لـ Service Worker للتحقق من الإشعارات
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'CHECK_NOTIFICATIONS'
+                    });
+                }
+
+                // التحقق الدوري من الإشعارات
+                notificationCheckInterval = setInterval(() => {
+                    if (navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'CHECK_NOTIFICATIONS'
+                        });
+                    }
+                }, 30000); // كل 30 ثانية
+
+                // استخدام Background Sync إذا كان مدعوماً
+                if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+                    navigator.serviceWorker.ready.then((registration) => {
+                        registration.sync.register('check-notifications').catch(() => {
+                            console.log('Background Sync: Not supported or failed');
+                        });
+                    });
+                }
+            }
+
+            // بدء عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    setTimeout(requestNotificationPermission, 2000); // بعد ثانيتين
+                });
+            } else {
+                setTimeout(requestNotificationPermission, 2000);
+            }
+
+            // إعادة طلب الإذن عند فتح الصفحة إذا لم يكن موجوداً
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && Notification.permission === 'default') {
+                    setTimeout(requestNotificationPermission, 1000);
                 }
             });
         })();
