@@ -116,6 +116,18 @@
                 </svg>
             </button>
 
+            <!-- Desktop Sidebar Show Button (يظهر فقط عندما يكون السايد بار مخفياً) -->
+            <button type="button"
+                class="fixed top-4 ltr:left-4 rtl:right-4 z-50 hidden lg:block p-2 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 dark:hover:bg-primary/80 transition-all"
+                :class="{ '!hidden': !$store.app.sidebar }"
+                @click="$store.app.toggleSidebar()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 7L20 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path opacity="0.5" d="M4 12L20 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M4 17L20 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </button>
+
             <div class="dvanimation p-6 animate__animated" :class="[$store.app.animation]">
                 {{ $slot }}
             </div>
@@ -254,78 +266,77 @@
                     window.history.replaceState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
                 }
 
-                // إضافة صفحة افتراضية في history لمنع الرجوع إلى صفحة تسجيل الدخول
+                // إضافة صفحة واحدة في history لمنع الرجوع إلى صفحة تسجيل الدخول
                 if (window.history && window.history.pushState) {
-                    // إضافة صفحة افتراضية في history
                     window.history.pushState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
+                }
 
-                    // منع الرجوع إلى صفحة تسجيل الدخول
-                    let isNavigating = false;
+                // منع الرجوع إلى صفحة تسجيل الدخول
+                let isNavigating = false;
 
-                    function handlePopState(event) {
-                        if (isNavigating) return;
+                function handlePopState(event) {
+                    if (isNavigating) return;
 
+                    currentPath = window.location.pathname;
+                    const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
+
+                    if (isTryingToGoToLogin) {
+                        isNavigating = true;
+                        // إعادة توجيه إلى الداشبورد
+                        const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
+                            ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
+                            : '/admin/dashboard';
+                        window.location.replace(dashboardUrl);
+                        return;
+                    }
+
+                    // تحديث state للصفحة الحالية فقط (لا نضيف صفحة جديدة)
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
+                    }
+                }
+
+                window.addEventListener('popstate', handlePopState);
+
+                // التحقق من حالة الصفحة عند العودة من back button (للموبايل)
+                window.addEventListener('pageshow', function(event) {
+                    // التحقق من حالة تسجيل الدخول عند إعادة فتح الصفحة
+                    if (checkAndRedirect()) {
+                        return;
+                    }
+
+                    if (event.persisted) {
+                        // الصفحة تم تحميلها من cache (back button)
                         currentPath = window.location.pathname;
                         const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
 
                         if (isTryingToGoToLogin) {
-                            isNavigating = true;
-                            // إعادة توجيه إلى الداشبورد
                             const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
                                 ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
                                 : '/admin/dashboard';
                             window.location.replace(dashboardUrl);
-                            return;
-                        }
-
-                        // إعادة إضافة الصفحة في history لمنع الرجوع
-                        if (event.state && event.state.preventBack) {
-                            window.history.pushState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
                         }
                     }
+                });
 
-                    window.addEventListener('popstate', handlePopState);
+                // إضافة hashchange event listener كحل احتياطي
+                window.addEventListener('hashchange', function() {
+                    if (checkAndRedirect()) {
+                        return;
+                    }
+                });
 
-                    // التحقق من حالة الصفحة عند العودة من back button (للموبايل)
-                    window.addEventListener('pageshow', function(event) {
-                        // التحقق من حالة تسجيل الدخول عند إعادة فتح الصفحة
+                // فحص دوري للتحقق من URL الحالي (كل 2 ثانية)
+                let lastCheckedPath = currentPath;
+                setInterval(function() {
+                    currentPath = window.location.pathname;
+                    if (currentPath !== lastCheckedPath) {
+                        lastCheckedPath = currentPath;
                         if (checkAndRedirect()) {
                             return;
                         }
-
-                        if (event.persisted) {
-                            // الصفحة تم تحميلها من cache (back button)
-                            currentPath = window.location.pathname;
-                            const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
-
-                            if (isTryingToGoToLogin) {
-                                const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
-                                    ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
-                                    : '/admin/dashboard';
-                                window.location.replace(dashboardUrl);
-                            }
-                        }
-                    });
-
-                    // إضافة hashchange event listener كحل احتياطي
-                    window.addEventListener('hashchange', function() {
-                        if (checkAndRedirect()) {
-                            return;
-                        }
-                    });
-
-                    // فحص دوري للتحقق من URL الحالي (كل 2 ثانية)
-                    let lastCheckedPath = currentPath;
-                    setInterval(function() {
-                        currentPath = window.location.pathname;
-                        if (currentPath !== lastCheckedPath) {
-                            lastCheckedPath = currentPath;
-                            if (checkAndRedirect()) {
-                                return;
-                            }
-                        }
-                    }, 2000);
-                }
+                    }
+                }, 2000);
             }
 
             // إضافة visibilitychange event listener للتحقق من حالة تسجيل الدخول عند إعادة فتح التطبيق

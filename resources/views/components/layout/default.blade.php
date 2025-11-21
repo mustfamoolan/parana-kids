@@ -252,78 +252,77 @@
                     window.history.replaceState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
                 }
 
-                // إضافة صفحة افتراضية في history لمنع الرجوع إلى صفحة تسجيل الدخول
+                // إضافة صفحة واحدة في history لمنع الرجوع إلى صفحة تسجيل الدخول
                 if (window.history && window.history.pushState) {
-                    // إضافة صفحة افتراضية في history
                     window.history.pushState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
+                }
 
-                    // منع الرجوع إلى صفحة تسجيل الدخول
-                    let isNavigating = false;
+                // منع الرجوع إلى صفحة تسجيل الدخول
+                let isNavigating = false;
 
-                    function handlePopState(event) {
-                        if (isNavigating) return;
+                function handlePopState(event) {
+                    if (isNavigating) return;
 
+                    currentPath = window.location.pathname;
+                    const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
+
+                    if (isTryingToGoToLogin) {
+                        isNavigating = true;
+                        // إعادة توجيه إلى الداشبورد
+                        const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
+                            ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
+                            : '/delegate/dashboard';
+                        window.location.replace(dashboardUrl);
+                        return;
+                    }
+
+                    // تحديث state للصفحة الحالية فقط (لا نضيف صفحة جديدة)
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
+                    }
+                }
+
+                window.addEventListener('popstate', handlePopState);
+
+                // التحقق من حالة الصفحة عند العودة من back button (للموبايل)
+                window.addEventListener('pageshow', function(event) {
+                    // التحقق من حالة تسجيل الدخول عند إعادة فتح الصفحة
+                    if (checkAndRedirect()) {
+                        return;
+                    }
+
+                    if (event.persisted) {
+                        // الصفحة تم تحميلها من cache (back button)
                         currentPath = window.location.pathname;
                         const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
 
                         if (isTryingToGoToLogin) {
-                            isNavigating = true;
-                            // إعادة توجيه إلى الداشبورد
                             const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
                                 ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
                                 : '/delegate/dashboard';
                             window.location.replace(dashboardUrl);
-                            return;
-                        }
-
-                        // إعادة إضافة الصفحة في history لمنع الرجوع
-                        if (event.state && event.state.preventBack) {
-                            window.history.pushState({ preventBack: true, isAuthenticated: true }, null, window.location.href);
                         }
                     }
+                });
 
-                    window.addEventListener('popstate', handlePopState);
+                // إضافة hashchange event listener كحل احتياطي
+                window.addEventListener('hashchange', function() {
+                    if (checkAndRedirect()) {
+                        return;
+                    }
+                });
 
-                    // التحقق من حالة الصفحة عند العودة من back button (للموبايل)
-                    window.addEventListener('pageshow', function(event) {
-                        // التحقق من حالة تسجيل الدخول عند إعادة فتح الصفحة
+                // فحص دوري للتحقق من URL الحالي (كل 2 ثانية)
+                let lastCheckedPath = currentPath;
+                setInterval(function() {
+                    currentPath = window.location.pathname;
+                    if (currentPath !== lastCheckedPath) {
+                        lastCheckedPath = currentPath;
                         if (checkAndRedirect()) {
                             return;
                         }
-
-                        if (event.persisted) {
-                            // الصفحة تم تحميلها من cache (back button)
-                            currentPath = window.location.pathname;
-                            const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
-
-                            if (isTryingToGoToLogin) {
-                                const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
-                                    ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
-                                    : '/delegate/dashboard';
-                                window.location.replace(dashboardUrl);
-                            }
-                        }
-                    });
-
-                    // إضافة hashchange event listener كحل احتياطي
-                    window.addEventListener('hashchange', function() {
-                        if (checkAndRedirect()) {
-                            return;
-                        }
-                    });
-
-                    // فحص دوري للتحقق من URL الحالي (كل 2 ثانية)
-                    let lastCheckedPath = currentPath;
-                    setInterval(function() {
-                        currentPath = window.location.pathname;
-                        if (currentPath !== lastCheckedPath) {
-                            lastCheckedPath = currentPath;
-                            if (checkAndRedirect()) {
-                                return;
-                            }
-                        }
-                    }, 2000);
-                }
+                    }
+                }, 2000);
             }
 
             // إضافة visibilitychange event listener للتحقق من حالة تسجيل الدخول عند إعادة فتح التطبيق
