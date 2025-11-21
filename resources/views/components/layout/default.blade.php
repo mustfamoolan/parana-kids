@@ -173,6 +173,19 @@
                     });
                 }
             });
+
+            // استقبال طلب CSRF token من Service Worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'REQUEST_CSRF_TOKEN') {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    if (csrfToken && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'SET_CSRF_TOKEN',
+                            token: csrfToken,
+                        });
+                    }
+                }
+            });
         }
 
         // Listen for appinstalled event (optional - just for logging)
@@ -671,35 +684,63 @@
             }
 
             // بدء الإشعارات في الخلفية
-            function startBackgroundNotifications() {
+            async function startBackgroundNotifications() {
                 if (!('serviceWorker' in navigator)) {
                     console.log('Browser Notifications: Service Worker not supported');
                     return;
                 }
 
-                // إرسال رسالة لـ Service Worker للتحقق من الإشعارات
-                if (navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.controller.postMessage({
-                        type: 'CHECK_NOTIFICATIONS'
-                    });
-                }
+                try {
+                    const registration = await navigator.serviceWorker.ready;
 
-                // التحقق الدوري من الإشعارات
-                notificationCheckInterval = setInterval(() => {
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage({
+                    // إرسال رسالة لـ Service Worker للتحقق من الإشعارات فوراً
+                    if (registration.active) {
+                        registration.active.postMessage({
                             type: 'CHECK_NOTIFICATIONS'
                         });
                     }
-                }, 30000); // كل 30 ثانية
 
-                // استخدام Background Sync إذا كان مدعوماً
-                if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
-                    navigator.serviceWorker.ready.then((registration) => {
+                    // تسجيل Periodic Background Sync للتحقق التلقائي حتى لو كان التطبيق مغلق
+                    if ('periodicSync' in registration) {
+                        try {
+                            const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+                            if (status.state === 'granted') {
+                                await registration.periodicSync.register('check-notifications-periodic', {
+                                    minInterval: 30000, // كل 30 ثانية (أقل فترة ممكنة)
+                                });
+                                console.log('Browser Notifications: Periodic Background Sync registered');
+                            } else {
+                                console.log('Browser Notifications: Periodic Background Sync permission not granted');
+                            }
+                        } catch (error) {
+                            console.log('Browser Notifications: Periodic Background Sync not supported:', error);
+                        }
+                    }
+
+                    // استخدام Background Sync كبديل
+                    if ('sync' in registration) {
                         registration.sync.register('check-notifications').catch(() => {
                             console.log('Background Sync: Not supported or failed');
                         });
-                    });
+                    }
+
+                    // التحقق الدوري من الإشعارات (عندما تكون الصفحة مفتوحة)
+                    notificationCheckInterval = setInterval(() => {
+                        if (registration.active) {
+                            registration.active.postMessage({
+                                type: 'CHECK_NOTIFICATIONS'
+                            });
+                        }
+                    }, 30000); // كل 30 ثانية
+
+                    // إرسال رسالة لـ Service Worker لبدء التحقق التلقائي
+                    if (registration.active) {
+                        registration.active.postMessage({
+                            type: 'START_AUTO_CHECK'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Browser Notifications: Error starting background notifications:', error);
                 }
             }
 
