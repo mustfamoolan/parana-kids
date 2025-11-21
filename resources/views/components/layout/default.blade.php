@@ -26,12 +26,6 @@
     <script defer src="/assets/js/tippy-bundle.umd.min.js"></script>
     <script defer src="/assets/js/sweetalert.min.js"></script>
 
-    <!-- Firebase SDK for FCM - محمّل في جميع الصفحات للإشعارات -->
-    @auth
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
-    @endauth
-
     @vite(['resources/css/app.css'])
 </head>
 
@@ -359,34 +353,6 @@
         })();
     </script>
 
-    <!-- Global Notifications System -->
-    @auth
-    <script>
-        // تعيين user ID للإشعارات
-        window.authUserId = {{ auth()->id() }};
-
-        // Toast Notification Function - يعمل في كل الصفحات
-        window.showMessage = (msg = 'Example notification text.', position = 'top', showCloseButton = true, closeButtonHtml = '', duration = 5000) => {
-            if (typeof window.Swal === 'undefined') {
-                console.warn('SweetAlert not available');
-                return;
-            }
-            const toast = window.Swal.mixin({
-                toast: true,
-                position: position || 'top',
-                showConfirmButton: false,
-                timer: duration,
-                showCloseButton: showCloseButton,
-            });
-            toast.fire({
-                title: msg,
-            });
-        };
-    </script>
-    <script src="{{ asset('js/notifications.js') }}"></script>
-    @include('components.global-notifications')
-    @endauth
-
     <!-- SweetAlert Polling System -->
     @auth
     <script>
@@ -423,42 +389,70 @@
                 isPolling = true;
 
                 try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    const headers = {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    };
+
+                    if (csrfToken) {
+                        headers['X-CSRF-TOKEN'] = csrfToken;
+                    }
+
                     const response = await fetch('/api/sweet-alerts/unread', {
                         method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
+                        headers: headers,
                         credentials: 'same-origin',
                     });
 
                     if (!response.ok) {
+                        console.error('SweetAlert: API response not OK:', response.status);
                         throw new Error('Failed to fetch alerts');
                     }
 
                     const data = await response.json();
+                    console.log('SweetAlert: Fetched alerts:', data);
+
                     if (data.success && data.alerts && data.alerts.length > 0) {
+                        console.log('SweetAlert: Found', data.alerts.length, 'unread alerts');
+
                         // عرض الإشعارات الجديدة فقط
                         const newAlerts = data.alerts.filter(alert => {
-                            if (!lastCheckTime) return true;
+                            if (!lastCheckTime) {
+                                console.log('SweetAlert: First check, showing all alerts');
+                                return true;
+                            }
                             const alertTime = new Date(alert.created_at);
-                            return alertTime > lastCheckTime;
+                            const isNew = alertTime > lastCheckTime;
+                            if (!isNew) {
+                                console.log('SweetAlert: Alert is old, skipping:', alert.id);
+                            }
+                            return isNew;
                         });
+
+                        console.log('SweetAlert: New alerts to show:', newAlerts.length);
 
                         if (newAlerts.length > 0) {
                             // تحديث وقت آخر فحص
                             lastCheckTime = new Date();
 
                             // عرض كل إشعار
-                            newAlerts.forEach(alert => {
-                                showSweetAlert(alert);
-                                // تحديد الإشعار كمقروء
-                                markAlertAsRead(alert.id);
+                            newAlerts.forEach((alert, index) => {
+                                console.log('SweetAlert: Displaying alert', index + 1, 'of', newAlerts.length, ':', alert);
+                                setTimeout(() => {
+                                    showSweetAlert(alert);
+                                    // تحديد الإشعار كمقروء
+                                    markAlertAsRead(alert.id);
+                                }, index * 300); // تأخير بسيط بين الإشعارات
                             });
 
                             // تشغيل الصوت
                             playSound();
+                        } else {
+                            console.log('SweetAlert: No new alerts to show');
                         }
+                    } else {
+                        console.log('SweetAlert: No alerts found or API returned no alerts');
                     }
                 } catch (error) {
                     console.error('SweetAlert: Error fetching alerts:', error);
@@ -469,8 +463,17 @@
 
             // عرض SweetAlert
             function showSweetAlert(alert) {
+                console.log('SweetAlert: Showing alert:', alert);
+
                 if (typeof window.Swal === 'undefined') {
-                    console.warn('SweetAlert: SweetAlert library not available');
+                    console.warn('SweetAlert: SweetAlert library not available, retrying...');
+                    setTimeout(() => {
+                        if (typeof window.Swal !== 'undefined') {
+                            showSweetAlert(alert);
+                        } else {
+                            console.error('SweetAlert: SweetAlert library still not available after retry');
+                        }
+                    }, 500);
                     return;
                 }
 
@@ -481,6 +484,8 @@
                     timer: 5000,
                     timerProgressBar: true,
                     showCloseButton: true,
+                    padding: '2em',
+                    customClass: 'sweet-alerts',
                 });
 
                 toast.fire({
@@ -488,6 +493,8 @@
                     title: alert.title || 'إشعار جديد',
                     text: alert.message || '',
                 });
+
+                console.log('SweetAlert: Alert displayed successfully');
             }
 
             // تحديد الإشعار كمقروء
@@ -507,8 +514,26 @@
                 }
             }
 
+            // انتظار حتى يكون SweetAlert متاحاً
+            function waitForSweetAlert(callback, maxAttempts = 20) {
+                let attempts = 0;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (typeof window.Swal !== 'undefined') {
+                        clearInterval(checkInterval);
+                        console.log('SweetAlert: Library loaded successfully');
+                        callback();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        console.error('SweetAlert: Library not available after', maxAttempts, 'attempts');
+                    }
+                }, 200);
+            }
+
             // بدء Polling
             function startPolling() {
+                console.log('SweetAlert: Starting polling system');
+
                 // فحص فوري عند تحميل الصفحة
                 fetchUnreadAlerts();
 
@@ -518,14 +543,14 @@
                         fetchUnreadAlerts();
                     }
                 }, pollInterval);
+
+                console.log('SweetAlert: Polling started with interval:', pollInterval, 'ms');
             }
 
-            // بدء عند تحميل الصفحة
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', startPolling);
-            } else {
+            // بدء عند تحميل الصفحة - انتظار SweetAlert أولاً
+            waitForSweetAlert(() => {
                 startPolling();
-            }
+            });
 
             // إعادة الفحص عند إعادة فتح الصفحة
             document.addEventListener('visibilitychange', () => {

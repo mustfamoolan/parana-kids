@@ -7,7 +7,6 @@ use App\Models\Message;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
-use App\Services\UnifiedNotificationService;
 use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,12 +15,10 @@ use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
-    protected $notificationService;
     protected $sweetAlertService;
 
-    public function __construct(UnifiedNotificationService $notificationService, SweetAlertService $sweetAlertService)
+    public function __construct(SweetAlertService $sweetAlertService)
     {
-        $this->notificationService = $notificationService;
         $this->sweetAlertService = $sweetAlertService;
     }
 
@@ -395,21 +392,6 @@ class ChatController extends Controller
             // تحديث وقت المحادثة
             $conversation->touch();
 
-            // إرسال إشعار فوري عبر UnifiedNotificationService
-            try {
-                $messageText = $request->input('message', '');
-                if ($messageType === 'image') {
-                    $messageText = 'صورة';
-                }
-                $this->notificationService->sendMessageNotification(
-                    $conversationId,
-                    $user->id,
-                    $messageText
-                );
-            } catch (\Exception $e) {
-                \Log::error('Chat - Error sending notification: ' . $e->getMessage());
-            }
-
             // إرسال SweetAlert للمستلم
             try {
                 $otherParticipant = $conversation->getOtherParticipant($user->id);
@@ -632,17 +614,6 @@ class ChatController extends Controller
         // تحديث وقت المحادثة
         $conversation->touch();
 
-        // إرسال إشعار فوري
-        try {
-            $this->notificationService->sendMessageNotification(
-                $conversationId,
-                $user->id,
-                "طلب: {$order->order_number}"
-            );
-        } catch (\Exception $e) {
-            \Log::error('Chat - Error sending order message notification: ' . $e->getMessage());
-        }
-
         // جلب بيانات الطلب الكاملة
         $order->load(['delegate', 'items.product.warehouse']);
 
@@ -756,17 +727,6 @@ class ChatController extends Controller
 
         // تحديث وقت المحادثة
         $conversation->touch();
-
-        // إرسال إشعار فوري
-        try {
-            $this->notificationService->sendMessageNotification(
-                $conversationId,
-                $user->id,
-                "منتج: {$product->name}"
-            );
-        } catch (\Exception $e) {
-            \Log::error('Chat - Error sending product message notification: ' . $e->getMessage());
-        }
 
         // جلب بيانات المنتج الكاملة
         $product->load(['primaryImage', 'warehouse', 'sizes.reservations']);

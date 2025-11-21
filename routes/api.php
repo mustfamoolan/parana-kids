@@ -17,9 +17,3 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
-// SweetAlert Routes
-Route::middleware('auth:web')->group(function () {
-    Route::get('/sweet-alerts/unread', [App\Http\Controllers\SweetAlertController::class, 'getUnread']);
-    Route::post('/sweet-alerts/{id}/read', [App\Http\Controllers\SweetAlertController::class, 'markAsRead']);
-});

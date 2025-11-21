@@ -22,10 +22,18 @@ class SweetAlertController extends Controller
     {
         $user = Auth::user();
         if (!$user) {
+            \Log::warning('SweetAlertController: Unauthorized request');
             return response()->json(['error' => 'غير مصرح'], 401);
         }
 
+        \Log::info('SweetAlertController: Fetching unread alerts for user', ['user_id' => $user->id]);
+
         $alerts = $this->sweetAlertService->getUnreadForUser($user->id);
+
+        \Log::info('SweetAlertController: Found alerts', [
+            'user_id' => $user->id,
+            'count' => $alerts->count(),
+        ]);
 
         return response()->json([
             'success' => true,

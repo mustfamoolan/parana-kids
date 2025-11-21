@@ -324,14 +324,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('api.notifications.mark-read');
     Route::post('/api/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('api.notifications.mark-all-read');
 
-    // FCM Token Routes
-    Route::post('/api/fcm/token', [App\Http\Controllers\FcmController::class, 'registerToken'])->name('api.fcm.token');
-    Route::delete('/api/fcm/token', [App\Http\Controllers\FcmController::class, 'deleteToken'])->name('api.fcm.token.delete');
+    // تم إزالة FCM و SSE routes - استخدام SweetAlert فقط
 
-    // SSE route - تم إزالته (استخدام Firebase FCM بدلاً منه)
-    Route::get('/api/sse/stream', function() {
-        abort(404, 'SSE endpoint has been removed. Please use Firebase FCM instead.');
-    })->name('api.sse.stream');
+    // SweetAlert Routes
+    Route::get('/api/sweet-alerts/unread', [App\Http\Controllers\SweetAlertController::class, 'getUnread'])->name('api.sweet-alerts.unread');
+    Route::post('/api/sweet-alerts/{id}/read', [App\Http\Controllers\SweetAlertController::class, 'markAsRead'])->name('api.sweet-alerts.read');
 });
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');

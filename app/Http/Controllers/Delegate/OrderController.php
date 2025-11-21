@@ -10,19 +10,16 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductSize;
 use App\Models\ProductMovement;
-use App\Services\UnifiedNotificationService;
 use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-    protected $notificationService;
     protected $sweetAlertService;
 
-    public function __construct(UnifiedNotificationService $notificationService, SweetAlertService $sweetAlertService)
+    public function __construct(SweetAlertService $sweetAlertService)
     {
-        $this->notificationService = $notificationService;
         $this->sweetAlertService = $sweetAlertService;
     }
 
@@ -315,13 +312,6 @@ class OrderController extends Controller
             return $order;
         });
 
-        // إرسال إشعار إنشاء طلب جديد
-        try {
-            $this->notificationService->sendOrderNotification($order, 'order_created');
-        } catch (\Exception $e) {
-            \Log::error('Delegate/OrderController: Error sending order_created notification: ' . $e->getMessage());
-        }
-
         // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
         try {
             $this->sweetAlertService->notifyOrderCreated($order);
@@ -555,13 +545,6 @@ class OrderController extends Controller
                 // تسجيل من قام بالحذف
                 $order->deleted_by = auth()->id();
                 $order->save();
-
-                // إرسال إشعار حذف الطلب
-                try {
-                    $this->notificationService->sendOrderNotification($order, 'order_deleted');
-                } catch (\Exception $e) {
-                    \Log::error('Delegate/OrderController: Error sending order_deleted notification: ' . $e->getMessage());
-                }
 
                 // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
                 try {
@@ -889,13 +872,6 @@ class OrderController extends Controller
 
             return $order;
         });
-
-        // إرسال إشعار إنشاء طلب جديد
-        try {
-            $this->notificationService->sendOrderNotification($order, 'order_created');
-        } catch (\Exception $e) {
-            \Log::error('Delegate/OrderController: Error sending order_created notification: ' . $e->getMessage());
-        }
 
         // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
         try {

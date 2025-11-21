@@ -12,7 +12,6 @@ use App\Models\ReturnItem;
 use App\Models\ExchangeItem;
 use App\Models\OrderItem;
 use App\Services\ProfitCalculator;
-use App\Services\UnifiedNotificationService;
 use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,12 +21,10 @@ use Illuminate\Support\Facades\Route;
 
 class OrderController extends Controller
 {
-    protected $notificationService;
     protected $sweetAlertService;
 
-    public function __construct(UnifiedNotificationService $notificationService, SweetAlertService $sweetAlertService)
+    public function __construct(SweetAlertService $sweetAlertService)
     {
-        $this->notificationService = $notificationService;
         $this->sweetAlertService = $sweetAlertService;
     }
 
@@ -1039,13 +1036,6 @@ class OrderController extends Controller
                 'profit_margin_at_confirmation' => $profitMargin,
             ]);
 
-            // إرسال إشعار تأكيد الطلب
-            try {
-                $this->notificationService->sendOrderNotification($order, 'order_confirmed');
-            } catch (\Exception $e) {
-                \Log::error('OrderController: Error sending order_confirmed notification: ' . $e->getMessage());
-            }
-
             // إرسال SweetAlert للمندوب (نفس المخزن)
             try {
                 $this->sweetAlertService->notifyOrderConfirmed($order);
@@ -1515,13 +1505,6 @@ class OrderController extends Controller
 
             $order->processReturn($returnData, auth()->id());
 
-            // إرسال إشعار إرجاع الطلب
-            try {
-                $this->notificationService->sendOrderNotification($order, 'order_returned');
-            } catch (\Exception $e) {
-                \Log::error('OrderController: Error sending order_returned notification: ' . $e->getMessage());
-            }
-
             return redirect()->route('admin.orders.returned')
                             ->with('success', 'تم إرجاع المنتجات بنجاح');
         } catch (\Exception $e) {
@@ -1578,13 +1561,6 @@ class OrderController extends Controller
         try {
             $order->processExchange($request->exchanges, auth()->id());
 
-            // إرسال إشعار استبدال الطلب
-            try {
-                $this->notificationService->sendOrderNotification($order, 'order_exchanged');
-            } catch (\Exception $e) {
-                \Log::error('OrderController: Error sending order_exchanged notification: ' . $e->getMessage());
-            }
-
             return redirect()->route('admin.orders.exchanged')
                             ->with('success', 'تم استبدال المنتجات بنجاح');
         } catch (\Exception $e) {
@@ -1612,13 +1588,6 @@ class OrderController extends Controller
             $order->load('items.size');
 
             $order->cancel($request->cancellation_reason, auth()->id());
-
-            // إرسال إشعار إلغاء الطلب
-            try {
-                $this->notificationService->sendOrderNotification($order, 'order_cancelled');
-            } catch (\Exception $e) {
-                \Log::error('OrderController: Error sending order_cancelled notification: ' . $e->getMessage());
-            }
 
             return redirect()->route('admin.orders.cancelled')
                             ->with('success', 'تم إلغاء الطلب بنجاح');
@@ -1919,13 +1888,6 @@ class OrderController extends Controller
                 $order->deleted_by = auth()->id();
                 $order->deletion_reason = $request->deletion_reason;
                 $order->save();
-
-                // إرسال إشعار حذف الطلب
-                try {
-                    $this->notificationService->sendOrderNotification($order, 'order_deleted');
-                } catch (\Exception $e) {
-                    \Log::error('OrderController: Error sending order_deleted notification: ' . $e->getMessage());
-                }
 
                 // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
                 try {

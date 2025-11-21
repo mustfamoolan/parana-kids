@@ -58,10 +58,17 @@ class SweetAlertService
      */
     public function getUnreadForUser($userId)
     {
-        return SweetAlert::where('user_id', $userId)
+        $alerts = SweetAlert::where('user_id', $userId)
             ->unread()
             ->orderBy('created_at', 'desc')
             ->get();
+
+        Log::info('SweetAlertService: getUnreadForUser', [
+            'user_id' => $userId,
+            'count' => $alerts->count(),
+        ]);
+
+        return $alerts;
     }
 
     /**
