@@ -2267,7 +2267,7 @@
                                 const data = await response.json();
                                 const badge = document.getElementById(`conversation-badge-${conversation.conversationId}`);
                                 const activeIndicator = document.getElementById(`active-indicator-${conversation.conversationId}`);
-                                
+
                                 if (badge) {
                                     if (data.has_unread) {
                                         badge.classList.remove('hidden');

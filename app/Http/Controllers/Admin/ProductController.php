@@ -124,7 +124,7 @@ class ProductController extends Controller
         $imageIndex = 0;
         // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
         $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
-        
+
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', $disk);
@@ -366,7 +366,7 @@ class ProductController extends Controller
         // معالجة الصور
         // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
         $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
-        
+
         // حذف الصور التي لم يتم الاحتفاظ بها
         $keepImageIds = $request->keep_images ?? [];
         foreach ($product->images as $oldImage) {
@@ -482,7 +482,7 @@ class ProductController extends Controller
         // Delete images from storage
         // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
         $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
-        
+
         foreach ($product->images as $image) {
             Storage::disk($disk)->delete($image->image_path);
         }
