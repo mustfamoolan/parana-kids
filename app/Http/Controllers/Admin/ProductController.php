@@ -122,9 +122,12 @@ class ProductController extends Controller
 
         // رفع الصور إن وجدت - دعم صور متعددة
         $imageIndex = 0;
+        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
+        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
+                $path = $image->store('products', $disk);
 
                 ProductImage::create([
                     'product_id' => $product->id,
@@ -152,7 +155,7 @@ class ProductController extends Controller
                         $filename = 'product_' . time() . '_' . uniqid() . '.' . $extension;
                         $path = 'products/' . $filename;
 
-                        Storage::disk('public')->put($path, $imageContent);
+                        Storage::disk($disk)->put($path, $imageContent);
 
                         ProductImage::create([
                             'product_id' => $product->id,
@@ -361,11 +364,14 @@ class ProductController extends Controller
         }
 
         // معالجة الصور
+        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
+        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        
         // حذف الصور التي لم يتم الاحتفاظ بها
         $keepImageIds = $request->keep_images ?? [];
         foreach ($product->images as $oldImage) {
             if (!in_array($oldImage->id, $keepImageIds)) {
-                Storage::disk('public')->delete($oldImage->image_path);
+                Storage::disk($disk)->delete($oldImage->image_path);
                 $oldImage->delete();
             }
         }
@@ -383,7 +389,7 @@ class ProductController extends Controller
         // رفع صور جديدة من الملفات
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
+                $path = $image->store('products', $disk);
 
                 ProductImage::create([
                     'product_id' => $product->id,
@@ -411,7 +417,7 @@ class ProductController extends Controller
                         $filename = 'product_' . time() . '_' . uniqid() . '.' . $extension;
                         $path = 'products/' . $filename;
 
-                        Storage::disk('public')->put($path, $imageContent);
+                        Storage::disk($disk)->put($path, $imageContent);
 
                         ProductImage::create([
                             'product_id' => $product->id,
@@ -474,8 +480,11 @@ class ProductController extends Controller
         }
 
         // Delete images from storage
+        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
+        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        
         foreach ($product->images as $image) {
-            Storage::disk('public')->delete($image->image_path);
+            Storage::disk($disk)->delete($image->image_path);
         }
 
         $warehouse = $product->warehouse;

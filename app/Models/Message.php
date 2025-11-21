@@ -79,7 +79,15 @@ class Message extends Model
         if (!$this->image_path) {
             return null;
         }
-        return asset('storage/' . $this->image_path);
+        
+        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
+        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        
+        if ($disk === 'cloud') {
+            return \Illuminate\Support\Facades\Storage::disk('cloud')->url($this->image_path);
+        }
+        
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path);
     }
 
     /**
