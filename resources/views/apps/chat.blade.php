@@ -203,10 +203,10 @@
                                         </div>
                                         <div class="mx-3 ltr:text-left rtl:text-right">
                                             <div class="flex items-center gap-2 mb-1">
-                                                <p class="font-semibold relative" x-text="person.name"></p>
+                                                <p class="font-semibold relative inline-block" x-text="person.name"></p>
                                                 <!-- Badge للإشعارات غير المقروءة -->
                                                 <template x-if="person.conversationId">
-                                                    <span :id="`conversation-badge-${person.conversationId}`" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-danger rounded-full border-2 border-white dark:border-gray-800"></span>
+                                                    <span :id="`conversation-badge-${person.conversationId}`" class="hidden absolute -top-2 -right-2 w-4 h-4 bg-danger rounded-full border-2 border-white dark:border-gray-800 shadow-lg"></span>
                                                 </template>
                                                 <template x-if="person.code && person.type !== 'group'">
                                                     <span class="badge badge-outline-primary text-xs" x-text="person.code"></span>
@@ -2352,5 +2352,25 @@
             }
         });
     </script>
+
+    <style>
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(239, 68, 68, 0.5), 0 0 10px rgba(239, 68, 68, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.5);
+            }
+        }
+        [id^="conversation-badge-"]:not(.hidden) {
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite, glow 2s ease-in-out infinite;
+        }
+    </style>
 
 </x-layout.default>
