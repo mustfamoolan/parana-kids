@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,7 +25,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        // إنشاء storage link تلقائياً إذا لم يكن موجوداً
+        $link = public_path('storage');
+        $target = storage_path('app/public');
+
+        // التحقق من وجود المجلد الهدف والرابط
+        if (is_dir($target) && !file_exists($link)) {
+            try {
+                // استخدام Artisan command لضمان التوافق مع جميع الأنظمة
+                Artisan::call('storage:link');
+            } catch (\Exception $e) {
+                // تسجيل الخطأ بدون تعطيل التطبيق
+                Log::warning('Failed to create storage link automatically: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
