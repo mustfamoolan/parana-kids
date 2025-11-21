@@ -32,23 +32,38 @@ class AppServiceProvider extends ServiceProvider
         $target = storage_path('app/public');
 
         // التحقق من وجود المجلد الهدف وإنشائه باستخدام Storage facade
+        // ملاحظة: في Laravel Cloud مع Bucket (S3)، لا نحتاج لإنشاء مجلدات محلية
         try {
-            // إنشاء المجلد الرئيسي إذا لم يكن موجوداً
-            if (!Storage::disk('public')->exists('')) {
-                Storage::disk('public')->makeDirectory('');
-            }
+            $driver = config('filesystems.disks.public.driver', 'local');
 
-            // إنشاء المجلدات الفرعية المطلوبة إذا لم تكن موجودة
-            $requiredDirectories = ['products', 'messages', 'profiles'];
-            foreach ($requiredDirectories as $dir) {
-                if (!Storage::disk('public')->exists($dir)) {
-                    Storage::disk('public')->makeDirectory($dir);
-                    Log::info('Created storage subdirectory: ' . $dir);
+            // فقط إنشاء المجلدات المحلية إذا كان driver هو 'local'
+            if ($driver === 'local') {
+                // التحقق من وجود المجلد الرئيسي
+                $publicPath = storage_path('app/public');
+                if (!file_exists($publicPath)) {
+                    @mkdir($publicPath, 0755, true);
+                    Log::info('Created storage directory: ' . $publicPath);
                 }
+
+                // إنشاء المجلدات الفرعية المطلوبة إذا لم تكن موجودة
+                $requiredDirectories = ['products', 'messages', 'profiles', 'banners'];
+                foreach ($requiredDirectories as $dir) {
+                    $dirPath = $publicPath . '/' . $dir;
+                    if (!file_exists($dirPath)) {
+                        @mkdir($dirPath, 0755, true);
+                        Log::info('Created storage subdirectory: ' . $dir);
+                    }
+                }
+            } else {
+                // عند استخدام Bucket (S3) في Laravel Cloud
+                // المجلدات تُنشأ تلقائياً عند الحاجة عند رفع الملفات
+                // لا حاجة لإنشاء المجلدات مسبقاً
+                Log::debug('Using cloud storage (Bucket), directories will be created automatically when needed');
             }
         } catch (\Exception $e) {
-            Log::warning('Failed to create storage directories: ' . $e->getMessage());
             // لا نوقف التطبيق، فقط نسجل التحذير
+            // في Laravel Cloud مع Bucket، هذا التحذير قد يكون طبيعياً
+            Log::debug('Storage directories check: ' . $e->getMessage());
         }
 
         // التحقق من وجود الرابط

@@ -41,7 +41,24 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold text-warning mb-2">الطلبات غير المقيدة</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">عرض الطلبات غير المقيدة</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    @php
+                        $unboundOrdersQuery = \App\Models\Order::where('status', 'pending');
+                        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+                        if (auth()->user()->isSupplier()) {
+                            $accessibleWarehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
+                            $unboundOrdersQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                            });
+                        }
+                        $unboundOrdersCount = $unboundOrdersQuery->count();
+                    @endphp
+                    @if($unboundOrdersCount > 0)
+                        <span class="badge bg-warning">{{ $unboundOrdersCount }}</span> طلب غير مقيد
+                    @else
+                        عرض الطلبات غير المقيدة
+                    @endif
+                </p>
             </a>
 
             <!-- 1.2. الطلبات المقيدة -->
