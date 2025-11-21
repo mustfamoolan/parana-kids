@@ -14,3 +14,4 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+firebase-credentials-base64.txt
