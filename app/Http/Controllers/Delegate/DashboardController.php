@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ArchivedOrder;
 use App\Models\Cart;
 use App\Models\Order;
+use App\Models\Setting;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
@@ -31,6 +32,10 @@ class DashboardController extends Controller
         $notificationService = new NotificationService();
         $unreadMessagesCount = $notificationService->getUnreadCount(auth()->id(), 'message');
 
-        return view('delegate.dashboard', compact('activeOrder', 'stats', 'unreadMessagesCount'));
+        // جلب بيانات البنر النصي للداشبورد
+        $dashboardBannerEnabled = Setting::getValue('dashboard_banner_enabled', '0') === '1';
+        $dashboardBannerText = Setting::getValue('dashboard_banner_text', '');
+
+        return view('delegate.dashboard', compact('activeOrder', 'stats', 'unreadMessagesCount', 'dashboardBannerEnabled', 'dashboardBannerText'));
     }
 }

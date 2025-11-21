@@ -253,6 +253,26 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن الخاصة والموردين</p>
             </a>
             @endif
+
+            <!-- تسجيل الخروج -->
+            <div class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-danger/10 to-danger/5 border-2 border-danger/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-danger/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-danger mb-2">تسجيل الخروج</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">الخروج من النظام</p>
+                <form method="POST" action="{{ route('admin.logout') }}" class="mt-4">
+                    @csrf
+                    <button type="submit" class="btn btn-danger w-full">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        تسجيل الخروج
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </x-layout.admin>

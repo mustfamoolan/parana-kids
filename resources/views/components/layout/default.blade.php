@@ -27,6 +27,99 @@
     <script defer src="/assets/js/sweetalert.min.js"></script>
 
     @vite(['resources/css/app.css'])
+
+    <!-- Custom Color Variables -->
+    <style>
+        :root {
+            --custom-text-primary: #3b3f5c;
+            --custom-text-secondary: #888ea8;
+        }
+
+        .dark {
+            --custom-text-primary: #e0e6ed;
+            --custom-text-secondary: #888ea8;
+        }
+
+        /* تطبيق الألوان المخصصة في الوضع الداكن - يتم تطبيقها عبر JavaScript */
+        html.dark,
+        body.dark {
+            /* الألوان ستُطبق ديناميكياً عبر JavaScript */
+        }
+
+        /* تطبيق ألوان الخطوط المخصصة */
+        body {
+            color: var(--custom-text-primary);
+        }
+
+        .text-primary {
+            color: var(--custom-text-primary) !important;
+        }
+
+        .text-secondary {
+            color: var(--custom-text-secondary) !important;
+        }
+
+        /* تطبيق لون النص الثانوي على جميع النصوص الثانوية */
+        .text-gray-400,
+        .text-gray-500,
+        .text-gray-600,
+        .text-white-dark,
+        .dark .text-white-dark,
+        p.text-sm,
+        .text-xs,
+        .text-sm.text-gray-500,
+        .text-sm.text-gray-600,
+        .text-sm.text-gray-400 {
+            color: var(--custom-text-secondary) !important;
+        }
+
+        /* تطبيق الألوان على السايد بار */
+        .sidebar .nav-item > button,
+        .sidebar .nav-item > a,
+        .sidebar .nav-item > button > div > span,
+        .sidebar .nav-item > a > div > span {
+            color: var(--custom-text-secondary) !important;
+        }
+
+        .sidebar .nav-item > button:hover,
+        .sidebar .nav-item > a:hover,
+        .sidebar .nav-item > button:hover > div > span,
+        .sidebar .nav-item > a:hover > div > span {
+            color: var(--custom-text-primary) !important;
+        }
+
+        .sidebar .nav-item > button.active,
+        .sidebar .nav-item > a.active,
+        .sidebar .nav-item > button.active > div > span,
+        .sidebar .nav-item > a.active > div > span {
+            color: var(--custom-text-primary) !important;
+        }
+
+        .sidebar ul.sub-menu li button,
+        .sidebar ul.sub-menu li a {
+            color: var(--custom-text-secondary) !important;
+        }
+
+        .sidebar ul.sub-menu li button:hover,
+        .sidebar ul.sub-menu li a:hover {
+            color: var(--custom-text-primary) !important;
+        }
+
+        .sidebar ul.sub-menu li button.active,
+        .sidebar ul.sub-menu li a.active {
+            color: var(--custom-text-primary) !important;
+        }
+
+        /* تطبيق على العناصر الأخرى */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--custom-text-primary) !important;
+        }
+
+        .text-black,
+        .dark .text-white {
+            color: var(--custom-text-primary) !important;
+        }
+    </style>
 </head>
 
 <body x-data="main" class="antialiased relative font-nunito text-sm font-normal overflow-x-hidden"
@@ -893,6 +986,315 @@
                     reRegisterPeriodicSync();
                 }
             }, 300000); // كل 5 دقائق
+        })();
+
+        // Floating Banner System
+        (function() {
+            let bannerCheckInterval = null;
+            let lastBannerHash = null;
+            const bannerStorageKey = 'floating_banner_dismissed';
+            const pollInterval = 4000; // نفس توقيت SweetAlert polling
+
+            // جلب البنر النشط
+            async function fetchActiveBanner() {
+                try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    const headers = {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    };
+
+                    if (csrfToken) {
+                        headers['X-CSRF-TOKEN'] = csrfToken;
+                    }
+
+                    const response = await fetch('/api/banner/active', {
+                        method: 'GET',
+                        headers: headers,
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        console.log('Banner: API response not OK:', response.status);
+                        return null;
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success && data.active && data.banner) {
+                        return data.banner;
+                    }
+
+                    return null;
+                } catch (error) {
+                    console.error('Banner: Error fetching banner:', error);
+                    return null;
+                }
+            }
+
+            // عرض البنر
+            function showBanner(banner) {
+                // إنشاء hash للبنر للتحقق من التغييرات
+                const bannerHash = JSON.stringify(banner);
+
+                // التحقق من أن البنر لم يتم إغلاقه
+                const dismissedHash = localStorage.getItem(bannerStorageKey);
+                if (dismissedHash === bannerHash) {
+                    console.log('Banner: Banner was dismissed by user');
+                    return;
+                }
+
+                // التحقق من أن البنر لم يتم عرضه من قبل (نفس hash)
+                if (lastBannerHash === bannerHash) {
+                    console.log('Banner: Banner already shown');
+                    return;
+                }
+
+                // التحقق من أن SweetAlert متاح
+                if (typeof window.Swal === 'undefined') {
+                    console.warn('Banner: SweetAlert library not available, retrying...');
+                    setTimeout(() => {
+                        if (typeof window.Swal !== 'undefined') {
+                            showBanner(banner);
+                        }
+                    }, 500);
+                    return;
+                }
+
+                console.log('Banner: Showing banner:', banner);
+
+                // بناء محتوى البنر
+                let htmlContent = '';
+
+                if (banner.image) {
+                    htmlContent += `<div class="mb-4 text-center">
+                        <img src="${banner.image}" alt="${banner.title}" class="max-w-full h-auto rounded-lg mx-auto" style="max-height: 300px;">
+                    </div>`;
+                }
+
+                if (banner.text) {
+                    htmlContent += `<p class="text-base mb-4">${banner.text}</p>`;
+                }
+
+                // عرض البنر باستخدام SweetAlert
+                window.Swal.fire({
+                    icon: banner.icon || 'info',
+                    title: banner.title || 'إشعار',
+                    html: htmlContent || '<p></p>',
+                    padding: '2em',
+                    customClass: 'sweet-alerts',
+                    showConfirmButton: true,
+                    confirmButtonText: 'إغلاق',
+                    confirmButtonColor: '#4361ee',
+                    allowOutsideClick: true,
+                    allowEscapeKey: true,
+                }).then((result) => {
+                    if (result.isConfirmed || result.isDismissed) {
+                        // حفظ حالة الإغلاق
+                        localStorage.setItem(bannerStorageKey, bannerHash);
+                        lastBannerHash = bannerHash;
+                        console.log('Banner: Banner dismissed by user');
+                    }
+                });
+
+                // حفظ hash البنر الحالي
+                lastBannerHash = bannerHash;
+            }
+
+            // فحص البنر
+            async function checkBanner() {
+                if (document.hidden) {
+                    return;
+                }
+
+                const banner = await fetchActiveBanner();
+
+                if (banner) {
+                    // التحقق من أن البنر لم يتم إغلاقه
+                    const dismissedHash = localStorage.getItem(bannerStorageKey);
+                    const bannerHash = JSON.stringify(banner);
+
+                    if (dismissedHash !== bannerHash) {
+                        showBanner(banner);
+                    } else {
+                        // إذا تم إلغاء تفعيل البنر من قبل المدير، مسح localStorage
+                        // (سيتم التحقق من ذلك في الفحص التالي)
+                        console.log('Banner: Banner was previously dismissed');
+                    }
+                } else {
+                    // إذا لم يكن هناك بنر نشط، مسح localStorage
+                    if (localStorage.getItem(bannerStorageKey)) {
+                        localStorage.removeItem(bannerStorageKey);
+                        lastBannerHash = null;
+                        console.log('Banner: No active banner, cleared dismissed state');
+                    }
+                }
+            }
+
+            // بدء فحص البنر
+            function startBannerPolling() {
+                console.log('Banner: Starting banner polling system');
+
+                // فحص فوري عند تحميل الصفحة
+                setTimeout(checkBanner, 2000); // بعد ثانيتين
+
+                // Polling دوري
+                bannerCheckInterval = setInterval(() => {
+                    if (!document.hidden) {
+                        checkBanner();
+                    }
+                }, pollInterval);
+
+                console.log('Banner: Polling started with interval:', pollInterval, 'ms');
+            }
+
+            // بدء عند تحميل الصفحة - انتظار SweetAlert أولاً
+            function waitForSweetAlertAndStart(callback, maxAttempts = 20) {
+                let attempts = 0;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (typeof window.Swal !== 'undefined') {
+                        clearInterval(checkInterval);
+                        console.log('Banner: SweetAlert library loaded, starting banner system');
+                        callback();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        console.error('Banner: SweetAlert library not available after', maxAttempts, 'attempts');
+                        // محاولة البدء على أي حال
+                        callback();
+                    }
+                }, 200);
+            }
+
+            waitForSweetAlertAndStart(() => {
+                startBannerPolling();
+            });
+
+            // إعادة الفحص عند إعادة فتح الصفحة
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    setTimeout(checkBanner, 1000);
+                }
+            });
+        })();
+
+        // Custom Color System
+        (function() {
+            const colorStorageKey = 'custom_colors';
+            const defaultColors = {
+                light: {
+                    textPrimary: '#3b3f5c',
+                    textSecondary: '#888ea8',
+                },
+                dark: {
+                    textPrimary: '#e0e6ed',
+                    textSecondary: '#888ea8',
+                }
+            };
+
+            // تطبيق الألوان من localStorage
+            function applyColors() {
+                try {
+                    const savedColors = localStorage.getItem(colorStorageKey);
+                    if (!savedColors) {
+                        return; // استخدام الألوان الافتراضية
+                    }
+
+                    const colors = JSON.parse(savedColors);
+
+                    // اكتشاف الوضع الداكن بطرق متعددة
+                    const htmlElement = document.documentElement;
+                    const bodyElement = document.body;
+                    const isDark = htmlElement.classList.contains('dark') ||
+                                  bodyElement.classList.contains('dark') ||
+                                  (window.Alpine && Alpine.store('app') && Alpine.store('app').isDarkMode);
+
+                    const theme = isDark ? 'dark' : 'light';
+                    const themeColors = colors[theme] || defaultColors[theme];
+
+                    // تطبيق ألوان الخطوط فقط على CSS Variables
+                    // دائماً نطبق على documentElement (يعمل للوضعين)
+                    document.documentElement.style.setProperty('--custom-text-primary', themeColors.textPrimary);
+                    document.documentElement.style.setProperty('--custom-text-secondary', themeColors.textSecondary);
+
+                    // للوضع الداكن، نطبق أيضاً على body إذا كان يحتوي على class dark
+                    if (isDark && bodyElement.classList.contains('dark')) {
+                        bodyElement.style.setProperty('--custom-text-primary', themeColors.textPrimary);
+                        bodyElement.style.setProperty('--custom-text-secondary', themeColors.textSecondary);
+                    }
+
+                    // إزالة الألوان من body في الوضع الفاتح
+                    if (!isDark) {
+                        bodyElement.style.removeProperty('--custom-text-primary');
+                        bodyElement.style.removeProperty('--custom-text-secondary');
+                    }
+                } catch (error) {
+                    console.error('Error applying custom colors:', error);
+                }
+            }
+
+            // حفظ الألوان في localStorage
+            function saveColors(colors) {
+                try {
+                    localStorage.setItem(colorStorageKey, JSON.stringify(colors));
+                    applyColors();
+                } catch (error) {
+                    console.error('Error saving custom colors:', error);
+                }
+            }
+
+            // إعادة تعيين الألوان الافتراضية
+            function resetColors() {
+                localStorage.removeItem(colorStorageKey);
+                applyColors();
+            }
+
+            // تطبيق الألوان عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', applyColors);
+            } else {
+                applyColors();
+            }
+
+            // إعادة تطبيق الألوان عند تغيير الوضع (داكن/فاتح)
+            const observer = new MutationObserver(() => {
+                // إضافة delay صغير لضمان أن الوضع الداكن تم تطبيقه
+                setTimeout(() => {
+                    applyColors();
+                }, 50);
+            });
+
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+
+            // أيضاً مراقبة body
+            observer.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+
+            // مراقبة تغييرات Alpine store للوضع الداكن
+            if (window.Alpine && Alpine.store('app')) {
+                const originalToggleTheme = Alpine.store('app').toggleTheme;
+                if (originalToggleTheme) {
+                    Alpine.store('app').toggleTheme = function(val) {
+                        originalToggleTheme.call(this, val);
+                        setTimeout(() => {
+                            applyColors();
+                        }, 100);
+                    };
+                }
+            }
+
+            // جعل الدوال متاحة عالمياً للاستخدام من صفحات الإعدادات
+            window.customColorSystem = {
+                apply: applyColors,
+                save: saveColors,
+                reset: resetColors,
+                getDefault: () => defaultColors
+            };
         })();
     </script>
     @endauth

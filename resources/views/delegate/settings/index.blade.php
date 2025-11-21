@@ -109,6 +109,120 @@
                 </div>
             </div>
         </div>
+
+        <!-- قسم تخصيص ألوان الخطوط -->
+        <div class="panel mt-5">
+            <div class="mb-5">
+                <h6 class="text-lg font-semibold mb-4">تخصيص ألوان الخطوط</h6>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-5">
+                    يمكنك تخصيص ألوان الخطوط (النص الأساسي والنص الثانوي) حسب تفضيلاتك. التغييرات تُطبق فوراً على جميع الصفحات.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- الوضع الفاتح -->
+                    <div class="space-y-4">
+                        <h6 class="text-base font-semibold mb-3 border-b pb-2">الوضع الفاتح</h6>
+
+                        <!-- لون النص الأساسي -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                لون النص الأساسي
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <input type="color"
+                                       id="light-text-primary"
+                                       value="#3b3f5c"
+                                       class="w-16 h-10 rounded border border-gray-300 cursor-pointer">
+                                <input type="text"
+                                       id="light-text-primary-hex"
+                                       value="#3b3f5c"
+                                       class="form-input flex-1 font-mono text-sm"
+                                       pattern="^#[0-9A-Fa-f]{6}$">
+                            </div>
+                        </div>
+
+                        <!-- لون النص الثانوي -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                لون النص الثانوي
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <input type="color"
+                                       id="light-text-secondary"
+                                       value="#888ea8"
+                                       class="w-16 h-10 rounded border border-gray-300 cursor-pointer">
+                                <input type="text"
+                                       id="light-text-secondary-hex"
+                                       value="#888ea8"
+                                       class="form-input flex-1 font-mono text-sm"
+                                       pattern="^#[0-9A-Fa-f]{6}$">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الوضع الداكن -->
+                    <div class="space-y-4">
+                        <h6 class="text-base font-semibold mb-3 border-b pb-2">الوضع الداكن</h6>
+
+                        <!-- لون النص الأساسي -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                لون النص الأساسي
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <input type="color"
+                                       id="dark-text-primary"
+                                       value="#e0e6ed"
+                                       class="w-16 h-10 rounded border border-gray-300 cursor-pointer">
+                                <input type="text"
+                                       id="dark-text-primary-hex"
+                                       value="#e0e6ed"
+                                       class="form-input flex-1 font-mono text-sm"
+                                       pattern="^#[0-9A-Fa-f]{6}$">
+                            </div>
+                        </div>
+
+                        <!-- لون النص الثانوي -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                لون النص الثانوي
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <input type="color"
+                                       id="dark-text-secondary"
+                                       value="#888ea8"
+                                       class="w-16 h-10 rounded border border-gray-300 cursor-pointer">
+                                <input type="text"
+                                       id="dark-text-secondary-hex"
+                                       value="#888ea8"
+                                       class="form-input flex-1 font-mono text-sm"
+                                       pattern="^#[0-9A-Fa-f]{6}$">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- أزرار الإجراء -->
+                <div class="flex gap-3 justify-end mt-6">
+                    <button type="button"
+                            id="reset-colors-btn"
+                            class="btn btn-outline-danger">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        إعادة تعيين
+                    </button>
+                    <button type="button"
+                            id="save-colors-btn"
+                            class="btn btn-primary">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        حفظ الألوان
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -119,6 +233,197 @@
                 // لا نعرض إشعار - التغيير فوري ومرئي
             }
         }
+
+        // Custom Color Management System
+        (function() {
+            const colorStorageKey = 'custom_colors';
+            const defaultColors = {
+                light: {
+                    textPrimary: '#3b3f5c',
+                    textSecondary: '#888ea8',
+                },
+                dark: {
+                    textPrimary: '#e0e6ed',
+                    textSecondary: '#888ea8',
+                }
+            };
+
+            // تحميل الألوان من localStorage
+            function loadColors() {
+                try {
+                    const savedColors = localStorage.getItem(colorStorageKey);
+                    if (savedColors) {
+                        const colors = JSON.parse(savedColors);
+
+                        // تطبيق الألوان على الحقول
+                        if (colors.light) {
+                            setColorValue('light-text-primary', colors.light.textPrimary);
+                            setColorValue('light-text-secondary', colors.light.textSecondary);
+                        }
+
+                        if (colors.dark) {
+                            setColorValue('dark-text-primary', colors.dark.textPrimary);
+                            setColorValue('dark-text-secondary', colors.dark.textSecondary);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading colors:', error);
+                }
+            }
+
+            // تعيين قيمة اللون في الحقلين (color picker و hex input)
+            function setColorValue(id, value) {
+                const colorInput = document.getElementById(id);
+                const hexInput = document.getElementById(id + '-hex');
+                if (colorInput) colorInput.value = value;
+                if (hexInput) hexInput.value = value;
+            }
+
+            // مزامنة color picker مع hex input
+            function syncColorInputs() {
+                const colorInputs = document.querySelectorAll('input[type="color"]');
+                colorInputs.forEach(input => {
+                    const hexInput = document.getElementById(input.id + '-hex');
+                    if (hexInput) {
+                        // من color picker إلى hex input
+                        input.addEventListener('input', () => {
+                            hexInput.value = input.value.toUpperCase();
+                            previewColors();
+                        });
+
+                        // من hex input إلى color picker
+                        hexInput.addEventListener('input', (e) => {
+                            const value = e.target.value;
+                            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                                input.value = value;
+                                previewColors();
+                            }
+                        });
+                    }
+                });
+            }
+
+            // معاينة الألوان مباشرة
+            function previewColors() {
+                if (!window.customColorSystem) return;
+
+                const colors = {
+                    light: {
+                        textPrimary: document.getElementById('light-text-primary')?.value || defaultColors.light.textPrimary,
+                        textSecondary: document.getElementById('light-text-secondary')?.value || defaultColors.light.textSecondary,
+                    },
+                    dark: {
+                        textPrimary: document.getElementById('dark-text-primary')?.value || defaultColors.dark.textPrimary,
+                        textSecondary: document.getElementById('dark-text-secondary')?.value || defaultColors.dark.textSecondary,
+                    }
+                };
+
+                window.customColorSystem.save(colors);
+            }
+
+            // حفظ الألوان
+            function saveColors() {
+                const colors = {
+                    light: {
+                        textPrimary: document.getElementById('light-text-primary').value,
+                        textSecondary: document.getElementById('light-text-secondary').value,
+                    },
+                    dark: {
+                        textPrimary: document.getElementById('dark-text-primary').value,
+                        textSecondary: document.getElementById('dark-text-secondary').value,
+                    }
+                };
+
+                if (window.customColorSystem) {
+                    window.customColorSystem.save(colors);
+
+                    if (typeof window.Swal !== 'undefined') {
+                        window.Swal.fire({
+                            icon: 'success',
+                            title: 'تم الحفظ',
+                            text: 'تم حفظ الألوان بنجاح',
+                            timer: 2000,
+                            showConfirmButton: false,
+                        });
+                    } else {
+                        alert('تم حفظ الألوان بنجاح');
+                    }
+                }
+            }
+
+            // إعادة تعيين الألوان
+            function resetColors() {
+                if (typeof window.Swal !== 'undefined') {
+                    window.Swal.fire({
+                        icon: 'warning',
+                        title: 'إعادة التعيين',
+                        text: 'هل أنت متأكد من إعادة تعيين جميع الألوان إلى القيم الافتراضية؟',
+                        showCancelButton: true,
+                        confirmButtonText: 'نعم، إعادة التعيين',
+                        cancelButtonText: 'إلغاء',
+                        confirmButtonColor: '#e7515a',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // إعادة تعيين الحقول
+                            setColorValue('light-text-primary', defaultColors.light.textPrimary);
+                            setColorValue('light-text-secondary', defaultColors.light.textSecondary);
+
+                            setColorValue('dark-text-primary', defaultColors.dark.textPrimary);
+                            setColorValue('dark-text-secondary', defaultColors.dark.textSecondary);
+
+                            if (window.customColorSystem) {
+                                window.customColorSystem.reset();
+                            }
+
+                            window.Swal.fire({
+                                icon: 'success',
+                                title: 'تم',
+                                text: 'تم إعادة تعيين الألوان بنجاح',
+                                timer: 2000,
+                                showConfirmButton: false,
+                            });
+                        }
+                    });
+                } else {
+                    if (confirm('هل أنت متأكد من إعادة تعيين جميع الألوان؟')) {
+                        setColorValue('light-text-primary', defaultColors.light.textPrimary);
+                        setColorValue('light-text-secondary', defaultColors.light.textSecondary);
+
+                        setColorValue('dark-text-primary', defaultColors.dark.textPrimary);
+                        setColorValue('dark-text-secondary', defaultColors.dark.textSecondary);
+
+                        if (window.customColorSystem) {
+                            window.customColorSystem.reset();
+                        }
+                    }
+                }
+            }
+
+            // تهيئة النظام
+            function init() {
+                loadColors();
+                syncColorInputs();
+
+                // أزرار الحفظ والإعادة
+                const saveBtn = document.getElementById('save-colors-btn');
+                const resetBtn = document.getElementById('reset-colors-btn');
+
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', saveColors);
+                }
+
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', resetColors);
+                }
+            }
+
+            // بدء عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
     </script>
 </x-layout.default>
 

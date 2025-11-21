@@ -18,7 +18,18 @@ class SettingController extends Controller
         $deliveryFee = Setting::getDeliveryFee();
         $profitMargin = Setting::getProfitMargin();
 
-        return view('admin.settings.index', compact('deliveryFee', 'profitMargin'));
+        // جلب بيانات البنر
+        $bannerEnabled = Setting::getValue('floating_banner_enabled', '0') === '1';
+        $bannerTitle = Setting::getValue('floating_banner_title', '');
+        $bannerText = Setting::getValue('floating_banner_text', '');
+        $bannerImage = Setting::getValue('floating_banner_image', '');
+        $bannerIcon = Setting::getValue('floating_banner_icon', 'info');
+
+        // جلب بيانات البنر النصي للداشبورد
+        $dashboardBannerEnabled = Setting::getValue('dashboard_banner_enabled', '0') === '1';
+        $dashboardBannerText = Setting::getValue('dashboard_banner_text', '');
+
+        return view('admin.settings.index', compact('deliveryFee', 'profitMargin', 'bannerEnabled', 'bannerTitle', 'bannerText', 'bannerImage', 'bannerIcon', 'dashboardBannerEnabled', 'dashboardBannerText'));
     }
 
     /**
@@ -80,5 +91,113 @@ class SettingController extends Controller
 
         return redirect()->route('admin.settings.index')
                         ->with('success', 'تم تحديث صورة البروفايل بنجاح');
+    }
+
+    /**
+     * تحديث البنر الإعلاني
+     */
+    public function updateBanner(Request $request)
+    {
+        $request->validate([
+            'banner_title' => 'required|string|max:255',
+            'banner_text' => 'nullable|string|max:1000',
+            'banner_image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
+            'banner_icon' => 'required|in:success,error,warning,info,question',
+        ]);
+
+        try {
+            // حفظ العنوان
+            Setting::setValue('floating_banner_title', $request->banner_title, 'عنوان البنر الإعلاني');
+
+            // حفظ النص
+            Setting::setValue('floating_banner_text', $request->banner_text ?? '', 'نص البنر الإعلاني');
+
+            // حفظ الأيقونة
+            Setting::setValue('floating_banner_icon', $request->banner_icon, 'أيقونة البنر الإعلاني');
+
+            // رفع الصورة إن وجدت
+            if ($request->hasFile('banner_image')) {
+                if (!Storage::disk('public')->exists('banners')) {
+                    Storage::disk('public')->makeDirectory('banners');
+                }
+
+                // حذف الصورة القديمة إن وجدت
+                $oldImage = Setting::getValue('floating_banner_image', '');
+                if ($oldImage && Storage::disk('public')->exists($oldImage)) {
+                    Storage::disk('public')->delete($oldImage);
+                }
+
+                // حفظ الصورة الجديدة
+                $image = $request->file('banner_image');
+                $path = $image->storeAs('banners', 'banner_' . time() . '.' . $image->getClientOriginalExtension(), 'public');
+                Setting::setValue('floating_banner_image', $path, 'صورة البنر الإعلاني');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ البنر بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update banner: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل حفظ البنر: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * تفعيل/إلغاء تفعيل البنر
+     */
+    public function toggleBanner(Request $request)
+    {
+        $enabled = $request->input('enabled', false);
+        Setting::setValue('floating_banner_enabled', $enabled ? '1' : '0', 'حالة تفعيل البنر الإعلاني');
+
+        return response()->json([
+            'success' => true,
+            'message' => $enabled ? 'تم تفعيل البنر' : 'تم إلغاء تفعيل البنر',
+            'enabled' => $enabled,
+        ]);
+    }
+
+    /**
+     * تحديث البنر النصي للداشبورد
+     */
+    public function updateDashboardBanner(Request $request)
+    {
+        $request->validate([
+            'dashboard_banner_text' => 'required|string|max:500',
+        ]);
+
+        try {
+            Setting::setValue('dashboard_banner_text', $request->dashboard_banner_text, 'نص البنر النصي في الداشبورد');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حفظ البنر النصي بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update dashboard banner: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل حفظ البنر النصي: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * تفعيل/إلغاء تفعيل البنر النصي للداشبورد
+     */
+    public function toggleDashboardBanner(Request $request)
+    {
+        $enabled = $request->input('enabled', false);
+        Setting::setValue('dashboard_banner_enabled', $enabled ? '1' : '0', 'حالة تفعيل البنر النصي في الداشبورد');
+
+        return response()->json([
+            'success' => true,
+            'message' => $enabled ? 'تم تفعيل البنر النصي' : 'تم إلغاء تفعيل البنر النصي',
+            'enabled' => $enabled,
+        ]);
     }
 }

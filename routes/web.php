@@ -63,6 +63,10 @@ Route::prefix('admin')->group(function () {
         Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('admin.settings.index');
         Route::post('settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->name('admin.settings.update');
         Route::post('settings/profile', [\App\Http\Controllers\Admin\SettingController::class, 'updateProfile'])->name('admin.settings.profile');
+        Route::post('settings/banner', [\App\Http\Controllers\Admin\SettingController::class, 'updateBanner'])->name('admin.settings.banner');
+        Route::post('settings/banner/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'toggleBanner'])->name('admin.settings.banner.toggle');
+        Route::post('settings/dashboard-banner', [\App\Http\Controllers\Admin\SettingController::class, 'updateDashboardBanner'])->name('admin.settings.dashboard-banner');
+        Route::post('settings/dashboard-banner/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'toggleDashboardBanner'])->name('admin.settings.dashboard-banner.toggle');
 
         // Expenses routes (Admin only)
         // يجب وضع search-products قبل resource route لتجنب التعارض
@@ -337,6 +341,11 @@ Route::middleware('auth')->group(function () {
     // PWA Token Routes
     Route::post('/api/pwa/token', [App\Http\Controllers\PwaTokenController::class, 'generateToken'])->name('api.pwa.token');
     Route::delete('/api/pwa/token', [App\Http\Controllers\PwaTokenController::class, 'revokeToken'])->name('api.pwa.token.revoke');
+
+    // Banner Routes
+    Route::get('/api/banner/active', [App\Http\Controllers\BannerController::class, 'getActiveBanner'])->name('api.banner.active');
+    Route::post('/api/banner/dismiss', [App\Http\Controllers\BannerController::class, 'dismissBanner'])->name('api.banner.dismiss');
+    Route::get('/api/banner/dashboard', [App\Http\Controllers\BannerController::class, 'getDashboardBanner'])->name('api.banner.dashboard');
 });
 Route::view('/apps/mailbox', 'apps.mailbox');
 Route::view('/apps/todolist', 'apps.todolist');

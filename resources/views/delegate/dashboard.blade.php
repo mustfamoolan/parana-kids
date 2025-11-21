@@ -1,5 +1,15 @@
 <x-layout.default>
     <div class="container mx-auto px-4 py-6">
+        <!-- البنر النصي المتوهج -->
+        <div id="dashboard-banner-container" class="mb-6" style="display: none;">
+            <div class="dashboard-banner-glow">
+                <div class="panel border-2 border-primary/30 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 dark:from-primary/10 dark:via-secondary/10 dark:to-primary/10">
+                    <p id="dashboard-banner-text" class="text-xl font-bold text-center text-primary dark:text-primary-light glow-text">
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- العنوان -->
         <h1 class="text-2xl font-bold mb-6 text-center">مرحباً {{ auth()->user()->name }}</h1>
 
@@ -123,8 +133,105 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">إعدادات المظهر والتخصيص</p>
             </a>
 
+            <!-- تسجيل الخروج -->
+            <div class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-danger/10 to-danger/5 border-2 border-danger/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-danger/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-danger mb-2">تسجيل الخروج</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">الخروج من النظام</p>
+                <form method="POST" action="{{ route('delegate.logout') }}" class="mt-4">
+                    @csrf
+                    <button type="submit" class="btn btn-danger w-full">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        تسجيل الخروج
+                    </button>
+                </form>
+            </div>
+
         </div>
     </div>
+
+    <style>
+        /* تأثير التوهج للبنر النصي */
+        .dashboard-banner-glow {
+            animation: glow-pulse 2s ease-in-out infinite;
+        }
+
+        .glow-text {
+            text-shadow:
+                0 0 10px rgba(67, 97, 238, 0.8),
+                0 0 20px rgba(67, 97, 238, 0.6),
+                0 0 30px rgba(67, 97, 238, 0.4),
+                0 0 40px rgba(67, 97, 238, 0.2);
+            animation: text-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% {
+                box-shadow:
+                    0 0 10px rgba(67, 97, 238, 0.5),
+                    0 0 20px rgba(67, 97, 238, 0.3),
+                    0 0 30px rgba(67, 97, 238, 0.2);
+            }
+            50% {
+                box-shadow:
+                    0 0 20px rgba(67, 97, 238, 0.8),
+                    0 0 30px rgba(67, 97, 238, 0.6),
+                    0 0 40px rgba(67, 97, 238, 0.4),
+                    0 0 50px rgba(67, 97, 238, 0.2);
+            }
+        }
+
+        @keyframes text-glow {
+            0%, 100% {
+                text-shadow:
+                    0 0 10px rgba(67, 97, 238, 0.8),
+                    0 0 20px rgba(67, 97, 238, 0.6),
+                    0 0 30px rgba(67, 97, 238, 0.4);
+            }
+            50% {
+                text-shadow:
+                    0 0 15px rgba(67, 97, 238, 1),
+                    0 0 25px rgba(67, 97, 238, 0.8),
+                    0 0 35px rgba(67, 97, 238, 0.6),
+                    0 0 45px rgba(67, 97, 238, 0.4);
+            }
+        }
+
+        /* تحسين التصميم في الوضع الداكن */
+        .dark .glow-text {
+            text-shadow:
+                0 0 10px rgba(67, 97, 238, 1),
+                0 0 20px rgba(67, 97, 238, 0.8),
+                0 0 30px rgba(67, 97, 238, 0.6),
+                0 0 40px rgba(67, 97, 238, 0.4);
+        }
+
+        .dark .dashboard-banner-glow {
+            animation: glow-pulse-dark 2s ease-in-out infinite;
+        }
+
+        @keyframes glow-pulse-dark {
+            0%, 100% {
+                box-shadow:
+                    0 0 15px rgba(67, 97, 238, 0.6),
+                    0 0 25px rgba(67, 97, 238, 0.4),
+                    0 0 35px rgba(67, 97, 238, 0.3);
+            }
+            50% {
+                box-shadow:
+                    0 0 25px rgba(67, 97, 238, 0.9),
+                    0 0 35px rgba(67, 97, 238, 0.7),
+                    0 0 45px rgba(67, 97, 238, 0.5),
+                    0 0 55px rgba(67, 97, 238, 0.3);
+            }
+        }
+    </style>
 
     <script>
         function cancelOrder() {
@@ -139,5 +246,119 @@
                     .then(() => window.location.reload());
             });
         }
+
+        // Dashboard Banner Real-time System
+        (function() {
+            let bannerCheckInterval = null;
+            let lastBannerText = null;
+            const pollInterval = 4000; // كل 4 ثوانٍ
+            const bannerContainer = document.getElementById('dashboard-banner-container');
+            const bannerTextElement = document.getElementById('dashboard-banner-text');
+
+            // جلب البنر النصي
+            async function fetchDashboardBanner() {
+                try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    const headers = {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    };
+
+                    if (csrfToken) {
+                        headers['X-CSRF-TOKEN'] = csrfToken;
+                    }
+
+                    const response = await fetch('/api/banner/dashboard', {
+                        method: 'GET',
+                        headers: headers,
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        console.log('Dashboard Banner: API response not OK:', response.status);
+                        return null;
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success && data.active && data.text) {
+                        return data.text;
+                    }
+
+                    return null;
+                } catch (error) {
+                    console.error('Dashboard Banner: Error fetching banner:', error);
+                    return null;
+                }
+            }
+
+            // عرض/إخفاء البنر
+            function updateBanner(text) {
+                if (!bannerContainer || !bannerTextElement) {
+                    return;
+                }
+
+                if (text && text !== lastBannerText) {
+                    // عرض البنر
+                    bannerTextElement.textContent = text;
+                    bannerContainer.style.display = 'block';
+                    lastBannerText = text;
+                    console.log('Dashboard Banner: Banner shown:', text);
+                } else if (!text && lastBannerText) {
+                    // إخفاء البنر
+                    bannerContainer.style.display = 'none';
+                    lastBannerText = null;
+                    console.log('Dashboard Banner: Banner hidden');
+                }
+            }
+
+            // فحص البنر
+            async function checkBanner() {
+                if (document.hidden) {
+                    return;
+                }
+
+                const bannerText = await fetchDashboardBanner();
+                updateBanner(bannerText);
+            }
+
+            // بدء فحص البنر
+            function startBannerPolling() {
+                console.log('Dashboard Banner: Starting polling system');
+
+                // فحص فوري عند تحميل الصفحة
+                setTimeout(checkBanner, 1000); // بعد ثانية واحدة
+
+                // Polling دوري
+                bannerCheckInterval = setInterval(() => {
+                    if (!document.hidden) {
+                        checkBanner();
+                    }
+                }, pollInterval);
+
+                console.log('Dashboard Banner: Polling started with interval:', pollInterval, 'ms');
+            }
+
+            // بدء عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    startBannerPolling();
+                });
+            } else {
+                startBannerPolling();
+            }
+
+            // إعادة الفحص عند إعادة فتح الصفحة
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    setTimeout(checkBanner, 500);
+                }
+            });
+
+            // عرض البنر الأولي إذا كان موجوداً في الصفحة
+            @if($dashboardBannerEnabled && !empty($dashboardBannerText))
+            updateBanner('{{ $dashboardBannerText }}');
+            @endif
+        })();
     </script>
 </x-layout.default>
