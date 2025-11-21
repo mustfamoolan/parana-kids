@@ -7,7 +7,7 @@
                 :class="isShowUserChat && 'hidden xl:block'">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center">
-                        <div class="flex-none"><img src="/assets/images/profile-{{ (auth()->id() % 20) + 1 }}.jpeg"
+                        <div class="flex-none"><img src="{{ auth()->user()->getProfileImageUrl() }}"
                                 class="rounded-full h-12 w-12 object-cover" /></div>
                         <div class="mx-3">
                             <p class="mb-1 font-semibold">{{ auth()->user()->name }}</p>
@@ -987,7 +987,7 @@
                                                :value="user.id"
                                                x-model="selectedUserIds"
                                                class="form-checkbox" />
-                                        <img :src="`/assets/images/profile-${user.id % 20 + 1}.jpeg`"
+                                        <img :src="user.path || `/assets/images/profile-${user.id % 20 + 1}.jpeg`"
                                              class="rounded-full h-10 w-10 object-cover" />
                                         <div class="flex-1">
                                             <p class="font-semibold" x-text="user.name"></p>
@@ -1201,7 +1201,7 @@
                 loginUser: {
                     id: {{ auth()->id() }},
                     name: '{{ auth()->user()->name }}',
-                    path: 'profile-{{ (auth()->id() % 20) + 1 }}.jpeg',
+                    path: '{{ auth()->user()->getProfileImageUrl() }}',
                     designation: '{{ auth()->user()->role }}',
                     role: '{{ auth()->user()->role }}',
                 },

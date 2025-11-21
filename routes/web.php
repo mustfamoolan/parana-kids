@@ -59,9 +59,10 @@ Route::prefix('admin')->group(function () {
         Route::delete('invoices/{id}', [\App\Http\Controllers\Admin\InvoiceController::class, 'destroy'])->name('admin.invoices.destroy');
         Route::get('invoices/{id}/pdf', [\App\Http\Controllers\Admin\InvoiceController::class, 'downloadPdf'])->name('admin.invoices.pdf');
 
-        // Settings routes (Admin only)
+        // Settings routes (Admin and Supplier)
         Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('admin.settings.index');
         Route::post('settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->name('admin.settings.update');
+        Route::post('settings/profile', [\App\Http\Controllers\Admin\SettingController::class, 'updateProfile'])->name('admin.settings.profile');
 
         // Expenses routes (Admin only)
         // يجب وضع search-products قبل resource route لتجنب التعارض
@@ -230,6 +231,7 @@ Route::prefix('delegate')->group(function () {
 
         // Settings routes
         Route::get('settings', [\App\Http\Controllers\Delegate\SettingController::class, 'index'])->name('delegate.settings.index');
+        Route::post('settings/profile', [\App\Http\Controllers\Delegate\SettingController::class, 'updateProfile'])->name('delegate.settings.profile');
 
         // الصفحة الرئيسية - جميع المنتجات
         Route::get('/products', [DelegateProductController::class, 'allProducts'])->name('delegate.products.all');

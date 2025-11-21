@@ -4,6 +4,57 @@
             <h5 class="text-lg font-semibold dark:text-white-light">الإعدادات</h5>
         </div>
 
+        @if(session('success'))
+            <div class="panel mb-5 border-l-4 border-green-500">
+                <div class="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20">
+                    <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-sm text-green-700 dark:text-green-300">{{ session('success') }}</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- صورة البروفايل -->
+        <div class="panel mb-5">
+            <div class="mb-5">
+                <h6 class="text-lg font-semibold mb-4">صورة البروفايل</h6>
+                <form method="POST" action="{{ route('delegate.settings.profile') }}" enctype="multipart/form-data">
+                    @csrf
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                        <div class="flex-shrink-0">
+                            <img src="{{ auth()->user()->getProfileImageUrl() }}"
+                                 alt="صورة البروفايل"
+                                 class="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700">
+                        </div>
+                        <div class="flex-1">
+                            <div class="mb-4">
+                                <label for="profile_image" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    اختر صورة جديدة
+                                </label>
+                                <input type="file"
+                                       id="profile_image"
+                                       name="profile_image"
+                                       accept="image/jpeg,image/jpg,image/png"
+                                       class="form-input">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    الصيغ المدعومة: JPG, JPEG, PNG. الحد الأقصى: 2MB
+                                </p>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                حفظ الصورة
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="panel">
             <div class="mb-5">
                 <h6 class="text-lg font-semibold mb-4">إعدادات المظهر</h6>

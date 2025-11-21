@@ -58,7 +58,7 @@ class ChatController extends Controller
                         'id' => $otherParticipant->id,
                         'name' => $otherParticipant->name,
                         'code' => $otherParticipant->code,
-                        'path' => 'profile-' . ($otherParticipant->id % 20 + 1) . '.jpeg',
+                        'path' => $otherParticipant->getProfileImageUrl(),
                     ] : null,
                     'participants_count' => $conversation->isGroup() ? $conversation->participants()->count() : null,
                     'latest_message' => $conversation->latestMessage ? [
@@ -115,7 +115,7 @@ class ChatController extends Controller
                 'userId' => $user->id,
                 'name' => $user->name,
                 'code' => $user->code,
-                'path' => 'profile-' . (($user->id % 20) + 1) . '.jpeg',
+                'path' => $user->getProfileImageUrl(),
                 'time' => $existingConversation ? $existingConversation['time'] : '',
                 'preview' => $existingConversation ? ($existingConversation['latest_message']['text'] ?? '') : '',
                 'messages' => [],
@@ -128,7 +128,7 @@ class ChatController extends Controller
         $availableUsersForGroup = collect();
         if ($user->isAdmin()) {
             $availableUsersForGroup = User::where('id', '!=', $user->id)
-                ->select('id', 'name', 'role', 'code')
+                ->select('id', 'name', 'role', 'code', 'profile_image')
                 ->get()
                 ->map(function($u) {
                     return [
@@ -136,6 +136,7 @@ class ChatController extends Controller
                         'name' => $u->name,
                         'role' => $u->role,
                         'code' => $u->code,
+                        'path' => $u->getProfileImageUrl(),
                     ];
                 });
         }
@@ -179,7 +180,7 @@ class ChatController extends Controller
                         'userId' => $otherParticipant ? $otherParticipant->id : null,
                         'name' => $otherParticipant ? $otherParticipant->name : 'Unknown',
                         'code' => $otherParticipant ? $otherParticipant->code : null,
-                        'path' => $otherParticipant ? 'profile-' . ($otherParticipant->id % 20 + 1) . '.jpeg' : 'profile-1.jpeg',
+                        'path' => $otherParticipant ? $otherParticipant->getProfileImageUrl() : asset('assets/images/profile-1.jpeg'),
                         'preview' => $conversation->latestMessage ? substr($conversation->latestMessage->message, 0, 50) : '',
                         'time' => $conversation->updated_at->format('g:i A'),
                         'active' => $otherParticipant ? true : false,
@@ -238,7 +239,7 @@ class ChatController extends Controller
             'other_user' => [
                 'id' => $otherUser->id,
                 'name' => $otherUser->name,
-                'path' => 'profile-' . ($otherUser->id % 20 + 1) . '.jpeg',
+                'path' => $otherUser->getProfileImageUrl(),
             ]
         ]);
     }
@@ -923,7 +924,7 @@ class ChatController extends Controller
                 'name' => $participant->name,
                 'code' => $participant->code,
                 'role' => $participant->role,
-                'path' => 'profile-' . ($participant->id % 20 + 1) . '.jpeg',
+                'path' => $participant->getProfileImageUrl(),
             ];
         });
 

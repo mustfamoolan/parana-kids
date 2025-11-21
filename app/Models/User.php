@@ -25,6 +25,7 @@ class User extends Authenticatable
         'phone',
         'page_name',
         'private_warehouse_id',
+        'profile_image',
     ];
 
     /**
@@ -190,5 +191,19 @@ class User extends Authenticatable
     {
         // إرجاع جميع المستخدمين (باستثناء المستخدم الحالي)
         return User::where('id', '!=', $this->id)->get();
+    }
+
+    /**
+     * Get profile image URL or return default image
+     */
+    public function getProfileImageUrl()
+    {
+        if ($this->profile_image) {
+            return asset('storage/' . $this->profile_image);
+        }
+
+        // Return default profile image based on user ID
+        $defaultImageNumber = ($this->id % 20) + 1;
+        return asset("assets/images/profile-{$defaultImageNumber}.jpeg");
     }
 }
