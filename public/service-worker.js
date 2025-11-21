@@ -50,12 +50,14 @@ function startAutoCheck() {
         checkForNotifications();
     }, NOTIFICATION_POLL_INTERVAL);
 
-    console.log('Service Worker: Auto-check started');
+    console.log('Service Worker: Auto-check started at', new Date().toISOString());
 }
 
 // التحقق من الإشعارات الجديدة
 async function checkForNotifications() {
     try {
+        console.log('Service Worker: Checking notifications at', new Date().toISOString());
+
         // التحقق من وجود CSRF token
         if (!csrfToken) {
             console.log('Service Worker: CSRF token not available, requesting from page...');
@@ -63,6 +65,8 @@ async function checkForNotifications() {
             const clients = await self.clients.matchAll();
             if (clients.length > 0) {
                 clients[0].postMessage({ type: 'REQUEST_CSRF_TOKEN' });
+            } else {
+                console.log('Service Worker: No clients available to request CSRF token');
             }
             return;
         }
@@ -83,11 +87,19 @@ async function checkForNotifications() {
         });
 
         if (!response.ok) {
-            console.log('Service Worker: Failed to fetch notifications:', response.status);
+            console.log('Service Worker: Failed to fetch notifications:', response.status, response.statusText);
+            // إذا كان الخطأ 401، طلب CSRF token جديد
+            if (response.status === 401) {
+                const clients = await self.clients.matchAll();
+                if (clients.length > 0) {
+                    clients[0].postMessage({ type: 'REQUEST_CSRF_TOKEN' });
+                }
+            }
             return;
         }
 
         const data = await response.json();
+        console.log('Service Worker: Fetched', data.alerts?.length || 0, 'alerts');
         if (data.success && data.alerts && data.alerts.length > 0) {
             // عرض إشعار للإشعارات الجديدة فقط التي لم يتم عرضها من قبل
             const newAlerts = data.alerts.filter(alert => {

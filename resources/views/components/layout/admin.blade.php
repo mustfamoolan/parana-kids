@@ -757,10 +757,77 @@
 
             // إعادة طلب الإذن عند فتح الصفحة إذا لم يكن موجوداً
             document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && Notification.permission === 'default') {
-                    setTimeout(requestNotificationPermission, 1000);
+                if (!document.hidden) {
+                    if (Notification.permission === 'default') {
+                        setTimeout(requestNotificationPermission, 1000);
+                    } else if (Notification.permission === 'granted') {
+                        // إعادة تسجيل Periodic Background Sync عند فتح التطبيق
+                        setTimeout(() => {
+                            reRegisterPeriodicSync();
+                        }, 1000);
+                    }
                 }
             });
+
+            // إعادة تسجيل Periodic Background Sync
+            async function reRegisterPeriodicSync() {
+                if (!('serviceWorker' in navigator)) {
+                    return;
+                }
+
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+
+                    // إعادة تسجيل Periodic Background Sync
+                    if ('periodicSync' in registration) {
+                        try {
+                            const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+                            if (status.state === 'granted') {
+                                // إلغاء التسجيل القديم أولاً
+                                try {
+                                    await registration.periodicSync.unregister('check-notifications-periodic');
+                                } catch (e) {
+                                    // قد لا يكون مسجلاً
+                                }
+
+                                // إعادة التسجيل
+                                await registration.periodicSync.register('check-notifications-periodic', {
+                                    minInterval: 30000, // كل 30 ثانية
+                                });
+                                console.log('Browser Notifications: Periodic Background Sync re-registered');
+                            }
+                        } catch (error) {
+                            console.log('Browser Notifications: Periodic Background Sync re-registration failed:', error);
+                        }
+                    }
+
+                    // إعادة تسجيل Background Sync
+                    if ('sync' in registration) {
+                        try {
+                            await registration.sync.register('check-notifications');
+                            console.log('Browser Notifications: Background Sync re-registered');
+                        } catch (error) {
+                            console.log('Browser Notifications: Background Sync re-registration failed:', error);
+                        }
+                    }
+
+                    // إرسال رسالة لـ Service Worker لإعادة بدء التحقق التلقائي
+                    if (registration.active) {
+                        registration.active.postMessage({
+                            type: 'START_AUTO_CHECK'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Browser Notifications: Error re-registering sync:', error);
+                }
+            }
+
+            // إعادة تسجيل Periodic Background Sync كل 5 دقائق (لضمان استمرار العمل)
+            setInterval(() => {
+                if (!document.hidden && Notification.permission === 'granted') {
+                    reRegisterPeriodicSync();
+                }
+            }, 300000); // كل 5 دقائق
         })();
     </script>
     @endauth
