@@ -13,6 +13,8 @@ class NotificationManager {
      * تهيئة Firebase Messaging
      */
     async initFirebase() {
+        console.log('NotificationManager: initFirebase() called');
+
         // التحقق من وجود المستخدم المسجل دخوله
         if (!window.authUserId) {
             console.log('NotificationManager: User not authenticated, skipping Firebase initialization');
@@ -26,8 +28,20 @@ class NotificationManager {
         }
 
         try {
+            // طلب إذن الإشعارات قبل محاولة الحصول على FCM token (مهم جداً!)
+            console.log('NotificationManager: Requesting notification permission...');
+            const permission = await this.requestPermission();
+
+            if (!permission) {
+                console.warn('NotificationManager: Notification permission not granted, FCM token may not be available');
+                // نستمر في المحاولة لأن بعض المتصفحات قد تعطي token حتى بدون إذن
+            } else {
+                console.log('NotificationManager: Notification permission granted');
+            }
+
             // تهيئة Firebase App إذا لم يكن مهيأ
             if (!firebase.apps || firebase.apps.length === 0) {
+                console.log('NotificationManager: Initializing Firebase app...');
                 const firebaseConfig = {
                     apiKey: 'AIzaSyAXv3VHE9P1L5i71y4Z20nB-N4tLiA-TrU',
                     authDomain: 'parana-kids.firebaseapp.com',
@@ -42,17 +56,45 @@ class NotificationManager {
             }
 
             // تهيئة Firebase Messaging
+            console.log('NotificationManager: Initializing Firebase Messaging...');
             this.firebaseMessaging = firebase.messaging();
 
-            // الحصول على FCM token
-            const token = await this.firebaseMessaging.getToken({
-                vapidKey: 'BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0'
-            });
+            // الحصول على FCM token مع retry mechanism
+            let token = null;
+            let retryCount = 0;
+            const maxRetries = 3;
+
+            while (!token && retryCount < maxRetries) {
+                try {
+                    console.log(`NotificationManager: Attempting to get FCM token (attempt ${retryCount + 1}/${maxRetries})...`);
+                    token = await this.firebaseMessaging.getToken({
+                        vapidKey: 'BET5Odck6WkOyun9SwgVCQjxpVcCi7o0WMCyu1vJbsX9K8kdNV-DGM-THOdKWBcXIYvo5rTH4E3cKX2LNmLGYX0'
+                    });
+
+                    if (token) {
+                        console.log('NotificationManager: FCM token obtained successfully');
+                        break;
+                    } else {
+                        console.warn('NotificationManager: FCM token is null');
+                    }
+                } catch (tokenError) {
+                    console.error(`NotificationManager: Error getting FCM token (attempt ${retryCount + 1}):`, tokenError);
+                    retryCount++;
+
+                    if (retryCount < maxRetries) {
+                        console.log(`NotificationManager: Retrying in 3 seconds...`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
+                }
+            }
 
             if (token) {
                 // حفظ token في قاعدة البيانات
+                console.log('NotificationManager: Saving FCM token to database...');
                 await this.saveFcmToken(token);
-                console.log('NotificationManager: FCM token obtained and saved');
+                console.log('NotificationManager: FCM token obtained and saved successfully');
+            } else {
+                console.error('NotificationManager: Failed to get FCM token after all retries');
             }
 
             // معالجة الإشعارات عند فتح التطبيق (foreground messages)
@@ -67,6 +109,11 @@ class NotificationManager {
             console.log('NotificationManager: Firebase initialized successfully');
         } catch (error) {
             console.error('NotificationManager: Error initializing Firebase:', error);
+            console.error('NotificationManager: Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
         }
     }
 
@@ -74,26 +121,69 @@ class NotificationManager {
      * حفظ FCM token في قاعدة البيانات
      */
     async saveFcmToken(token) {
-        try {
-            const response = await fetch('/api/fcm/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                    'Accept': 'application/json',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({ token: token })
-            });
-
-            if (response.ok) {
-                console.log('NotificationManager: FCM token saved successfully');
-            } else {
-                console.warn('NotificationManager: Failed to save FCM token');
-            }
-        } catch (error) {
-            console.error('NotificationManager: Error saving FCM token:', error);
+        // التحقق من صحة token
+        if (!token || typeof token !== 'string' || token.length < 10) {
+            console.error('NotificationManager: Invalid FCM token provided');
+            return false;
         }
+
+        // التحقق من CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!csrfToken) {
+            console.warn('NotificationManager: CSRF token not found, request may fail');
+        }
+
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+            try {
+                console.log(`NotificationManager: Attempting to save FCM token (attempt ${retryCount + 1}/${maxRetries})...`);
+
+                const response = await fetch('/api/fcm/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken || '',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ token: token })
+                });
+
+                console.log('NotificationManager: Response status:', response.status);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('NotificationManager: FCM token saved successfully', data);
+                    return true;
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    console.error('NotificationManager: Failed to save FCM token', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorData
+                    });
+
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                        console.log(`NotificationManager: Retrying in 2 seconds...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
+            } catch (error) {
+                console.error(`NotificationManager: Error saving FCM token (attempt ${retryCount + 1}):`, error);
+                retryCount++;
+
+                if (retryCount < maxRetries) {
+                    console.log(`NotificationManager: Retrying in 2 seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        }
+
+        console.error('NotificationManager: Failed to save FCM token after all retries');
+        return false;
     }
 
     /**

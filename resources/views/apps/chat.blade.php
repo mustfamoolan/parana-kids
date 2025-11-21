@@ -1375,7 +1375,7 @@
                     this.stopPolling();
 
                     // بدء polling جديد كل 5 ثوان (تم تحسينه من 1 ثانية لتقليل الحمل)
-                    // الاعتماد على الإشعارات الفورية (SSE + FCM + Web Push) بدلاً من polling المكثف
+                    // الاعتماد على الإشعارات الفورية (FCM + Web Push) بدلاً من polling المكثف
                     this.pollingInterval = setInterval(async () => {
                         if (this.selectedUser && this.selectedUser.conversationId) {
                             await this.loadMessages(this.selectedUser.conversationId);
