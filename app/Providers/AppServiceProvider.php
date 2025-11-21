@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,26 +31,24 @@ class AppServiceProvider extends ServiceProvider
         $link = public_path('storage');
         $target = storage_path('app/public');
 
-        // التحقق من وجود المجلد الهدف
-        if (!is_dir($target)) {
-            // إنشاء المجلد إذا لم يكن موجوداً
-            if (!mkdir($target, 0755, true)) {
-                Log::warning('Failed to create storage directory: ' . $target);
-                return;
+        // التحقق من وجود المجلد الهدف وإنشائه باستخدام Storage facade
+        try {
+            // إنشاء المجلد الرئيسي إذا لم يكن موجوداً
+            if (!Storage::disk('public')->exists('')) {
+                Storage::disk('public')->makeDirectory('');
             }
-        }
 
-        // إنشاء المجلدات الفرعية المطلوبة إذا لم تكن موجودة
-        $requiredDirectories = ['products', 'messages', 'profiles'];
-        foreach ($requiredDirectories as $dir) {
-            $dirPath = $target . '/' . $dir;
-            if (!is_dir($dirPath)) {
-                if (!mkdir($dirPath, 0755, true)) {
-                    Log::warning('Failed to create storage subdirectory: ' . $dirPath);
-                } else {
-                    Log::info('Created storage subdirectory: ' . $dirPath);
+            // إنشاء المجلدات الفرعية المطلوبة إذا لم تكن موجودة
+            $requiredDirectories = ['products', 'messages', 'profiles'];
+            foreach ($requiredDirectories as $dir) {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                    Log::info('Created storage subdirectory: ' . $dir);
                 }
             }
+        } catch (\Exception $e) {
+            Log::warning('Failed to create storage directories: ' . $e->getMessage());
+            // لا نوقف التطبيق، فقط نسجل التحذير
         }
 
         // التحقق من وجود الرابط

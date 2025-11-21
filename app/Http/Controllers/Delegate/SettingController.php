@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Delegate;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class SettingController extends Controller
@@ -31,10 +30,9 @@ class SettingController extends Controller
 
         if ($request->hasFile('profile_image')) {
             try {
-                // التأكد من وجود المجلد قبل الحفظ
-                $profilesDir = storage_path('app/public/profiles');
-                if (!is_dir($profilesDir)) {
-                    File::makeDirectory($profilesDir, 0755, true);
+                // التأكد من وجود المجلد قبل الحفظ باستخدام Storage facade
+                if (!Storage::disk('public')->exists('profiles')) {
+                    Storage::disk('public')->makeDirectory('profiles');
                 }
 
                 // حذف الصورة القديمة إن وجدت

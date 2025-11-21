@@ -176,9 +176,59 @@ php artisan view:cache
 
 ---
 
+## الوصول إلى Logs في Laravel Cloud
+
+Laravel Cloud لا يوفر SSH access مباشر، لكن يمكن الوصول إلى logs بعدة طرق:
+
+### الطريقة 1: من Dashboard → Logs
+
+1. اذهب إلى Laravel Cloud Dashboard
+2. اختر مشروعك
+3. اذهب إلى **Logs** tab
+4. ستجد:
+   - **Application logs**: logs التطبيق (Laravel logs)
+   - **Access logs**: logs الوصول (HTTP requests)
+   - يمكنك فلترة حسب الوقت أو البحث في logs
+
+### الطريقة 2: من Commands Tab
+
+1. اذهب إلى **Commands** tab في Dashboard
+2. شغّل الأمر التالي لعرض آخر 100 سطر من logs:
+   ```bash
+   tail -n 100 storage/logs/laravel.log
+   ```
+3. أو لعرض logs في الوقت الفعلي:
+   ```bash
+   tail -f storage/logs/laravel.log
+   ```
+
+### الطريقة 3: من Metrics Tab
+
+1. اذهب إلى **Metrics** tab
+2. يمكنك مراقبة:
+   - عدد الأخطاء (5XX errors)
+   - استجابة التطبيق
+   - استخدام الموارد
+
+### نصائح مهمة:
+
+- **Logs في Laravel Cloud**: يتم حفظها تلقائياً ولا تحتاج إلى إعداد
+- **البحث في Logs**: استخدم البحث المدمج في Dashboard للبحث عن أخطاء محددة
+- **تصدير Logs**: يمكنك نسخ logs من Dashboard إذا أردت حفظها محلياً
+- **مراقبة الأخطاء**: استخدم Metrics tab لمراقبة الأخطاء في الوقت الفعلي
+
+### مثال: البحث عن خطأ 500
+
+1. اذهب إلى **Logs** tab
+2. ابحث عن: `500` أو `Server Error` أو `Exception`
+3. ستجد تفاصيل الخطأ الكاملة مع stack trace
+
+---
+
 **الخلاصة**: 
 - ✅ فعّل Persistent Storage في Laravel Cloud للمجلد `storage/app/public`
 - ✅ استخدم `Storage::disk('public')` في الكود
 - ✅ `AppServiceProvider` يقوم بإنشاء symlink تلقائياً
 - ✅ الملفات تبقى موجودة بين deployments
+- ✅ Logs متاحة من Dashboard → Logs أو Commands tab
 
