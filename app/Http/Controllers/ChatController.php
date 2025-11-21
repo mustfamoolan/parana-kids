@@ -379,7 +379,15 @@ class ChatController extends Controller
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
                 // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
-                $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+                $disk = 'public';
+                if (env('AWS_BUCKET') && config('filesystems.disks.cloud')) {
+                    try {
+                        \Illuminate\Support\Facades\Storage::disk('cloud');
+                        $disk = 'cloud';
+                    } catch (\Exception $e) {
+                        $disk = 'public';
+                    }
+                }
                 $imagePath = $image->store('messages', $disk);
                 $messageType = 'image';
             }

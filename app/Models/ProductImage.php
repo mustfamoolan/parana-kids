@@ -34,10 +34,23 @@ class ProductImage extends Model
     public function getImageUrlAttribute()
     {
         // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
-        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        $disk = 'public';
+        if (env('AWS_BUCKET') && config('filesystems.disks.cloud')) {
+            try {
+                \Illuminate\Support\Facades\Storage::disk('cloud');
+                $disk = 'cloud';
+            } catch (\Exception $e) {
+                $disk = 'public';
+            }
+        }
 
-        if ($disk === 'cloud') {
-            return \Illuminate\Support\Facades\Storage::disk('cloud')->url($this->image_path);
+        try {
+            if ($disk === 'cloud') {
+                return \Illuminate\Support\Facades\Storage::disk('cloud')->url($this->image_path);
+            }
+        } catch (\Exception $e) {
+            // إذا فشل cloud، استخدم public
+            $disk = 'public';
         }
 
         return \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path);

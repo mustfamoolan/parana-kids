@@ -15,6 +15,31 @@ use Illuminate\Support\Facades\Storage;
 class ProductController extends Controller
 {
     /**
+     * Get the storage disk to use (cloud or public)
+     * 
+     * @return string
+     */
+    private function getStorageDisk()
+    {
+        // استخدام public disk بشكل افتراضي
+        $disk = 'public';
+        
+        // محاولة استخدام cloud disk إذا كان متاحاً
+        if (env('AWS_BUCKET') && config('filesystems.disks.cloud')) {
+            try {
+                // التحقق من أن cloud disk متاح ويعمل
+                $test = Storage::disk('cloud');
+                $disk = 'cloud';
+            } catch (\Exception $e) {
+                // إذا فشل، استخدم public disk
+                $disk = 'public';
+            }
+        }
+        
+        return $disk;
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request, Warehouse $warehouse)
@@ -122,8 +147,7 @@ class ProductController extends Controller
 
         // رفع الصور إن وجدت - دعم صور متعددة
         $imageIndex = 0;
-        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
-        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        $disk = $this->getStorageDisk();
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
@@ -364,8 +388,7 @@ class ProductController extends Controller
         }
 
         // معالجة الصور
-        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
-        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        $disk = $this->getStorageDisk();
 
         // حذف الصور التي لم يتم الاحتفاظ بها
         $keepImageIds = $request->keep_images ?? [];
@@ -480,8 +503,7 @@ class ProductController extends Controller
         }
 
         // Delete images from storage
-        // استخدام cloud disk إذا كان متاحاً (Laravel Cloud)، وإلا استخدم public
-        $disk = env('AWS_BUCKET') ? 'cloud' : 'public';
+        $disk = $this->getStorageDisk();
 
         foreach ($product->images as $image) {
             Storage::disk($disk)->delete($image->image_path);
