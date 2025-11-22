@@ -358,6 +358,151 @@
     <!-- PWA: حفظ الصفحة الحالية ومنع الرجوع إلى صفحة تسجيل الدخول -->
     <script>
         (function() {
+            // تنظيف localStorage من البيانات القديمة أو الكبيرة
+            function cleanLocalStorage() {
+                try {
+                    // قائمة المفاتيح المهمة التي يجب الاحتفاظ بها
+                    const importantKeys = [
+                        'pwa_last_page',
+                        'pwa_last_path',
+                        'custom_colors',
+                        'floating_banner_dismissed',
+                        'chat_notification_permission',
+                        'chat_sound_enabled',
+                        'chat_notifications_enabled',
+                    ];
+
+                    // حساب الحجم الإجمالي لـ localStorage
+                    let totalSize = 0;
+                    const keysToRemove = [];
+
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key) {
+                            const value = localStorage.getItem(key);
+                            if (value) {
+                                const itemSize = new Blob([key + value]).size;
+                                totalSize += itemSize;
+
+                                // إذا كان المفتاح غير مهم، أضفه للقائمة
+                                if (!importantKeys.some(important => key.includes(important))) {
+                                    keysToRemove.push(key);
+                                }
+                            }
+                        }
+                    }
+
+                    // إذا كان الحجم الإجمالي أكبر من 2MB، قم بتنظيف البيانات غير المهمة
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    if (totalSize > maxSize) {
+                        console.warn('LocalStorage size exceeded limit, cleaning unnecessary data...');
+                        keysToRemove.forEach(key => {
+                            localStorage.removeItem(key);
+                        });
+                    }
+
+                    // تنظيف البيانات القديمة (أكثر من 30 يوم)
+                    const now = Date.now();
+                    const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 يوم
+
+                    importantKeys.forEach(key => {
+                        const timestampKey = key + '_timestamp';
+                        const timestamp = localStorage.getItem(timestampKey);
+                        if (timestamp && (now - parseInt(timestamp)) > maxAge) {
+                            localStorage.removeItem(key);
+                            localStorage.removeItem(timestampKey);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error cleaning localStorage:', error);
+                    // في حالة الخطأ (مثل QuotaExceededError)، قم بحذف البيانات غير المهمة
+                    try {
+                        const keysToRemove = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && !key.includes('pwa_last') && !key.includes('custom_colors') && !key.includes('banner')) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                        keysToRemove.forEach(key => localStorage.removeItem(key));
+                    } catch (e) {
+                        console.error('Failed to clean localStorage:', e);
+                    }
+                }
+            }
+
+            // تنظيف localStorage عند تحميل الصفحة
+            if (typeof Storage !== 'undefined') {
+                cleanLocalStorage();
+            }
+
+            // Helper Functions للتعامل مع بيانات الطلب في localStorage
+            window.cartStorage = {
+                // حفظ بيانات السلة والزبون
+                setCartData: function(cartId, customerData) {
+                    try {
+                        if (typeof Storage !== 'undefined') {
+                            localStorage.setItem('current_cart_id', cartId.toString());
+                            localStorage.setItem('customer_data', JSON.stringify(customerData));
+                            localStorage.setItem('cart_data_timestamp', Date.now().toString());
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error('Error saving cart data to localStorage:', error);
+                    }
+                    return false;
+                },
+
+                // جلب بيانات السلة
+                getCartId: function() {
+                    try {
+                        if (typeof Storage !== 'undefined') {
+                            return localStorage.getItem('current_cart_id');
+                        }
+                    } catch (error) {
+                        console.error('Error reading cart ID from localStorage:', error);
+                    }
+                    return null;
+                },
+
+                // جلب بيانات الزبون
+                getCustomerData: function() {
+                    try {
+                        if (typeof Storage !== 'undefined') {
+                            const data = localStorage.getItem('customer_data');
+                            if (data) {
+                                return JSON.parse(data);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error reading customer data from localStorage:', error);
+                    }
+                    return null;
+                },
+
+                // حذف بيانات السلة والزبون
+                clearCartData: function() {
+                    try {
+                        if (typeof Storage !== 'undefined') {
+                            localStorage.removeItem('current_cart_id');
+                            localStorage.removeItem('customer_data');
+                            localStorage.removeItem('cart_data_timestamp');
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error('Error clearing cart data from localStorage:', error);
+                    }
+                    return false;
+                },
+
+                // التحقق من وجود بيانات سلة نشطة
+                hasActiveCart: function() {
+                    const cartId = this.getCartId();
+                    const customerData = this.getCustomerData();
+                    return cartId && customerData;
+                }
+            };
+
             // صفحات تسجيل الدخول التي يجب منع الرجوع إليها
             const loginPages = ['/admin/login', '/delegate/login'];
             let currentPath = window.location.pathname;
@@ -404,6 +549,53 @@
 
             // حفظ الصفحة عند تغيير الصفحة (للتنقل داخل التطبيق)
             window.addEventListener('beforeunload', saveCurrentPage);
+
+            // إرسال بيانات السلة من localStorage إلى Server عند الحاجة
+            function syncCartDataToServer() {
+                if (!window.cartStorage || !window.cartStorage.hasActiveCart()) {
+                    return;
+                }
+
+                const cartId = window.cartStorage.getCartId();
+                const customerData = window.cartStorage.getCustomerData();
+
+                if (cartId && customerData) {
+                    // إضافة البيانات إلى جميع الروابط والنماذج في الصفحة
+                    const forms = document.querySelectorAll('form[action*="/delegate/"]');
+                    forms.forEach(form => {
+                        // إضافة hidden inputs إذا لم تكن موجودة
+                        if (!form.querySelector('input[name="cart_id"]')) {
+                            const cartIdInput = document.createElement('input');
+                            cartIdInput.type = 'hidden';
+                            cartIdInput.name = 'cart_id';
+                            cartIdInput.value = cartId;
+                            form.appendChild(cartIdInput);
+                        }
+
+                        if (!form.querySelector('input[name="customer_data"]')) {
+                            const customerDataInput = document.createElement('input');
+                            customerDataInput.type = 'hidden';
+                            customerDataInput.name = 'customer_data';
+                            customerDataInput.value = JSON.stringify(customerData);
+                            form.appendChild(customerDataInput);
+                        }
+                    });
+                }
+            }
+
+            // تنفيذ sync عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncCartDataToServer);
+            } else {
+                syncCartDataToServer();
+            }
+
+            // تنظيف localStorage عند الحاجة
+            @if(session('clear_cart_storage'))
+                if (window.cartStorage) {
+                    window.cartStorage.clearCartData();
+                }
+            @endif
 
             // منع الرجوع إلى صفحة تسجيل الدخول إذا كان المستخدم مسجل دخول
             if (!isLoginPage) {

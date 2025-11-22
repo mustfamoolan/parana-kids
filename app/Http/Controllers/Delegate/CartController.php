@@ -4,15 +4,26 @@ namespace App\Http\Controllers\Delegate;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
+use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
     /**
      * عرض السلة الحالية (النظام الجديد)
      */
-    public function view()
+    public function view(Request $request)
     {
-        $cartId = session('current_cart_id');
+        // محاولة قراءة البيانات من request أولاً (من localStorage)
+        $cartId = $request->input('cart_id');
+        $customerData = $request->input('customer_data');
+
+        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
+        if (!$cartId) {
+            $cartId = session('current_cart_id');
+        }
+        if (!$customerData) {
+            $customerData = session('customer_data');
+        }
 
         if (!$cartId) {
             return redirect()->route('delegate.orders.start')
@@ -27,8 +38,6 @@ class CartController extends Controller
             if ($cart->delegate_id !== auth()->id()) {
                 abort(403);
             }
-
-            $customerData = session('customer_data');
 
             // التحقق من وجود بيانات الزبون
             if (!$customerData) {
@@ -57,6 +66,23 @@ class CartController extends Controller
         $cart->load(['items.product.primaryImage', 'items.size']);
 
         return view('delegate.carts.show', compact('cart'));
+    }
+
+    /**
+     * جلب معلومات السلة (API endpoint)
+     */
+    public function info(Cart $cart)
+    {
+        // التأكد من أن السلة تخص المندوب الحالي
+        if ($cart->delegate_id !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح'], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'items_count' => $cart->items->count(),
+            'total_amount' => $cart->total_amount,
+        ]);
     }
 
     /**

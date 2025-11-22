@@ -21,8 +21,8 @@ class CartItemController extends Controller
         // تحديد إذا كان الطلب AJAX
         $isAjax = $request->expectsJson() || $request->wantsJson() || $request->ajax();
 
-        // إذا لم يُرسل cart_id، استخدم السلة النشطة من session
-        $cartId = $request->cart_id ?? session('current_cart_id');
+        // إذا لم يُرسل cart_id، استخدم السلة النشطة من request أو session
+        $cartId = $request->cart_id ?? $request->input('cart_id') ?? session('current_cart_id');
 
         if (!$cartId) {
             if ($isAjax) {

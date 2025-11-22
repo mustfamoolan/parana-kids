@@ -18,7 +18,9 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'file'),
+    // التأكد من استخدام file driver لتجنب مشاكل الكوكيز الكبيرة
+    // لا تستخدم 'cookie' driver لأنه يخزن جميع البيانات في الكوكي
+    'driver' => env('SESSION_DRIVER', 'file') === 'cookie' ? 'file' : env('SESSION_DRIVER', 'file'),
 
     /*
     |--------------------------------------------------------------------------

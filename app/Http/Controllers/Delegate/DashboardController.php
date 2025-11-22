@@ -12,10 +12,18 @@ use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $activeOrder = session('current_cart_id')
-            ? Cart::with('items')->find(session('current_cart_id'))
+        // محاولة قراءة cart_id من request أولاً (من localStorage)
+        $cartId = $request->input('cart_id');
+
+        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
+        if (!$cartId) {
+            $cartId = session('current_cart_id');
+        }
+
+        $activeOrder = $cartId
+            ? Cart::with('items')->find($cartId)
             : null;
 
         $stats = [

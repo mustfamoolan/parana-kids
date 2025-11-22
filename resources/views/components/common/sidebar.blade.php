@@ -303,9 +303,16 @@
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.5"/>
             </svg>
             <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">طلب جديد</span>
-            @if(session('current_cart_id'))
-                <span class="badge bg-success ltr:ml-auto rtl:mr-auto">نشط</span>
-            @endif
+            <span class="badge bg-success ltr:ml-auto rtl:mr-auto" id="activeCartBadge" style="display: none;">نشط</span>
+            <script>
+                // عرض badge "نشط" من localStorage
+                if (window.cartStorage && window.cartStorage.hasActiveCart()) {
+                    const badge = document.getElementById('activeCartBadge');
+                    if (badge) {
+                        badge.style.display = 'inline-block';
+                    }
+                }
+            </script>
         </div>
     </a>
 </li>

@@ -44,6 +44,9 @@ class DelegateLoginController extends Controller
 
     public function logout(Request $request)
     {
+        // تنظيف جميع البيانات من session قبل logout
+        $request->session()->flush();
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -360,6 +360,84 @@
     <!-- PWA: حفظ الصفحة الحالية ومنع الرجوع إلى صفحة تسجيل الدخول -->
     <script>
         (function() {
+            // تنظيف localStorage من البيانات القديمة أو الكبيرة
+            function cleanLocalStorage() {
+                try {
+                    // قائمة المفاتيح المهمة التي يجب الاحتفاظ بها
+                    const importantKeys = [
+                        'pwa_last_page',
+                        'pwa_last_path',
+                        'custom_colors',
+                        'floating_banner_dismissed',
+                        'chat_notification_permission',
+                        'chat_sound_enabled',
+                        'chat_notifications_enabled',
+                    ];
+
+                    // حساب الحجم الإجمالي لـ localStorage
+                    let totalSize = 0;
+                    const keysToRemove = [];
+
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key) {
+                            const value = localStorage.getItem(key);
+                            if (value) {
+                                const itemSize = new Blob([key + value]).size;
+                                totalSize += itemSize;
+
+                                // إذا كان المفتاح غير مهم، أضفه للقائمة
+                                if (!importantKeys.some(important => key.includes(important))) {
+                                    keysToRemove.push(key);
+                                }
+                            }
+                        }
+                    }
+
+                    // إذا كان الحجم الإجمالي أكبر من 2MB، قم بتنظيف البيانات غير المهمة
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    if (totalSize > maxSize) {
+                        console.warn('LocalStorage size exceeded limit, cleaning unnecessary data...');
+                        keysToRemove.forEach(key => {
+                            localStorage.removeItem(key);
+                        });
+                    }
+
+                    // تنظيف البيانات القديمة (أكثر من 30 يوم)
+                    const now = Date.now();
+                    const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 يوم
+
+                    importantKeys.forEach(key => {
+                        const timestampKey = key + '_timestamp';
+                        const timestamp = localStorage.getItem(timestampKey);
+                        if (timestamp && (now - parseInt(timestamp)) > maxAge) {
+                            localStorage.removeItem(key);
+                            localStorage.removeItem(timestampKey);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error cleaning localStorage:', error);
+                    // في حالة الخطأ (مثل QuotaExceededError)، قم بحذف البيانات غير المهمة
+                    try {
+                        const keysToRemove = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && !key.includes('pwa_last') && !key.includes('custom_colors') && !key.includes('banner')) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                        keysToRemove.forEach(key => localStorage.removeItem(key));
+                    } catch (e) {
+                        console.error('Failed to clean localStorage:', e);
+                    }
+                }
+            }
+
+            // تنظيف localStorage عند تحميل الصفحة
+            if (typeof Storage !== 'undefined') {
+                cleanLocalStorage();
+            }
+
             // صفحات تسجيل الدخول التي يجب منع الرجوع إليها
             const loginPages = ['/admin/login', '/delegate/login'];
             let currentPath = window.location.pathname;

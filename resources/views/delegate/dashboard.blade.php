@@ -15,23 +15,37 @@
 
         @if($activeOrder)
             <!-- تنبيه الطلب النشط -->
-            <div class="panel mb-6 !bg-warning-light border-2 border-warning">
+            <div class="panel mb-6 !bg-warning-light border-2 border-warning" id="activeOrderAlert">
                 <div class="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div class="flex-1">
                         <h5 class="font-bold text-warning text-lg mb-2">لديك طلب نشط!</h5>
-                        <p class="text-black dark:text-white">الزبون: {{ session('customer_data.customer_name') }}</p>
+                        <p class="text-black dark:text-white" id="activeOrderCustomer">الزبون: <span id="customerNamePlaceholder">جاري التحميل...</span></p>
                         <p class="text-black dark:text-white">المنتجات: {{ $activeOrder->items->count() }}</p>
                         <p class="text-black dark:text-white">الإجمالي: {{ number_format($activeOrder->total_amount, 0) }} د.ع</p>
                     </div>
                     <div class="flex gap-2">
                         <a href="{{ route('delegate.products.all') }}" class="btn btn-warning">إكمال الطلب</a>
-                        <form method="POST" action="{{ route('delegate.orders.cancel-current') }}">
+                        <form method="POST" action="{{ route('delegate.orders.cancel-current') }}" id="cancelOrderForm">
                             @csrf
+                            <input type="hidden" name="cart_id" id="cancelCartId" value="">
                             <button type="submit" class="btn btn-danger">إلغاء</button>
                         </form>
                     </div>
                 </div>
             </div>
+            <script>
+                // تحديث بيانات الزبون من localStorage
+                if (window.cartStorage) {
+                    const customerData = window.cartStorage.getCustomerData();
+                    const cartId = window.cartStorage.getCartId();
+                    if (customerData && document.getElementById('customerNamePlaceholder')) {
+                        document.getElementById('customerNamePlaceholder').textContent = customerData.customer_name;
+                    }
+                    if (cartId && document.getElementById('cancelCartId')) {
+                        document.getElementById('cancelCartId').value = cartId;
+                    }
+                }
+            </script>
         @endif
 
         <!-- الأزرار الرئيسية -->

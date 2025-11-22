@@ -783,30 +783,64 @@ class OrderController extends Controller
             'expires_at' => now()->addHours(24),
         ]);
 
-        // حفظ معلومات الزبون في session
-        session([
-            'current_cart_id' => $cart->id,
-            'customer_data' => $request->only([
-                'customer_name',
-                'customer_phone',
-                'customer_address',
-                'customer_social_link',
-                'notes'
-            ])
+        // حفظ معلومات الزبون في localStorage (بدلاً من session لتجنب مشاكل الكوكيز الكبيرة)
+        // البيانات ستُحفظ في localStorage عبر JavaScript بعد redirect
+        $customerData = $request->only([
+            'customer_name',
+            'customer_phone',
+            'customer_address',
+            'customer_social_link',
+            'notes'
         ]);
 
-        // التوجيه لصفحة المنتجات
+        // التوجيه لصفحة المنتجات مع البيانات في flash session (لحفظها في localStorage)
         return redirect()->route('delegate.products.all')
-                        ->with('success', 'تم بدء الطلب! الآن اختر المنتجات');
+                        ->with('success', 'تم بدء الطلب! الآن اختر المنتجات')
+                        ->with('cart_data', [
+                            'cart_id' => $cart->id,
+                            'customer_data' => $customerData
+                        ]);
+    }
+
+    /**
+     * Get cart data from localStorage (API endpoint)
+     */
+    public function getCartData(Request $request)
+    {
+        // البيانات ستأتي من localStorage عبر JavaScript
+        $cartId = $request->input('cart_id');
+        $customerData = $request->input('customer_data');
+
+        if (!$cartId || !$customerData) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يوجد طلب نشط'
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'cart_id' => $cartId,
+            'customer_data' => $customerData
+        ]);
     }
 
     /**
      * Submit the current order
      */
-    public function submit()
+    public function submit(Request $request)
     {
-        $cartId = session('current_cart_id');
-        $customerData = session('customer_data');
+        // محاولة قراءة البيانات من request أولاً (من localStorage)
+        $cartId = $request->input('cart_id');
+        $customerData = $request->input('customer_data');
+
+        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
+        if (!$cartId) {
+            $cartId = session('current_cart_id');
+        }
+        if (!$customerData) {
+            $customerData = session('customer_data');
+        }
 
         if (!$cartId || !$customerData) {
             return redirect()->route('delegate.orders.start')
@@ -887,19 +921,26 @@ class OrderController extends Controller
             \Log::error('Delegate/OrderController: Error sending SweetAlert for order_created: ' . $e->getMessage());
         }
 
-        // مسح session
+        // مسح session و localStorage
         session()->forget(['current_cart_id', 'customer_data']);
 
         return redirect()->route('delegate.dashboard')
-                        ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number);
+                        ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number)
+                        ->with('clear_cart_storage', true); // إشارة لتنظيف localStorage
     }
 
     /**
      * Cancel the current order
      */
-    public function cancel()
+    public function cancel(Request $request)
     {
-        $cartId = session('current_cart_id');
+        // محاولة قراءة البيانات من request أولاً (من localStorage)
+        $cartId = $request->input('cart_id');
+
+        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
+        if (!$cartId) {
+            $cartId = session('current_cart_id');
+        }
 
         if ($cartId) {
             $cart = Cart::with('items.stockReservation')->find($cartId);
@@ -917,7 +958,8 @@ class OrderController extends Controller
         session()->forget(['current_cart_id', 'customer_data']);
 
         return redirect()->route('delegate.dashboard')
-                        ->with('info', 'تم إلغاء الطلب');
+                        ->with('info', 'تم إلغاء الطلب')
+                        ->with('clear_cart_storage', true); // إشارة لتنظيف localStorage
     }
 
     /**
