@@ -333,7 +333,12 @@ class ChatController extends Controller
 
                 // إذا كانت الرسالة تحتوي على صورة
                 if ($message->image_path) {
-                    $data['image_url'] = asset('storage/' . $message->image_path);
+                    try {
+                        $data['image_url'] = Storage::disk('public')->url($message->image_path);
+                    } catch (\Exception $e) {
+                        // Fallback إلى asset() إذا فشل Storage::url()
+                        $data['image_url'] = asset('storage/' . $message->image_path);
+                    }
                 }
 
                 return $data;
@@ -464,7 +469,12 @@ class ChatController extends Controller
             ];
 
             if ($imagePath) {
-                $responseData['message']['image_url'] = asset('storage/' . $imagePath);
+                try {
+                    $responseData['message']['image_url'] = Storage::disk('public')->url($imagePath);
+                } catch (\Exception $e) {
+                    // Fallback إلى asset() إذا فشل Storage::url()
+                    $responseData['message']['image_url'] = asset('storage/' . $imagePath);
+                }
             }
 
             return response()->json($responseData);

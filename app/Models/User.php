@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -199,7 +200,13 @@ class User extends Authenticatable
     public function getProfileImageUrl()
     {
         if ($this->profile_image) {
-            return asset('storage/' . $this->profile_image);
+            // استخدام Storage::url() الذي يعمل مع local و S3/Bucket
+            try {
+                return Storage::disk('public')->url($this->profile_image);
+            } catch (\Exception $e) {
+                // Fallback إلى asset() إذا فشل Storage::url()
+                return asset('storage/' . $this->profile_image);
+            }
         }
 
         // Return default profile image based on user ID

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class BannerController extends Controller
 {
@@ -47,7 +48,12 @@ class BannerController extends Controller
         // بناء رابط الصورة إن وجدت
         $imageUrl = null;
         if ($bannerImage) {
-            $imageUrl = asset('storage/' . $bannerImage);
+            try {
+                $imageUrl = Storage::disk('public')->url($bannerImage);
+            } catch (\Exception $e) {
+                // Fallback إلى asset() إذا فشل Storage::url()
+                $imageUrl = asset('storage/' . $bannerImage);
+            }
         }
 
         return response()->json([

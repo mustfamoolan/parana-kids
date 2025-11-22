@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Message extends Model
 {
@@ -79,7 +80,14 @@ class Message extends Model
         if (!$this->image_path) {
             return null;
         }
-        return asset('storage/' . $this->image_path);
+
+        // استخدام Storage::url() الذي يعمل مع local و S3/Bucket
+        try {
+            return Storage::disk('public')->url($this->image_path);
+        } catch (\Exception $e) {
+            // Fallback إلى asset() إذا فشل Storage::url()
+            return asset('storage/' . $this->image_path);
+        }
     }
 
     /**
