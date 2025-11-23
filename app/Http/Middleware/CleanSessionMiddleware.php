@@ -31,15 +31,16 @@ class CleanSessionMiddleware
                 '_token',
                 '_flash',
                 '_previous',
-                'login_web',
             ];
 
             // لا نحتفظ ب current_cart_id و customer_data في session
-            // لأنها الآن مخزنة في localStorage لتجنب مشاكل الكوكيز الكبيرة
+            // لأنها الآن مخزنة في قاعدة البيانات لتجنب مشاكل الكوكيز الكبيرة
 
             // حذف جميع المفاتيح غير المهمة
+            // ملاحظة: Laravel يستخدم مفتاحاً مثل login_web_59ba36addc2b2f9401580f014c7f58ea4f309093ee
+            // لذلك نحتفظ بجميع المفاتيح التي تبدأ بـ login_web
             foreach ($sessionData as $key => $value) {
-                if (!in_array($key, $importantKeys) && !str_starts_with($key, '_')) {
+                if (!in_array($key, $importantKeys) && !str_starts_with($key, '_') && !str_starts_with($key, 'login_web')) {
                     Session::forget($key);
                 }
             }
