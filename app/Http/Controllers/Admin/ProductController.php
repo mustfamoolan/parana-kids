@@ -264,14 +264,14 @@ class ProductController extends Controller
             'name' => $productName,
             'code' => $request->code,
             'gender_type' => $request->gender_type,
-            'purchase_price' => $request->purchase_price,
             'selling_price' => $request->selling_price,
             'description' => $request->description,
             'link_1688' => $request->link_1688,
         ];
 
-        // فقط المدير يمكنه تعديل الحجب والتخفيض
+        // فقط المدير يمكنه تعديل سعر الشراء والحجب والتخفيض
         if (auth()->user()->isAdmin()) {
+            $updateData['purchase_price'] = $request->purchase_price;
             $updateData['is_hidden'] = $request->has('is_hidden') ? (bool)$request->is_hidden : false;
             $updateData['discount_type'] = $request->discount_type ?? 'none';
             $updateData['discount_value'] = $request->discount_value;
