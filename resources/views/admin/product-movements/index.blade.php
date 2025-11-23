@@ -146,9 +146,17 @@
                         <div class="border-t pt-3 mb-3">
                             <div class="flex items-center justify-between">
                                 <span class="text-xs text-gray-500 dark:text-gray-400">القياس:</span>
-                                <span class="badge bg-primary">{{ $movement->size->size_name }}</span>
+                                @if($movement->size)
+                                    <span class="badge bg-primary">{{ $movement->size->size_name }}</span>
+                                @else
+                                    <span class="badge bg-danger">قياس محذوف</span>
+                                @endif
                             </div>
-                            <div class="text-xs text-gray-500 mt-1">ID: {{ $movement->size->id }}</div>
+                            @if($movement->size)
+                                <div class="text-xs text-gray-500 mt-1">ID: {{ $movement->size->id }}</div>
+                            @else
+                                <div class="text-xs text-gray-500 mt-1">ID: {{ $movement->size_id }} (محذوف)</div>
+                            @endif
                         </div>
 
                         <!-- الكمية والرصيد -->
