@@ -1937,14 +1937,12 @@ class OrderController extends Controller
             $this->authorize('forceDelete', $order);
 
             DB::transaction(function () use ($order) {
-                // حذف حركات المنتجات المرتبطة بالطلب
-                ProductMovement::where('order_id', $order->id)->delete();
-
-                // حذف عناصر الطلب
+                // حذف عناصر الطلب نهائياً
                 $order->items()->forceDelete();
 
                 // الحذف النهائي للطلب
                 $order->forceDelete();
+                // ملاحظة: حركات المنتجات تبقى في السجل حتى بعد الحذف النهائي
             });
 
             return redirect()->route('admin.orders.management', ['status' => 'deleted'])
