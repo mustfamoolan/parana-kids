@@ -251,6 +251,10 @@ Route::prefix('delegate')->group(function () {
         Route::get('api/products/{product}', [DelegateProductController::class, 'getProductData'])->name('delegate.products.data');
 
         // Cart routes
+        // عرض السلة الحالية (يجب أن يكون قبل resource route)
+        Route::get('carts/view', [\App\Http\Controllers\Delegate\CartController::class, 'view'])->name('delegate.carts.view');
+        Route::get('carts/{cart}/info', [\App\Http\Controllers\Delegate\CartController::class, 'info'])->name('delegate.carts.info');
+
         Route::resource('carts', CartController::class)->only(['index', 'show', 'store', 'destroy'])->names([
             'index' => 'delegate.carts.index',
             'show' => 'delegate.carts.show',
@@ -271,10 +275,6 @@ Route::prefix('delegate')->group(function () {
         Route::post('orders/submit', [DelegateOrderController::class, 'submit'])->name('delegate.orders.submit');
         Route::post('orders/cancel-current', [DelegateOrderController::class, 'cancel'])->name('delegate.orders.cancel-current');
         Route::post('orders/archive-current', [\App\Http\Controllers\Delegate\ArchivedOrderController::class, 'archiveCurrent'])->name('delegate.orders.archive-current');
-
-        // عرض السلة الحالية
-        Route::get('carts/view', [\App\Http\Controllers\Delegate\CartController::class, 'view'])->name('delegate.carts.view');
-        Route::get('carts/{cart}/info', [\App\Http\Controllers\Delegate\CartController::class, 'info'])->name('delegate.carts.info');
 
         // نظام الطلبات القديم (عبر السلات)
         Route::get('carts/{cart}/checkout', [DelegateOrderController::class, 'create'])->name('delegate.orders.create');
