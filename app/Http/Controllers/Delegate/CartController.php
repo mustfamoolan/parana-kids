@@ -13,17 +13,8 @@ class CartController extends Controller
      */
     public function view(Request $request)
     {
-        // محاولة قراءة البيانات من request أولاً (من localStorage)
-        $cartId = $request->input('cart_id');
-        $customerData = $request->input('customer_data');
-
-        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
-        if (!$cartId) {
-            $cartId = session('current_cart_id');
-        }
-        if (!$customerData) {
-            $customerData = session('customer_data');
-        }
+        // قراءة cart_id من session
+        $cartId = session('current_cart_id');
 
         if (!$cartId) {
             return redirect()->route('delegate.orders.start')
@@ -39,11 +30,20 @@ class CartController extends Controller
                 abort(403);
             }
 
-            // التحقق من وجود بيانات الزبون
-            if (!$customerData) {
+            // التحقق من وجود بيانات الزبون في Cart
+            if (!$cart->customer_name || !$cart->customer_phone) {
                 return redirect()->route('delegate.orders.start')
                                ->with('error', 'بيانات الزبون غير موجودة. يرجى إنشاء طلب جديد');
             }
+
+            // تحضير customer_data من Cart
+            $customerData = [
+                'customer_name' => $cart->customer_name,
+                'customer_phone' => $cart->customer_phone,
+                'customer_address' => $cart->customer_address,
+                'customer_social_link' => $cart->customer_social_link,
+                'notes' => $cart->notes,
+            ];
 
             return view('delegate.carts.view', compact('cart', 'customerData'));
         } catch (\Exception $e) {

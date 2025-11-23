@@ -775,31 +775,25 @@ class OrderController extends Controller
                 $cart->delete();
             });
 
-        // إنشاء سلة جديدة
+        // إنشاء سلة جديدة مع بيانات الزبون
         $cart = Cart::create([
             'delegate_id' => auth()->id(),
             'cart_name' => 'طلب: ' . $request->customer_name,
             'status' => 'active',
             'expires_at' => now()->addHours(24),
+            'customer_name' => $request->customer_name,
+            'customer_phone' => $request->customer_phone,
+            'customer_address' => $request->customer_address,
+            'customer_social_link' => $request->customer_social_link,
+            'notes' => $request->notes,
         ]);
 
-        // حفظ معلومات الزبون في localStorage (بدلاً من session لتجنب مشاكل الكوكيز الكبيرة)
-        // البيانات ستُحفظ في localStorage عبر JavaScript بعد redirect
-        $customerData = $request->only([
-            'customer_name',
-            'customer_phone',
-            'customer_address',
-            'customer_social_link',
-            'notes'
-        ]);
+        // حفظ cart_id فقط في session (رقم صغير لا يسبب مشاكل الكوكيز)
+        session(['current_cart_id' => $cart->id]);
 
-        // التوجيه لصفحة المنتجات مع البيانات في flash session (لحفظها في localStorage)
+        // التوجيه لصفحة المنتجات
         return redirect()->route('delegate.products.all')
-                        ->with('success', 'تم بدء الطلب! الآن اختر المنتجات')
-                        ->with('cart_data', [
-                            'cart_id' => $cart->id,
-                            'customer_data' => $customerData
-                        ]);
+                        ->with('success', 'تم بدء الطلب! الآن اختر المنتجات');
     }
 
     /**
@@ -830,19 +824,10 @@ class OrderController extends Controller
      */
     public function submit(Request $request)
     {
-        // محاولة قراءة البيانات من request أولاً (من localStorage)
-        $cartId = $request->input('cart_id');
-        $customerData = $request->input('customer_data');
+        // قراءة cart_id من session
+        $cartId = session('current_cart_id');
 
-        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
         if (!$cartId) {
-            $cartId = session('current_cart_id');
-        }
-        if (!$customerData) {
-            $customerData = session('customer_data');
-        }
-
-        if (!$cartId || !$customerData) {
             return redirect()->route('delegate.orders.start')
                            ->with('error', 'لا يوجد طلب نشط');
         }
@@ -858,16 +843,22 @@ class OrderController extends Controller
             return back()->withErrors(['cart' => 'أضف منتجات أولاً']);
         }
 
+        // التحقق من وجود بيانات الزبون في Cart
+        if (!$cart->customer_name || !$cart->customer_phone) {
+            return redirect()->route('delegate.orders.start')
+                           ->with('error', 'بيانات الزبون غير موجودة. يرجى إنشاء طلب جديد');
+        }
+
         // إنشاء الطلب
-        $order = DB::transaction(function() use ($cart, $customerData) {
+        $order = DB::transaction(function() use ($cart) {
             $order = Order::create([
                 'cart_id' => $cart->id,
                 'delegate_id' => $cart->delegate_id,
-                'customer_name' => $customerData['customer_name'],
-                'customer_phone' => $customerData['customer_phone'],
-                'customer_address' => $customerData['customer_address'],
-                'customer_social_link' => $customerData['customer_social_link'],
-                'notes' => $customerData['notes'] ?? null,
+                'customer_name' => $cart->customer_name,
+                'customer_phone' => $cart->customer_phone,
+                'customer_address' => $cart->customer_address,
+                'customer_social_link' => $cart->customer_social_link,
+                'notes' => $cart->notes,
                 'status' => 'pending',
                 'total_amount' => $cart->total_amount,
             ]);
@@ -921,12 +912,11 @@ class OrderController extends Controller
             \Log::error('Delegate/OrderController: Error sending SweetAlert for order_created: ' . $e->getMessage());
         }
 
-        // مسح session و localStorage
-        session()->forget(['current_cart_id', 'customer_data']);
+        // مسح session
+        session()->forget('current_cart_id');
 
         return redirect()->route('delegate.dashboard')
-                        ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number)
-                        ->with('clear_cart_storage', true); // إشارة لتنظيف localStorage
+                        ->with('success', 'تم إرسال الطلب بنجاح! رقم الطلب: ' . $order->order_number);
     }
 
     /**
@@ -934,13 +924,8 @@ class OrderController extends Controller
      */
     public function cancel(Request $request)
     {
-        // محاولة قراءة البيانات من request أولاً (من localStorage)
-        $cartId = $request->input('cart_id');
-
-        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
-        if (!$cartId) {
-            $cartId = session('current_cart_id');
-        }
+        // قراءة cart_id من session
+        $cartId = session('current_cart_id');
 
         if ($cartId) {
             $cart = Cart::with('items.stockReservation')->find($cartId);
@@ -955,11 +940,10 @@ class OrderController extends Controller
             }
         }
 
-        session()->forget(['current_cart_id', 'customer_data']);
+        session()->forget('current_cart_id');
 
         return redirect()->route('delegate.dashboard')
-                        ->with('info', 'تم إلغاء الطلب')
-                        ->with('clear_cart_storage', true); // إشارة لتنظيف localStorage
+                        ->with('info', 'تم إلغاء الطلب');
     }
 
     /**

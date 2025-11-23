@@ -2,49 +2,49 @@
     <!-- Swiper CSS - Local (replaces CDN to avoid ERR_CONNECTION_TIMED_OUT in Iraq) -->
     <link rel="stylesheet" href="/assets/css/swiper-bundle.min.css" />
 
-    <!-- حفظ بيانات السلة في localStorage إذا كانت موجودة في session flash -->
-    @if(session('cart_data'))
-        <script>
-            (function() {
-                const cartData = @json(session('cart_data'));
-                if (cartData && cartData.cart_id && cartData.customer_data) {
-                    if (window.cartStorage) {
-                        window.cartStorage.setCartData(cartData.cart_id, cartData.customer_data);
-                    }
-                }
-            })();
-        </script>
-    @endif
-
     <div class="container mx-auto px-4 py-6 max-w-7xl">
-        <!-- Banner الطلب النشط (يتم عرضه من localStorage عبر JavaScript) -->
-        <div id="activeOrderBanner" class="panel mb-5 !bg-success-light dark:!bg-success/20 border-2 border-success hidden">
+        <!-- Banner الطلب النشط -->
+        @if($activeCart && $customerData)
+        <div id="activeOrderBanner" class="panel mb-5 !bg-success-light dark:!bg-success/20 border-2 border-success">
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div class="flex-1">
                     <h5 class="font-bold text-success text-lg mb-2">
                         <svg class="w-5 h-5 inline-block ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span id="bannerCustomerName">طلب جاري</span>
+                        طلب جاري: {{ $customerData['customer_name'] }}
                     </h5>
-                    <div class="space-y-1 text-sm" id="bannerCustomerDetails">
-                        <!-- سيتم ملؤه عبر JavaScript -->
+                    <div class="space-y-1 text-sm">
+                        <p class="text-gray-700 dark:text-gray-300">
+                            <strong>الهاتف:</strong> {{ $customerData['customer_phone'] }}
+                        </p>
+                        <p class="text-gray-700 dark:text-gray-300">
+                            <strong>العنوان:</strong> {{ $customerData['customer_address'] }}
+                        </p>
+                        <p class="text-gray-700 dark:text-gray-300">
+                            <strong>المنتجات في السلة:</strong>
+                            <span class="badge bg-success">{{ $activeCart->items->count() }} منتج</span>
+                            <strong class="ltr:ml-3 rtl:mr-3">الإجمالي:</strong>
+                            <span class="font-bold text-success">{{ number_format($activeCart->total_amount, 0) }} د.ع</span>
+                        </p>
                     </div>
                 </div>
                 <div class="flex gap-2 flex-shrink-0 flex-wrap">
-                    <button type="button" onclick="openCartModal()" class="btn btn-info">
+                    <a href="{{ route('delegate.carts.view') }}" class="btn btn-info">
                         <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
                         عرض الطلب
-                    </button>
-                    <button type="button" onclick="openConfirmModal()" class="btn btn-success" id="submitOrderBtn" style="display: none;">
+                    </a>
+                    @if($activeCart->items->count() > 0)
+                    <button type="button" onclick="openConfirmModal()" class="btn btn-success">
                         <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
                         إرسال الطلب
                     </button>
+                    @endif
                     <form method="POST" action="{{ route('delegate.orders.cancel-current') }}" onsubmit="return confirmCancelOrder(event)">
                         @csrf
                         <button type="submit" class="btn btn-danger">
@@ -54,62 +54,10 @@
                             إلغاء الطلب
                         </button>
                     </form>
-                        </div>
-                    </div>
                 </div>
             </div>
-
-            <script>
-                // عرض Banner الطلب النشط من localStorage
-                (function() {
-                    if (window.cartStorage && window.cartStorage.hasActiveCart()) {
-                        const cartId = window.cartStorage.getCartId();
-                        const customerData = window.cartStorage.getCustomerData();
-
-                        if (cartId && customerData) {
-                            // جلب بيانات السلة من Server
-                            fetch(`/delegate/carts/${cartId}/info`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        const banner = document.getElementById('activeOrderBanner');
-                                        const customerNameEl = document.getElementById('bannerCustomerName');
-                                        const customerDetailsEl = document.getElementById('bannerCustomerDetails');
-                                        const submitBtn = document.getElementById('submitOrderBtn');
-
-                                        if (banner && customerNameEl && customerDetailsEl) {
-                                            customerNameEl.textContent = `طلب جاري: ${customerData.customer_name}`;
-                                            customerDetailsEl.innerHTML = `
-                                                <p class="text-gray-700 dark:text-gray-300">
-                                                    <strong>الهاتف:</strong> ${customerData.customer_phone}
-                                                </p>
-                                                <p class="text-gray-700 dark:text-gray-300">
-                                                    <strong>العنوان:</strong> ${customerData.customer_address}
-                                                </p>
-                                                <p class="text-gray-700 dark:text-gray-300">
-                                                    <strong>المنتجات في السلة:</strong>
-                                                    <span class="badge bg-success">${data.items_count} منتج</span>
-                                                    <strong class="ltr:ml-3 rtl:mr-3">الإجمالي:</strong>
-                                                    <span class="font-bold text-success">${data.total_amount.toLocaleString()} د.ع</span>
-                                                </p>
-                                            `;
-
-                                            if (data.items_count > 0 && submitBtn) {
-                                                submitBtn.style.display = 'inline-flex';
-                                            }
-
-                                            banner.classList.remove('hidden');
-                                        }
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error fetching cart info:', error);
-                                });
-                        }
-                    }
-                })();
-            </script>
         </div>
+        @endif
 
         <!-- Header ثابت -->
         <div class="sticky top-0 bg-white dark:bg-gray-900 z-10 pb-4">
@@ -292,7 +240,7 @@
     </div>
 
     <!-- Order Confirmation Modal -->
-    @if(session('current_cart_id') && isset($currentCart) && isset($customerData))
+    @if($activeCart && $customerData)
         <div id="confirmOrderModal"
              class="fixed inset-0 bg-black/60 z-[999] hidden overflow-y-auto"
              onclick="if(event.target === this) closeConfirmModal()">
@@ -340,7 +288,7 @@
                         <div class="mt-4 panel flex items-center justify-between">
                             <span class="font-bold text-lg">المجموع الكلي:</span>
                             <span class="font-bold text-success text-xl" id="confirmOrderTotal">
-                                {{ number_format($currentCart->total_amount, 0) }} د.ع
+                                {{ number_format($activeCart->total_amount, 0) }} د.ع
                             </span>
                         </div>
                     </div>
@@ -374,7 +322,7 @@
     @endif
 
     <!-- Cart View/Edit Modal -->
-    @if(session('current_cart_id') && isset($currentCart) && isset($customerData))
+    @if($activeCart && $customerData)
         <div id="cartModal"
              class="fixed inset-0 bg-black/60 z-[999] hidden overflow-y-auto"
              onclick="if(event.target === this) closeCartModal()">
@@ -413,7 +361,7 @@
                     <div class="mb-5">
                         <h6 class="font-bold text-lg mb-3">المنتجات في السلة</h6>
                         <div id="cartModalItems" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            @foreach($currentCart->items as $item)
+                            @foreach($activeCart->items as $item)
                                 <div class="panel" data-item-id="{{ $item->id }}">
                                     <div class="flex items-center gap-3 mb-3">
                                         <button type="button" onclick="openImageZoomModal('{{ $item->product->primaryImage->image_url ?? '/assets/images/no-image.png' }}', '{{ $item->product->name }}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
@@ -479,7 +427,7 @@
                         <div class="mt-4 panel flex items-center justify-between">
                             <span class="font-bold text-lg">المجموع الكلي:</span>
                             <span class="font-bold text-success text-xl" id="cartModalTotal">
-                                {{ number_format($currentCart->total_amount, 0) }} د.ع
+                                {{ number_format($activeCart->total_amount, 0) }} د.ع
                             </span>
                         </div>
                     </div>
@@ -698,7 +646,7 @@
 
         // فتح المودال
         function openProductModal(productId) {
-            // التحقق من وجود طلب نشط
+            // التحقق من وجود طلب نشط من session
             @if(!session('current_cart_id'))
                 Swal.fire({
                     title: 'لا يوجد طلب نشط',
@@ -714,6 +662,13 @@
                 });
                 return;
             @endif
+
+            // إذا كان هناك طلب نشط، استمر في فتح المودال
+            loadProductData(productId);
+        }
+
+        // دالة منفصلة لجلب بيانات المنتج
+        function loadProductData(productId) {
 
             // جلب بيانات المنتج
             fetch(`/delegate/api/products/${productId}`)

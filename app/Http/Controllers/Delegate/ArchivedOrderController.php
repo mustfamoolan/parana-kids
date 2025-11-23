@@ -126,25 +126,24 @@ class ArchivedOrderController extends Controller
                     ]);
                 }
 
-                // حفظ في localStorage (بدلاً من session لتجنب مشاكل الكوكيز الكبيرة)
-                $customerData = [
+                // حفظ customer_data في Cart
+                $cart->update([
                     'customer_name' => $archived->customer_name,
                     'customer_phone' => $archived->customer_phone,
                     'customer_address' => $archived->customer_address,
                     'customer_social_link' => $archived->customer_social_link,
                     'notes' => $archived->notes,
-                ];
+                ]);
+
+                // حفظ cart_id في session
+                session(['current_cart_id' => $cart->id]);
 
                 // حذف من الأرشيف
                 $archived->delete();
             });
 
             return redirect()->route('delegate.products.all')
-                            ->with('success', 'تم استرجاع الطلب بنجاح!')
-                            ->with('cart_data', [
-                                'cart_id' => $cart->id,
-                                'customer_data' => $customerData
-                            ]);
+                            ->with('success', 'تم استرجاع الطلب بنجاح!');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }

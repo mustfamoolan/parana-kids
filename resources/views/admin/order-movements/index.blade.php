@@ -117,85 +117,123 @@
             </form>
         </div>
 
-        @if($movements->count() > 0)
+        @if($movements->count() > 0 && isset($groupedMovements) && $groupedMovements->count() > 0)
             <div class="mb-5">
                 <h6 class="text-lg font-semibold dark:text-white-light">سجل الحركات</h6>
+                <p class="text-sm text-gray-500 dark:text-gray-400">تم تجميع الحركات حسب الطلب</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                @foreach($movements as $movement)
+            <div class="space-y-4">
+                @foreach($groupedMovements as $group)
                     <div class="panel">
-                        <!-- التاريخ ونوع الحركة -->
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <div class="font-semibold text-base dark:text-white-light">{{ $movement->created_at->format('Y-m-d') }}</div>
-                                <div class="text-xs text-gray-500">{{ $movement->created_at->format('H:i') }}</div>
-                            </div>
-                            <span class="badge bg-{{ $movement->movement_color }}">
-                                {{ $movement->movement_type_name }}
-                            </span>
-                        </div>
-
-                        <!-- الكمية والرصيد -->
-                        <div class="space-y-2 border-t pt-3 mb-3">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-gray-500 dark:text-gray-400">الكمية:</span>
-                                <span class="font-bold text-lg {{ $movement->quantity > 0 ? 'text-success' : 'text-danger' }}">
-                                    {{ $movement->quantity > 0 ? '+' : '' }}{{ number_format($movement->quantity, 0, '.', ',') }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-gray-500 dark:text-gray-400">الرصيد بعد الحركة:</span>
-                                <span class="font-semibold text-primary">{{ number_format($movement->balance_after, 0, '.', ',') }}</span>
-                            </div>
-                        </div>
-
-                        <!-- تفاصيل الطلب -->
-                        <div class="border-t pt-3 mb-3">
-                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">تفاصيل الطلب:</span>
-                            @if($movement->order)
-                                <div class="space-y-1">
-                                    <div>
-                                        <a href="{{ route('admin.orders.show', $movement->order) }}" class="font-medium text-primary hover:underline text-sm">
-                                            {{ $movement->order->order_number }}
+                        <!-- رأس البطاقة: معلومات الطلب -->
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 pb-4 border-b">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    @if($group['order'])
+                                        <a href="{{ route('admin.orders.show', $group['order']) }}" class="font-bold text-lg text-primary hover:underline">
+                                            {{ $group['order_number'] }}
                                         </a>
-                                    </div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $movement->order->customer_name }}</div>
-                                    @if($movement->order_status)
-                                        <div class="mt-1">
-                                            <span class="badge badge-outline-secondary text-xs">
-                                                {{ $orderStatuses[$movement->order_status] ?? $movement->order_status }}
-                                            </span>
+                                    @else
+                                        <span class="font-bold text-lg text-gray-500">طلب محذوف</span>
+                                    @endif
+                                    @if($group['order_status'])
+                                        <span class="badge badge-outline-secondary">
+                                            {{ $orderStatuses[$group['order_status']] ?? $group['order_status'] }}
+                                        </span>
+                                    @endif
+                                    <span class="badge bg-{{ $group['movements']->first()->movement_color }}">
+                                        {{ $group['movements']->first()->movement_type_name }}
+                                    </span>
+                                </div>
+                                <div class="space-y-1 text-sm">
+                                    @if($group['customer_name'])
+                                        <div class="text-gray-600 dark:text-gray-400">
+                                            <strong>الزبون:</strong> {{ $group['customer_name'] }}
                                         </div>
                                     @endif
+                                    <div class="text-gray-500 dark:text-gray-500">
+                                        <strong>التاريخ:</strong> {{ $group['created_at']->format('Y-m-d H:i') }}
+                                    </div>
+                                    <div class="text-gray-500 dark:text-gray-500">
+                                        <strong>المستخدم:</strong> {{ $group['user']->name }}
+                                        <span class="badge badge-outline-secondary text-xs mr-2">
+                                            @if($group['user']->role === 'admin')
+                                                مدير
+                                            @elseif($group['user']->role === 'supplier')
+                                                مجهز
+                                            @else
+                                                مندوب
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="text-gray-500 dark:text-gray-500">
+                                        <strong>عدد المنتجات:</strong> {{ $group['movements']->count() }} منتج/قياس
+                                    </div>
+                                    <div class="text-gray-500 dark:text-gray-500">
+                                        <strong>إجمالي الكمية:</strong>
+                                        <span class="font-bold {{ $group['total_quantity'] > 0 ? 'text-success' : 'text-danger' }}">
+                                            {{ $group['total_quantity'] > 0 ? '+' : '' }}{{ number_format($group['total_quantity'], 0, '.', ',') }}
+                                        </span>
+                                    </div>
                                 </div>
-                            @else
-                                <span class="text-gray-500 text-sm">-</span>
-                            @endif
-                        </div>
-
-                        <!-- المستخدم -->
-                        <div class="border-t pt-3 mb-3">
-                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المستخدم:</span>
-                            <div class="font-medium text-sm">{{ $movement->user->name }}</div>
-                            <span class="badge badge-outline-secondary text-xs mt-1">
-                                @if($movement->user->role === 'admin')
-                                    مدير
-                                @elseif($movement->user->role === 'supplier')
-                                    مجهز
-                                @else
-                                    مندوب
-                                @endif
-                            </span>
-                        </div>
-
-                        <!-- الملاحظات -->
-                        @if($movement->notes)
-                            <div class="border-t pt-3">
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">ملاحظات:</span>
-                                <p class="text-sm text-gray-700 dark:text-gray-300">{{ $movement->notes }}</p>
                             </div>
-                        @endif
+                        </div>
+
+                        <!-- قائمة المنتجات والقياسات -->
+                        <div class="space-y-3">
+                            <h6 class="font-semibold text-base mb-3">المنتجات والقياسات:</h6>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                @foreach($group['movements'] as $movement)
+                                    <div class="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50">
+                                        <!-- معلومات المنتج -->
+                                        @if($movement->product)
+                                            <div class="mb-2">
+                                                @if($movement->product->warehouse)
+                                                    <a href="{{ route('admin.warehouses.products.show', [$movement->product->warehouse, $movement->product]) }}" class="font-medium text-sm text-primary hover:underline">
+                                                        {{ $movement->product->name }}
+                                                    </a>
+                                                @else
+                                                    <div class="font-medium text-sm">{{ $movement->product->name }}</div>
+                                                @endif
+                                                <div class="text-xs text-gray-500 dark:text-gray-400">كود: {{ $movement->product->code }}</div>
+                                            </div>
+                                        @endif
+
+                                        <!-- القياس -->
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">القياس:</span>
+                                            @if($movement->size)
+                                                <span class="badge bg-primary text-xs">{{ $movement->size->size_name }}</span>
+                                            @else
+                                                <span class="badge bg-danger text-xs">قياس محذوف</span>
+                                            @endif
+                                        </div>
+
+                                        <!-- المخزن -->
+                                        @if($movement->warehouse)
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                                المخزن: {{ $movement->warehouse->name }}
+                                            </div>
+                                        @endif
+
+                                        <!-- الكمية والرصيد -->
+                                        <div class="space-y-1 pt-2 border-t">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">الكمية:</span>
+                                                <span class="font-semibold text-sm {{ $movement->quantity > 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $movement->quantity > 0 ? '+' : '' }}{{ number_format($movement->quantity, 0, '.', ',') }}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">الرصيد:</span>
+                                                <span class="font-semibold text-xs text-primary">{{ number_format($movement->balance_after, 0, '.', ',') }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
                     </div>
                 @endforeach
             </div>

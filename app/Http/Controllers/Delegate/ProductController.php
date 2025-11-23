@@ -123,6 +123,23 @@ class ProductController extends Controller
 
         $searchedSize = $searchedSize ?? null;
 
+        // جلب بيانات الكارت النشط إذا كان موجوداً
+        $activeCart = null;
+        $customerData = null;
+        $cartId = session('current_cart_id');
+        if ($cartId) {
+            $activeCart = \App\Models\Cart::with('items')->find($cartId);
+            if ($activeCart && $activeCart->delegate_id === auth()->id() && $activeCart->customer_name) {
+                $customerData = [
+                    'customer_name' => $activeCart->customer_name,
+                    'customer_phone' => $activeCart->customer_phone,
+                    'customer_address' => $activeCart->customer_address,
+                    'customer_social_link' => $activeCart->customer_social_link,
+                    'notes' => $activeCart->notes,
+                ];
+            }
+        }
+
         if ($request->ajax()) {
             return response()->json([
                 'products' => view('delegate.products.partials.product-cards', compact('products', 'searchedSize'))->render(),
@@ -131,7 +148,7 @@ class ProductController extends Controller
             ]);
         }
 
-        return view('delegate.products.all', compact('products', 'searchedSize'));
+        return view('delegate.products.all', compact('products', 'searchedSize', 'activeCart', 'customerData'));
     }
 
     /**

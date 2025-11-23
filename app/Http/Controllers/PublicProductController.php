@@ -20,15 +20,38 @@ class PublicProductController extends Controller
             abort(404, 'الرابط غير موجود أو تم حذفه');
         }
 
-        // Base query: منتجات المخزن المحدد (أو المخازن المخصصة للمندوب إذا كان null)
+        // Base query: منتجات المخزن المحدد (أو المخازن المخصصة للمستخدم إذا كان null)
         $productsQuery = Product::with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
 
         if ($productLink->warehouse_id) {
+            // إذا كان هناك مخزن محدد، عرض المنتجات من ذلك المخزن فقط
             $productsQuery->where('warehouse_id', $productLink->warehouse_id);
         } else {
-            // إذا لم يكن هناك مخزن محدد، عرض المنتجات من المخازن المخصصة للمندوب الذي أنشأ الرابط فقط
-            $userWarehouseIds = $productLink->creator->warehouses()->pluck('warehouse_id');
-            $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
+            // إذا لم يكن هناك مخزن محدد، نتعامل مع كل نوع مستخدم بشكل مختلف
+            $creator = $productLink->creator;
+
+            if ($creator->isAdmin()) {
+                // المدير: عرض جميع المنتجات من جميع المخازن (لا نضيف فلتر)
+                // لا نضيف أي whereIn هنا
+            } elseif ($creator->isSupplier()) {
+                // المجهز: عرض المنتجات من مخازن المجهز فقط
+                $userWarehouseIds = $creator->warehouses()->pluck('warehouse_id');
+                if ($userWarehouseIds->count() > 0) {
+                    $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
+                } else {
+                    // إذا لم يكن لدى المجهز مخازن، لا نعرض أي منتجات
+                    $productsQuery->whereRaw('1 = 0'); // استعلام فارغ
+                }
+            } else {
+                // المندوب: عرض المنتجات من مخازن المندوب فقط
+                $userWarehouseIds = $creator->warehouses()->pluck('warehouse_id');
+                if ($userWarehouseIds->count() > 0) {
+                    $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
+                } else {
+                    // إذا لم يكن لدى المندوب مخازن، لا نعرض أي منتجات
+                    $productsQuery->whereRaw('1 = 0'); // استعلام فارغ
+                }
+            }
         }
 
         // فلتر النوع (مع دعم boys_girls)

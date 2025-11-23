@@ -14,6 +14,11 @@ class Cart extends Model
         'cart_name',
         'status',
         'expires_at',
+        'customer_name',
+        'customer_phone',
+        'customer_address',
+        'customer_social_link',
+        'notes',
     ];
 
     protected $casts = [

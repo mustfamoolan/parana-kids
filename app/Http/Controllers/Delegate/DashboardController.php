@@ -14,17 +14,24 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // محاولة قراءة cart_id من request أولاً (من localStorage)
-        $cartId = $request->input('cart_id');
-
-        // إذا لم تكن موجودة في request، جرب session (للتوافق مع الكود القديم)
-        if (!$cartId) {
-            $cartId = session('current_cart_id');
-        }
+        // قراءة cart_id من session
+        $cartId = session('current_cart_id');
 
         $activeOrder = $cartId
             ? Cart::with('items')->find($cartId)
             : null;
+
+        // تحضير customer_data من Cart إذا كان موجوداً
+        $customerData = null;
+        if ($activeOrder && $activeOrder->customer_name) {
+            $customerData = [
+                'customer_name' => $activeOrder->customer_name,
+                'customer_phone' => $activeOrder->customer_phone,
+                'customer_address' => $activeOrder->customer_address,
+                'customer_social_link' => $activeOrder->customer_social_link,
+                'notes' => $activeOrder->notes,
+            ];
+        }
 
         $stats = [
             'pending_orders' => Order::where('delegate_id', auth()->id())
@@ -44,6 +51,6 @@ class DashboardController extends Controller
         $dashboardBannerEnabled = Setting::getValue('dashboard_banner_enabled', '0') === '1';
         $dashboardBannerText = Setting::getValue('dashboard_banner_text', '');
 
-        return view('delegate.dashboard', compact('activeOrder', 'stats', 'unreadMessagesCount', 'dashboardBannerEnabled', 'dashboardBannerText'));
+        return view('delegate.dashboard', compact('activeOrder', 'stats', 'unreadMessagesCount', 'dashboardBannerEnabled', 'dashboardBannerText', 'customerData'));
     }
 }

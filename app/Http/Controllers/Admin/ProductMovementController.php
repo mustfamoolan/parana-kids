@@ -79,6 +79,23 @@ class ProductMovementController extends Controller
         $perPage = $request->input('per_page', 20);
         $movements = $query->latest()->paginate($perPage)->appends($request->except('page'));
 
+        // تجميع الحركات حسب order_id
+        $groupedMovements = $movements->groupBy('order_id')->map(function ($orderMovements) {
+            $firstMovement = $orderMovements->first();
+            return [
+                'order' => $firstMovement->order,
+                'order_id' => $firstMovement->order_id,
+                'order_number' => $firstMovement->order ? $firstMovement->order->order_number : null,
+                'customer_name' => $firstMovement->order ? $firstMovement->order->customer_name : null,
+                'order_status' => $firstMovement->order_status,
+                'created_at' => $firstMovement->created_at,
+                'user' => $firstMovement->user,
+                'movements' => $orderMovements,
+                'total_quantity' => $orderMovements->sum('quantity'),
+                'movement_type' => $firstMovement->movement_type,
+            ];
+        })->values();
+
         // البيانات للفلاتر
         $warehouses = Warehouse::all();
         $users = User::all();
@@ -109,6 +126,7 @@ class ProductMovementController extends Controller
 
         return view('admin.order-movements.index', compact(
             'movements',
+            'groupedMovements',
             'warehouses',
             'users',
             'movementTypes',
