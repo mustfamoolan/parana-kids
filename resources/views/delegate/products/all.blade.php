@@ -44,17 +44,16 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
                         إرسال الطلب
-                                </button>
-                            @endif
-                            <form method="POST" action="{{ route('delegate.orders.cancel-current') }}" onsubmit="return confirmCancelOrder(event)">
-                                @csrf
-                                <button type="submit" class="btn btn-danger">
-                                    <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                    إلغاء الطلب
-                                </button>
-                            </form>
+                    </button>
+                    <form method="POST" action="{{ route('delegate.orders.cancel-current') }}" onsubmit="return confirmCancelOrder(event)">
+                        @csrf
+                        <button type="submit" class="btn btn-danger">
+                            <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            إلغاء الطلب
+                        </button>
+                    </form>
                         </div>
                     </div>
                 </div>
