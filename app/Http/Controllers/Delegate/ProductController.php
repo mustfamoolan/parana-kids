@@ -67,54 +67,72 @@ class ProductController extends Controller
             });
         }
 
-        // البحث بالكود أو القياس أو النوع
+        // البحث بالقياس أولاً، ثم الكود، ثم النوع، ثم الاسم
         if ($request->filled('search')) {
             $search = trim($request->search);
             \Log::info('Search applied', ['search_term' => $search]);
 
-            // البحث في كود المنتج أولاً
-            $codeMatches = Product::whereIn('warehouse_id', $warehouseIds)
-                                  ->where('code', 'LIKE', "%{$search}%")
-                                  ->exists();
+            // أولاً: البحث في القياسات (أولوية)
+            $sizeMatches = ProductSize::whereHas('product', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouse_id', $warehouseIds)
+                  ->where('is_hidden', false);
+            })
+            ->where('size_name', 'LIKE', "%{$search}%")
+            ->whereRaw('quantity > (
+                SELECT COALESCE(SUM(quantity_reserved), 0)
+                FROM stock_reservations
+                WHERE product_size_id = product_sizes.id
+            )')
+            ->exists();
 
-            if ($codeMatches) {
-                // إذا كان البحث عن كود منتج، أظهر المنتج بكل قياساته
-                $query->where('code', 'LIKE', "%{$search}%");
+            if ($sizeMatches) {
+                // إذا كان البحث عن قياس، اعرض المنتجات التي تحتوي على هذا القياس
+                $query->whereHas('sizes', function($q) use ($search) {
+                    $q->where('size_name', 'LIKE', "%{$search}%")
+                      ->whereRaw('quantity > (
+                          SELECT COALESCE(SUM(quantity_reserved), 0)
+                          FROM stock_reservations
+                          WHERE product_size_id = product_sizes.id
+                      )');
+                });
+                $searchedSize = $search; // حفظ القياس المبحوث
             } else {
-                // البحث في النوع
-                $genderTypeMap = [
-                    'ولادي' => ['boys', 'boys_girls'],
-                    'بناتي' => ['girls', 'boys_girls'],
-                    'ولادي بناتي' => ['boys_girls'],
-                    'اكسسوار' => ['accessories'],
-                    'boys' => ['boys', 'boys_girls'],
-                    'girls' => ['girls', 'boys_girls'],
-                    'boys_girls' => ['boys_girls'],
-                    'accessories' => ['accessories'],
-                ];
+                // ثانياً: البحث في كود المنتج
+                $codeMatches = Product::whereIn('warehouse_id', $warehouseIds)
+                                      ->where('code', 'LIKE', "%{$search}%")
+                                      ->exists();
 
-                $lowerSearch = mb_strtolower($search);
-                $foundGenderType = false;
+                if ($codeMatches) {
+                    // إذا كان البحث عن كود منتج، أظهر المنتج بكل قياساته
+                    $query->where('code', 'LIKE', "%{$search}%");
+                } else {
+                    // ثالثاً: البحث في النوع
+                    $genderTypeMap = [
+                        'ولادي' => ['boys', 'boys_girls'],
+                        'بناتي' => ['girls', 'boys_girls'],
+                        'ولادي بناتي' => ['boys_girls'],
+                        'اكسسوار' => ['accessories'],
+                        'boys' => ['boys', 'boys_girls'],
+                        'girls' => ['girls', 'boys_girls'],
+                        'boys_girls' => ['boys_girls'],
+                        'accessories' => ['accessories'],
+                    ];
 
-                foreach ($genderTypeMap as $key => $types) {
-                    if (mb_strtolower($key) == $lowerSearch || stripos($key, $search) !== false || stripos($search, $key) !== false) {
-                        $query->whereIn('gender_type', $types);
-                        $foundGenderType = true;
-                        break;
+                    $lowerSearch = mb_strtolower($search);
+                    $foundGenderType = false;
+
+                    foreach ($genderTypeMap as $key => $types) {
+                        if (mb_strtolower($key) == $lowerSearch || stripos($key, $search) !== false || stripos($search, $key) !== false) {
+                            $query->whereIn('gender_type', $types);
+                            $foundGenderType = true;
+                            break;
+                        }
                     }
-                }
 
-                // إذا لم يكن البحث عن النوع، ابحث في القياسات
-                if (!$foundGenderType) {
-                    $query->whereHas('sizes', function($q) use ($search) {
-                        $q->where('size_name', 'LIKE', "%{$search}%")
-                          ->whereRaw('quantity > (
-                              SELECT COALESCE(SUM(quantity_reserved), 0)
-                              FROM stock_reservations
-                              WHERE product_size_id = product_sizes.id
-                          )');
-                    });
-                    $searchedSize = $search; // حفظ القياس المبحوث
+                    // رابعاً: إذا لم يكن البحث عن النوع، ابحث في اسم المنتج
+                    if (!$foundGenderType) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    }
                 }
             }
         }
