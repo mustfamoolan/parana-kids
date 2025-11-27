@@ -175,6 +175,25 @@
             animation: text-glow 2s ease-in-out infinite;
         }
 
+        #dashboard-banner-text {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            max-width: 100%;
+            padding: 0.75rem 1rem;
+            line-height: 1.6;
+        }
+
+        /* تحسين على الموبايل */
+        @media (max-width: 640px) {
+            #dashboard-banner-text {
+                font-size: 1rem;
+                padding: 0.5rem 0.75rem;
+                line-height: 1.5;
+            }
+        }
+
         @keyframes glow-pulse {
             0%, 100% {
                 box-shadow:
