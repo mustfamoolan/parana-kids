@@ -502,16 +502,16 @@
                     // السماح بالرجوع الطبيعي - فقط منع الرجوع إلى صفحة تسجيل الدخول
                     // التحقق من الصفحة الحالية بعد الرجوع
                     setTimeout(() => {
-                        currentPath = window.location.pathname;
-                        const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
+                    currentPath = window.location.pathname;
+                    const isTryingToGoToLogin = loginPages.some(page => currentPath.includes(page));
 
-                        if (isTryingToGoToLogin) {
-                            isNavigating = true;
-                            // إعادة توجيه إلى الداشبورد
-                            const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
-                                ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
-                                : '/delegate/dashboard';
-                            window.location.replace(dashboardUrl);
+                    if (isTryingToGoToLogin) {
+                        isNavigating = true;
+                        // إعادة توجيه إلى الداشبورد
+                        const dashboardUrl = currentPath.includes('/admin/') || currentPath.includes('/delegate/')
+                            ? (currentPath.includes('/admin/') ? '/admin/dashboard' : '/delegate/dashboard')
+                            : '/delegate/dashboard';
+                        window.location.replace(dashboardUrl);
                         }
                     }, 0);
                 }
@@ -621,8 +621,8 @@
         })();
     </script>
 
-    <!-- SweetAlert Polling System -->
-    @auth
+    {{-- SweetAlert Polling System - معلق مؤقتاً حتى إشعار آخر --}}
+    {{-- @auth
     <script>
         (function() {
             let lastCheckTime = null;
@@ -1060,7 +1060,10 @@
                 }
             }, 300000); // كل 5 دقائق
         })();
+    </script>
+    @endauth --}}
 
+    <script>
         // Floating Banner System
         (function() {
             let bannerCheckInterval = null;
@@ -1370,7 +1373,6 @@
             };
         })();
     </script>
-    @endauth
 </body>
 
 </html>

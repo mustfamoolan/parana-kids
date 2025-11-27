@@ -621,8 +621,8 @@
         })();
     </script>
 
-    <!-- SweetAlert Polling System -->
-    @auth
+    {{-- SweetAlert Polling System - معلق مؤقتاً حتى إشعار آخر --}}
+    {{-- @auth
     <script>
         (function() {
             let lastCheckTime = null;
@@ -1060,7 +1060,10 @@
                 }
             }, 300000); // كل 5 دقائق
         })();
+    </script>
+    @endauth --}}
 
+    <script>
         // Custom Color System
         (function() {
             const colorStorageKey = 'custom_colors';
@@ -1180,7 +1183,6 @@
             };
         })();
     </script>
-    @endauth
 </body>
 
 </html>

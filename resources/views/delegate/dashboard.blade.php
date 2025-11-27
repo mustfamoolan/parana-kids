@@ -279,7 +279,10 @@
                     });
 
                     if (!response.ok) {
-                        console.log('Dashboard Banner: API response not OK:', response.status);
+                        // لا نطبع خطأ إذا كان 401 أو 403 (مشكلة authentication)
+                        if (response.status !== 401 && response.status !== 403) {
+                            console.log('Dashboard Banner: API response not OK:', response.status);
+                        }
                         return null;
                     }
 
@@ -291,28 +294,36 @@
 
                     return null;
                 } catch (error) {
-                    console.error('Dashboard Banner: Error fetching banner:', error);
+                    // لا نطبع خطأ إذا كان network error (قد يكون السيرفر غير متاح مؤقتاً)
+                    if (error.name !== 'TypeError') {
+                        console.error('Dashboard Banner: Error fetching banner:', error);
+                    }
                     return null;
                 }
             }
 
             // عرض/إخفاء البنر
             function updateBanner(text) {
-                if (!bannerContainer || !bannerTextElement) {
-                    return;
-                }
+                try {
+                    if (!bannerContainer || !bannerTextElement) {
+                        console.warn('Dashboard Banner: Container or text element not found');
+                        return;
+                    }
 
-                if (text && text !== lastBannerText) {
-                    // عرض البنر
-                    bannerTextElement.textContent = text;
-                    bannerContainer.style.display = 'block';
-                    lastBannerText = text;
-                    console.log('Dashboard Banner: Banner shown:', text);
-                } else if (!text && lastBannerText) {
-                    // إخفاء البنر
-                    bannerContainer.style.display = 'none';
-                    lastBannerText = null;
-                    console.log('Dashboard Banner: Banner hidden');
+                    if (text && text !== lastBannerText) {
+                        // عرض البنر
+                        bannerTextElement.textContent = text;
+                        bannerContainer.style.display = 'block';
+                        lastBannerText = text;
+                        console.log('Dashboard Banner: Banner shown:', text);
+                    } else if (!text && lastBannerText) {
+                        // إخفاء البنر
+                        bannerContainer.style.display = 'none';
+                        lastBannerText = null;
+                        console.log('Dashboard Banner: Banner hidden');
+                    }
+                } catch (error) {
+                    console.error('Dashboard Banner: Error updating banner:', error);
                 }
             }
 
@@ -359,9 +370,15 @@
                 }
             });
 
-            // عرض البنر الأولي إذا كان موجوداً في الصفحة
+            // عرض البنر الأولي إذا كان موجوداً في الصفحة (قبل API call)
             @if($dashboardBannerEnabled && !empty($dashboardBannerText))
-            updateBanner('{{ $dashboardBannerText }}');
+            setTimeout(() => {
+                try {
+                    updateBanner({!! json_encode($dashboardBannerText, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT) !!});
+                } catch (error) {
+                    console.error('Dashboard Banner: Error showing initial banner:', error);
+                }
+            }, 100);
             @endif
         })();
     </script>

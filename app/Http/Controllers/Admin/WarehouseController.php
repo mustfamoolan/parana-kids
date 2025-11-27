@@ -183,23 +183,17 @@ class WarehouseController extends Controller
             });
         }
 
-        // جلب المنتجات المفلترة
-        $products = $productsQuery->get();
-
-        // تحميل العلاقات للمخزن
-        $warehouse->load(['users', 'activePromotion']);
-
-        // حساب السعر الكلي للبيع والشراء (للمدير فقط) - بناءً على المنتجات المفلترة
-        $totalSellingPrice = 0;
-        $totalPurchasePrice = 0;
-
-        // حساب إجمالي القطع - بناءً على المنتجات المفلترة
-        $totalPieces = $products->sum(function($product) {
+        // حساب الإحصائيات قبل pagination (بناءً على جميع المنتجات المفلترة)
+        $allFilteredProducts = (clone $productsQuery)->get();
+        $totalPieces = $allFilteredProducts->sum(function($product) {
             return $product->sizes->sum('quantity');
         });
 
+        $totalSellingPrice = 0;
+        $totalPurchasePrice = 0;
+
         if (auth()->user()->isAdmin()) {
-            foreach ($products as $product) {
+            foreach ($allFilteredProducts as $product) {
                 $totalQuantity = $product->sizes->sum('quantity');
                 // استخدام effective_price بدلاً من selling_price
                 $totalSellingPrice += $product->effective_price * $totalQuantity;
@@ -210,33 +204,48 @@ class WarehouseController extends Controller
             }
         }
 
+        // جلب المنتجات المفلترة مع pagination
+        $perPage = $request->input('per_page', 24);
+        $products = $productsQuery->paginate($perPage)->withQueryString();
+
+        // تحميل العلاقات للمخزن
+        $warehouse->load(['users', 'activePromotion']);
+
         // تمرير معاملات البحث والفلترة للـ view
         $searchTerm = $request->get('search', '');
         $genderTypeFilter = $request->get('gender_type', '');
         $isHiddenFilter = $request->get('is_hidden', '');
         $hasDiscountFilter = $request->get('has_discount', '');
 
-        // تعيين المنتجات المفلترة للمخزن لعرضها في الـ view
-        $warehouse->setRelation('products', $products);
-
         // جلب التخفيض النشط
         $activePromotion = $warehouse->getCurrentActivePromotion();
 
         // حساب إحصائيات المنتجات (من جميع منتجات المخزن وليس فقط المفلترة)
-        $allProducts = $warehouse->products()->get();
+        $allProductsCount = $warehouse->products()->count();
 
-        $productsWithDiscount = $allProducts->filter(function($product) {
-            return $product->hasActiveDiscount();
+        // حساب المنتجات مع تخفيض نشط
+        $productsWithDiscount = $warehouse->products()->where(function($q) {
+            $now = now();
+            $q->whereNotNull('discount_type')
+              ->where('discount_type', '!=', 'none')
+              ->whereNotNull('discount_value')
+              ->where(function($dateQ) use ($now) {
+                  $dateQ->where(function($d) use ($now) {
+                      $d->whereNull('discount_start_date')
+                        ->orWhere('discount_start_date', '<=', $now);
+                  })
+                  ->where(function($d) use ($now) {
+                      $d->whereNull('discount_end_date')
+                        ->orWhere('discount_end_date', '>=', $now);
+                  });
+              });
         })->count();
 
-        $productsWithoutDiscount = $allProducts->filter(function($product) {
-            return !$product->hasActiveDiscount();
-        })->count();
+        $productsWithoutDiscount = $allProductsCount - $productsWithDiscount;
+        $productsHidden = $warehouse->products()->where('is_hidden', true)->count();
+        $productsNotHidden = $allProductsCount - $productsHidden;
 
-        $productsHidden = $allProducts->where('is_hidden', true)->count();
-        $productsNotHidden = $allProducts->where('is_hidden', false)->count();
-
-        return view('admin.warehouses.show', compact('warehouse', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden'));
+        return view('admin.warehouses.show', compact('warehouse', 'products', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden'));
     }
 
     /**
