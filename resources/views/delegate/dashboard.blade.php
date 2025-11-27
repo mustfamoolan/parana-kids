@@ -1,12 +1,10 @@
 <x-layout.default>
     <div class="container mx-auto px-4 py-6">
-        <!-- البنر النصي المتوهج -->
+        <!-- البنر النصي -->
         <div id="dashboard-banner-container" class="mb-6" style="display: none;">
-            <div class="dashboard-banner-glow">
-                <div class="panel border-2 border-primary/30 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 dark:from-primary/10 dark:via-secondary/10 dark:to-primary/10">
-                    <p id="dashboard-banner-text" class="text-xl font-bold text-center text-primary dark:text-primary-light glow-text">
-                    </p>
-                </div>
+            <div class="max-w-full w-full bg-secondary shadow-[4px_6px_10px_-3px_#bfc9d4] rounded border border-[#e0e6ed] dark:border-0 dark:bg-secondary-dark-light dark:shadow-none p-5">
+                <p id="dashboard-banner-text" class="font-semibold text-black-light dark:text-white">
+                </p>
             </div>
         </div>
 
@@ -161,97 +159,21 @@
     </div>
 
     <style>
-        /* تأثير التوهج للبنر النصي */
-        .dashboard-banner-glow {
-            animation: glow-pulse 2s ease-in-out infinite;
-        }
-
-        .glow-text {
-            text-shadow:
-                0 0 10px rgba(67, 97, 238, 0.8),
-                0 0 20px rgba(67, 97, 238, 0.6),
-                0 0 30px rgba(67, 97, 238, 0.4),
-                0 0 40px rgba(67, 97, 238, 0.2);
-            animation: text-glow 2s ease-in-out infinite;
-        }
-
+        /* تحسين عرض النص على الموبايل */
         #dashboard-banner-text {
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-word;
             white-space: normal;
             max-width: 100%;
-            padding: 0.75rem 1rem;
             line-height: 1.6;
         }
 
         /* تحسين على الموبايل */
         @media (max-width: 640px) {
             #dashboard-banner-text {
-                font-size: 1rem;
-                padding: 0.5rem 0.75rem;
+                font-size: 0.95rem;
                 line-height: 1.5;
-            }
-        }
-
-        @keyframes glow-pulse {
-            0%, 100% {
-                box-shadow:
-                    0 0 10px rgba(67, 97, 238, 0.5),
-                    0 0 20px rgba(67, 97, 238, 0.3),
-                    0 0 30px rgba(67, 97, 238, 0.2);
-            }
-            50% {
-                box-shadow:
-                    0 0 20px rgba(67, 97, 238, 0.8),
-                    0 0 30px rgba(67, 97, 238, 0.6),
-                    0 0 40px rgba(67, 97, 238, 0.4),
-                    0 0 50px rgba(67, 97, 238, 0.2);
-            }
-        }
-
-        @keyframes text-glow {
-            0%, 100% {
-                text-shadow:
-                    0 0 10px rgba(67, 97, 238, 0.8),
-                    0 0 20px rgba(67, 97, 238, 0.6),
-                    0 0 30px rgba(67, 97, 238, 0.4);
-            }
-            50% {
-                text-shadow:
-                    0 0 15px rgba(67, 97, 238, 1),
-                    0 0 25px rgba(67, 97, 238, 0.8),
-                    0 0 35px rgba(67, 97, 238, 0.6),
-                    0 0 45px rgba(67, 97, 238, 0.4);
-            }
-        }
-
-        /* تحسين التصميم في الوضع الداكن */
-        .dark .glow-text {
-            text-shadow:
-                0 0 10px rgba(67, 97, 238, 1),
-                0 0 20px rgba(67, 97, 238, 0.8),
-                0 0 30px rgba(67, 97, 238, 0.6),
-                0 0 40px rgba(67, 97, 238, 0.4);
-        }
-
-        .dark .dashboard-banner-glow {
-            animation: glow-pulse-dark 2s ease-in-out infinite;
-        }
-
-        @keyframes glow-pulse-dark {
-            0%, 100% {
-                box-shadow:
-                    0 0 15px rgba(67, 97, 238, 0.6),
-                    0 0 25px rgba(67, 97, 238, 0.4),
-                    0 0 35px rgba(67, 97, 238, 0.3);
-            }
-            50% {
-                box-shadow:
-                    0 0 25px rgba(67, 97, 238, 0.9),
-                    0 0 35px rgba(67, 97, 238, 0.7),
-                    0 0 45px rgba(67, 97, 238, 0.5),
-                    0 0 55px rgba(67, 97, 238, 0.3);
             }
         }
     </style>
