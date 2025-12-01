@@ -16,6 +16,7 @@ class ProductLink extends Model
         'warehouse_id',
         'gender_type',
         'size_name',
+        'has_discount',
         'created_by',
     ];
 

@@ -93,28 +93,60 @@
                             @php
                                 $discountInfo = $product->getDiscountInfo();
                             @endphp
-                            <div class="flex flex-col gap-1">
-                                <div>
-                                    <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
-                                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                            <!-- تصميم جميل للمنتجات المخفضة -->
+                            <div class="relative bg-gradient-to-br from-warning/10 to-warning/5 dark:from-warning/20 dark:to-warning/10 rounded-lg p-3 border-2 border-warning/30">
+                                <!-- Badge التخفيض في الأعلى -->
+                                <div class="absolute -top-2 -right-2 bg-warning text-white rounded-full px-3 py-1 text-xs font-bold shadow-lg z-10">
+                                    @if($discountInfo['type'] === 'percentage')
+                                        -{{ number_format($discountInfo['percentage'], 0) }}%
+                                    @else
+                                        تخفيض
+                                    @endif
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="badge badge-warning text-xs">
-                                        @if($discountInfo['type'] === 'percentage')
-                                            تخفيض {{ number_format($discountInfo['percentage'], 1) }}%
-                                        @else
-                                            تخفيض {{ number_format($discountInfo['discount_amount'], 0) }} د.ع
+
+                                <div class="flex flex-col gap-2 mt-2">
+                                    <!-- السعر الجديد -->
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-3xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                                        <span class="text-sm text-gray-500">د.ع</span>
+                                    </div>
+
+                                    <!-- السعر القديم -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-lg text-gray-400 line-through">{{ number_format($product->selling_price, 0) }} د.ع</span>
+                                        @if($discountInfo['type'] === 'amount')
+                                            <span class="text-xs text-warning font-semibold">
+                                                (وفرت {{ number_format($discountInfo['discount_amount'], 0) }} د.ع)
+                                            </span>
                                         @endif
-                                    </span>
+                                    </div>
+
+                                    <!-- تفاصيل التخفيض -->
+                                    <div class="pt-2 border-t border-warning/20">
+                                        <span class="text-xs text-warning font-semibold">
+                                            @if($discountInfo['type'] === 'percentage')
+                                                تخفيض {{ number_format($discountInfo['percentage'], 1) }}% من السعر الأصلي
+                                            @else
+                                                خصم {{ number_format($discountInfo['discount_amount'], 0) }} دينار عراقي
+                                            @endif
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         @elseif($hasPromotion)
-                            <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
-                            <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                                </div>
+                                <span class="text-sm text-gray-500">دينار عراقي</span>
+                            </div>
                         @else
-                            <span class="text-2xl font-bold text-primary">{{ number_format($product->effective_price, 0) }}</span>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-bold text-primary">{{ number_format($product->effective_price, 0) }}</span>
+                                <span class="text-sm text-gray-500">دينار عراقي</span>
+                            </div>
                         @endif
-                        <span class="text-sm text-gray-500 block">دينار عراقي</span>
                     </p>
 
                     <!-- القياسات -->
@@ -144,15 +176,11 @@
                         @endphp
 
                         @if($availableSizes->count() > 0)
-                            @foreach($availableSizes->take(5) as $size)
+                            @foreach($availableSizes as $size)
                                 <span class="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 rounded font-semibold">
                                     {{ $size->size_name }} ({{ $size->available_quantity }})
                                 </span>
                             @endforeach
-
-                            @if($availableSizes->count() > 5)
-                                <span class="text-xs text-green-600 font-medium">+{{ $availableSizes->count() - 5 }} قياس</span>
-                            @endif
                         @endif
 
                         @if($unavailableSizes->count() > 0)

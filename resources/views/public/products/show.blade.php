@@ -50,7 +50,22 @@
             @if($products->count() > 0)
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     @foreach($products as $product)
-                        <div class="bg-white dark:bg-[#0e1726] rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                        @php
+                            $hasProductDiscount = $product->hasActiveDiscount();
+                            $discountInfo = $hasProductDiscount ? $product->getDiscountInfo() : null;
+                        @endphp
+                        <div class="relative bg-white dark:bg-[#0e1726] rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                            <!-- Badge التخفيض في الجانب الأيسر العلوي من الكارد -->
+                            @if($hasProductDiscount)
+                                <div class="absolute top-2 rtl:right-2 ltr:left-2 bg-warning text-white rounded-full px-3 py-1 text-xs font-bold shadow-lg z-10">
+                                    @if($discountInfo['type'] === 'percentage')
+                                        -{{ number_format($discountInfo['percentage'], 0) }}%
+                                    @else
+                                        تخفيض
+                                    @endif
+                                </div>
+                            @endif
+
                             <!-- Product Image -->
                             <div class="relative aspect-square bg-gray-100 dark:bg-gray-800">
                                 @if($product->primaryImage)
@@ -79,18 +94,65 @@
                                 <div class="mb-2">
                                     <span class="badge badge-outline-primary text-xs">{{ $product->code }}</span>
                                 </div>
-                                <div class="text-lg font-bold text-success mt-3">
+
+                                <!-- اسم المنتج -->
+                                <h3 class="font-semibold text-base dark:text-white-light mb-3 line-clamp-2">{{ $product->name }}</h3>
+
+                                <!-- السعر -->
+                                @php
+                                    $activePromotion = $product->warehouse->getCurrentActivePromotion();
+                                    $hasPromotion = $activePromotion && $activePromotion->isActive();
+                                    $hasProductDiscount = $product->hasActiveDiscount();
+                                @endphp
+                                @if($hasProductDiscount)
                                     @php
-                                        $activePromotion = $product->warehouse->getCurrentActivePromotion();
-                                        $hasPromotion = $activePromotion && $activePromotion->isActive();
+                                        $discountInfo = $product->getDiscountInfo();
                                     @endphp
-                                    @if($hasPromotion)
-                                        <span class="text-success">{{ number_format($product->effective_price, 0) }} د.ع</span>
-                                        <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
-                                    @else
-                                        {{ number_format($product->effective_price, 0) }} د.ع
-                                    @endif
-                                </div>
+                                    <!-- تصميم جميل للمنتجات المخفضة -->
+                                    <div class="bg-gradient-to-br from-warning/10 to-warning/5 dark:from-warning/20 dark:to-warning/10 rounded-lg p-3 border-2 border-warning/30">
+                                        <div class="flex flex-col gap-2">
+                                            <!-- السعر الجديد -->
+                                            <div class="flex items-baseline gap-2">
+                                                <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                                                <span class="text-sm text-gray-500">د.ع</span>
+                                            </div>
+
+                                            <!-- السعر القديم -->
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-base text-gray-400 line-through">{{ number_format($product->selling_price, 0) }} د.ع</span>
+                                                @if($discountInfo['type'] === 'amount')
+                                                    <span class="text-xs text-warning font-semibold">
+                                                        (وفرت {{ number_format($discountInfo['discount_amount'], 0) }} د.ع)
+                                                    </span>
+                                                @endif
+                                            </div>
+
+                                            <!-- تفاصيل التخفيض -->
+                                            <div class="pt-2 border-t border-warning/20">
+                                                <span class="text-xs text-warning font-semibold">
+                                                    @if($discountInfo['type'] === 'percentage')
+                                                        تخفيض {{ number_format($discountInfo['percentage'], 1) }}% من السعر الأصلي
+                                                    @else
+                                                        خصم {{ number_format($discountInfo['discount_amount'], 0) }} دينار عراقي
+                                                    @endif
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @elseif($hasPromotion)
+                                    <div class="flex flex-col gap-1">
+                                        <div class="flex items-baseline gap-2">
+                                            <span class="text-xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                                            <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
+                                        </div>
+                                        <span class="text-sm text-gray-500">دينار عراقي</span>
+                                    </div>
+                                @else
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-xl font-bold text-primary">{{ number_format($product->effective_price, 0) }}</span>
+                                        <span class="text-sm text-gray-500">دينار عراقي</span>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach

@@ -305,7 +305,7 @@
                                         <p class="text-sm text-gray-700 dark:text-gray-300 mb-1">
                                             <span class="font-medium">تاريخ التقييد:</span>
                                             {{ $order->confirmed_at->locale('ar')->translatedFormat('l، d/m/Y') }}
-                                            <span class="text-gray-500">في الساعة {{ $order->confirmed_at->format('H:i') }}</span>
+                                            <span class="text-gray-500">في الساعة {{ $order->confirmed_at->format('g:i') }} {{ $order->confirmed_at->format('H') >= 12 ? 'مساءً' : 'نهاراً' }}</span>
                                         </p>
                                         @if($order->confirmedBy)
                                             <p class="text-sm text-gray-700 dark:text-gray-300">
@@ -352,7 +352,7 @@
                                 <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">التاريخ</span>
                                     <p class="font-medium">{{ $order->created_at->format('Y-m-d') }}</p>
-                                    <p class="text-sm text-gray-500">{{ $order->created_at->format('H:i') }}</p>
+                                    <p class="text-sm text-gray-500">{{ $order->created_at->format('g:i') }} {{ $order->created_at->format('H') >= 12 ? 'مساءً' : 'نهاراً' }}</p>
                                 </div>
                             </div>
 

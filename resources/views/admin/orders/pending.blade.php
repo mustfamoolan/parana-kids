@@ -21,6 +21,24 @@
                     </svg>
                     عرض المواد المطلوبة
                 </a>
+                <a href="{{ route('admin.orders.materials.management-grouped', array_filter([
+                    'status' => 'pending',
+                    'warehouse_id' => request('warehouse_id'),
+                    'search' => request('search'),
+                    'confirmed_by' => request('confirmed_by'),
+                    'delegate_id' => request('delegate_id'),
+                    'size_reviewed' => request('size_reviewed'),
+                    'message_confirmed' => request('message_confirmed'),
+                    'date_from' => request('date_from'),
+                    'date_to' => request('date_to'),
+                    'time_from' => request('time_from'),
+                    'time_to' => request('time_to'),
+                ])) }}" class="btn btn-primary">
+                    <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                    </svg>
+                    عرض المواد مرتبة حسب الكود
+                </a>
             </div>
         </div>
 
@@ -341,7 +359,7 @@
                                 <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">التاريخ</span>
                                     <p class="font-medium">{{ $order->created_at->format('Y-m-d') }}</p>
-                                    <p class="text-sm text-gray-500">{{ $order->created_at->format('H:i') }}</p>
+                                    <p class="text-sm text-gray-500">{{ $order->created_at->format('g:i') }} {{ $order->created_at->format('H') >= 12 ? 'مساءً' : 'نهاراً' }}</p>
                                 </div>
                             </div>
 

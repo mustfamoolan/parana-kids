@@ -90,10 +90,40 @@
                                 </div>
                             @endif
 
+                            <!-- المنتجات المخفضة -->
+                            @if($link->has_discount)
+                                <div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">الفلترة:</span>
+                                    <div><span class="badge badge-warning text-xs">المنتجات المخفضة فقط</span></div>
+                                </div>
+                            @endif
+
                             <!-- تاريخ الإنشاء -->
                             <div>
                                 <span class="text-xs text-gray-500 dark:text-gray-400">تاريخ الإنشاء:</span>
                                 <div class="text-sm">{{ $link->created_at->format('Y-m-d H:i') }}</div>
+                            </div>
+
+                            <!-- الوقت المتبقي للحذف التلقائي -->
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">الوقت المتبقي للحذف:</span>
+                                @php
+                                    $expiresAt = $link->created_at->copy()->addHours(2);
+                                    $now = now();
+                                    $remainingSeconds = max(0, $now->diffInSeconds($expiresAt, false));
+                                    $remainingHours = floor($remainingSeconds / 3600);
+                                    $remainingMinutes = floor(($remainingSeconds % 3600) / 60);
+                                    $remainingSecs = $remainingSeconds % 60;
+                                @endphp
+                                <div class="text-sm font-semibold" id="countdown-{{ $link->id }}" data-expires-at="{{ $expiresAt->timestamp }}">
+                                    @if($remainingSeconds > 0)
+                                        <span class="text-red-600 dark:text-red-400 font-bold text-base">
+                                            {{ $remainingHours }}:{{ str_pad($remainingMinutes, 2, '0', STR_PAD_LEFT) }}:{{ str_pad($remainingSecs, 2, '0', STR_PAD_LEFT) }}
+                                        </span>
+                                    @else
+                                        <span class="text-red-600 dark:text-red-400 font-bold">منتهي - سيتم الحذف قريباً</span>
+                                    @endif
+                                </div>
                             </div>
 
                             <!-- الأزرار -->
@@ -167,6 +197,36 @@
                 btn.classList.add('btn-outline-primary');
             }, 2000);
         }
+
+        // تحديث العد التنازلي كل ثانية
+        function updateCountdowns() {
+            const countdownElements = document.querySelectorAll('[id^="countdown-"]');
+
+            countdownElements.forEach(element => {
+                const expiresAt = parseInt(element.getAttribute('data-expires-at'));
+                const now = Math.floor(Date.now() / 1000);
+                const remainingSeconds = Math.max(0, expiresAt - now);
+
+                if (remainingSeconds > 0) {
+                    const hours = Math.floor(remainingSeconds / 3600);
+                    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+                    const seconds = remainingSeconds % 60;
+
+                    const hoursStr = hours.toString();
+                    const minutesStr = minutes.toString().padStart(2, '0');
+                    const secondsStr = seconds.toString().padStart(2, '0');
+
+                    element.innerHTML = `<span class="text-red-600 dark:text-red-400 font-bold text-base">${hoursStr}:${minutesStr}:${secondsStr}</span>`;
+                } else {
+                    element.innerHTML = '<span class="text-red-600 dark:text-red-400 font-bold">منتهي - سيتم الحذف قريباً</span>';
+                }
+            });
+        }
+
+        // تحديث العد التنازلي كل ثانية
+        setInterval(updateCountdowns, 1000);
+        // تحديث فوري عند تحميل الصفحة
+        updateCountdowns();
     </script>
 </x-layout.default>
 

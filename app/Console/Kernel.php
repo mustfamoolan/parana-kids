@@ -26,6 +26,9 @@ class Kernel extends ConsoleKernel
 
         // إيقاف التخفيضات المنتهية كل ساعة
         $schedule->command('promotions:expire')->hourly();
+
+        // حذف روابط المنتجات المنتهية (بعد ساعتين من الإنشاء) كل دقيقة
+        $schedule->command('product-links:delete-expired')->everyMinute();
     }
 
     /**

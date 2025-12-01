@@ -45,6 +45,7 @@ class ProductLinkController extends Controller
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'size_name' => 'nullable|string|max:50',
+            'has_discount' => 'nullable|boolean',
         ]);
 
         // التحقق من أن المندوب لديه صلاحية الوصول للمخزن المحدد
@@ -56,6 +57,7 @@ class ProductLinkController extends Controller
             'warehouse_id' => $request->warehouse_id ?: null,
             'gender_type' => $request->gender_type,
             'size_name' => $request->size_name,
+            'has_discount' => $request->has('has_discount') ? (bool)$request->has_discount : false,
             'created_by' => Auth::id(),
         ]);
 

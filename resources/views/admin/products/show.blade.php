@@ -11,6 +11,11 @@
                         $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
                         if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
                             $backUrl = null;
+                        } else {
+                            // إضافة #product-{id} إلى back_url للعودة إلى نفس المنتج
+                            // إزالة أي hash موجود مسبقاً وإضافة hash جديد
+                            $backUrl = preg_replace('/#.*$/', '', $backUrl);
+                            $backUrl .= '#product-' . $product->id;
                         }
                     }
                     if (!$backUrl) {

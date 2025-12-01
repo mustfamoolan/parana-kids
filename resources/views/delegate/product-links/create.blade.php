@@ -34,7 +34,7 @@
                     <h6 class="text-lg font-semibold dark:text-white-light">اختيار المعايير</h6>
                 </div>
 
-                <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <div class="grid grid-cols-1 gap-5 lg:grid-cols-4">
                     <!-- المخزن -->
                     <div>
                         <label for="warehouse_id" class="mb-3 block text-sm font-medium text-black dark:text-white">
@@ -91,6 +91,24 @@
                             <option value="">-- اختر القياس --</option>
                         </select>
                         @error('size_name')
+                            <div class="mt-1 text-danger">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <!-- فلتر المنتجات المخفضة -->
+                    <div>
+                        <label for="has_discount" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                            المنتجات المخفضة
+                        </label>
+                        <select
+                            id="has_discount"
+                            name="has_discount"
+                            class="form-select @error('has_discount') border-danger @enderror"
+                        >
+                            <option value="0" {{ old('has_discount', '0') == '0' ? 'selected' : '' }}>كل المنتجات</option>
+                            <option value="1" {{ old('has_discount') == '1' ? 'selected' : '' }}>المنتجات المخفضة فقط</option>
+                        </select>
+                        @error('has_discount')
                             <div class="mt-1 text-danger">{{ $message }}</div>
                         @enderror
                     </div>

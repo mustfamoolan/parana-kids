@@ -11,6 +11,11 @@
                         $currentHost = request()->getHost(); // استخدام getHost() لضمان العمل على الاستضافة
                         if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
                             $backUrl = null;
+                        } else {
+                            // إضافة #product-{id} إلى back_url للعودة إلى نفس المنتج
+                            // إزالة أي hash موجود مسبقاً وإضافة hash جديد
+                            $backUrl = preg_replace('/#.*$/', '', $backUrl);
+                            $backUrl .= '#product-' . $product->id;
                         }
                     }
                     if (!$backUrl) {

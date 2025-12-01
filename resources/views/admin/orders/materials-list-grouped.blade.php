@@ -1,7 +1,7 @@
 <x-layout.admin>
     <div>
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h5 class="text-lg font-semibold dark:text-white-light">قائمة المواد المطلوبة</h5>
+            <h5 class="text-lg font-semibold dark:text-white-light">قائمة المواد المطلوبة (مرتبة حسب الكود)</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 @php
                     $status = request('status') ?: 'pending';
@@ -81,17 +81,18 @@
 
             <!-- قائمة المواد -->
             <div class="mb-5">
-                <h6 class="text-lg font-semibold dark:text-white-light mb-2">تفاصيل المواد المطلوبة</h6>
-                <p class="text-sm text-gray-500 dark:text-gray-400">جميع المواد المطلوبة من الطلبات الغير مقيدة</p>
+                <h6 class="text-lg font-semibold dark:text-white-light mb-2">تفاصيل المواد المطلوبة (مرتبة حسب الكود)</h6>
+                <p class="text-sm text-gray-500 dark:text-gray-400">جميع المواد المطلوبة مرتبة حسب كود المنتج، مع تجميع الأحجام المختلفة لنفس الكود</p>
             </div>
 
+            <!-- بطاقات المواد -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($materials as $index => $material)
                     @if($material['product'])
                         <div class="panel relative">
                             <!-- رقم تسلسلي -->
                             <div class="absolute top-2 left-2 bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg z-10">
-                                {{ (int)$loop->iteration }}
+                                {{ $loop->iteration }}
                             </div>
 
                             <!-- الصورة والاسم والكود -->
@@ -112,7 +113,7 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <h6 class="font-semibold text-base dark:text-white-light mb-1 line-clamp-2">{{ $material['product']->name }}</h6>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ $material['product']->code }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ $material['product_code'] }}</p>
                                 </div>
                             </div>
 
@@ -218,3 +219,4 @@
         });
     </script>
 </x-layout.admin>
+

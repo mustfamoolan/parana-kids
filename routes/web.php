@@ -147,6 +147,7 @@ Route::prefix('admin')->group(function () {
         Route::get('orders/partial-returns', [AdminOrderController::class, 'partialReturnsIndex'])->name('admin.orders.partial-returns.index');
         Route::get('orders/materials/list', [AdminOrderController::class, 'getMaterialsList'])->name('admin.orders.materials');
         Route::get('orders/materials/management', [AdminOrderController::class, 'getMaterialsListManagement'])->name('admin.orders.materials.management');
+        Route::get('orders/materials/management-grouped', [AdminOrderController::class, 'getMaterialsListManagementGrouped'])->name('admin.orders.materials.management-grouped');
 
         Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
 

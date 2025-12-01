@@ -202,7 +202,7 @@
                     <template x-for="(item, index) in items" :key="index">
                         <div class="panel">
                             <div class="flex items-center gap-3 mb-3">
-                                <button type="button" @click="openImageModal(item.product_image, item.product_name)" class="w-14 h-14 flex-shrink-0 rounded overflow-hidden">
+                                <button type="button" @click="openImageModal(item.product_image, item.product_name)" class="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
                                     <img :src="item.product_image" :alt="item.product_name" class="w-full h-full object-cover hover:opacity-90">
                                 </button>
                                 <div class="flex-1">
@@ -211,15 +211,13 @@
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">القياس</label>
-                                    <div class="font-medium" x-text="item.size_name"></div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">الكمية</label>
-                                    <div class="font-medium" x-text="item.quantity"></div>
-                                </div>
+                            <!-- القياس والعدد بجانب بعض في مربعات -->
+                            <div class="mb-4 flex items-center justify-center gap-4">
+                                <span class="badge badge-outline-primary text-2xl font-bold w-20 h-20 flex items-center justify-center rounded-lg border-2" x-text="item.size_name"></span>
+                                <span class="badge badge-outline-success text-2xl font-bold w-20 h-20 flex items-center justify-center rounded-lg border-2" x-text="item.quantity"></span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 text-sm border-t pt-3">
                                 <div>
                                     <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">سعر الوحدة</label>
                                     <div class="font-medium" x-text="formatPrice(item.unit_price)"></div>

@@ -381,7 +381,7 @@
             @if($products->count() > 0)
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($products as $product)
-                        <div class="panel">
+                        <div class="panel" id="product-{{ $product->id }}">
                             <div class="flex items-center gap-3 mb-3">
                                 @if($product->primaryImage)
                                     <button type="button" onclick="openImageModal('{{ $product->primaryImage->image_url }}', '{{ $product->name }}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
@@ -465,7 +465,7 @@
                             </div>
                             <div class="flex gap-2 mt-3 pt-3 border-t">
                                 @can('view', $product)
-                                    <a href="{{ route('admin.warehouses.products.show', [$warehouse, $product]) }}" class="btn btn-sm btn-outline-primary flex-1">
+                                    <a href="{{ route('admin.warehouses.products.show', [$warehouse, $product]) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-outline-primary flex-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -473,7 +473,7 @@
                                     </a>
                                 @endcan
                                 @can('update', $product)
-                                    <a href="{{ route('admin.warehouses.products.edit', [$warehouse, $product]) }}" class="btn btn-sm btn-outline-warning flex-1">
+                                    <a href="{{ route('admin.warehouses.products.edit', [$warehouse, $product]) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-outline-warning flex-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                         </svg>
@@ -1839,5 +1839,28 @@
                         });
                     }
                     @endif
+
+                    // الانتقال التلقائي إلى المنتج عند تحميل الصفحة مع hash
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const hash = window.location.hash;
+                        if (hash && hash.startsWith('#product-')) {
+                            const productId = hash.replace('#product-', '');
+                            const productElement = document.getElementById('product-' + productId);
+                            if (productElement) {
+                                // الانتقال السلس إلى المنتج
+                                setTimeout(function() {
+                                    productElement.scrollIntoView({
+                                        behavior: 'smooth',
+                                        block: 'start'
+                                    });
+                                    // إضافة highlight مؤقت للمنتج
+                                    productElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                                    setTimeout(function() {
+                                        productElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+                                    }, 2000);
+                                }, 100);
+                            }
+                        }
+                    });
                 </script>
             </x-layout.admin>

@@ -70,6 +70,13 @@ class PublicProductController extends Controller
 
         $products = $productsQuery->get();
 
+        // فلتر المنتجات المخفضة (إذا كان محددًا)
+        if ($productLink->has_discount) {
+            $products = $products->filter(function($product) {
+                return $product->hasActiveDiscount();
+            });
+        }
+
         // فلتر القياس (إذا كان محددًا)
         if ($productLink->size_name) {
             $products = $products->filter(function($product) use ($productLink) {
