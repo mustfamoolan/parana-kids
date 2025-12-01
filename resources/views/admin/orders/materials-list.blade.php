@@ -29,18 +29,18 @@
             </div>
         </div>
 
-        @if(count($materials) > 0)
+        @if($orders->count() > 0)
             <!-- إحصائيات سريعة -->
             <div class="mb-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="panel p-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">إجمالي المواد</h6>
-                            <p class="text-xl font-bold text-primary">{{ count($materials) }}</p>
+                            <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">عدد الطلبات</h6>
+                            <p class="text-xl font-bold text-primary">{{ $orders->count() }}</p>
                         </div>
                         <div class="p-2 bg-primary/10 rounded-lg">
                             <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                         </div>
                     </div>
@@ -50,7 +50,9 @@
                         <div>
                             <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">إجمالي القطع</h6>
                             @php
-                                $totalPieces = collect($materials)->sum('total_quantity');
+                                $totalPieces = $orders->sum(function($order) {
+                                    return $order->items->sum('quantity');
+                                });
                             @endphp
                             <p class="text-xl font-bold text-success">{{ $totalPieces }}</p>
                         </div>
@@ -64,92 +66,120 @@
                 <div class="panel p-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">عدد الطلبات</h6>
+                            <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">إجمالي المواد</h6>
                             @php
-                                $totalOrders = collect($materials)->pluck('orders')->flatten(1)->unique('order_id')->count();
+                                $totalMaterials = $orders->sum(function($order) {
+                                    return $order->items->count();
+                                });
                             @endphp
-                            <p class="text-xl font-bold text-info">{{ $totalOrders }}</p>
+                            <p class="text-xl font-bold text-info">{{ $totalMaterials }}</p>
                         </div>
                         <div class="p-2 bg-info/10 rounded-lg">
                             <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                             </svg>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- قائمة المواد -->
+            <!-- قائمة الطلبات -->
             <div class="mb-5">
                 <h6 class="text-lg font-semibold dark:text-white-light mb-2">تفاصيل المواد المطلوبة</h6>
                 <p class="text-sm text-gray-500 dark:text-gray-400">جميع المواد المطلوبة من الطلبات الغير مقيدة</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                @foreach($materials as $index => $material)
-                    @if($material['product'])
-                        <div class="panel relative">
-                            <!-- رقم تسلسلي -->
-                            <div class="absolute top-2 left-2 bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg z-10">
-                                {{ (int)$loop->iteration }}
-                            </div>
+                @foreach($orders as $order)
+                    <div class="panel relative">
+                        <!-- معلومات الطلب -->
+                        <div class="mb-4 pb-3 border-b">
+                            <h6 class="font-semibold text-base dark:text-white-light mb-2">طلب #{{ $order->order_number }}</h6>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ $order->customer_name }}</p>
+                            @if($order->delegate)
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">المندوب: {{ $order->delegate->name }}</p>
+                            @endif
 
-                            <!-- الصورة والاسم والكود -->
-                            <div class="flex items-start gap-4 mb-4">
-                                <div class="flex-shrink-0">
-                                    @if($material['product']->primaryImage)
-                                        <img src="{{ $material['product']->primaryImage->image_url }}"
-                                             class="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                                             alt="{{ $material['product']->name }}"
-                                             onclick="openImageModal('{{ $material['product']->primaryImage->image_url }}', '{{ $material['product']->name }}')">
-                                    @else
-                                        <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                            </svg>
+                            <!-- الأزرار -->
+                            <div class="flex flex-col gap-2">
+                                <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-outline-primary w-full" title="عرض">
+                                    <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    عرض
+                                </a>
+                                @can('process', $order)
+                                    @php
+                                        $backRoute = request('status') === 'pending' ? 'admin.orders.pending' : 'admin.orders.management';
+                                        $backParams = urlencode(json_encode(array_filter([
+                                            'warehouse_id' => request('warehouse_id'),
+                                            'search' => request('search'),
+                                            'confirmed_by' => request('confirmed_by'),
+                                            'delegate_id' => request('delegate_id'),
+                                            'size_reviewed' => request('size_reviewed'),
+                                            'message_confirmed' => request('message_confirmed'),
+                                            'date_from' => request('date_from'),
+                                            'date_to' => request('date_to'),
+                                            'time_from' => request('time_from'),
+                                            'time_to' => request('time_to'),
+                                            'status' => request('status'),
+                                        ])));
+                                    @endphp
+                                    <a href="{{ route('admin.orders.process', $order) }}?back_route={{ $backRoute }}&back_params={{ $backParams }}" class="btn btn-success w-full" title="تجهيز">
+                                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        تجهيز
+                                    </a>
+                                @endcan
+                            </div>
+                        </div>
+
+                        <!-- قائمة المنتجات -->
+                        <div class="space-y-3">
+                            @foreach($order->items as $item)
+                                @if($item->product)
+                                    <div class="flex items-start gap-3 pb-3 border-b last:border-0">
+                                        <!-- الصورة -->
+                                        <div class="flex-shrink-0">
+                                            @if($item->product->primaryImage)
+                                                <img src="{{ $item->product->primaryImage->image_url }}"
+                                                     class="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                                     alt="{{ $item->product->name }}"
+                                                     onclick="openImageModal('{{ $item->product->primaryImage->image_url }}', '{{ $item->product->name }}')">
+                                            @else
+                                                <div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                    </svg>
+                                                </div>
+                                            @endif
                                         </div>
-                                    @endif
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h6 class="font-semibold text-base dark:text-white-light mb-1 line-clamp-2">{{ $material['product']->name }}</h6>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ $material['product']->code }}</p>
-                                </div>
-                            </div>
 
-                            <!-- القياس والعدد بجانب بعض -->
-                            <div class="mb-4 flex items-center justify-center gap-4">
-                                @if($material['size_name'])
-                                    <span class="badge badge-outline-primary text-2xl font-bold w-20 h-20 flex items-center justify-center rounded-lg border-2">{{ $material['size_name'] }}</span>
-                                @endif
-                                <span class="badge badge-outline-success text-2xl font-bold w-20 h-20 flex items-center justify-center rounded-lg border-2">{{ number_format((int)($material['total_quantity'] ?? 0), 0, '.', ',') }}</span>
-                            </div>
+                                        <!-- المعلومات -->
+                                        <div class="flex-1 min-w-0">
+                                            <h6 class="font-semibold text-sm dark:text-white-light mb-1 line-clamp-1">{{ $item->product->name }}</h6>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 font-mono mb-2">{{ $item->product->code }}</p>
 
-                            <!-- التفاصيل -->
-                            <div class="space-y-2 border-t pt-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">المخزن:</span>
-                                    <span class="text-sm font-medium">{{ $material['product']->warehouse->name ?? 'غير محدد' }}</span>
-                                </div>
-                                @if(!empty($material['orders']))
-                                    <div class="flex items-start justify-between pt-2 border-t">
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">الطلبات:</span>
-                                        <div class="text-left">
-                                            @foreach(array_slice($material['orders'], 0, 3) as $order)
-                                                <a href="{{ route('admin.orders.show', $order['order_id']) }}"
-                                                   class="block text-xs text-primary hover:underline mb-1"
-                                                   title="عرض الطلب">
-                                                    {{ $order['order_number'] }} ({{ $order['quantity'] }})
-                                                </a>
-                                            @endforeach
-                                            @if(count($material['orders']) > 3)
-                                                <span class="text-xs text-gray-400">+ {{ count($material['orders']) - 3 }} طلبات أخرى</span>
+                                            <!-- القياس والعدد -->
+                                            <div class="flex items-center gap-2">
+                                                @if($item->size_name)
+                                                    <span class="badge badge-outline-primary text-lg font-bold w-16 h-16 flex items-center justify-center rounded-lg border-2">{{ $item->size_name }}</span>
+                                                @endif
+                                                <span class="badge badge-outline-success text-lg font-bold w-16 h-16 flex items-center justify-center rounded-lg border-2">{{ $item->quantity }}</span>
+                                            </div>
+
+                                            <!-- المخزن -->
+                                            @if($item->product->warehouse)
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">المخزن: {{ $item->product->warehouse->name }}</p>
                                             @endif
                                         </div>
                                     </div>
                                 @endif
-                            </div>
+                            @endforeach
                         </div>
-                    @endif
+                    </div>
                 @endforeach
             </div>
         @else

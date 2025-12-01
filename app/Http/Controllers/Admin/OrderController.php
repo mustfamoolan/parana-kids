@@ -891,16 +891,15 @@ class OrderController extends Controller
             'items.product.warehouse'
         ])->get();
 
-        // تجميع المواد
-        $materials = [];
+        // فلترة items حسب المخزن والصلاحيات
         foreach ($orders as $order) {
-            foreach ($order->items as $item) {
-                if (!$item->product) continue;
+            $order->items = $order->items->filter(function($item) use ($request) {
+                if (!$item->product) return false;
 
                 // فلتر المخزن: عرض فقط منتجات المخزن المحدد
                 if ($request->filled('warehouse_id')) {
                     if ($item->product->warehouse_id != $request->warehouse_id) {
-                        continue; // تجاهل المنتجات من مخازن أخرى
+                        return false;
                     }
                 }
 
@@ -908,31 +907,20 @@ class OrderController extends Controller
                 if (Auth::user()->isSupplier()) {
                     $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
                     if (!in_array($item->product->warehouse_id, $accessibleWarehouseIds)) {
-                        continue; // تجاهل المنتجات من مخازن ليس لديه صلاحية عليها
+                        return false;
                     }
                 }
 
-                $key = $item->product_id . '_' . $item->size_name;
-
-                if (!isset($materials[$key])) {
-                    $materials[$key] = [
-                        'product' => $item->product,
-                        'size_name' => $item->size_name,
-                        'total_quantity' => 0,
-                        'orders' => []
-                    ];
-                }
-
-                $materials[$key]['total_quantity'] += $item->quantity;
-                $materials[$key]['orders'][] = [
-                    'order_number' => $order->order_number,
-                    'quantity' => $item->quantity,
-                    'order_id' => $order->id
-                ];
-            }
+                return true;
+            });
         }
 
-        return view('admin.orders.materials-list', compact('materials'));
+        // إزالة الطلبات التي لا تحتوي على items بعد الفلترة
+        $orders = $orders->filter(function($order) {
+            return $order->items->count() > 0;
+        });
+
+        return view('admin.orders.materials-list', compact('orders'));
     }
 
     /**
@@ -1259,6 +1247,13 @@ class OrderController extends Controller
         });
 
         // التحقق من وجود back_route أولاً (الأفضل - يعمل على أي بيئة)
+        // التحقق من redirect_to_materials أولاً
+        if ($request->has('redirect_to_materials') && $request->input('redirect_to_materials') == '1') {
+            $status = $request->input('status', 'pending');
+            return redirect()->route('admin.orders.materials.management', ['status' => $status])
+                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+        }
+
         $backRoute = $request->input('back_route');
         $backParams = $request->input('back_params');
 

@@ -50,6 +50,19 @@
             @elseif($backUrl)
                 <input type="hidden" name="back_url" value="{{ $backUrl }}">
             @endif
+            @php
+                // استخراج status من back_params أو من request
+                $status = 'pending';
+                if ($backParams) {
+                    $params = json_decode(urldecode($backParams), true);
+                    if (is_array($params) && isset($params['status'])) {
+                        $status = $params['status'];
+                    }
+                } elseif (request()->query('status')) {
+                    $status = request()->query('status');
+                }
+            @endphp
+            <input type="hidden" name="status" value="{{ $status }}">
 
             <!-- معلومات الزبون -->
             <div class="panel mb-5">
@@ -283,6 +296,9 @@
                     <button type="button" @click="submitOrder()" class="btn btn-primary flex-1">
                         تجهيز وتقييد الطلب
                     </button>
+                    <button type="button" @click="submitOrderToMaterials()" class="btn btn-success flex-1">
+                        تجهيز وتقييد الطلب والعودة للمواد
+                    </button>
                     <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                         إلغاء
                     </a>
@@ -490,6 +506,27 @@
 
                     if (confirm('هل أنت متأكد من تجهيز وتقييد هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.')) {
                         document.getElementById('processForm').submit();
+                    }
+                },
+
+                async submitOrderToMaterials() {
+                    if (!this.deliveryCode) {
+                        alert('يرجى إدخال كود التوصيل');
+                        return;
+                    }
+
+                    if (confirm('هل أنت متأكد من تجهيز وتقييد هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.')) {
+                        // إضافة hidden input للتحويل إلى صفحة المواد
+                        const form = document.getElementById('processForm');
+                        let redirectInput = form.querySelector('input[name="redirect_to_materials"]');
+                        if (!redirectInput) {
+                            redirectInput = document.createElement('input');
+                            redirectInput.type = 'hidden';
+                            redirectInput.name = 'redirect_to_materials';
+                            redirectInput.value = '1';
+                            form.appendChild(redirectInput);
+                        }
+                        form.submit();
                     }
                 },
 
