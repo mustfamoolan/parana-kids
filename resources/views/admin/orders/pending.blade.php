@@ -276,6 +276,24 @@
             @if($orders->count() > 0)
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($orders as $index => $order)
+                        @php
+                            // بيانات الطلب للواتساب
+                            $orderWhatsAppData = [
+                                'phone' => $order->customer_phone,
+                                'orderNumber' => $order->order_number,
+                                'customerPhone' => $order->customer_phone,
+                                'pageName' => optional($order->delegate)->page_name ?? '',
+                                'deliveryFee' => \App\Models\Setting::getDeliveryFee(),
+                                'items' => $order->items->map(function($item) {
+                                    return [
+                                        'product_name' => $item->product_name ?? optional($item->product)->name ?? $item->product_code,
+                                        'product_code' => $item->product_code,
+                                        'unit_price' => $item->unit_price
+                                    ];
+                                }),
+                                'totalAmount' => $order->total_amount
+                            ];
+                        @endphp
                         <div id="order-{{ $order->id }}" class="panel border-2 border-yellow-500 dark:border-yellow-600">
                             <!-- هيدر الكارت -->
                             <div class="flex items-center justify-between mb-4">
@@ -341,6 +359,40 @@
                                             فتح الرابط
                                         </a>
                                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{{ Str::limit($order->customer_social_link, 30) }}</p>
+
+                                        @if(auth()->user()->isAdminOrSupplier())
+                                            <!-- تغيير حالة تدقيق القياس -->
+                                            <div class="mt-3">
+                                                <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">تدقيق القياس</label>
+                                                <select class="form-select form-select-sm" onchange="updateReviewStatus({{ $order->id }}, 'size_reviewed', this.value)">
+                                                    <option value="not_reviewed" {{ $order->size_reviewed === 'not_reviewed' ? 'selected' : '' }}>لم يتم التدقيق</option>
+                                                    <option value="reviewed" {{ $order->size_reviewed === 'reviewed' ? 'selected' : '' }}>تم تدقيق القياس</option>
+                                                </select>
+                                            </div>
+                                        @endif
+
+                                        <!-- زر الواتساب -->
+                                        @if($order->customer_phone)
+                                            <button onclick="openWhatsAppForOrder({{ $order->id }})" class="btn btn-sm btn-success w-full flex items-center justify-center gap-2 mt-2">
+                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                                </svg>
+                                                واتساب
+                                            </button>
+                                        @endif
+
+                                        @if(auth()->user()->isAdminOrSupplier())
+                                            <!-- تغيير حالة الرسالة -->
+                                            <div class="mt-3">
+                                                <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">حالة الرسالة</label>
+                                                <select class="form-select form-select-sm" onchange="updateReviewStatus({{ $order->id }}, 'message_confirmed', this.value)">
+                                                    <option value="not_sent" {{ $order->message_confirmed === 'not_sent' ? 'selected' : '' }}>لم يرسل الرسالة</option>
+                                                    <option value="waiting_response" {{ $order->message_confirmed === 'waiting_response' ? 'selected' : '' }}>تم الارسال رسالة وبالانتضار الرد</option>
+                                                    <option value="not_confirmed" {{ $order->message_confirmed === 'not_confirmed' ? 'selected' : '' }}>لم يتم التاكيد الرسالة</option>
+                                                    <option value="confirmed" {{ $order->message_confirmed === 'confirmed' ? 'selected' : '' }}>تم تاكيد الرسالة</option>
+                                                </select>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             @endif
@@ -673,5 +725,137 @@
             }
         }
     </style>
+
+    <script>
+        // بيانات الطلبات للواتساب
+        const ordersWhatsAppData = {};
+        @foreach($orders as $order)
+            @if($order->customer_phone)
+                ordersWhatsAppData[{{ $order->id }}] = {
+                    phone: '{{ $order->customer_phone }}',
+                    orderNumber: '{{ $order->order_number }}',
+                    customerPhone: '{{ $order->customer_phone }}',
+                    pageName: '{{ optional($order->delegate)->page_name ?? '' }}',
+                    deliveryFee: {{ \App\Models\Setting::getDeliveryFee() }},
+                    items: @json($order->items->map(function($item) {
+                        return [
+                            'product_name' => $item->product_name ?? optional($item->product)->name ?? $item->product_code,
+                            'product_code' => $item->product_code,
+                            'unit_price' => $item->unit_price
+                        ];
+                    })),
+                    totalAmount: {{ $order->total_amount }}
+                };
+            @endif
+        @endforeach
+
+        // دالة فتح واتساب للطلب
+        function openWhatsAppForOrder(orderId) {
+            const orderData = ordersWhatsAppData[orderId];
+            if (orderData) {
+                openWhatsApp(orderData.phone, orderData.items, orderData.totalAmount, orderData.orderNumber, orderData.customerPhone, orderData.pageName, orderData.deliveryFee);
+            }
+        }
+
+        // دالة بناء رسالة الواتساب
+        function generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee) {
+            let message = '📦 أهلاً وسهلاً بيكم ❤️\n';
+            // استخدام اسم البيج للمندوب أو "برنا كدز" كقيمة افتراضية
+            const pageNameText = pageName || 'برنا كدز';
+            message += `معكم مجهز ${pageNameText} 👗\n\n`;
+
+            // إضافة رقم الزبون
+            if (customerPhone) {
+                message += `رقم الهاتف: ${customerPhone}\n\n`;
+            }
+
+            // إضافة قائمة المنتجات (باسم المنتج بدلاً من الكود)
+            message += 'المنتجات:\n';
+            orderItems.forEach(function(item) {
+                const price = new Intl.NumberFormat('en-US').format(item.unit_price);
+                const productName = item.product_name || item.product_code;
+                message += `- ${productName} - ${price} د.ع\n`;
+            });
+
+            // حساب المجموع الكلي مع سعر التوصيل
+            const totalWithDelivery = totalAmount + deliveryFee;
+            const totalFormatted = new Intl.NumberFormat('en-US').format(totalAmount);
+            const totalWithDeliveryFormatted = new Intl.NumberFormat('en-US').format(totalWithDelivery);
+            message += `\nالمجموع الكلي: ${totalFormatted} د.ع\n`;
+            message += `سعر التوصيل: ${new Intl.NumberFormat('en-US').format(deliveryFee)} د.ع\n`;
+            message += `المجموع الكلي (مع التوصيل): ${totalWithDeliveryFormatted} د.ع\n\n`;
+
+            // إضافة طلب التأكيد
+            message += 'نرجو تأكيد الطلب من خلال الرد على هذه الرسالة بكلمة "تأكيد" حتى نبدأ بتجهيز الطلب وإرساله لكم 💨\n\n';
+            message += 'التوصيل خلال 24 ساعه الى 36 ساعه بعد تاكيد الطلب من خلال الوتساب\n\n';
+            message += 'في حال عدم الرد خلال فترة قصيرة، سيتم إلغاء الطلب تلقائيًا.\n';
+            message += 'نشكر تعاونكم ويانا 🌸';
+
+            return message;
+        }
+
+        // دالة فتح واتساب
+        function openWhatsApp(phone, orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee) {
+            // تنظيف رقم الهاتف (إزالة المسافات والرموز)
+            let cleanPhone = phone.replace(/[^\d]/g, '');
+
+            // إضافة كود الدولة 964 للعراق إذا لم يكن موجوداً
+            if (!cleanPhone.startsWith('964')) {
+                // إذا بدأ الرقم بـ 0، استبدله بـ 964
+                if (cleanPhone.startsWith('0')) {
+                    cleanPhone = '964' + cleanPhone.substring(1);
+                } else if (cleanPhone.length < 12) {
+                    cleanPhone = '964' + cleanPhone;
+                }
+            }
+
+            // بناء الرسالة
+            const message = generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee);
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+
+            // فتح واتساب في نافذة جديدة
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // دالة تحديث حالة التدقيق
+        function updateReviewStatus(orderId, field, value) {
+            fetch(`/admin/orders/${orderId}/review-status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ field: field, value: value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof showCopyNotification === 'function') {
+                        showCopyNotification(data.message);
+                    } else {
+                        alert(data.message);
+                    }
+                    // إعادة تحميل الصفحة لتحديث الحالة
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    if (typeof showCopyNotification === 'function') {
+                        showCopyNotification('فشل في تحديث الحالة', 'error');
+                    } else {
+                        alert('فشل في تحديث الحالة');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (typeof showCopyNotification === 'function') {
+                    showCopyNotification('حدث خطأ أثناء تحديث الحالة', 'error');
+                } else {
+                    alert('حدث خطأ أثناء تحديث الحالة');
+                }
+            });
+        }
+    </script>
 </x-layout.admin>
 
