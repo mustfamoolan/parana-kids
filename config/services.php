@@ -36,4 +36,9 @@ return [
         'project_id' => env('FIREBASE_PROJECT_ID', 'parana-kids'),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
+    ],
+
 ];

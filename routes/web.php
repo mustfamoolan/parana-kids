@@ -21,6 +21,9 @@ use App\Http\Controllers\Admin\ProductLinkController;
 use App\Http\Controllers\Delegate\ProductLinkController as DelegateProductLinkController;
 use App\Http\Controllers\PublicProductController;
 use App\Http\Controllers\Admin\PrivateWarehouseController;
+use App\Http\Controllers\Shop\ShopController;
+use App\Http\Controllers\Shop\CartController as ShopCartController;
+use App\Http\Controllers\Shop\CartItemController as ShopCartItemController;
 
 // Redirect root to delegate login
 Route::get('/', function () {
@@ -29,6 +32,23 @@ Route::get('/', function () {
 
 // Public routes (without authentication)
 Route::get('/p/{token}', [PublicProductController::class, 'show'])->name('public.products.show');
+
+// Shop routes (public, no authentication)
+Route::prefix('shop')->group(function () {
+    // Main pages
+    Route::get('/', [ShopController::class, 'index'])->name('shop.index');
+    Route::get('/products', [ShopController::class, 'index'])->name('shop.products');
+    Route::get('/products/{product}', [ShopController::class, 'show'])->name('shop.products.show');
+
+    // Cart routes
+    Route::get('/cart', [ShopCartController::class, 'view'])->name('shop.cart.view');
+    Route::post('/cart/items', [ShopCartItemController::class, 'store'])->name('shop.cart.items.store');
+    Route::put('/cart/items/{cartItem}', [ShopCartItemController::class, 'update'])->name('shop.cart.items.update');
+    Route::delete('/cart/items/{cartItem}', [ShopCartItemController::class, 'destroy'])->name('shop.cart.items.destroy');
+
+    // API routes
+    Route::get('/api/products/{product}', [ShopController::class, 'getProductData'])->name('shop.api.products.data');
+});
 
 // Admin/Supplier Authentication Routes
 Route::prefix('admin')->group(function () {
@@ -465,6 +485,9 @@ Route::get('/api/check-auth', function () {
         ] : null,
     ]);
 })->middleware('web');
+
+// Telegram webhook route
+Route::post('/telegram/webhook', [App\Http\Controllers\TelegramController::class, 'webhook'])->name('telegram.webhook');
 
 // Handle missing or empty Nunito font files - return 204 (No Content) to prevent timeout
 Route::get('/assets/fonts/nunito/{filename}', function ($filename) {

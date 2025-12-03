@@ -27,6 +27,7 @@ class User extends Authenticatable
         'page_name',
         'private_warehouse_id',
         'profile_image',
+        'telegram_chat_id',
     ];
 
     /**
@@ -220,5 +221,29 @@ class User extends Authenticatable
     public function getProfileImageUrlAttribute()
     {
         return $this->getProfileImageUrl();
+    }
+
+    /**
+     * Check if user is linked to Telegram
+     */
+    public function isLinkedToTelegram()
+    {
+        return !empty($this->telegram_chat_id);
+    }
+
+    /**
+     * Link user to Telegram chat
+     */
+    public function linkToTelegram($chatId)
+    {
+        $this->update(['telegram_chat_id' => $chatId]);
+    }
+
+    /**
+     * Unlink user from Telegram
+     */
+    public function unlinkFromTelegram()
+    {
+        $this->update(['telegram_chat_id' => null]);
     }
 }

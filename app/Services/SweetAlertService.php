@@ -179,7 +179,25 @@ class SweetAlertService
             'order_number' => $order->order_number,
         ];
 
+        // إرسال SweetAlert
         $this->createForUsers($recipientIds, 'order_created', $title, $message, 'success', $data);
+
+        // إرسال إشعارات تليجرام للمستخدمين المربوطين
+        try {
+            $telegramService = app(TelegramService::class);
+            $recipients = User::whereIn('id', $recipientIds)
+                ->whereNotNull('telegram_chat_id')
+                ->get();
+
+            foreach ($recipients as $recipient) {
+                $telegramService->sendOrderNotification($recipient->telegram_chat_id, $order);
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send Telegram notifications', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
