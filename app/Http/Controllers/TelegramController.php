@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Telegram\Bot\Api;
 
 class TelegramController extends Controller
@@ -49,7 +51,7 @@ class TelegramController extends Controller
     protected function handleMessage($message)
     {
         $chatId = $message['chat']['id'];
-        $text = $message['text'] ?? '';
+        $text = trim($message['text'] ?? '');
         $from = $message['from'] ?? [];
 
         Log::info('Telegram message received', [
@@ -70,8 +72,17 @@ class TelegramController extends Controller
             return;
         }
 
-        // Handle phone number or code for linking
-        if (preg_match('/^(\+?\d{10,15}|\d{4,10})$/', $text)) {
+        // Check if user is in password verification step
+        $pendingLink = Cache::get("telegram_link_{$chatId}");
+        if ($pendingLink) {
+            $this->handlePasswordVerification($chatId, $text, $pendingLink);
+            return;
+        }
+
+        // Handle phone number or code for linking (accepts alphanumeric codes)
+        // Phone: +1234567890 or 1234567890 (10-15 digits)
+        // Code: alphanumeric (3-20 chars) like SUP999, ABC123, etc.
+        if (preg_match('/^(\+?\d{10,15})$/', $text) || preg_match('/^[A-Za-z0-9]{3,20}$/', $text)) {
             $this->handleLinkRequest($chatId, $text);
             return;
         }
@@ -96,30 +107,38 @@ class TelegramController extends Controller
             return;
         }
 
+        // Clear any pending link
+        Cache::forget("telegram_link_{$chatId}");
+
         // Ask for phone number or code
         $message = "👋 مرحباً بك في بوت إشعارات الطلبات!\n\n";
         $message .= "لربط حسابك، يرجى إرسال:\n";
         $message .= "📱 رقم هاتفك المسجل في النظام\n";
         $message .= "أو\n";
         $message .= "🔢 الكود الخاص بك\n\n";
-        $message .= "مثال: 07901234567 أو 1234";
+        $message .= "مثال:\n";
+        $message .= "• 07901234567 (رقم الهاتف)\n";
+        $message .= "• SUP999 (الكود)";
 
         $this->sendMessage($chatId, $message);
     }
 
     /**
-     * Handle link request (phone or code)
+     * Handle link request (phone or code) - Step 1
      */
     protected function handleLinkRequest($chatId, $identifier)
     {
-        // Try to find user by phone
-        $user = User::where('phone', $identifier)
-            ->orWhere('phone', 'like', '%' . $identifier)
-            ->first();
+        // Try to find user by phone (exact match first)
+        $user = User::where('phone', $identifier)->first();
 
-        // If not found, try by code
+        // If not found, try by code (exact match)
         if (!$user) {
             $user = User::where('code', $identifier)->first();
+        }
+
+        // If still not found, try partial phone match
+        if (!$user && preg_match('/^\d+$/', $identifier)) {
+            $user = User::where('phone', 'like', '%' . $identifier)->first();
         }
 
         if (!$user) {
@@ -148,7 +167,47 @@ class TelegramController extends Controller
             return;
         }
 
-        // Link user
+        // Save pending link info in cache (expires in 5 minutes)
+        Cache::put("telegram_link_{$chatId}", [
+            'user_id' => $user->id,
+            'identifier' => $identifier,
+        ], now()->addMinutes(5));
+
+        // Ask for password
+        $this->sendMessage(
+            $chatId,
+            "✅ تم العثور على الحساب: {$user->name}\n\n🔐 يرجى إرسال كلمة المرور للتحقق:\n\n(ستنتهي العملية بعد 5 دقائق)"
+        );
+    }
+
+    /**
+     * Handle password verification - Step 2
+     */
+    protected function handlePasswordVerification($chatId, $password, $pendingLink)
+    {
+        $user = User::find($pendingLink['user_id']);
+
+        if (!$user) {
+            Cache::forget("telegram_link_{$chatId}");
+            $this->sendMessage(
+                $chatId,
+                "❌ حدث خطأ. يرجى إرسال /start للبدء من جديد."
+            );
+            return;
+        }
+
+        // Verify password
+        if (!Hash::check($password, $user->password)) {
+            $this->sendMessage(
+                $chatId,
+                "❌ كلمة المرور غير صحيحة.\n\nيرجى المحاولة مرة أخرى أو إرسال /start للبدء من جديد."
+            );
+            return;
+        }
+
+        // Password is correct, link the user
+        Cache::forget("telegram_link_{$chatId}");
+
         $user->linkToTelegram($chatId);
 
         $this->sendMessage(
