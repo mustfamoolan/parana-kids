@@ -220,8 +220,10 @@ class ProductMovementController extends Controller
         if ($request->filled('product_search')) {
             $productSearch = $request->product_search;
             $query->whereHas('product', function($q) use ($productSearch) {
-                $q->where('name', 'like', '%' . $productSearch . '%')
-                  ->orWhere('code', 'like', '%' . $productSearch . '%');
+                $q->where(function($subQ) use ($productSearch) {
+                    $subQ->where('name', 'like', '%' . $productSearch . '%')
+                         ->orWhere('code', 'like', '%' . $productSearch . '%');
+                });
             });
         }
 
@@ -260,12 +262,14 @@ class ProductMovementController extends Controller
 
         // فلتر حسب الوقت
         if ($request->filled('time_from')) {
-            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            // استخدام date_from إذا كان موجود، وإلا date_to، وإلا التاريخ الحالي
+            $dateFrom = $request->date_from ?? ($request->date_to ?? now()->format('Y-m-d'));
             $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
         }
 
         if ($request->filled('time_to')) {
-            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            // استخدام date_to إذا كان موجود، وإلا date_from، وإلا التاريخ الحالي
+            $dateTo = $request->date_to ?? ($request->date_from ?? now()->format('Y-m-d'));
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 

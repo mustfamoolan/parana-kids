@@ -84,6 +84,7 @@ class DashboardController extends Controller
 
         // بناء query للطلبات حسب الفلاتر
         $buildOrdersQuery = function($status) use ($request) {
+            // استخدام المعامل الممرر (يتم التحكم به من الاستدعاء)
             $ordersQuery = Order::where('status', $status);
 
             // فلتر المخزن
@@ -133,47 +134,58 @@ class DashboardController extends Controller
         };
 
         // حساب الأرباح والمبالغ للطلبات المقيدة (confirmed) - من order_items مباشرة
-        $confirmedOrdersQuery = $buildOrdersQuery('confirmed');
-        $confirmedOrderIds = $confirmedOrdersQuery->pluck('id');
-
         $totalActualProfit = 0;
         $confirmedTotalAmount = 0;
-        if ($confirmedOrderIds->count() > 0) {
-            // حساب الربح الحالي من order_items مباشرة
-            $totalActualProfit = DB::table('order_items')
-                ->join('products', 'order_items.product_id', '=', 'products.id')
-                ->whereIn('order_items.order_id', $confirmedOrderIds)
-                ->whereNotNull('products.purchase_price')
-                ->where('products.purchase_price', '>', 0)
-                ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
-                ->value('total_profit') ?? 0;
+        $confirmedOrderIds = collect(); // تعريف افتراضي
 
-            // حساب المبلغ الإجمالي من order_items مباشرة
-            $confirmedTotalAmount = DB::table('order_items')
-                ->whereIn('order_id', $confirmedOrderIds)
-                ->sum('subtotal') ?? 0;
+        // إذا كان فلتر status محدد، نحسب فقط الحالة المحددة
+        // إذا كان غير محدد، نحسب confirmed و pending بشكل منفصل
+        if (!$request->filled('status') || $request->status === 'confirmed') {
+            $confirmedOrdersQuery = $buildOrdersQuery('confirmed');
+            $confirmedOrderIds = $confirmedOrdersQuery->pluck('id');
+
+            if ($confirmedOrderIds->count() > 0) {
+                // حساب الربح الحالي من order_items مباشرة
+                $totalActualProfit = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $confirmedOrderIds)
+                    ->whereNotNull('products.purchase_price')
+                    ->where('products.purchase_price', '>', 0)
+                    ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
+
+                // حساب المبلغ الإجمالي من order_items مباشرة
+                $confirmedTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $confirmedOrderIds)
+                    ->sum('subtotal') ?? 0;
+            }
         }
 
         // حساب الأرباح المتوقعة للطلبات غير المقيدة (pending) - من order_items مباشرة
-        $pendingOrdersQuery = $buildOrdersQuery('pending');
-        $pendingOrderIds = $pendingOrdersQuery->pluck('id');
-
         $totalExpectedProfit = 0;
         $pendingTotalAmount = 0;
-        if ($pendingOrderIds->count() > 0) {
-            // حساب الربح المتوقع من order_items مباشرة
-            $totalExpectedProfit = DB::table('order_items')
-                ->join('products', 'order_items.product_id', '=', 'products.id')
-                ->whereIn('order_items.order_id', $pendingOrderIds)
-                ->whereNotNull('products.purchase_price')
-                ->where('products.purchase_price', '>', 0)
-                ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
-                ->value('total_profit') ?? 0;
 
-            // حساب المبلغ الإجمالي للطلبات pending
-            $pendingTotalAmount = DB::table('order_items')
-                ->whereIn('order_id', $pendingOrderIds)
-                ->sum('subtotal') ?? 0;
+        // إذا كان فلتر status محدد، نحسب فقط الحالة المحددة
+        // إذا كان غير محدد، نحسب confirmed و pending بشكل منفصل
+        if (!$request->filled('status') || $request->status === 'pending') {
+            $pendingOrdersQuery = $buildOrdersQuery('pending');
+            $pendingOrderIds = $pendingOrdersQuery->pluck('id');
+
+            if ($pendingOrderIds->count() > 0) {
+                // حساب الربح المتوقع من order_items مباشرة
+                $totalExpectedProfit = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $pendingOrderIds)
+                    ->whereNotNull('products.purchase_price')
+                    ->where('products.purchase_price', '>', 0)
+                    ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                    ->value('total_profit') ?? 0;
+
+                // حساب المبلغ الإجمالي للطلبات pending
+                $pendingTotalAmount = DB::table('order_items')
+                    ->whereIn('order_id', $pendingOrderIds)
+                    ->sum('subtotal') ?? 0;
+            }
         }
 
         // حساب إجمالي الفروقات من الطلبات المقيدة
@@ -272,76 +284,85 @@ class DashboardController extends Controller
         $totalWarehousePieces = $totalWarehousePiecesQuery->sum('product_sizes.quantity') ?? 0;
 
         // حساب الأرباح حسب التاريخ من confirmed orders
-        $confirmedOrdersByDateQuery = DB::table('orders')
-            ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->where('orders.status', 'confirmed')
-            ->whereNotNull('orders.confirmed_at')
-            ->whereNotNull('products.purchase_price')
-            ->where('products.purchase_price', '>', 0)
-            ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
+        $actualProfitsByDate = [];
+        $expectedProfitsByDate = [];
 
-        // تطبيق الفلاتر
-        if ($request->filled('warehouse_id')) {
-            $confirmedOrdersByDateQuery->where('products.warehouse_id', $request->warehouse_id);
-        }
-        if ($request->filled('product_id')) {
-            $confirmedOrdersByDateQuery->where('order_items.product_id', $request->product_id);
-        }
-        if ($request->filled('delegate_id')) {
-            $confirmedOrdersByDateQuery->where('orders.delegate_id', $request->delegate_id);
-        }
-        if ($request->filled('confirmed_by')) {
-            $confirmedOrdersByDateQuery->where('orders.confirmed_by', $request->confirmed_by);
-        }
+        // إذا كان فلتر status محدد، نحسب فقط الحالة المحددة
+        // إذا كان غير محدد، نحسب confirmed و pending بشكل منفصل
+        if (!$request->filled('status') || $request->status === 'confirmed') {
+            $confirmedOrdersByDateQuery = DB::table('orders')
+                ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->where('orders.status', 'confirmed')
+                ->whereNotNull('orders.confirmed_at')
+                ->whereNotNull('products.purchase_price')
+                ->where('products.purchase_price', '>', 0)
+                ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
 
-        // حساب الأرباح حسب التاريخ للطلبات المقيدة
-        $actualProfitsByDate = $confirmedOrdersByDateQuery
-            ->select(
-                DB::raw('DATE(orders.confirmed_at) as date'),
-                DB::raw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as actual')
-            )
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get()
-            ->pluck('actual', 'date')
-            ->map(function($value) {
-                return (float)$value;
-            })
-            ->toArray();
+            // تطبيق الفلاتر
+            if ($request->filled('warehouse_id')) {
+                $confirmedOrdersByDateQuery->where('products.warehouse_id', $request->warehouse_id);
+            }
+            if ($request->filled('product_id')) {
+                $confirmedOrdersByDateQuery->where('order_items.product_id', $request->product_id);
+            }
+            if ($request->filled('delegate_id')) {
+                $confirmedOrdersByDateQuery->where('orders.delegate_id', $request->delegate_id);
+            }
+            if ($request->filled('confirmed_by')) {
+                $confirmedOrdersByDateQuery->where('orders.confirmed_by', $request->confirmed_by);
+            }
+
+            // حساب الأرباح حسب التاريخ للطلبات المقيدة
+            $actualProfitsByDate = $confirmedOrdersByDateQuery
+                ->select(
+                    DB::raw('DATE(orders.confirmed_at) as date'),
+                    DB::raw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as actual')
+                )
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get()
+                ->pluck('actual', 'date')
+                ->map(function($value) {
+                    return (float)$value;
+                })
+                ->toArray();
+        }
 
         // حساب الأرباح حسب التاريخ للطلبات pending
-        $pendingOrdersByDateQuery = DB::table('orders')
-            ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->where('orders.status', 'pending')
-            ->whereNotNull('products.purchase_price')
-            ->where('products.purchase_price', '>', 0)
-            ->whereBetween(DB::raw('DATE(orders.created_at)'), [$dateFrom, $dateTo]);
+        if (!$request->filled('status') || $request->status === 'pending') {
+            $pendingOrdersByDateQuery = DB::table('orders')
+                ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->where('orders.status', 'pending')
+                ->whereNotNull('products.purchase_price')
+                ->where('products.purchase_price', '>', 0)
+                ->whereBetween(DB::raw('DATE(orders.created_at)'), [$dateFrom, $dateTo]);
 
-        if ($request->filled('warehouse_id')) {
-            $pendingOrdersByDateQuery->where('products.warehouse_id', $request->warehouse_id);
-        }
-        if ($request->filled('product_id')) {
-            $pendingOrdersByDateQuery->where('order_items.product_id', $request->product_id);
-        }
-        if ($request->filled('delegate_id')) {
-            $pendingOrdersByDateQuery->where('orders.delegate_id', $request->delegate_id);
-        }
+            if ($request->filled('warehouse_id')) {
+                $pendingOrdersByDateQuery->where('products.warehouse_id', $request->warehouse_id);
+            }
+            if ($request->filled('product_id')) {
+                $pendingOrdersByDateQuery->where('order_items.product_id', $request->product_id);
+            }
+            if ($request->filled('delegate_id')) {
+                $pendingOrdersByDateQuery->where('orders.delegate_id', $request->delegate_id);
+            }
 
-        $expectedProfitsByDate = $pendingOrdersByDateQuery
-            ->select(
-                DB::raw('DATE(orders.created_at) as date'),
-                DB::raw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as expected')
-            )
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get()
-            ->pluck('expected', 'date')
-            ->map(function($value) {
-                return (float)$value;
-            })
-            ->toArray();
+            $expectedProfitsByDate = $pendingOrdersByDateQuery
+                ->select(
+                    DB::raw('DATE(orders.created_at) as date'),
+                    DB::raw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as expected')
+                )
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get()
+                ->pluck('expected', 'date')
+                ->map(function($value) {
+                    return (float)$value;
+                })
+                ->toArray();
+        }
 
         // دمج البيانات حسب التاريخ
         $allDates = array_unique(array_merge(array_keys($actualProfitsByDate), array_keys($expectedProfitsByDate)));
@@ -367,7 +388,10 @@ class DashboardController extends Controller
         ];
 
         // حساب القطع المبيعة لكل مخزن حسب التاريخ
-        $confirmedOrdersForSoldItems = $buildOrdersQuery('confirmed');
+        $statusForSoldItems = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'returned', 'cancelled'])
+            ? $request->status
+            : 'confirmed';
+        $confirmedOrdersForSoldItems = $buildOrdersQuery($statusForSoldItems);
         $confirmedOrderIdsForSoldItems = $confirmedOrdersForSoldItems->pluck('id');
 
         $totalSoldItems = 0;
@@ -408,7 +432,10 @@ class DashboardController extends Controller
         ];
 
         // 3. Pie Chart: توزيع الأرباح حسب المخازن - من order_items مباشرة
-        $confirmedOrdersForPie = $buildOrdersQuery('confirmed');
+        $statusForPie = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'returned', 'cancelled'])
+            ? $request->status
+            : 'confirmed';
+        $confirmedOrdersForPie = $buildOrdersQuery($statusForPie);
         $confirmedOrderIdsForPie = $confirmedOrdersForPie->pluck('id');
 
         $profitsByWarehouseArray = [];
@@ -444,7 +471,10 @@ class DashboardController extends Controller
         ];
 
         // 4. Bar Chart: الأرباح حسب المندوبين - من order_items مباشرة
-        $confirmedOrdersForBar = $buildOrdersQuery('confirmed');
+        $statusForBar = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'returned', 'cancelled'])
+            ? $request->status
+            : 'confirmed';
+        $confirmedOrdersForBar = $buildOrdersQuery($statusForBar);
         $confirmedOrderIdsForBar = $confirmedOrdersForBar->pluck('id');
 
         $profitsByDelegateArray = [];
@@ -480,12 +510,22 @@ class DashboardController extends Controller
         ];
 
         // حساب أكثر المنتجات مبيعاً (أعلى 10) - من الطلبات المقيدة فقط
+        $statusForTopProducts = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'returned', 'cancelled'])
+            ? $request->status
+            : 'confirmed';
+
         $topSellingProductsQuery = DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->where('orders.status', 'confirmed')
-            ->whereNotNull('orders.confirmed_at')
-            ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
+            ->where('orders.status', $statusForTopProducts);
+
+        // تطبيق فلتر التاريخ حسب حالة الطلب
+        if ($statusForTopProducts === 'confirmed') {
+            $topSellingProductsQuery->whereNotNull('orders.confirmed_at')
+                ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
+        } else {
+            $topSellingProductsQuery->whereBetween(DB::raw('DATE(orders.created_at)'), [$dateFrom, $dateTo]);
+        }
 
         // تطبيق الفلاتر
         if ($request->filled('warehouse_id')) {
@@ -527,12 +567,22 @@ class DashboardController extends Controller
             });
 
         // حساب الأقل مبيعاً - من الطلبات المقيدة فقط
+        $statusForLeastProducts = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'returned', 'cancelled'])
+            ? $request->status
+            : 'confirmed';
+
         $leastSellingProductsQuery = DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->where('orders.status', 'confirmed')
-            ->whereNotNull('orders.confirmed_at')
-            ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
+            ->where('orders.status', $statusForLeastProducts);
+
+        // تطبيق فلتر التاريخ حسب حالة الطلب
+        if ($statusForLeastProducts === 'confirmed') {
+            $leastSellingProductsQuery->whereNotNull('orders.confirmed_at')
+                ->whereBetween(DB::raw('DATE(orders.confirmed_at)'), [$dateFrom, $dateTo]);
+        } else {
+            $leastSellingProductsQuery->whereBetween(DB::raw('DATE(orders.created_at)'), [$dateFrom, $dateTo]);
+        }
 
         // تطبيق الفلاتر
         if ($request->filled('warehouse_id')) {

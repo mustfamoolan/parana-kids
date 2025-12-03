@@ -108,7 +108,7 @@
 
                 <div class="col-span-full flex gap-2">
                     <button type="submit" class="btn btn-primary">بحث</button>
-                    @if(request()->hasAny(['warehouse_id', 'product_id', 'size_id', 'movement_type', 'source_type', 'user_id', 'order_status', 'date_from', 'date_to', 'time_from', 'time_to', 'product_search']))
+                    @if(request()->hasAny(['warehouse_id', 'size_id', 'movement_type', 'source_type', 'user_id', 'order_status', 'date_from', 'date_to', 'time_from', 'time_to', 'product_search']))
                         <a href="{{ route('admin.product-movements.index') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
                     @endif
                 </div>
