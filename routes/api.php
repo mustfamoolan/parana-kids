@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\MessageApiController;
+use App\Http\Controllers\Api\DelegateProductApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,4 +81,8 @@ Route::middleware('auth.pwa')->group(function () {
 
     // جلب قائمة المشاركين في المجموعة
     Route::get('/messages/groups/{id}/participants', [MessageApiController::class, 'getGroupParticipants']);
+
+    // Delegate Products API Routes
+    // جلب المنتجات للمندوب
+    Route::get('/delegate/products', [DelegateProductApiController::class, 'index']);
 });
