@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class UserApiController extends Controller
 {
@@ -126,10 +128,61 @@ class UserApiController extends Controller
             ], 401);
         }
 
+        // إذا كان المستخدم مندوب، يسمح فقط بتحديث صورة البروفايل
+        if ($user->isDelegate()) {
+            $request->validate([
+                'profile_image' => 'required|image|mimes:jpeg,jpg,png|max:2048',
+            ]);
+
+            // معالجة رفع صورة البروفايل
+            if ($request->hasFile('profile_image')) {
+                try {
+                    // التأكد من وجود المجلد قبل الحفظ
+                    if (!Storage::disk('public')->exists('profiles')) {
+                        Storage::disk('public')->makeDirectory('profiles');
+                    }
+
+                    // حذف الصورة القديمة إن وجدت
+                    if ($user->profile_image) {
+                        Storage::disk('public')->delete($user->profile_image);
+                    }
+
+                    // حفظ الصورة الجديدة
+                    $image = $request->file('profile_image');
+                    $path = $image->storeAs('profiles', $user->id . '_' . time() . '.' . $image->getClientOriginalExtension(), 'public');
+
+                    $user->profile_image = $path;
+                    $user->save();
+
+                    // إعادة تحميل المستخدم للحصول على البيانات المحدثة
+                    $user->refresh();
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'تم تحديث صورة البروفايل بنجاح',
+                        'user' => $this->formatUserData($user),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to upload profile image: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'فشل رفع الصورة: ' . $e->getMessage(),
+                    ], 500);
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'يجب إرسال صورة البروفايل.',
+            ], 400);
+        }
+
+        // للمدير والمجهز: السماح بتعديل جميع البيانات بما فيها الصورة
         $rules = [
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:users,phone,' . $user->id,
             'role' => 'required|in:admin,supplier,delegate,private_supplier',
+            'profile_image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
         ];
 
         // كود مطلوب للمجهز والمندوب والمورد
@@ -161,6 +214,33 @@ class UserApiController extends Controller
         }
 
         DB::transaction(function() use ($user, $validated, $request) {
+            // معالجة رفع صورة البروفايل إذا تم إرسالها
+            if ($request->hasFile('profile_image')) {
+                try {
+                    // التأكد من وجود المجلد قبل الحفظ
+                    if (!Storage::disk('public')->exists('profiles')) {
+                        Storage::disk('public')->makeDirectory('profiles');
+                    }
+
+                    // حذف الصورة القديمة إن وجدت
+                    if ($user->profile_image) {
+                        Storage::disk('public')->delete($user->profile_image);
+                    }
+
+                    // حفظ الصورة الجديدة
+                    $image = $request->file('profile_image');
+                    $path = $image->storeAs('profiles', $user->id . '_' . time() . '.' . $image->getClientOriginalExtension(), 'public');
+
+                    $validated['profile_image'] = $path;
+                } catch (\Exception $e) {
+                    Log::error('Failed to upload profile image: ' . $e->getMessage());
+                    throw $e;
+                }
+            } else {
+                // إزالة profile_image من validated إذا لم يتم إرسالها
+                unset($validated['profile_image']);
+            }
+
             $user->update($validated);
 
             // تحديث المخازن للمجهزين والمندوبين (ليس للمورد private_supplier)
