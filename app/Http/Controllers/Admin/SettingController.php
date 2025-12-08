@@ -17,6 +17,7 @@ class SettingController extends Controller
     {
         $deliveryFee = Setting::getDeliveryFee();
         $profitMargin = Setting::getProfitMargin();
+        $alwaseetMerchantNotes = Setting::getValue('alwaseet_merchant_notes', '');
 
         // جلب بيانات البنر
         $bannerEnabled = Setting::getValue('floating_banner_enabled', '0') === '1';
@@ -29,7 +30,7 @@ class SettingController extends Controller
         $dashboardBannerEnabled = Setting::getValue('dashboard_banner_enabled', '0') === '1';
         $dashboardBannerText = Setting::getValue('dashboard_banner_text', '');
 
-        return view('admin.settings.index', compact('deliveryFee', 'profitMargin', 'bannerEnabled', 'bannerTitle', 'bannerText', 'bannerImage', 'bannerIcon', 'dashboardBannerEnabled', 'dashboardBannerText'));
+        return view('admin.settings.index', compact('deliveryFee', 'profitMargin', 'alwaseetMerchantNotes', 'bannerEnabled', 'bannerTitle', 'bannerText', 'bannerImage', 'bannerIcon', 'dashboardBannerEnabled', 'dashboardBannerText'));
     }
 
     /**
@@ -40,6 +41,7 @@ class SettingController extends Controller
         $request->validate([
             'delivery_fee' => 'required|numeric|min:0',
             'profit_margin' => 'nullable|numeric|min:0',
+            'alwaseet_merchant_notes' => 'nullable|string|max:1000',
         ]);
 
         Setting::setValue('delivery_fee', $request->delivery_fee, 'سعر التوصيل بالدينار العراقي');
@@ -49,6 +51,8 @@ class SettingController extends Controller
         } else {
             Setting::setValue('profit_margin', 0, 'ربح الفروقات بالدينار العراقي');
         }
+
+        Setting::setValue('alwaseet_merchant_notes', $request->alwaseet_merchant_notes ?? '', 'ملاحظة التاجر للواسط');
 
         return redirect()->route('admin.settings.index')
                         ->with('success', 'تم تحديث الإعدادات بنجاح');

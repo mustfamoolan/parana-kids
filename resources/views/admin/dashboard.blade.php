@@ -151,6 +151,19 @@
             </a>
             @endif
 
+            @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSupplier()))
+            <!-- رفع وطباع طلبات الوسيط -->
+            <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.25), rgba(234, 179, 8, 0.2)) !important; border: 4px solid rgba(249, 115, 22, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3), 0 4px 6px -2px rgba(249, 115, 22, 0.2) !important;">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.35), rgba(234, 179, 8, 0.25)) !important; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2) !important;">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: #ea580c !important;">
+                        <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-extrabold mb-2" style="color: #ea580c !important;">رفع وطباع طلبات الوسيط</h3>
+                <p class="text-sm font-semibold" style="color: #c2410c !important;">رفع وطباعة طلبات الوسيط</p>
+            </a>
+            @endif
+
             <!-- 4. المخازن -->
             <a href="{{ route('admin.warehouses.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center">
@@ -268,6 +281,19 @@
                 </div>
                 <h3 class="text-lg font-bold text-secondary mb-2">المخازن الخاصة</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن الخاصة والموردين</p>
+            </a>
+
+            <!-- الوسيط -->
+            <a href="{{ route('admin.alwaseet.dashboard') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path opacity="0.5" d="M3 10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2.34315 7.22876 2.34315 11 2.34315H13C16.7712 2.34315 18.6569 2.34315 19.8284 3.17157C21 4.34315 21 6.22876 21 10V14C21 17.7712 21 19.6569 19.8284 20.8284C18.6569 22 16.7712 22 13 22H11C7.22876 22 5.34315 22 4.17157 20.8284C3 19.6569 3 17.7712 3 14V10Z" fill="currentColor"/>
+                        <path d="M8 12C8 11.4477 8.44772 11 9 11H15C15.5523 11 16 11.4477 16 12C16 12.5523 15.5523 13 15 13H9C8.44772 13 8 12.5523 8 12Z" fill="currentColor"/>
+                        <path d="M8 16C8 15.4477 8.44772 15 9 15H13C13.5523 15 14 15.4477 14 16C14 16.5523 13.5523 17 13 17H9C8.44772 17 8 16.5523 8 16Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-primary mb-2">الوسيط</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">لوحة تحكم الوسيط</p>
             </a>
             @endif
 

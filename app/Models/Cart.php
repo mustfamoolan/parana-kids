@@ -11,11 +11,13 @@ class Cart extends Model
 
     protected $fillable = [
         'delegate_id',
+        'session_id',
         'cart_name',
         'status',
         'expires_at',
         'customer_name',
         'customer_phone',
+        'customer_phone2',
         'customer_address',
         'customer_social_link',
         'notes',
@@ -101,5 +103,38 @@ class Cart extends Model
                 'expires_at' => now()->addHours(24),
             ]
         );
+    }
+
+    /**
+     * Get or create active cart for guest (shop customer)
+     */
+    public static function getOrCreateGuestCart($sessionId)
+    {
+        return self::firstOrCreate(
+            [
+                'session_id' => $sessionId,
+                'status' => 'active',
+            ],
+            [
+                'cart_name' => 'طلب زبون - ' . now()->format('Y-m-d H:i'),
+                'expires_at' => now()->addHours(24),
+            ]
+        );
+    }
+
+    /**
+     * Scope for guest carts (shop customers)
+     */
+    public function scopeGuest($query)
+    {
+        return $query->whereNull('delegate_id')->whereNotNull('session_id');
+    }
+
+    /**
+     * Scope for delegate carts
+     */
+    public function scopeDelegate($query)
+    {
+        return $query->whereNotNull('delegate_id');
     }
 }

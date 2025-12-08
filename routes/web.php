@@ -88,6 +88,72 @@ Route::prefix('admin')->group(function () {
         Route::post('settings/dashboard-banner', [\App\Http\Controllers\Admin\SettingController::class, 'updateDashboardBanner'])->name('admin.settings.dashboard-banner');
         Route::post('settings/dashboard-banner/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'toggleDashboardBanner'])->name('admin.settings.dashboard-banner.toggle');
 
+        // AlWaseet routes (Admin only)
+        Route::prefix('alwaseet')->name('admin.alwaseet.')->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Admin\AlWaseetController::class, 'dashboard'])->name('dashboard');
+            Route::get('/', [\App\Http\Controllers\Admin\AlWaseetController::class, 'index'])->name('index');
+            Route::get('/add-order-from-pending', [\App\Http\Controllers\Admin\AlWaseetController::class, 'addOrderFromPending'])->name('add-order-from-pending');
+            Route::get('/print-and-upload-orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'printAndUploadOrders'])->name('print-and-upload-orders');
+            Route::get('/materials-list', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getMaterialsListForPrintUpload'])->name('materials-list');
+            Route::get('/materials-list-grouped', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getMaterialsListGroupedForPrintUpload'])->name('materials-list-grouped');
+            Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Admin\AlWaseetController::class, 'confirmOrder'])->name('orders.confirm');
+            Route::post('/print-all-orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'printAllOrders'])->name('print-all-orders');
+            Route::post('/orders/{id}/update-alwaseet-fields', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrderAlwaseetFields'])->name('orders.update-alwaseet-fields');
+            Route::post('/orders/{id}/update-delivery-time-note', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateDeliveryTimeNote'])->name('orders.update-delivery-time-note');
+            Route::post('/orders/{id}/send', [\App\Http\Controllers\Admin\AlWaseetController::class, 'sendOrderToAlWaseet'])->name('orders.send');
+
+            // Orders routes
+            Route::get('/orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'orders'])->name('orders');
+            Route::get('/orders/create', [\App\Http\Controllers\Admin\AlWaseetController::class, 'createOrder'])->name('orders.create');
+            Route::post('/orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'storeOrder'])->name('orders.store');
+            Route::get('/orders/{id}/edit', [\App\Http\Controllers\Admin\AlWaseetController::class, 'editOrder'])->name('orders.edit');
+            Route::post('/orders/{id}', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrder'])->name('orders.update');
+            Route::get('/api/regions', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getRegions'])->name('api.regions');
+
+            // Receipts routes
+            Route::get('/receipts', [\App\Http\Controllers\Admin\AlWaseetController::class, 'receipts'])->name('receipts');
+            Route::get('/receipts/{id}/download', [\App\Http\Controllers\Admin\AlWaseetController::class, 'downloadReceipt'])->name('receipts.download');
+            Route::get('/receipts/download-by-link', [\App\Http\Controllers\Admin\AlWaseetController::class, 'downloadReceiptPdfByLink'])->name('receipts.download-by-link');
+
+            // Invoices routes
+            Route::get('/invoices', [\App\Http\Controllers\Admin\AlWaseetController::class, 'invoices'])->name('invoices.index');
+            Route::get('/invoices/{id}', [\App\Http\Controllers\Admin\AlWaseetController::class, 'showInvoice'])->name('invoices.show');
+            Route::post('/invoices/{id}/receive', [\App\Http\Controllers\Admin\AlWaseetController::class, 'receiveInvoice'])->name('invoices.receive');
+
+            // Settings routes
+            Route::get('/settings', [\App\Http\Controllers\Admin\AlWaseetController::class, 'settings'])->name('settings');
+            Route::post('/settings', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateSettings'])->name('settings.update');
+            Route::post('/logout', [\App\Http\Controllers\Admin\AlWaseetController::class, 'logout'])->name('logout');
+            Route::post('/reconnect', [\App\Http\Controllers\Admin\AlWaseetController::class, 'reconnect'])->name('reconnect');
+            Route::get('/test-connection', [\App\Http\Controllers\Admin\AlWaseetController::class, 'testConnection'])->name('test-connection');
+            Route::post('/sync', [\App\Http\Controllers\Admin\AlWaseetController::class, 'sync'])->name('sync');
+
+            // Auto Integration routes
+            Route::get('/auto-integration', [\App\Http\Controllers\Admin\AlWaseetController::class, 'autoIntegration'])->name('auto-integration');
+            Route::post('/auto-integration', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateAutoIntegration'])->name('auto-integration.update');
+
+            // Auto Sync routes
+            Route::get('/auto-sync', [\App\Http\Controllers\Admin\AlWaseetController::class, 'autoSync'])->name('auto-sync');
+            Route::post('/auto-sync', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateAutoSync'])->name('auto-sync.update');
+
+            // Notifications routes
+            Route::get('/notifications', [\App\Http\Controllers\Admin\AlWaseetController::class, 'notifications'])->name('notifications');
+            Route::post('/notifications', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateNotifications'])->name('notifications.update');
+            Route::post('/notifications/{id}/read', [\App\Http\Controllers\Admin\AlWaseetController::class, 'markNotificationAsRead'])->name('notifications.read');
+            Route::post('/notifications/read-all', [\App\Http\Controllers\Admin\AlWaseetController::class, 'markAllNotificationsAsRead'])->name('notifications.read-all');
+
+            // Reports routes
+            Route::get('/reports', [\App\Http\Controllers\Admin\AlWaseetController::class, 'reports'])->name('reports');
+
+            // Rate Limiting routes
+            Route::get('/rate-limiting', [\App\Http\Controllers\Admin\AlWaseetController::class, 'rateLimiting'])->name('rate-limiting');
+
+            // Show route (يجب أن يكون في النهاية لتجنب التعارض)
+            Route::get('/{id}', [\App\Http\Controllers\Admin\AlWaseetController::class, 'show'])->name('show');
+            Route::post('/{id}/link-order', [\App\Http\Controllers\Admin\AlWaseetController::class, 'linkToOrder'])->name('link-order');
+            Route::post('/{id}/unlink-order', [\App\Http\Controllers\Admin\AlWaseetController::class, 'unlinkOrder'])->name('unlink-order');
+        });
+
         // Expenses routes (Admin only)
         // يجب وضع search-products قبل resource route لتجنب التعارض
         Route::get('expenses/search-products', [\App\Http\Controllers\Admin\ExpenseController::class, 'searchProducts'])->name('admin.expenses.search-products');

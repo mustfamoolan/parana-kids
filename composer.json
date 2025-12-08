@@ -12,7 +12,9 @@
         "laravel/framework": "^11.9",
         "laravel/tinker": "^2.9",
         "league/flysystem-aws-s3-v3": "^3.30",
-        "minishlink/web-push": "^9.0"
+        "minishlink/web-push": "^9.0",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

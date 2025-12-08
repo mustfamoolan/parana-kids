@@ -118,6 +118,32 @@
                         @enderror
                     </div>
 
+                    <div>
+                        <label for="customer_phone2" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            رقم الهاتف الثاني (اختياري)
+                        </label>
+                        <input
+                            type="tel"
+                            id="customer_phone2"
+                            name="customer_phone2"
+                            class="form-input @error('customer_phone2') border-red-500 @enderror"
+                            value="{{ old('customer_phone2', $order->customer_phone2) }}"
+                            placeholder="07742209251"
+                            oninput="formatPhoneNumber2(this)"
+                            onpaste="handlePhonePaste2(event)"
+                        >
+                        <p id="phone2_error" class="text-danger text-xs mt-1" style="display: none;">الرقم يجب أن يكون بالضبط 11 رقم بعد التنسيق</p>
+                        <button type="button" onclick="copyToClipboard('customer_phone2')" class="btn btn-sm btn-outline-secondary mt-2">
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            نسخ
+                        </button>
+                        @error('customer_phone2')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div class="md:col-span-2">
                         <label for="customer_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             العنوان <span class="text-red-500">*</span>
@@ -754,11 +780,63 @@
             }
         }
 
+        // دوال للرقم الثاني
+        function handlePhonePaste2(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const convertedText = convertArabicToEnglishNumbers(pastedText);
+            const input = e.target;
+            input.value = convertedText;
+            formatPhoneNumber2(input);
+        }
+
+        function formatPhoneNumber2(input) {
+            let value = input.value;
+
+            // تحويل الأرقام العربية إلى إنجليزية أولاً
+            value = convertArabicToEnglishNumbers(value);
+
+            // إزالة كل شيء غير الأرقام
+            let cleaned = value.replace(/[^0-9]/g, '');
+
+            // إزالة البادئات الدولية
+            if (cleaned.startsWith('00964')) {
+                cleaned = cleaned.substring(5); // إزالة 00964
+            } else if (cleaned.startsWith('964')) {
+                cleaned = cleaned.substring(3); // إزالة 964
+            }
+
+            // إضافة 0 في البداية إذا لم تكن موجودة
+            if (cleaned.length > 0 && !cleaned.startsWith('0')) {
+                cleaned = '0' + cleaned;
+            }
+
+            // التأكد من 11 رقم فقط - إذا كان أكثر من 11، نأخذ أول 11 رقم
+            if (cleaned.length > 11) {
+                cleaned = cleaned.substring(0, 11);
+            }
+
+            // تحديث قيمة الحقل
+            input.value = cleaned;
+
+            // التحقق من أن الرقم بالضبط 11 رقم (اختياري - لا نمنع الإرسال)
+            const errorElement = document.getElementById('phone2_error');
+            if (cleaned.length > 0 && cleaned.length !== 11) {
+                if (errorElement) errorElement.style.display = 'block';
+            } else {
+                if (errorElement) errorElement.style.display = 'none';
+            }
+        }
+
         // تطبيق التنسيق عند تحميل الصفحة
         document.addEventListener('DOMContentLoaded', function() {
             const phoneInput = document.getElementById('customer_phone');
             if (phoneInput && phoneInput.value) {
                 formatPhoneNumber(phoneInput);
+            }
+            const phone2Input = document.getElementById('customer_phone2');
+            if (phone2Input && phone2Input.value) {
+                formatPhoneNumber2(phone2Input);
             }
         });
 

@@ -312,6 +312,9 @@ class OrderController extends Controller
             return $order;
         });
 
+        // إرسال Event لإنشاء شحنة في الواسط
+        event(new \App\Events\OrderCreated($order));
+
         // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
         try {
             $this->sweetAlertService->notifyOrderCreated($order);
@@ -751,14 +754,27 @@ class OrderController extends Controller
         // استبدال رقم الهاتف بالتنسيق الموحد
         $request->merge(['customer_phone' => $normalizedPhone]);
 
+        // تنسيق رقم الهاتف الثاني إن وجد
+        $normalizedPhone2 = null;
+        if ($request->filled('customer_phone2')) {
+            $normalizedPhone2 = $this->normalizePhoneNumber($request->customer_phone2);
+            if ($normalizedPhone2 !== null && strlen($normalizedPhone2) === 11) {
+                $request->merge(['customer_phone2' => $normalizedPhone2]);
+            } else {
+                $request->merge(['customer_phone2' => null]);
+            }
+        }
+
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|digits:11',
+            'customer_phone2' => 'nullable|string|digits:11',
             'customer_address' => 'required|string',
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
         ], [
             'customer_phone.digits' => 'رقم الهاتف يجب أن يكون بالضبط 11 رقم',
+            'customer_phone2.digits' => 'رقم الهاتف الثاني يجب أن يكون بالضبط 11 رقم',
         ]);
 
         // حذف أي سلة نشطة قديمة للمندوب (لتجنب التكرار)
@@ -783,6 +799,7 @@ class OrderController extends Controller
             'expires_at' => now()->addHours(24),
             'customer_name' => $request->customer_name,
             'customer_phone' => $request->customer_phone,
+            'customer_phone2' => $request->customer_phone2,
             'customer_address' => $request->customer_address,
             'customer_social_link' => $request->customer_social_link,
             'notes' => $request->notes,
@@ -856,6 +873,7 @@ class OrderController extends Controller
                 'delegate_id' => $cart->delegate_id,
                 'customer_name' => $cart->customer_name,
                 'customer_phone' => $cart->customer_phone,
+                'customer_phone2' => $cart->customer_phone2,
                 'customer_address' => $cart->customer_address,
                 'customer_social_link' => $cart->customer_social_link,
                 'notes' => $cart->notes,
@@ -904,6 +922,9 @@ class OrderController extends Controller
 
             return $order;
         });
+
+        // إرسال Event لإنشاء شحنة في الواسط
+        event(new \App\Events\OrderCreated($order));
 
         // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
         try {

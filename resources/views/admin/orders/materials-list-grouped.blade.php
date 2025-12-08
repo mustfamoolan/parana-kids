@@ -5,8 +5,8 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 @php
                     $status = request('status') ?: 'pending';
-                    $backRoute = $status === 'pending' ? 'admin.orders.pending' : 'admin.orders.management';
-                    $backParams = array_filter([
+                    $backRouteForOrders = $status === 'pending' ? 'admin.orders.pending' : 'admin.orders.management';
+                    $backParamsForOrders = array_filter([
                         'warehouse_id' => request('warehouse_id'),
                         'search' => request('search'),
                         'confirmed_by' => request('confirmed_by'),
@@ -19,8 +19,23 @@
                         'time_to' => request('time_to'),
                         'status' => $status !== 'pending' ? $status : null,
                     ]);
+                    // back_route و back_params للعودة إلى صفحة materials-list-grouped
+                    $backRoute = 'admin.orders.materials.management-grouped';
+                    $backParams = array_filter([
+                        'status' => $status,
+                        'warehouse_id' => request('warehouse_id'),
+                        'search' => request('search'),
+                        'confirmed_by' => request('confirmed_by'),
+                        'delegate_id' => request('delegate_id'),
+                        'size_reviewed' => request('size_reviewed'),
+                        'message_confirmed' => request('message_confirmed'),
+                        'date_from' => request('date_from'),
+                        'date_to' => request('date_to'),
+                        'time_from' => request('time_from'),
+                        'time_to' => request('time_to'),
+                    ]);
                 @endphp
-                <a href="{{ route($backRoute, $backParams) }}" class="btn btn-outline-secondary">
+                <a href="{{ route($backRouteForOrders, $backParamsForOrders) }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -136,9 +151,9 @@
                                         <span class="text-xs text-gray-500 dark:text-gray-400">الطلبات:</span>
                                         <div class="text-left">
                                             @foreach(array_slice($material['orders'], 0, 3) as $order)
-                                                <a href="{{ route('admin.orders.show', $order['order_id']) }}"
+                                                <a href="{{ route('admin.orders.edit', $order['order_id']) }}?back_route={{ $backRoute }}&back_params={{ urlencode(json_encode($backParams)) }}"
                                                    class="block text-xs text-primary hover:underline mb-1"
-                                                   title="عرض الطلب">
+                                                   title="تعديل الطلب">
                                                     {{ $order['order_number'] }} ({{ $order['quantity'] }})
                                                 </a>
                                             @endforeach
@@ -161,7 +176,7 @@
                 </svg>
                 <h6 class="text-lg font-semibold dark:text-white-light mb-2">لا توجد مواد مطلوبة</h6>
                 <p class="text-gray-500 dark:text-gray-400 mb-4">لا توجد طلبات غير مقيدة حالياً</p>
-                <a href="{{ route($backRoute, $backParams) }}" class="btn btn-primary">
+                <a href="{{ route($backRouteForOrders, $backParamsForOrders) }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>

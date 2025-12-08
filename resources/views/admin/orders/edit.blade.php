@@ -166,6 +166,46 @@
                         @enderror
                     </div>
 
+                    <div>
+                        <label for="customer_phone2" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            رقم الهاتف الثاني (اختياري)
+                        </label>
+                        <input
+                            type="tel"
+                            id="customer_phone2"
+                            name="customer_phone2"
+                            class="form-input @error('customer_phone2') border-red-500 @enderror"
+                            value="{{ old('customer_phone2', $order->customer_phone2) }}"
+                            placeholder="07742209251"
+                            oninput="formatPhoneNumber2(this)"
+                            onpaste="handlePhonePaste2(event)"
+                        >
+                        <p id="phone2_error" class="text-danger text-xs mt-1" style="display: none;">الرقم يجب أن يكون بالضبط 11 رقم بعد التنسيق</p>
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="copyPhoneNumber2()" class="btn btn-sm btn-outline-secondary">
+                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                نسخ
+                            </button>
+                            <button type="button" onclick="openWhatsAppFromEdit2()" class="btn btn-sm btn-outline-success">
+                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                </svg>
+                                واتساب
+                            </button>
+                            <button type="button" onclick="callPhoneNumber2()" class="btn btn-sm btn-outline-primary">
+                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                </svg>
+                                اتصال
+                            </button>
+                        </div>
+                        @error('customer_phone2')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div class="md:col-span-2">
                         <label for="customer_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             العنوان <span class="text-red-500">*</span>
@@ -1003,11 +1043,149 @@
             }
         }
 
+        // دوال للرقم الثاني
+        function handlePhonePaste2(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const convertedText = convertArabicToEnglishNumbers(pastedText);
+            const input = e.target;
+            input.value = convertedText;
+            formatPhoneNumber2(input);
+        }
+
+        function formatPhoneNumber2(input) {
+            let value = input.value;
+
+            // تحويل الأرقام العربية إلى إنجليزية أولاً
+            value = convertArabicToEnglishNumbers(value);
+
+            // إزالة كل شيء غير الأرقام
+            let cleaned = value.replace(/[^0-9]/g, '');
+
+            // إزالة البادئات الدولية
+            if (cleaned.startsWith('00964')) {
+                cleaned = cleaned.substring(5); // إزالة 00964
+            } else if (cleaned.startsWith('964')) {
+                cleaned = cleaned.substring(3); // إزالة 964
+            }
+
+            // إضافة 0 في البداية إذا لم تكن موجودة
+            if (cleaned.length > 0 && !cleaned.startsWith('0')) {
+                cleaned = '0' + cleaned;
+            }
+
+            // التأكد من 11 رقم فقط - إذا كان أكثر من 11، نأخذ أول 11 رقم
+            if (cleaned.length > 11) {
+                cleaned = cleaned.substring(0, 11);
+            }
+
+            // تحديث قيمة الحقل
+            input.value = cleaned;
+
+            // التحقق من أن الرقم بالضبط 11 رقم (اختياري - لا نمنع الإرسال)
+            const errorElement = document.getElementById('phone2_error');
+            if (cleaned.length > 0 && cleaned.length !== 11) {
+                if (errorElement) errorElement.style.display = 'block';
+            } else {
+                if (errorElement) errorElement.style.display = 'none';
+            }
+        }
+
+        function copyPhoneNumber2() {
+            const phoneInput = document.getElementById('customer_phone2');
+            if (phoneInput && phoneInput.value) {
+                phoneInput.select();
+                phoneInput.setSelectionRange(0, 99999);
+                try {
+                    document.execCommand('copy');
+                    showCopyNotification('تم نسخ رقم الهاتف الثاني بنجاح!');
+                } catch (err) {
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(phoneInput.value).then(function() {
+                            showCopyNotification('تم نسخ رقم الهاتف الثاني بنجاح!');
+                        });
+                    } else {
+                        showCopyNotification('فشل في نسخ رقم الهاتف الثاني');
+                    }
+                }
+            }
+        }
+
+        function openWhatsAppFromEdit2() {
+            const phoneInput = document.getElementById('customer_phone2');
+            if (!phoneInput || !phoneInput.value) {
+                alert('الرجاء إدخال رقم الهاتف الثاني');
+                return;
+            }
+
+            // الحصول على بيانات Alpine.js
+            const alpineContainer = document.querySelector('[x-data*="orderForm"]');
+            if (!alpineContainer) {
+                alert('لا يمكن العثور على بيانات الطلب');
+                return;
+            }
+
+            const alpineData = Alpine.$data(alpineContainer);
+            if (!alpineData || !alpineData.items || alpineData.items.length === 0) {
+                alert('لا توجد منتجات في الطلب');
+                return;
+            }
+
+            // تحضير بيانات المنتجات
+            const orderItems = alpineData.items.map(function(item) {
+                return {
+                    product_name: item.product_name || item.product_code || '',
+                    product_code: item.product_code || '',
+                    unit_price: parseFloat(item.unit_price) || 0
+                };
+            });
+
+            // حساب المجموع الكلي
+            const totalAmount = alpineData.totalAmount || 0;
+
+            // الحصول على رقم الطلب ورقم الزبون واسم البيج وسعر التوصيل
+            const orderNumber = '{{ $order->order_number }}';
+            const customerPhone = phoneInput.value;
+            const pageName = '{{ optional($order->delegate)->page_name ?? '' }}';
+            const deliveryFee = {{ \App\Models\Setting::getDeliveryFee() }};
+
+            // تنظيف رقم الهاتف
+            let cleanPhone = phoneInput.value.replace(/[^\d]/g, '');
+
+            // إضافة كود الدولة 964 للعراق إذا لم يكن موجوداً
+            if (!cleanPhone.startsWith('964')) {
+                if (cleanPhone.startsWith('0')) {
+                    cleanPhone = '964' + cleanPhone.substring(1);
+                } else if (cleanPhone.length < 12) {
+                    cleanPhone = '964' + cleanPhone;
+                }
+            }
+
+            // بناء الرسالة
+            const message = generateWhatsAppMessage(orderItems, totalAmount, orderNumber, customerPhone, pageName, deliveryFee);
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+
+            // فتح واتساب في نافذة جديدة
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function callPhoneNumber2() {
+            const phoneInput = document.getElementById('customer_phone2');
+            if (phoneInput && phoneInput.value) {
+                const phone = phoneInput.value.replace(/[^0-9+]/g, ''); // الاحتفاظ بالأرقام وعلامة +
+                window.location.href = `tel:${phone}`;
+            }
+        }
+
         // تطبيق التنسيق عند تحميل الصفحة
         document.addEventListener('DOMContentLoaded', function() {
             const phoneInput = document.getElementById('customer_phone');
             if (phoneInput && phoneInput.value) {
                 formatPhoneNumber(phoneInput);
+            }
+            const phone2Input = document.getElementById('customer_phone2');
+            if (phone2Input && phone2Input.value) {
+                formatPhoneNumber2(phone2Input);
             }
         });
 

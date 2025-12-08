@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use App\Models\AlWaseetShipment;
 
 class Order extends Model
 {
@@ -17,6 +18,7 @@ class Order extends Model
         'order_number',
         'customer_name',
         'customer_phone',
+        'customer_phone2',
         'customer_address',
         'customer_social_link',
         'notes',
@@ -39,6 +41,10 @@ class Order extends Model
         'message_confirmed',
         'delivery_fee_at_confirmation',
         'profit_margin_at_confirmation',
+        'alwaseet_address',
+        'alwaseet_city_id',
+        'alwaseet_region_id',
+        'alwaseet_delivery_time_note',
     ];
 
     protected $casts = [
@@ -137,6 +143,11 @@ class Order extends Model
     public function profitRecords()
     {
         return $this->hasMany(ProfitRecord::class);
+    }
+
+    public function alwaseetShipment()
+    {
+        return $this->hasOne(AlWaseetShipment::class, 'order_id');
     }
 
     /**

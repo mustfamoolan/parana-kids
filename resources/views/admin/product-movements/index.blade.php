@@ -183,6 +183,19 @@
                                     <span class="badge bg-secondary">إدارة المخزن</span>
                                 @endif
                             </div>
+                            @if($movement->order)
+                                <div class="border-t pt-2 mt-2">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">رقم الطلب:</span>
+                                    @php
+                                        $backRoute = 'admin.product-movements.index';
+                                        $backParams = request()->except(['page']);
+                                        $backParamsJson = json_encode($backParams);
+                                    @endphp
+                                    <a href="{{ route('admin.orders.show', $movement->order) }}?back_route={{ urlencode($backRoute) }}&back_params={{ urlencode($backParamsJson) }}" class="font-bold text-lg text-primary hover:underline">
+                                        {{ $movement->order->order_number }}
+                                    </a>
+                                </div>
+                            @endif
                             <div class="border-t pt-2 mt-2">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المستخدم:</span>
                                 <div class="font-medium text-sm">{{ $movement->user->name }}</div>

@@ -178,6 +178,27 @@
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <!-- ملاحظة التاجر للواسط -->
+                    <div class="mb-5">
+                        <label for="alwaseet_merchant_notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ملاحظة التاجر للواسط
+                        </label>
+                        <textarea
+                            id="alwaseet_merchant_notes"
+                            name="alwaseet_merchant_notes"
+                            rows="3"
+                            class="form-textarea @error('alwaseet_merchant_notes') border-red-500 @enderror"
+                            maxlength="1000"
+                            placeholder="أدخل ملاحظة التاجر التي ستُرسل مع كل طلب للواسط"
+                        >{{ old('alwaseet_merchant_notes', $alwaseetMerchantNotes ?? '') }}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">
+                            هذه الملاحظة ستُرسل تلقائياً مع كل طلب يتم إرساله إلى الواسط
+                        </p>
+                        @error('alwaseet_merchant_notes')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
 
                 <!-- أزرار الإجراء -->
