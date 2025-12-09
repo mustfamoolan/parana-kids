@@ -1907,28 +1907,46 @@ class AlWaseetController extends Controller
                 ], 500);
             }
 
-            // جمع أسماء المنتجات (مثل process page - بدون النص الثابت)
-            $productNames = $order->items->map(function($item) {
+            // حساب السعر الكلي (يجب حسابه قبل بناء نوع البضاعة)
+            $deliveryFee = Setting::getDeliveryFee();
+            $totalPrice = $order->total_amount + $deliveryFee;
+
+            // تنسيق نوع البضاعة بشكل كامل (مثل process page - بدون النص الثابت)
+            $productParts = $order->items->map(function($item) {
                 $rawName = optional($item->product)->name ?? $item->product_name ?? '';
                 $name = $rawName;
                 // إزالة النص بين الأقواس إذا كان موجوداً
                 if (strpos($name, '(') !== false) {
                     $name = trim(substr($name, 0, strpos($name, '(')));
                 }
-                return trim($name);
-            })->filter()->unique()->implode('، ');
+                $name = trim($name);
 
-            if (empty($productNames)) {
+                if (empty($name)) {
+                    return '';
+                }
+
+                $unitPrice = $item->unit_price ?? 0;
+                $quantity = $item->quantity ?? 0;
+
+                // تنسيق: اسم المنتج سعر السعر العدد الكمية
+                return "{$name} سعر {$unitPrice} العدد {$quantity}";
+            })->filter();
+
+            // حساب الإجماليات
+            $totalQuantity = $order->items->sum('quantity');
+
+            // بناء النص الكامل
+            $productNames = '';
+            if ($productParts->isNotEmpty()) {
+                $productsText = $productParts->implode(' ');
+                $productNames = "{$productsText} العدد الإجمالي {$totalQuantity} المبلغ الكلي مع التوصيل {$totalPrice}";
+            } else {
                 $productNames = 'ملابس'; // قيمة افتراضية
             }
 
             // تنسيق رقم الهاتف
             $phone = $this->formatPhoneForAlWaseet($order->customer_phone);
             $phone2 = $order->customer_phone2 ? $this->formatPhoneForAlWaseet($order->customer_phone2) : null;
-
-            // حساب السعر الكلي
-            $deliveryFee = Setting::getDeliveryFee();
-            $totalPrice = $order->total_amount + $deliveryFee;
 
             // جلب ملاحظة التاجر من الإعدادات
             $merchantNotes = Setting::getValue('alwaseet_merchant_notes', '');
