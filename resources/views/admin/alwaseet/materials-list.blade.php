@@ -100,19 +100,11 @@
                         if ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id) && trim((string)$shipment->qr_id) !== '') {
                             $alwaseetCode = (string)$shipment->qr_id;
                         }
-                        // الأولوية الثانية: delivery_code من Order (فقط إذا كان يطابق qr_id من shipment)
-                        elseif ($order->delivery_code && $shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
-                            // استخدام delivery_code فقط إذا كان متطابقاً مع qr_id
-                            if ($order->delivery_code == (string)$shipment->qr_id) {
-                                $alwaseetCode = $order->delivery_code;
-                            }
+                        // الأولوية الثانية: delivery_code من Order (إذا كان موجوداً) - أولوية عالية
+                        elseif ($order->delivery_code && !empty(trim($order->delivery_code))) {
+                            $alwaseetCode = (string)$order->delivery_code;
                         }
-                        // الأولوية الثالثة: delivery_code من Order (إذا لم يكن shipment موجوداً أو qr_id فارغ)
-                        elseif ($order->delivery_code && (!$shipment || empty($shipment->qr_id))) {
-                            // فقط إذا لم يكن shipment موجوداً أو qr_id فارغ
-                            $alwaseetCode = $order->delivery_code;
-                        }
-                        // الأولوية الرابعة: alwaseet_order_id من shipment (كحل أخير)
+                        // الأولوية الثالثة: alwaseet_order_id من shipment (كحل أخير فقط)
                         elseif ($shipment && isset($shipment->alwaseet_order_id) && !empty($shipment->alwaseet_order_id)) {
                             $alwaseetCode = (string)$shipment->alwaseet_order_id;
                         }

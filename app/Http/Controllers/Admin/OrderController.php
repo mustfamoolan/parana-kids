@@ -1153,8 +1153,22 @@ class OrderController extends Controller
                             ->withErrors(['order' => 'لا يمكن تجهيز الطلبات المقيدة']);
         }
 
-        // تحميل العلاقات
-        $order->load(['items.product.primaryImage', 'items.size', 'delegate']);
+        // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
+        // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
+
+            if (!$hasAccessibleItem) {
+                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
+            }
+        }
+
+        // تحميل العلاقات - عرض جميع items بدون فلترة
+        // (إذا كان المجهز لديه صلاحية على مخزن واحد على الأقل، يعرض جميع items)
+        $order->load(['items.product.primaryImage', 'items.product.warehouse', 'items.size', 'delegate']);
 
         // جلب المنتجات المتوفرة للمخازن التي يمكن للمستخدم الوصول إليها
         $warehouses = $this->getAccessibleWarehouses();
@@ -1354,6 +1368,21 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'لا يمكن تعديل هذا الطلب (مر أكثر من 5 ساعات على التقييد)']);
         }
 
+        // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
+        // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
+
+            if (!$hasAccessibleItem) {
+                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
+            }
+        }
+
+        // تحميل العلاقات - عرض جميع items بدون فلترة
+        // (إذا كان المجهز لديه صلاحية على مخزن واحد على الأقل، يعرض جميع items)
         $order->load([
             'delegate',
             'items.product.primaryImage',

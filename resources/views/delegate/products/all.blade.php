@@ -64,7 +64,24 @@
             <h1 class="text-2xl font-bold mb-4 text-center">المنتجات</h1>
 
             <!-- الفلاتر -->
-            <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <!-- فلتر المخزن -->
+                <div>
+                    <label for="warehouse_filter" class="block text-sm font-medium mb-2">المخزن</label>
+                    <select
+                        id="warehouse_filter"
+                        class="form-select"
+                        onchange="applyFilters()"
+                    >
+                        <option value="">كل المخازن</option>
+                        @foreach($warehouses as $warehouse)
+                            <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
+                                {{ $warehouse->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <!-- فلتر النوع -->
                 <div>
                     <label for="gender_type_filter" class="block text-sm font-medium mb-2">النوع</label>
@@ -530,10 +547,11 @@
             if (loading) return;
             loading = true;
 
+            const warehouseFilter = document.getElementById('warehouse_filter')?.value || '';
             const genderTypeFilter = document.getElementById('gender_type_filter')?.value || '';
             const hasDiscountFilter = document.getElementById('has_discount_filter')?.value || '';
 
-            console.log('Loading products:', { page, search: currentSearch, gender_type: genderTypeFilter, has_discount: hasDiscountFilter, reset });
+            console.log('Loading products:', { page, search: currentSearch, warehouse_id: warehouseFilter, gender_type: genderTypeFilter, has_discount: hasDiscountFilter, reset });
 
             if (reset) {
                 document.getElementById('productsContainer').innerHTML = '';
@@ -544,6 +562,9 @@
             if (loadMoreBtn) loadMoreBtn.disabled = true;
 
             let url = `{{ route('delegate.products.all') }}?page=${page}&search=${encodeURIComponent(currentSearch)}`;
+            if (warehouseFilter) {
+                url += `&warehouse_id=${encodeURIComponent(warehouseFilter)}`;
+            }
             if (genderTypeFilter) {
                 url += `&gender_type=${encodeURIComponent(genderTypeFilter)}`;
             }

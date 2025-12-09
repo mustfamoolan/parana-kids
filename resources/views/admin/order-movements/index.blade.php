@@ -110,7 +110,7 @@
 
                 <div class="flex gap-2">
                     <button type="submit" class="btn btn-primary">بحث</button>
-                    @if(request()->hasAny(['warehouse_id', 'movement_type', 'user_id', 'order_status', 'date_from', 'date_to']))
+                    @if(request()->hasAny(['warehouse_id', 'product_id', 'size_id', 'movement_type', 'user_id', 'order_status', 'date_from', 'date_to', 'time_from', 'time_to']))
                         <a href="{{ route('admin.order-movements.index') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
                     @endif
                 </div>

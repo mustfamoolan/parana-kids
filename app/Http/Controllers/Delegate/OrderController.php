@@ -397,6 +397,7 @@ class OrderController extends Controller
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
+            'customer_phone2' => 'nullable|string|max:20',
             'customer_address' => 'required|string',
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
@@ -425,6 +426,7 @@ class OrderController extends Controller
                 $order->update($request->only([
                     'customer_name',
                     'customer_phone',
+                    'customer_phone2',
                     'customer_address',
                     'customer_social_link',
                     'notes',

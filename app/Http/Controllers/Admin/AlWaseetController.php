@@ -947,7 +947,7 @@ class AlWaseetController extends Controller
     }
 
     /**
-     * API: جلب المناطق حسب المدينة (للاستخدام في AJAX)
+     * API: جلب المناطق حسب المدينة (للاستخدام في AJAX) مع Cache
      */
     public function getRegions(Request $request)
     {
@@ -956,7 +956,12 @@ class AlWaseetController extends Controller
         ]);
 
         try {
-            $regions = $this->alWaseetService->getRegions($request->city_id);
+            // استخدام Cache للمناطق (24 ساعة)
+            $cacheKey = 'alwaseet_regions_' . $request->city_id;
+            $regions = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(24), function () use ($request) {
+                return $this->alWaseetService->getRegions($request->city_id);
+            });
+
             return response()->json(['regions' => $regions]);
         } catch (\Exception $e) {
             Log::error('AlWaseetController: Get regions failed', [
@@ -1539,18 +1544,32 @@ class AlWaseetController extends Controller
         $query = Order::where('status', 'pending');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // استخدام whereIn بدلاً من whereHas لتحسين الأداء بشكل جذري (10-100 مرة أسرع)
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+            if (!empty($accessibleWarehouseIds)) {
+                $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                    $subQuery->select('order_id')
+                        ->from('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                        ->distinct();
+                });
+            } else {
+                // إذا لم يكن لديه مخازن، لا توجد طلبات
+                $query->whereRaw('1 = 0');
+            }
         }
 
-        // فلتر المخزن
+        // فلتر المخزن - استخدام whereIn بدلاً من whereHas لتحسين الأداء
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
-                $q->where('warehouse_id', $request->warehouse_id);
+            $query->whereIn('id', function($subQuery) use ($request) {
+                $subQuery->select('order_id')
+                    ->from('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->where('products.warehouse_id', $request->warehouse_id)
+                    ->distinct();
             });
         }
 
@@ -1662,17 +1681,25 @@ class AlWaseetController extends Controller
                 $accessibleWarehouseIdsForTotal = Auth::user()->warehouses->pluck('id')->toArray();
             }
 
-            // دالة مساعدة لتطبيق نفس الفلاتر
+            // دالة مساعدة لتطبيق نفس الفلاتر - استخدام whereIn لتحسين الأداء
             $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
-                if ($accessibleWarehouseIdsForTotal !== null) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
-                        $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
+                if ($accessibleWarehouseIdsForTotal !== null && !empty($accessibleWarehouseIdsForTotal)) {
+                    $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIdsForTotal) {
+                        $subQuery->select('order_id')
+                            ->from('order_items')
+                            ->join('products', 'order_items.product_id', '=', 'products.id')
+                            ->whereIn('products.warehouse_id', $accessibleWarehouseIdsForTotal)
+                            ->distinct();
                     });
                 }
 
                 if ($request->filled('warehouse_id')) {
-                    $query->whereHas('items.product', function($q) use ($request) {
-                        $q->where('warehouse_id', $request->warehouse_id);
+                    $query->whereIn('id', function($subQuery) use ($request) {
+                        $subQuery->select('order_id')
+                            ->from('order_items')
+                            ->join('products', 'order_items.product_id', '=', 'products.id')
+                            ->where('products.warehouse_id', $request->warehouse_id)
+                            ->distinct();
                     });
                 }
 
@@ -1749,32 +1776,62 @@ class AlWaseetController extends Controller
             }
         }
 
-        // جلب المدن من API الواسط
+        // جلب المدن من API الواسط مع Cache (24 ساعة)
         $cities = [];
-        $ordersWithRegions = [];
         try {
-            $cities = $this->alWaseetService->getCities();
-
-            // جلب المناطق لكل طلب لديه city_id
-            foreach ($orders as $order) {
-                if ($order->alwaseet_city_id) {
-                    try {
-                        $regions = $this->alWaseetService->getRegions($order->alwaseet_city_id);
-                        $ordersWithRegions[$order->id] = $regions;
-                    } catch (\Exception $e) {
-                        $ordersWithRegions[$order->id] = [];
-                    }
-                } else {
-                    $ordersWithRegions[$order->id] = [];
-                }
-            }
+            $cities = \Illuminate\Support\Facades\Cache::remember('alwaseet_cities', now()->addHours(24), function () {
+                return $this->alWaseetService->getCities();
+            });
         } catch (\Exception $e) {
             Log::error('AlWaseetController: Failed to load cities in printAndUploadOrders', [
                 'error' => $e->getMessage(),
             ]);
         }
 
-        // جلب حالة الطلبات من API الواسط
+        // لا نحتاج جلب المناطق هنا - سيتم جلبها عند الحاجة فقط (lazy loading)
+        $ordersWithRegions = [];
+
+        // حساب عدد الطلبات المرسلة (التي لديها qr_link)
+        $sentOrdersCount = 0;
+        foreach ($orders as $order) {
+            if ($order->alwaseetShipment && !empty($order->alwaseetShipment->qr_link)) {
+                $sentOrdersCount++;
+            }
+        }
+
+        // حساب عدد الطلبات غير المقيدة (pending) - نفس الفلاتر - استخدام whereIn لتحسين الأداء
+        $pendingCount = 0;
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $pendingCountQuery = Order::where('status', 'pending');
+
+            if (!empty($accessibleWarehouseIds)) {
+                $pendingCountQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                    $subQuery->select('order_id')
+                        ->from('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                        ->distinct();
+                });
+            } else {
+                $pendingCountQuery->whereRaw('1 = 0');
+            }
+        } else {
+            $pendingCountQuery = Order::where('status', 'pending');
+        }
+
+        if ($request->filled('warehouse_id')) {
+            $pendingCountQuery->whereIn('id', function($subQuery) use ($request) {
+                $subQuery->select('order_id')
+                    ->from('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->where('products.warehouse_id', $request->warehouse_id)
+                    ->distinct();
+            });
+        }
+        $pendingCount = $pendingCountQuery->count();
+
+        // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
         $alwaseetOrdersData = [];
         try {
             // جمع alwaseet_order_id من shipments المرتبطة
@@ -1787,7 +1844,11 @@ class AlWaseetController extends Controller
 
             // جلب الطلبات من API إذا كان هناك أي orders
             if (!empty($alwaseetOrderIds)) {
-                $apiOrders = $this->alWaseetService->getOrdersByIds($alwaseetOrderIds);
+                // استخدام Cache لكل مجموعة من order IDs
+                $cacheKey = 'alwaseet_orders_' . md5(implode(',', $alwaseetOrderIds));
+                $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($alwaseetOrderIds) {
+                    return $this->alWaseetService->getOrdersByIds($alwaseetOrderIds);
+                });
 
                 // إنشاء array يربط alwaseet_order_id بالبيانات من API
                 foreach ($apiOrders as $apiOrder) {
@@ -1803,7 +1864,7 @@ class AlWaseetController extends Controller
             // في حالة الفشل، سنستخدم قاعدة البيانات المحلية كـ fallback
         }
 
-        return view('admin.alwaseet.print-and-upload-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'pendingTotalAmount', 'confirmedTotalAmount', 'pendingProfitAmount', 'confirmedProfitAmount', 'cities', 'ordersWithRegions', 'alwaseetOrdersData'));
+        return view('admin.alwaseet.print-and-upload-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'pendingTotalAmount', 'confirmedTotalAmount', 'pendingProfitAmount', 'confirmedProfitAmount', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'sentOrdersCount', 'pendingCount'));
     }
 
     /**
@@ -2529,11 +2590,24 @@ class AlWaseetController extends Controller
             $deliveryFee = Setting::getDeliveryFee();
             $profitMargin = Setting::getProfitMargin();
 
-            // تحديث حالة الطلب
+            // تحديد delivery_code بناءً على الأولوية: qr_id من shipment أولاً، ثم delivery_code الحالي
+            $deliveryCode = $order->delivery_code;
+            $shipment = $order->alwaseetShipment;
+
+            if ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id) && trim((string)$shipment->qr_id) !== '') {
+                // استخدام qr_id من shipment كـ delivery_code (الأولوية الأولى)
+                $deliveryCode = (string)$shipment->qr_id;
+            } elseif (!$deliveryCode && $shipment && isset($shipment->alwaseet_order_id) && !empty($shipment->alwaseet_order_id)) {
+                // إذا لم يكن delivery_code موجوداً، استخدم alwaseet_order_id كحل أخير
+                $deliveryCode = (string)$shipment->alwaseet_order_id;
+            }
+
+            // تحديث حالة الطلب مع حفظ delivery_code
             $order->update([
                 'status' => 'confirmed',
                 'confirmed_at' => now(),
                 'confirmed_by' => auth()->id(),
+                'delivery_code' => $deliveryCode,
                 'delivery_fee_at_confirmation' => $deliveryFee,
                 'profit_margin_at_confirmation' => $profitMargin,
             ]);

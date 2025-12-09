@@ -229,17 +229,18 @@ class ProductMovementController extends Controller
 
         // فلتر حسب نوع الحركة
         if ($request->filled('movement_type')) {
-            $query->byMovementType($request->movement_type);
+            $movementType = $request->movement_type;
+            // معالجة خاصة للبيع - يشمل 'sale' و 'sell' لأن كليهما يستخدم في النظام
+            if ($movementType === 'sale') {
+                $query->whereIn('movement_type', ['sale', 'sell']);
+            } else {
+                $query->byMovementType($movementType);
+            }
         }
 
         // فلتر حسب المستخدم
         if ($request->filled('user_id')) {
             $query->byUser($request->user_id);
-        }
-
-        // فلتر حسب حالة الطلب
-        if ($request->filled('order_status')) {
-            $query->byOrderStatus($request->order_status);
         }
 
         // فلتر حسب نوع المصدر
@@ -289,22 +290,12 @@ class ProductMovementController extends Controller
             $warehouses = auth()->user()->warehouses;
         }
         $users = User::all();
+        // أنواع الحركات - فقط حركات المادة التي لدينا
         $movementTypes = [
             'add' => 'إضافة',
             'sale' => 'بيع',
             'confirm' => 'تقييد',
-            'cancel' => 'إلغاء',
-            'return' => 'استرجاع',
             'delete' => 'حذف',
-            'restore' => 'استرجاع من الحذف',
-        ];
-
-        $orderStatuses = [
-            'pending' => 'غير مقيد',
-            'confirmed' => 'مقيد',
-            'cancelled' => 'ملغي',
-            'returned' => 'مسترجعة',
-            'exchanged' => 'مستبدلة',
         ];
 
         $sourceTypes = [
@@ -340,7 +331,6 @@ class ProductMovementController extends Controller
             'sizes',
             'users',
             'movementTypes',
-            'orderStatuses',
             'sourceTypes',
             'stats'
         ));

@@ -19,12 +19,33 @@ class ProductController extends Controller
         // الحصول على معرفات المخازن المصرح بها للمندوب
         $warehouseIds = Auth::user()->warehouses()->pluck('warehouse_id');
 
+        // جلب قائمة المخازن المتاحة للمندوب
+        $warehouses = Auth::user()->warehouses()->orderBy('name')->get();
+
         // بناء الاستعلام الأساسي (استبعاد المنتجات المحجوبة)
         $query = Product::whereIn('warehouse_id', $warehouseIds)
                         ->where('is_hidden', false)
                         ->with(['primaryImage', 'images', 'sizes.reservations', 'warehouse.activePromotion']);
 
+        // إخفاء المنتجات التي جميع قياساتها صفر (لا يوجد مواد متوفرة)
+        $query->whereHas('sizes', function($q) {
+            $q->whereRaw('quantity > (
+                SELECT COALESCE(SUM(quantity_reserved), 0)
+                FROM stock_reservations
+                WHERE product_size_id = product_sizes.id
+            )');
+        });
+
         $searchedSize = null; // لتمرير القياس المبحوث للـ view
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $warehouseId = $request->warehouse_id;
+            // التحقق من أن المندوب لديه صلاحية الوصول لهذا المخزن
+            if (in_array($warehouseId, $warehouseIds->toArray())) {
+                $query->where('warehouse_id', $warehouseId);
+            }
+        }
 
         // فلتر النوع
         if ($request->filled('gender_type')) {
@@ -166,7 +187,7 @@ class ProductController extends Controller
             ]);
         }
 
-        return view('delegate.products.all', compact('products', 'searchedSize', 'activeCart', 'customerData'));
+        return view('delegate.products.all', compact('products', 'searchedSize', 'activeCart', 'customerData', 'warehouses'));
     }
 
     /**

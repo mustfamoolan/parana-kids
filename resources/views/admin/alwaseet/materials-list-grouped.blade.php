@@ -4,7 +4,10 @@
             <h5 class="text-lg font-semibold dark:text-white-light">قائمة المواد المطلوبة (مرتبة حسب الكود)</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 @php
-                    $backRoute = 'admin.alwaseet.print-and-upload-orders';
+                    // Route للعودة من زر العودة في أعلى الصفحة (يعود إلى print-and-upload-orders)
+                    $backRouteForButton = 'admin.alwaseet.print-and-upload-orders';
+                    // Route للعودة من صفحة التعديل (يعود إلى materials-list-grouped)
+                    $backRouteForEdit = 'admin.alwaseet.materials-list-grouped';
                     $backParams = array_filter([
                         'warehouse_id' => request('warehouse_id'),
                         'search' => request('search'),
@@ -20,7 +23,7 @@
                         'alwaseet_complete' => request('alwaseet_complete'),
                     ]);
                 @endphp
-                <a href="{{ route($backRoute, $backParams) }}" class="btn btn-outline-secondary">
+                <a href="{{ route($backRouteForButton, $backParams) }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -136,7 +139,7 @@
                                         <span class="text-xs text-gray-500 dark:text-gray-400">الطلبات:</span>
                                         <div class="text-left">
                                             @foreach(array_slice($material['orders'], 0, 3) as $order)
-                                                <a href="{{ route('admin.orders.edit', $order['order_id']) }}?back_route={{ $backRoute }}&back_params={{ urlencode(json_encode($backParams)) }}"
+                                                <a href="{{ route('admin.orders.edit', $order['order_id']) }}?back_route={{ $backRouteForEdit }}&back_params={{ urlencode(json_encode($backParams)) }}"
                                                    class="block text-xs text-primary hover:underline mb-1"
                                                    title="تعديل الطلب">
                                                     {{ $order['order_number'] }} ({{ $order['quantity'] }})
@@ -161,7 +164,7 @@
                 </svg>
                 <h6 class="text-lg font-semibold dark:text-white-light mb-2">لا توجد مواد مطلوبة</h6>
                 <p class="text-gray-500 dark:text-gray-400 mb-4">لا توجد طلبات غير مقيدة حالياً</p>
-                <a href="{{ route($backRoute, $backParams) }}" class="btn btn-primary">
+                <a href="{{ route($backRouteForButton, $backParams) }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>

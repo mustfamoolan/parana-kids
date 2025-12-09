@@ -3,16 +3,6 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">رفع وطباع طلبات الوسيط</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                @php
-                    // حساب عدد الطلبات المرسلة (التي لديها qr_link)
-                    $sentOrdersCount = 0;
-                    foreach ($orders as $order) {
-                        $shipment = $order->alwaseetShipment;
-                        if ($shipment && !empty($shipment->qr_link)) {
-                            $sentOrdersCount++;
-                        }
-                    }
-                @endphp
                 @if($sentOrdersCount > 0)
                     <button
                         type="button"
@@ -73,22 +63,6 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الطلبات غير المقيدة</h6>
-                            @php
-                                $pendingQuery = App\Models\Order::where('status', 'pending');
-                                if (Auth::user()->isSupplier()) {
-                                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                                    $pendingQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                                    });
-                                }
-                                // فلتر المخزن
-                                if (request()->filled('warehouse_id')) {
-                                    $pendingQuery->whereHas('items.product', function($q) {
-                                        $q->where('warehouse_id', request('warehouse_id'));
-                                    });
-                                }
-                                $pendingCount = $pendingQuery->count();
-                            @endphp
                             <p class="text-xl font-bold text-warning">{{ $pendingCount }}</p>
                         </div>
                         <div class="p-2 bg-warning/10 rounded-lg">
@@ -465,8 +439,9 @@
                                     $selectedCity = collect($cities)->firstWhere('id', $order->alwaseet_city_id);
                                     $cityName = $selectedCity['city_name'] ?? '';
                                 }
-                                if ($order->alwaseet_region_id && isset($ordersWithRegions[$order->id])) {
-                                    $selectedRegion = collect($ordersWithRegions[$order->id])->firstWhere('id', $order->alwaseet_region_id);
+                                if ($order->alwaseet_region_id) {
+                                    // سيتم جلب المناطق عند الحاجة فقط (lazy loading)
+                                    $selectedRegion = null;
                                     $regionName = $selectedRegion['region_name'] ?? '';
                                 }
 
@@ -826,7 +801,7 @@
                                         <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                                         </svg>
-                                        إرسال للواسط
+                                        إرسال للوسيط
                                     </button>
 
                                     <!-- modal تأكيد الإرسال -->
@@ -841,9 +816,9 @@
                                                     </span>
                                                 </div>
                                                 <div class="p-5">
-                                                    <h3 class="text-lg font-semibold text-center dark:text-white-light mb-2">تأكيد الإرسال للواسط</h3>
+                                                    <h3 class="text-lg font-semibold text-center dark:text-white-light mb-2">تأكيد الإرسال للوسيط</h3>
                                                     <div class="py-5 text-white-dark text-center">
-                                                        <p class="mb-3">هل أنت متأكد من إرسال الطلب رقم <span class="font-bold" style="color: #9333ea !important;">{{ $order->order_number }}</span> للواسط؟</p>
+                                                        <p class="mb-3">هل أنت متأكد من إرسال الطلب رقم <span class="font-bold" style="color: #9333ea !important;">{{ $order->order_number }}</span> للوسيط؟</p>
                                                     </div>
                                                     <div class="flex justify-end items-center mt-8">
                                                         <button type="button" class="btn btn-outline-secondary" @click="openSendModal = false">إلغاء</button>

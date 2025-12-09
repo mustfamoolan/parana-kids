@@ -72,18 +72,6 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="form-label">حالة الطلب</label>
-                    <select name="order_status" class="form-select">
-                        <option value="">جميع الحالات</option>
-                        @foreach($orderStatuses as $key => $name)
-                            <option value="{{ $key }}" {{ request('order_status') == $key ? 'selected' : '' }}>
-                                {{ $name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
                 <div class="col-span-full border-t pt-4">
                     <h6 class="font-semibold mb-3 text-lg">التاريخ والوقت</h6>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -108,9 +96,12 @@
 
                 <div class="col-span-full flex gap-2">
                     <button type="submit" class="btn btn-primary">بحث</button>
-                    @if(request()->hasAny(['warehouse_id', 'size_id', 'movement_type', 'source_type', 'user_id', 'order_status', 'date_from', 'date_to', 'time_from', 'time_to', 'product_search']))
-                        <a href="{{ route('admin.product-movements.index') }}" class="btn btn-outline-secondary">مسح الفلاتر</a>
-                    @endif
+                    <a href="{{ route('admin.product-movements.index') }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        مسح الفلاتر
+                    </a>
                 </div>
             </form>
         </div>
@@ -232,4 +223,41 @@
             </div>
         @endif
     </div>
+
+    <script>
+        // معالجة زر مسح الفلتر - مسح جميع الفلاتر
+        document.addEventListener('DOMContentLoaded', function() {
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            if (clearFiltersBtn) {
+                clearFiltersBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    // قائمة جميع حقول الفلاتر
+                    const filterFields = [
+                        'warehouse_id',
+                        'product_search',
+                        'size_id',
+                        'movement_type',
+                        'source_type',
+                        'user_id',
+                        'date_from',
+                        'date_to',
+                        'time_from',
+                        'time_to'
+                    ];
+
+                    // مسح جميع الحقول
+                    filterFields.forEach(fieldName => {
+                        const field = document.querySelector(`[name="${fieldName}"]`);
+                        if (field) {
+                            field.value = '';
+                        }
+                    });
+
+                    // الانتقال إلى الصفحة بدون parameters
+                    window.location.href = '{{ route('admin.product-movements.index') }}';
+                });
+            }
+        });
+    </script>
 </x-layout.admin>
