@@ -271,7 +271,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="btn btn-outline-secondary">
+                            <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                 </svg>
@@ -885,7 +885,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
                                 urlParams.has('delegate_id') || urlParams.has('size_reviewed') || urlParams.has('message_confirmed') ||
-                                urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to');
+                                urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') ||
+                                urlParams.has('alwaseet_sent') || urlParams.has('alwaseet_complete');
 
             // قائمة الفلاتر مع مفاتيح localStorage
             const filters = [
@@ -895,6 +896,8 @@
                 { id: 'delegateIdFilterPending', key: 'selectedDelegateId_alwaseet_print_upload', param: 'delegate_id' },
                 { id: 'sizeReviewedFilterPending', key: 'selectedSizeReviewed_alwaseet_print_upload', param: 'size_reviewed' },
                 { id: 'messageConfirmedFilterPending', key: 'selectedMessageConfirmed_alwaseet_print_upload', param: 'message_confirmed' },
+                { id: 'alwaseetSentFilter', key: 'selectedAlwaseetSent_alwaseet_print_upload', param: 'alwaseet_sent' },
+                { id: 'alwaseetCompleteFilter', key: 'selectedAlwaseetComplete_alwaseet_print_upload', param: 'alwaseet_complete' },
                 { id: 'dateFromFilterPending', key: 'selectedDateFrom_alwaseet_print_upload', param: 'date_from' },
                 { id: 'dateToFilterPending', key: 'selectedDateTo_alwaseet_print_upload', param: 'date_to' },
                 { id: 'timeFromFilterPending', key: 'selectedTimeFrom_alwaseet_print_upload', param: 'time_from' },
@@ -945,15 +948,25 @@
                 }
             }
 
-            // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage
+            // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage ومسح القيم من الحقول
             const clearFiltersBtn = document.getElementById('clearFiltersBtn');
             if (clearFiltersBtn) {
                 clearFiltersBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+
                     // حذف جميع الفلاتر من localStorage
                     filters.forEach(filter => {
                         localStorage.removeItem(filter.key);
+
+                        // مسح القيمة من الحقل مباشرة
+                        const element = document.getElementById(filter.id);
+                        if (element) {
+                            element.value = '';
+                        }
                     });
-                    // السماح بالانتقال الطبيعي للرابط
+
+                    // الانتقال إلى الصفحة بدون parameters
+                    window.location.href = '{{ route('admin.alwaseet.print-and-upload-orders') }}';
                 });
             }
         });
