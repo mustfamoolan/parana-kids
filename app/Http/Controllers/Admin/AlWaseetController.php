@@ -804,8 +804,21 @@ class AlWaseetController extends Controller
                 $orderData['replacement'] = $request->replacement ? '1' : '0';
             }
 
+            // تحديد qr_id للتعديل - الأولوية: qr_id من shipment، ثم delivery_code من order
+            $qrId = $shipment->qr_id;
+            if (empty($qrId) && $shipment->order && $shipment->order->delivery_code) {
+                $qrId = $shipment->order->delivery_code;
+            }
+            if (empty($qrId)) {
+                $qrId = $shipment->alwaseet_order_id; // كحل أخير
+            }
+
+            if (empty($qrId)) {
+                throw new \Exception('لا يمكن تعديل الطلب: لا يوجد رقم طلب صالح');
+            }
+
             // تحديث الطلب في الواسط
-            $this->alWaseetService->editOrder($shipment->alwaseet_order_id, $orderData);
+            $this->alWaseetService->editOrder($qrId, $orderData);
 
             // جلب بيانات الطلب المحدثة
             $orders = $this->alWaseetService->getOrdersByIds([$shipment->alwaseet_order_id]);
@@ -874,6 +887,228 @@ class AlWaseetController extends Controller
             }
 
             return back()->withErrors(['order' => $errorMessage])->withInput();
+        }
+    }
+
+    /**
+     * عرض صفحة تعديل طلب من materials-list
+     */
+    public function editOrderFromMaterialsList(Request $request, Order $order)
+    {
+        $this->authorize('update', $order);
+
+        // التحقق من وجود shipment
+        $shipment = $order->alwaseetShipment;
+        if (!$shipment) {
+            return redirect()->route('admin.alwaseet.materials-list', $request->only([
+                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+                'alwaseet_sent', 'alwaseet_complete'
+            ]))->withErrors(['error' => 'لا يوجد طلب مرتبط بالوسيط']);
+        }
+
+        // التحقق من إمكانية التعديل
+        if (!$shipment->canBeEdited()) {
+            return redirect()->route('admin.alwaseet.materials-list', $request->only([
+                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+                'alwaseet_sent', 'alwaseet_complete'
+            ]))->withErrors(['error' => 'لا يمكن تعديل هذا الطلب لأنه تم استلامه من قبل المندوب']);
+        }
+
+        try {
+            $cities = $this->alWaseetService->getCities();
+            $regions = $this->alWaseetService->getRegions($shipment->city_id);
+            $packageSizes = $this->alWaseetService->getPackageSizes();
+        } catch (\Exception $e) {
+            $cities = [];
+            $regions = [];
+            $packageSizes = [];
+            Log::error('AlWaseetController: Failed to load form data', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // حفظ معاملات العودة
+        $backParams = $request->only([
+            'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+            'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+            'alwaseet_sent', 'alwaseet_complete'
+        ]);
+
+        return view('admin.alwaseet.edit-from-materials-list', compact('order', 'shipment', 'cities', 'regions', 'packageSizes', 'backParams'));
+    }
+
+    /**
+     * تحديث طلب من materials-list
+     */
+    public function updateOrderFromMaterialsList(Request $request, Order $order)
+    {
+        $this->authorize('update', $order);
+
+        // التحقق من وجود shipment
+        $shipment = $order->alwaseetShipment;
+        if (!$shipment) {
+            return redirect()->route('admin.alwaseet.materials-list', $request->only([
+                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+                'alwaseet_sent', 'alwaseet_complete'
+            ]))->withErrors(['error' => 'لا يوجد طلب مرتبط بالوسيط']);
+        }
+
+        if (!$shipment->canBeEdited()) {
+            return redirect()->route('admin.alwaseet.materials-list', $request->only([
+                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+                'alwaseet_sent', 'alwaseet_complete'
+            ]))->withErrors(['error' => 'لا يمكن تعديل هذا الطلب لأنه تم استلامه من قبل المندوب']);
+        }
+
+        $request->validate([
+            'client_name' => 'required|string|max:255',
+            'client_mobile' => 'required|string|regex:/^\+964[0-9]{9,10}$/',
+            'client_mobile2' => 'nullable|string|regex:/^\+964[0-9]{9,10}$/',
+            'city_id' => 'required|string',
+            'region_id' => 'required|string',
+            'location' => 'required|string',
+            'price' => 'required|numeric|min:0',
+            'package_size' => 'required|string',
+            'type_name' => 'required|string|max:255',
+            'items_number' => 'nullable|integer|min:1',
+            'merchant_notes' => 'nullable|string',
+            'replacement' => 'nullable|boolean',
+        ]);
+
+        try {
+            // إعداد البيانات للتحديث
+            $orderData = [
+                'client_name' => $request->client_name,
+                'client_mobile' => $request->client_mobile,
+                'city_id' => $request->city_id,
+                'region_id' => $request->region_id,
+                'location' => $request->location,
+                'price' => (string)$request->price,
+                'package_size' => $request->package_size,
+                'type_name' => $request->type_name,
+                'items_number' => (string)($request->items_number ?? '1'),
+            ];
+
+            if ($request->filled('client_mobile2')) {
+                $orderData['client_mobile2'] = $request->client_mobile2;
+            }
+
+            if ($request->filled('merchant_notes')) {
+                $orderData['merchant_notes'] = $request->merchant_notes;
+            }
+
+            if ($request->has('replacement')) {
+                $orderData['replacement'] = $request->replacement ? '1' : '0';
+            }
+
+            // تحديد qr_id للتعديل
+            $qrId = $shipment->qr_id;
+            if (empty($qrId) && $order->delivery_code) {
+                $qrId = $order->delivery_code;
+            }
+            if (empty($qrId)) {
+                $qrId = $shipment->alwaseet_order_id;
+            }
+
+            if (empty($qrId)) {
+                throw new \Exception('لا يمكن تعديل الطلب: لا يوجد رقم طلب صالح');
+            }
+
+            // تحديث الطلب في الواسط
+            $this->alWaseetService->editOrder($qrId, $orderData);
+
+            // جلب بيانات الطلب المحدثة
+            $orders = $this->alWaseetService->getOrdersByIds([$shipment->alwaseet_order_id]);
+
+            if (!empty($orders)) {
+                $orderDataFromApi = $orders[0];
+
+                // تحديث shipment
+                $shipment->update([
+                    'client_name' => $orderDataFromApi['client_name'] ?? $request->client_name,
+                    'client_mobile' => $orderDataFromApi['client_mobile'] ?? $request->client_mobile,
+                    'client_mobile2' => $orderDataFromApi['client_mobile2'] ?? $request->client_mobile2,
+                    'city_id' => $orderDataFromApi['city_id'] ?? $request->city_id,
+                    'city_name' => $orderDataFromApi['city_name'] ?? '',
+                    'region_id' => $orderDataFromApi['region_id'] ?? $request->region_id,
+                    'region_name' => $orderDataFromApi['region_name'] ?? '',
+                    'location' => $orderDataFromApi['location'] ?? $request->location,
+                    'price' => $orderDataFromApi['price'] ?? $request->price,
+                    'delivery_price' => $orderDataFromApi['delivery_price'] ?? $shipment->delivery_price,
+                    'package_size' => $orderDataFromApi['package_size'] ?? $request->package_size,
+                    'type_name' => $orderDataFromApi['type_name'] ?? $request->type_name,
+                    'status_id' => $orderDataFromApi['status_id'] ?? $shipment->status_id,
+                    'status' => $orderDataFromApi['status'] ?? $shipment->status,
+                    'merchant_notes' => $orderDataFromApi['merchant_notes'] ?? $request->merchant_notes,
+                    'replacement' => isset($orderDataFromApi['replacement']) && $orderDataFromApi['replacement'] === '1',
+                    'alwaseet_updated_at' => isset($orderDataFromApi['updated_at']) ? \Carbon\Carbon::parse($orderDataFromApi['updated_at']) : now(),
+                    'synced_at' => now(),
+                ]);
+            } else {
+                // إذا فشل جلب البيانات، نحدث فقط الحقول الأساسية
+                $shipment->update([
+                    'client_name' => $request->client_name,
+                    'client_mobile' => $request->client_mobile,
+                    'client_mobile2' => $request->client_mobile2,
+                    'city_id' => $request->city_id,
+                    'region_id' => $request->region_id,
+                    'location' => $request->location,
+                    'price' => $request->price,
+                    'package_size' => $request->package_size,
+                    'type_name' => $request->type_name,
+                    'merchant_notes' => $request->merchant_notes,
+                    'replacement' => $request->has('replacement') && $request->replacement,
+                    'synced_at' => now(),
+                ]);
+            }
+
+            // تحديث بيانات الطلب المحلية أيضاً
+            $order->update([
+                'customer_name' => $request->client_name,
+                'customer_phone' => $request->client_mobile,
+                'customer_phone2' => $request->client_mobile2,
+                'customer_address' => $request->location,
+                'alwaseet_city_id' => $request->city_id,
+                'alwaseet_region_id' => $request->region_id,
+            ]);
+
+            // معاملات العودة
+            $backParams = array_filter($request->only([
+                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+                'alwaseet_sent', 'alwaseet_complete'
+            ]));
+
+            return redirect()->route('admin.alwaseet.materials-list', $backParams)
+                ->with('success', 'تم تحديث الطلب بنجاح!');
+        } catch (\Exception $e) {
+            Log::error('AlWaseetController: Update order from materials-list failed', [
+                'error' => $e->getMessage(),
+                'order_id' => $order->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $errorMessage = $e->getMessage();
+            if (str_contains($errorMessage, 'صلاحية') || str_contains($errorMessage, 'errNum')) {
+                $errorMessage = 'فشل تحديث الطلب: انتهت صلاحية الاتصال. يرجى المحاولة مرة أخرى أو التحقق من إعدادات الربط.';
+            } elseif (str_contains($errorMessage, '400')) {
+                $errorMessage = 'فشل تحديث الطلب: البيانات المرسلة غير صحيحة. يرجى التحقق من جميع الحقول وإعادة المحاولة.';
+            } else {
+                $errorMessage = 'فشل تحديث الطلب: ' . $errorMessage;
+            }
+
+            $backParams = array_filter($request->only([
+                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
+                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
+                'alwaseet_sent', 'alwaseet_complete'
+            ]));
+
+            return redirect()->route('admin.alwaseet.materials-list', $backParams)
+                ->withErrors(['order' => $errorMessage])->withInput();
         }
     }
 

@@ -1180,8 +1180,11 @@ class AlWaseetService
 
     /**
      * Edit an existing order
+     * @param string $qrId The QR ID of the order (required in body according to API docs)
+     * @param array $orderData Order data to update
+     * @param bool $retry Whether to retry on token expiration
      */
-    public function editOrder($orderId, array $orderData, $retry = true)
+    public function editOrder($qrId, array $orderData, $retry = true)
     {
         $token = $this->getToken();
 
@@ -1192,7 +1195,11 @@ class AlWaseetService
             // تنظيف الـ token من المسافات فقط (يجب أن يبقى @@ في البداية)
             $token = trim($token);
 
-            $url = "{$this->baseUrl}/edit-order?token=" . $this->encodeTokenForUrl($token) . "&order_id=" . urlencode($orderId);
+            // حسب الدوكمنت: qr_id يجب أن يكون في body وليس في URL
+            $url = "{$this->baseUrl}/edit-order?token=" . $this->encodeTokenForUrl($token);
+
+            // إضافة qr_id إلى body
+            $orderData['qr_id'] = (string)$qrId;
 
             $headers = [
                 'User-Agent' => 'Laravel-AlWaseet-Integration/1.0',
@@ -1228,7 +1235,7 @@ class AlWaseetService
                     // إعادة تسجيل الدخول
                     $this->refreshTokenIfNeeded();
                     // إعادة المحاولة مرة واحدة فقط
-                    return $this->editOrder($orderId, $orderData, false);
+                    return $this->editOrder($qrId, $orderData, false);
                 }
 
                 $errorMsg = $responseData['msg'] ?? 'فشل تعديل الطلب: ' . $response->status();
@@ -1243,7 +1250,7 @@ class AlWaseetService
 
             if ($data['status'] === true) {
                 Log::info('AlWaseetService: Order edited successfully', [
-                    'order_id' => $orderId,
+                    'qr_id' => $qrId,
                 ]);
                 return $data['data'] ?? [];
             }
@@ -1252,7 +1259,7 @@ class AlWaseetService
         } catch (\Exception $e) {
             Log::error('AlWaseetService: Edit order failed', [
                 'error' => $e->getMessage(),
-                'order_id' => $orderId,
+                'qr_id' => $qrId,
                 'order_data' => $orderData,
             ]);
             throw $e;

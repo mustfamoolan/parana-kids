@@ -97,6 +97,8 @@ Route::prefix('admin')->group(function () {
             Route::get('/materials-list', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getMaterialsListForPrintUpload'])->name('materials-list');
             Route::get('/materials-list-grouped', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getMaterialsListGroupedForPrintUpload'])->name('materials-list-grouped');
             Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Admin\AlWaseetController::class, 'confirmOrder'])->name('orders.confirm');
+            Route::get('/materials-list/orders/{order}/edit', [\App\Http\Controllers\Admin\AlWaseetController::class, 'editOrderFromMaterialsList'])->name('materials-list.orders.edit');
+            Route::post('/materials-list/orders/{order}/update', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrderFromMaterialsList'])->name('materials-list.orders.update');
             Route::post('/print-all-orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'printAllOrders'])->name('print-all-orders');
             Route::post('/orders/{id}/update-alwaseet-fields', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrderAlwaseetFields'])->name('orders.update-alwaseet-fields');
             Route::post('/orders/{id}/update-delivery-time-note', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateDeliveryTimeNote'])->name('orders.update-delivery-time-note');
@@ -242,6 +244,10 @@ Route::prefix('admin')->group(function () {
         Route::post('orders/{order}/process', [AdminOrderController::class, 'processOrder'])->name('admin.orders.process.submit');
         Route::post('orders/{order}/confirm', [AdminOrderController::class, 'confirm'])->name('admin.orders.confirm');
         Route::put('orders/{order}/review-status', [AdminOrderController::class, 'updateReviewStatus'])->name('admin.orders.review-status.update');
+
+        // تعديل منتج من صفحة تجهيز الطلب
+        Route::get('orders/products/{product}/edit-data', [AdminOrderController::class, 'getProductEditData'])->name('admin.orders.products.edit-data');
+        Route::put('orders/products/{product}/update-sizes', [AdminOrderController::class, 'updateProductSizes'])->name('admin.orders.products.update-sizes');
 
 
         // تعديل الطلب المقيد

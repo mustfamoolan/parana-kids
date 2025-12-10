@@ -301,11 +301,20 @@
                                     <h6 class="font-semibold text-base dark:text-white-light mb-1" x-text="item.product_name"></h6>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 font-mono mb-2" x-text="item.product_code"></p>
                                 </div>
-                                <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700 flex-shrink-0" title="حذف">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                    </svg>
-                                </button>
+                                <div class="flex flex-col gap-2 flex-shrink-0">
+                                    @if(auth()->user()->isAdmin() || auth()->user()->isSupplier())
+                                        <button type="button" @click="editProduct(item.product_id)" class="btn btn-sm btn-primary" title="تعديل المنتج">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </button>
+                                    @endif
+                                    <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700" title="حذف">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- التفاصيل -->
@@ -485,6 +494,106 @@
         </div>
     </div>
 
+    <!-- Modal لتعديل المنتج -->
+    <div id="productEditModal" x-data="productEditModal" class="mb-5">
+        <div class="fixed inset-0 bg-[black]/60 z-[999] hidden overflow-y-auto" :class="open && '!block'">
+            <div class="flex items-start justify-center min-h-screen px-4" @click.self="open = false">
+                <div x-show="open" x-transition x-transition.duration.300 class="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-2xl my-8">
+                    <div class="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
+                        <h5 class="font-bold text-lg">تعديل منتج</h5>
+                        <button type="button" class="text-white-dark hover:text-dark" @click="open = false">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-5">
+                        <template x-if="loading">
+                            <div class="text-center py-8">
+                                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <p class="mt-2 text-gray-500">جاري التحميل...</p>
+                            </div>
+                        </template>
+                        <template x-if="!loading && product">
+                            <div class="space-y-4">
+                                <!-- معلومات المنتج -->
+                                <div class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <img :src="product.image_url" :alt="product.name" class="w-20 h-20 object-cover rounded-lg">
+                                    <div>
+                                        <h4 class="font-semibold text-lg dark:text-white-light" x-text="product.name"></h4>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 font-mono" x-text="product.code"></p>
+                                    </div>
+                                </div>
+
+                                <!-- القياسات -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h5 class="font-semibold dark:text-white-light">القياسات والكميات</h5>
+                                        <button type="button" @click="addNewSize()" class="btn btn-sm btn-success">
+                                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                            إضافة قياس
+                                        </button>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <template x-for="(size, index) in sizes" :key="index">
+                                            <div class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                                                <div class="flex-1 grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-sm font-medium dark:text-white-light mb-1">اسم القياس</label>
+                                                        <input
+                                                            type="text"
+                                                            x-model="size.size_name"
+                                                            class="form-input w-full"
+                                                            placeholder="مثال: S, M, L"
+                                                            :readonly="size.id && size.id !== null">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium dark:text-white-light mb-1">الكمية</label>
+                                                        <input
+                                                            type="number"
+                                                            x-model="size.quantity"
+                                                            min="0"
+                                                            class="form-input w-full"
+                                                            placeholder="الكمية">
+                                                    </div>
+                                                </div>
+                                                <button type="button" @click="removeSize(index)" class="btn btn-sm btn-danger flex-shrink-0" title="حذف القياس">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <div class="flex justify-end items-center mt-8">
+                            <button type="button" class="btn btn-outline-secondary" @click="open = false" :disabled="saving">إلغاء</button>
+                            <button type="button" class="btn btn-primary ltr:ml-4 rtl:mr-4" @click="saveProductSizes()" :disabled="saving || loading">
+                                <template x-if="saving">
+                                    <span class="flex items-center">
+                                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        جاري الحفظ...
+                                    </span>
+                                </template>
+                                <template x-if="!saving">
+                                    حفظ
+                                </template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('orderEditForm', () => ({
@@ -509,6 +618,8 @@
                         'product_image' => $item->product->primaryImage ? $item->product->primaryImage->image_url : '/assets/images/no-image.png'
                     ];
                 })) !!},
+
+                orderStatus: '{{ $order->status }}',
 
                 init() {
                     // تحديث الحقول المخفية عند التحميل الأولي
@@ -800,6 +911,222 @@
                 formatPrice(price) {
                     const numPrice = Number(price) || 0;
                     return new Intl.NumberFormat('en-US').format(numPrice) + ' د.ع';
+                },
+
+                // تعديل المنتج
+                editProduct(productId) {
+                    // استخدام window reference أو البحث عن modal
+                    let modalData = window.productEditModalInstance;
+
+                    if (!modalData) {
+                        // محاولة الوصول من خلال Alpine
+                        const modalElement = document.getElementById('productEditModal');
+                        if (modalElement && modalElement._x_dataStack && modalElement._x_dataStack[0]) {
+                            modalData = modalElement._x_dataStack[0];
+                        } else {
+                            // محاولة أخرى
+                            const modalElement2 = document.querySelector('[x-data="productEditModal"]');
+                            if (modalElement2 && modalElement2._x_dataStack && modalElement2._x_dataStack[0]) {
+                                modalData = modalElement2._x_dataStack[0];
+                            }
+                        }
+                    }
+
+                    if (!modalData) {
+                        console.error('Modal not found');
+                        alert('حدث خطأ في فتح نافذة التعديل. يرجى إعادة تحميل الصفحة.');
+                        return;
+                    }
+
+                    // فتح modal
+                    modalData.open = true;
+                    modalData.loading = true;
+                    modalData.product = null;
+                    modalData.sizes = [];
+
+                    // جلب بيانات المنتج
+                    fetch(`{{ route('admin.orders.products.edit-data', ['product' => ':id']) }}`.replace(':id', productId), {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            modalData.product = data.product;
+                            // إنشاء نسخة من القياسات للتعديل
+                            modalData.sizes = data.product.sizes.map(size => ({
+                                id: size.id,
+                                size_name: size.size_name,
+                                quantity: size.quantity
+                            }));
+                        } else {
+                            alert(data.message || 'فشل جلب بيانات المنتج');
+                            modalData.open = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('حدث خطأ أثناء جلب بيانات المنتج');
+                        modalData.open = false;
+                    })
+                    .finally(() => {
+                        modalData.loading = false;
+                    });
+                }
+            }));
+
+            // Alpine.js data للmodal تعديل المنتج
+            Alpine.data('productEditModal', () => ({
+                open: false,
+                loading: false,
+                saving: false,
+                product: null,
+                sizes: [],
+
+                init() {
+                    // تخزين reference للـ modal في window للوصول السهل
+                    window.productEditModalInstance = this;
+                },
+
+                addNewSize() {
+                    this.sizes.push({
+                        id: null,
+                        size_name: '',
+                        quantity: 0
+                    });
+                },
+
+                removeSize(index) {
+                    if (confirm('هل أنت متأكد من حذف هذا القياس؟')) {
+                        this.sizes.splice(index, 1);
+                    }
+                },
+
+                saveProductSizes() {
+                    if (!this.product || !this.sizes || this.sizes.length === 0) {
+                        alert('لا توجد بيانات للحفظ');
+                        return;
+                    }
+
+                    // التحقق من صحة البيانات
+                    const sizeNames = [];
+                    for (let i = 0; i < this.sizes.length; i++) {
+                        const size = this.sizes[i];
+                        if (!size.size_name || size.size_name.trim() === '') {
+                            alert('يرجى إدخال اسم القياس لجميع القياسات');
+                            return;
+                        }
+                        const trimmedName = size.size_name.trim();
+                        if (sizeNames.includes(trimmedName)) {
+                            alert(`اسم القياس "${trimmedName}" مكرر. يرجى استخدام أسماء مختلفة للقياسات`);
+                            return;
+                        }
+                        sizeNames.push(trimmedName);
+                        if (size.quantity === null || size.quantity === undefined || size.quantity < 0) {
+                            alert('يرجى إدخال كمية صحيحة لجميع القياسات');
+                            return;
+                        }
+                    }
+
+                    this.saving = true;
+
+                    const sizesData = this.sizes.map(size => ({
+                        id: size.id || null,
+                        size_name: size.size_name.trim(),
+                        quantity: parseInt(size.quantity) || 0
+                    }));
+
+                    fetch(`{{ route('admin.orders.products.update-sizes', ['product' => ':id']) }}`.replace(':id', this.product.id), {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                        },
+                        body: JSON.stringify({
+                            sizes: sizesData
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // تحديث القياسات في modal بالبيانات الجديدة
+                            if (data.product && data.product.sizes) {
+                                this.sizes = data.product.sizes.map(size => ({
+                                    id: size.id,
+                                    size_name: size.size_name,
+                                    quantity: size.quantity
+                                }));
+                            }
+
+                            // تحديث العرض في الصفحة
+                            this.updateProductInItems(this.product.id, data.product.sizes);
+
+                            // إظهار رسالة نجاح
+                            showCopyNotification('تم تحديث القياسات بنجاح!');
+
+                            // إغلاق modal
+                            this.open = false;
+                        } else {
+                            alert(data.message || 'فشل تحديث القياسات');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('حدث خطأ أثناء حفظ التعديلات');
+                    })
+                    .finally(() => {
+                        this.saving = false;
+                    });
+                },
+
+                updateProductInItems(productId, updatedSizes) {
+                    // الحصول على orderEditForm instance
+                    const formElement = document.querySelector('[x-data="orderEditForm()"]');
+                    if (!formElement || !formElement._x_dataStack || !formElement._x_dataStack[0]) {
+                        console.error('Form not found');
+                        return;
+                    }
+                    const formData = formElement._x_dataStack[0];
+
+                    // تحديث max_quantity لكل item يخص هذا المنتج
+                    formData.items.forEach(item => {
+                        if (item.product_id == productId) {
+                            const updatedSize = updatedSizes.find(s => s.id == item.size_id);
+                            if (updatedSize) {
+                                // للطلبات المقيدة: الكمية المتاحة = الكمية في المخزن + الكمية الحالية في الطلب
+                                if (formData.orderStatus === 'confirmed') {
+                                    item.max_quantity = updatedSize.quantity + item.quantity;
+                                } else {
+                                    item.max_quantity = updatedSize.quantity;
+                                }
+                                // تحديث الكمية إذا كانت أكبر من المتاح
+                                if (item.quantity > item.max_quantity) {
+                                    item.quantity = item.max_quantity;
+                                    item.subtotal = item.quantity * Number(item.unit_price || 0);
+                                }
+                            }
+                        }
+                    });
+
+                    // تحديث products array أيضاً
+                    const product = formData.products.find(p => p.id == productId);
+                    if (product) {
+                        product.sizes.forEach(size => {
+                            const updatedSize = updatedSizes.find(s => s.id == size.id);
+                            if (updatedSize) {
+                                size.available_quantity = updatedSize.quantity;
+                            }
+                        });
+                    }
+
+                    // تحديث الحقول المخفية
+                    if (formData.updateHiddenFields) {
+                        formData.updateHiddenFields();
+                    }
                 }
             }));
         });

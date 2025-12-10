@@ -1324,6 +1324,203 @@ class OrderController extends Controller
     }
 
     /**
+     * جلب بيانات المنتج للتعديل من صفحة تجهيز الطلب
+     */
+    public function getProductEditData(Product $product)
+    {
+        // التحقق من الصلاحيات
+        if (Auth::user()->isAdmin()) {
+            // المدير يمكنه الوصول لجميع المنتجات
+        } elseif (Auth::user()->isSupplier()) {
+            // المجهز: التحقق من أن المنتج في مخزن له صلاحيات عليه
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            if (!in_array($product->warehouse_id, $accessibleWarehouseIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ليس لديك صلاحية للوصول إلى هذا المنتج'
+                ], 403);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بالوصول'
+            ], 403);
+        }
+
+        $product->load(['primaryImage', 'sizes']);
+
+        return response()->json([
+            'success' => true,
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'image_url' => $product->primaryImage ? $product->primaryImage->image_url : '/assets/images/no-image.png',
+                'sizes' => $product->sizes->map(function($size) {
+                    return [
+                        'id' => $size->id,
+                        'size_name' => $size->size_name,
+                        'quantity' => $size->quantity,
+                    ];
+                })->values(),
+            ]
+        ]);
+    }
+
+    /**
+     * تحديث قياسات المنتج من صفحة تجهيز الطلب
+     */
+    public function updateProductSizes(Request $request, Product $product)
+    {
+        // التحقق من الصلاحيات
+        if (Auth::user()->isAdmin()) {
+            // المدير يمكنه تعديل جميع المنتجات
+        } elseif (Auth::user()->isSupplier()) {
+            // المجهز: التحقق من أن المنتج في مخزن له صلاحيات عليه
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            if (!in_array($product->warehouse_id, $accessibleWarehouseIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ليس لديك صلاحية لتعديل هذا المنتج'
+                ], 403);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بالوصول'
+            ], 403);
+        }
+
+        $request->validate([
+            'sizes' => 'required|array|min:1',
+            'sizes.*.id' => 'nullable|exists:product_sizes,id',
+            'sizes.*.size_name' => 'required|string|max:50',
+            'sizes.*.quantity' => 'required|integer|min:0',
+            'sizes.*.to_delete' => 'nullable|boolean',
+        ]);
+
+        try {
+            DB::transaction(function() use ($product, $request) {
+                $productSizeIds = $product->sizes->pluck('id')->toArray();
+                $existingSizes = $product->sizes->keyBy('id');
+                $sizesToKeep = [];
+
+                foreach ($request->sizes as $sizeData) {
+                    // إذا كان القياس محدد للحذف، تخطيه
+                    if (isset($sizeData['to_delete']) && $sizeData['to_delete']) {
+                        if (isset($sizeData['id']) && $sizeData['id']) {
+                            $size = \App\Models\ProductSize::find($sizeData['id']);
+                            if ($size && $size->product_id == $product->id) {
+                                // تسجيل حركة الحذف
+                                \App\Models\ProductMovement::record([
+                                    'product_id' => $product->id,
+                                    'size_id' => $size->id,
+                                    'warehouse_id' => $product->warehouse_id,
+                                    'movement_type' => 'delete',
+                                    'quantity' => -$size->quantity,
+                                    'balance_after' => 0,
+                                    'notes' => "حذف القياس من صفحة تجهيز الطلب - القياس: {$size->size_name} (كان الرصيد: {$size->quantity})",
+                                ]);
+                                $size->delete();
+                            }
+                        }
+                        continue;
+                    }
+
+                    // إضافة القياس إلى القائمة المطلوب الاحتفاظ بها
+                    $sizesToKeep[] = $sizeData;
+
+                    // إذا كان القياس موجود (له id)
+                    if (isset($sizeData['id']) && $sizeData['id'] && in_array($sizeData['id'], $productSizeIds)) {
+                        $size = $existingSizes[$sizeData['id']];
+                        $oldQuantity = $size->quantity;
+                        $size->quantity = $sizeData['quantity'];
+                        $size->save();
+
+                        // تسجيل حركة التعديل
+                        if ($oldQuantity != $sizeData['quantity']) {
+                            \App\Models\ProductMovement::record([
+                                'product_id' => $product->id,
+                                'size_id' => $size->id,
+                                'warehouse_id' => $product->warehouse_id,
+                                'movement_type' => 'adjustment',
+                                'quantity' => $sizeData['quantity'] - $oldQuantity,
+                                'balance_after' => $sizeData['quantity'],
+                                'notes' => "تعديل الكمية من صفحة تجهيز الطلب - من {$oldQuantity} إلى {$sizeData['quantity']}"
+                            ]);
+                        }
+                    } else {
+                        // قياس جديد (لا يوجد id أو id غير موجود)
+                        $newSize = \App\Models\ProductSize::create([
+                            'product_id' => $product->id,
+                            'size_name' => $sizeData['size_name'],
+                            'quantity' => $sizeData['quantity'],
+                        ]);
+
+                        // تسجيل حركة الإضافة
+                        \App\Models\ProductMovement::record([
+                            'product_id' => $product->id,
+                            'size_id' => $newSize->id,
+                            'warehouse_id' => $product->warehouse_id,
+                            'movement_type' => 'increase',
+                            'quantity' => $sizeData['quantity'],
+                            'balance_after' => $sizeData['quantity'],
+                            'notes' => "إضافة قياس جديد من صفحة تجهيز الطلب - القياس: {$sizeData['size_name']} (الكمية: {$sizeData['quantity']})",
+                        ]);
+                    }
+                }
+
+                // حذف القياسات التي لم تعد موجودة في القائمة الجديدة
+                $keptSizeIds = collect($sizesToKeep)->pluck('id')->filter()->toArray();
+                foreach ($existingSizes as $existingSize) {
+                    if (!in_array($existingSize->id, $keptSizeIds)) {
+                        // تسجيل حركة الحذف
+                        \App\Models\ProductMovement::record([
+                            'product_id' => $product->id,
+                            'size_id' => $existingSize->id,
+                            'warehouse_id' => $product->warehouse_id,
+                            'movement_type' => 'delete',
+                            'quantity' => -$existingSize->quantity,
+                            'balance_after' => 0,
+                            'notes' => "حذف القياس من صفحة تجهيز الطلب - القياس: {$existingSize->size_name} (كان الرصيد: {$existingSize->quantity})",
+                        ]);
+                        $existingSize->delete();
+                    }
+                }
+            });
+
+            // جلب البيانات المحدثة
+            $product->load(['sizes']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث القياسات بنجاح',
+                'product' => [
+                    'id' => $product->id,
+                    'sizes' => $product->sizes->map(function($size) {
+                        return [
+                            'id' => $size->id,
+                            'size_name' => $size->size_name,
+                            'quantity' => $size->quantity,
+                        ];
+                    })->values(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('OrderController: Failed to update product sizes', [
+                'error' => $e->getMessage(),
+                'product_id' => $product->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل تحديث القياسات: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Confirm the order.
      */
     public function confirm(Request $request, Order $order)
