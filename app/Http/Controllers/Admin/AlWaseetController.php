@@ -2023,8 +2023,26 @@ class AlWaseetController extends Controller
             ]);
         }
 
-        // لا نحتاج جلب المناطق هنا - سيتم جلبها عند الحاجة فقط (lazy loading)
+        // جلب المناطق للطلبات التي لديها city_id محفوظة (للعرض عند التحميل)
         $ordersWithRegions = [];
+        try {
+            foreach ($orders as $order) {
+                if ($order->alwaseet_city_id) {
+                    try {
+                        $regions = $this->alWaseetService->getRegions($order->alwaseet_city_id);
+                        $ordersWithRegions[$order->id] = $regions;
+                    } catch (\Exception $e) {
+                        $ordersWithRegions[$order->id] = [];
+                    }
+                } else {
+                    $ordersWithRegions[$order->id] = [];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('AlWaseetController: Failed to load regions in printAndUploadOrders', [
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // حساب عدد الطلبات المرسلة (التي لديها qr_link)
         $sentOrdersCount = 0;

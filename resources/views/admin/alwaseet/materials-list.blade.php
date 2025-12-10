@@ -131,7 +131,7 @@
                             <!-- الأزرار -->
                             <div class="flex flex-col gap-2" x-data="{ open: false }">
                                 @can('update', $order)
-                                    @if($order->status === 'pending')
+                                    @if($order->status === 'pending' && $alwaseetCode)
                                         <form method="POST" action="{{ route('admin.alwaseet.orders.confirm', $order) }}" class="w-full" id="confirm-form-{{ $order->id }}">
                                             @csrf
                                             @method('POST')

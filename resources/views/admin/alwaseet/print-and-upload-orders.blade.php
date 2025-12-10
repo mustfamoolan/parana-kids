@@ -440,8 +440,9 @@
                                     $cityName = $selectedCity['city_name'] ?? '';
                                 }
                                 if ($order->alwaseet_region_id) {
-                                    // سيتم جلب المناطق عند الحاجة فقط (lazy loading)
-                                    $selectedRegion = null;
+                                    // جلب اسم المنطقة من المناطق المحملة
+                                    $regions = $ordersWithRegions[$order->id] ?? [];
+                                    $selectedRegion = collect($regions)->firstWhere('id', $order->alwaseet_region_id);
                                     $regionName = $selectedRegion['region_name'] ?? '';
                                 }
 
