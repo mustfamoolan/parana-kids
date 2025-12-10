@@ -291,7 +291,7 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <template x-for="(item, index) in items" :key="index">
-                        <div class="panel">
+                        <div class="panel" :class="item.deleted && 'opacity-60'">
                             <!-- صورة المنتج والاسم -->
                             <div class="flex items-start gap-4 mb-4">
                                 <div class="flex-shrink-0">
@@ -300,17 +300,18 @@
                                 <div class="flex-1">
                                     <h6 class="font-semibold text-base dark:text-white-light mb-1" x-text="item.product_name"></h6>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 font-mono mb-2" x-text="item.product_code"></p>
+                                    <p x-show="item.deleted" class="text-xs text-red-500 font-semibold">تم حذف هذا المنتج</p>
                                 </div>
                                 <div class="flex flex-col gap-2 flex-shrink-0">
                                     @if(auth()->user()->isAdmin() || auth()->user()->isSupplier())
-                                        <button type="button" @click="editProduct(item.product_id)" class="btn btn-sm btn-primary" title="تعديل المنتج">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <button type="button" @click="editProduct(item.product_id)" class="w-20 h-20 flex items-center justify-center btn btn-primary rounded-lg" title="تعديل المنتج">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                             </svg>
                                         </button>
                                     @endif
-                                    <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700" title="حذف">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <button type="button" @click="removeItem(index)" class="w-20 h-20 flex items-center justify-center rounded-lg border-0 shadow-md" :class="item.deleted ? 'bg-gray-400 cursor-not-allowed opacity-50' : 'bg-red-500 hover:bg-red-600 text-white'" :disabled="item.deleted" title="حذف" style="background-color: rgb(239, 68, 68);">
+                                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" style="color: white;">
                                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                                         </svg>
                                     </button>
@@ -318,7 +319,7 @@
                             </div>
 
                             <!-- التفاصيل -->
-                            <div class="space-y-3 border-t pt-3">
+                            <div class="space-y-3 border-t pt-3" x-show="!item.deleted">
                                 <!-- القياس -->
                                 <div>
                                     <label class="form-label text-xs mb-1">القياس</label>
@@ -606,6 +607,7 @@
                     }
 
                     return [
+                        'id' => $item->id,
                         'product_id' => $item->product_id,
                         'size_id' => $item->size_id,
                         'product_name' => $item->product_name,
@@ -615,11 +617,13 @@
                         'unit_price' => $item->unit_price ?? 0,
                         'subtotal' => $item->subtotal ?? ($item->quantity * ($item->unit_price ?? 0)),
                         'max_quantity' => $maxQuantity,
-                        'product_image' => $item->product->primaryImage ? $item->product->primaryImage->image_url : '/assets/images/no-image.png'
+                        'product_image' => $item->product->primaryImage ? $item->product->primaryImage->image_url : '/assets/images/no-image.png',
+                        'deleted' => false
                     ];
                 })) !!},
 
                 orderStatus: '{{ $order->status }}',
+                orderId: {{ $order->id }},
 
                 init() {
                     // تحديث الحقول المخفية عند التحميل الأولي
@@ -650,10 +654,12 @@
                 deliveryCode: '{{ $order->delivery_code ?? '' }}',
 
                 get totalAmount() {
-                    return this.items.reduce((sum, item) => {
-                        const subtotal = Number(item?.subtotal) || 0;
-                        return Number(sum) + subtotal;
-                    }, 0);
+                    return this.items
+                        .filter(item => !item.deleted)
+                        .reduce((sum, item) => {
+                            const subtotal = Number(item?.subtotal) || 0;
+                            return Number(sum) + subtotal;
+                        }, 0);
                 },
 
                 get filteredProducts() {
@@ -735,10 +741,55 @@
                     }
                 },
 
-                removeItem(index) {
-                    if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
-                        this.items.splice(index, 1);
-                        // تحديث الحقول المخفية بعد الحذف
+                async removeItem(index) {
+                    const item = this.items[index];
+
+                    if (item.deleted) {
+                        return; // المنتج محذوف بالفعل
+                    }
+
+                    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟ سيتم إرجاعه للمخزن فوراً.')) {
+                        return;
+                    }
+
+                    // إذا كان المنتج موجود في قاعدة البيانات (له id)، قم بإرجاعه فوراً
+                    if (item.id) {
+                        try {
+                            const csrfToken = document.querySelector('input[name="_token"]')?.value ||
+                                             document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                                             '{{ csrf_token() }}';
+
+                            const response = await fetch(`/admin/orders/${this.orderId}/items/${item.id}/remove`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Accept': 'application/json'
+                                }
+                            });
+
+                            const data = await response.json();
+
+                            if (data.success) {
+                                // تعيين المنتج كمحذوف
+                                item.deleted = true;
+                                // تحديث الحقول المخفية بعد الحذف
+                                this.updateHiddenFields();
+                                // تحديث الإجمالي
+                                this.$nextTick(() => {
+                                    this.updateHiddenFields();
+                                });
+                                alert('تم حذف المنتج وإرجاعه للمخزن بنجاح');
+                            } else {
+                                alert('حدث خطأ: ' + (data.message || 'فشل حذف المنتج'));
+                            }
+                        } catch (error) {
+                            console.error('Error removing item:', error);
+                            alert('حدث خطأ أثناء حذف المنتج');
+                        }
+                    } else {
+                        // منتج جديد لم يُحفظ بعد، فقط قم بتعيينه كمحذوف
+                        item.deleted = true;
                         this.updateHiddenFields();
                     }
                 },
@@ -792,7 +843,8 @@
                         unit_price: parseFloat(this.selectedProduct.selling_price),
                         subtotal: subtotal,
                         max_quantity: size.available_quantity,
-                        product_image: this.selectedProduct.primary_image
+                        product_image: this.selectedProduct.primary_image,
+                        deleted: false
                     });
 
                     alert('تم إضافة المنتج بنجاح! الإجمالي: ' + this.items.length);
@@ -805,14 +857,17 @@
                 },
 
                 async submitOrder() {
-                    if (this.items.length === 0) {
+                    // تصفية العناصر غير المحذوفة
+                    const activeItems = this.items.filter(item => !item.deleted);
+
+                    if (activeItems.length === 0) {
                         alert('يجب إضافة منتج واحد على الأقل');
                         return;
                     }
 
-                    // التحقق من أن جميع العناصر لها البيانات المطلوبة
-                    for (let i = 0; i < this.items.length; i++) {
-                        const item = this.items[i];
+                    // التحقق من أن جميع العناصر النشطة لها البيانات المطلوبة
+                    for (let i = 0; i < activeItems.length; i++) {
+                        const item = activeItems[i];
                         if (!item.product_id || !item.size_id || !item.quantity || item.quantity < 1) {
                             alert(`يرجى التحقق من بيانات المنتج رقم ${i + 1}`);
                             return;
@@ -868,10 +923,12 @@
 
                     container.innerHTML = '';
 
-                    console.log('تحديث الحقول المخفية - عدد العناصر:', this.items.length);
+                    // تصفية العناصر غير المحذوفة
+                    const activeItems = this.items.filter(item => !item.deleted);
+                    console.log('تحديث الحقول المخفية - عدد العناصر النشطة:', activeItems.length);
 
-                    // إنشاء حقول مخفية جديدة لكل عنصر
-                    this.items.forEach((item, index) => {
+                    // إنشاء حقول مخفية جديدة لكل عنصر نشط
+                    activeItems.forEach((item, index) => {
                         if (!item.product_id || !item.size_id || !item.quantity) {
                             console.warn(`تخطي عنصر ${index}: بيانات غير كاملة`, item);
                             return; // تخطي العناصر غير الصحيحة

@@ -1874,6 +1874,57 @@ class OrderController extends Controller
     }
 
     /**
+     * إرجاع منتج واحد من الطلب فوراً (عند الحذف)
+     */
+    public function removeOrderItem(Request $request, Order $order, $itemId)
+    {
+        $this->authorize('update', $order);
+
+        try {
+            $orderItem = $order->items()->findOrFail($itemId);
+
+            DB::transaction(function() use ($order, $orderItem) {
+                // إرجاع المنتج للمخزن
+                if ($orderItem->size) {
+                    $oldQuantity = $orderItem->size->quantity;
+                    $orderItem->size->increment('quantity', $orderItem->quantity);
+
+                    // تسجيل حركة الإرجاع
+                    ProductMovement::record([
+                        'product_id' => $orderItem->product_id,
+                        'size_id' => $orderItem->size_id,
+                        'warehouse_id' => $orderItem->product->warehouse_id,
+                        'order_id' => $order->id,
+                        'movement_type' => 'order_edit_remove',
+                        'quantity' => $orderItem->quantity,
+                        'balance_after' => $orderItem->size->refresh()->quantity,
+                        'order_status' => $order->status,
+                        'notes' => "حذف منتج من طلب #{$order->order_number} - إرجاع منتج: {$orderItem->product_name} ({$orderItem->size_name})"
+                    ]);
+                }
+
+                // حذف العنصر من الطلب
+                $orderItem->delete();
+
+                // تحديث المبلغ الإجمالي
+                $order->refresh();
+                $totalAmount = $order->items()->sum('subtotal');
+                $order->update(['total_amount' => $totalAmount]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف المنتج وإرجاعه للمخزن بنجاح'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف المنتج: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * عرض صفحة الإرجاع
      */
     public function showReturn(Order $order)

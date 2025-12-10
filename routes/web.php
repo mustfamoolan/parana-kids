@@ -253,6 +253,7 @@ Route::prefix('admin')->group(function () {
         // تعديل الطلب المقيد
         Route::get('orders/{order}/edit', [AdminOrderController::class, 'edit'])->name('admin.orders.edit');
         Route::put('orders/{order}', [AdminOrderController::class, 'update'])->name('admin.orders.update');
+        Route::post('orders/{order}/items/{item}/remove', [AdminOrderController::class, 'removeOrderItem'])->name('admin.orders.items.remove');
 
         // إدارة حالات الطلبات
         Route::post('orders/{order}/cancel', [AdminOrderController::class, 'cancel'])->name('admin.orders.cancel');
