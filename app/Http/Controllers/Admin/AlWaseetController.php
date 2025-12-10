@@ -2636,7 +2636,47 @@ class AlWaseetController extends Controller
             return $order->items->count() > 0;
         });
 
+        // إضافة token محدث إلى qr_link لكل shipment
+        foreach ($orders as $order) {
+            if ($order->alwaseetShipment && !empty($order->alwaseetShipment->qr_link)) {
+                $qrLink = trim($order->alwaseetShipment->qr_link);
+                try {
+                    $token = $this->alWaseetService->getToken();
+                    $encodedToken = $this->encodeTokenForUrl($token);
+
+                    // إزالة token القديم إذا كان موجوداً وإضافة token جديد
+                    if (strpos($qrLink, 'token=') !== false) {
+                        // استبدال token القديم
+                        $qrLink = preg_replace('/[?&]token=[^&]*/', '', $qrLink);
+                    }
+
+                    // إضافة token جديد
+                    $separator = strpos($qrLink, '?') !== false ? '&' : '?';
+                    $order->alwaseetShipment->qr_link = $qrLink . $separator . 'token=' . $encodedToken;
+                } catch (\Exception $e) {
+                    Log::warning('AlWaseetController: Failed to add token to qr_link', [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // في حالة الفشل، نترك qr_link كما هو
+                }
+            }
+        }
+
         return view('admin.alwaseet.materials-list', compact('orders'));
+    }
+
+    /**
+     * Helper method to encode token for URL (mirrors AlWaseetService logic)
+     */
+    protected function encodeTokenForUrl($token): string
+    {
+        // إذا كان token يبدأ بـ @@، نحافظ عليه كما هو في URL
+        if (strpos($token, '@@') === 0) {
+            $tokenWithoutPrefix = substr($token, 2);
+            return '@@' . urlencode($tokenWithoutPrefix);
+        }
+        return urlencode($token);
     }
 
     /**

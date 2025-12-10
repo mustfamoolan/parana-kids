@@ -196,7 +196,33 @@
                                     @endif
                                 @endcan
 
-                                <!-- زر التعديل -->
+                                <!-- زر تعديل بيانات الوسيط -->
+                                @if($shipment && $shipment->canBeEdited())
+                                    @php
+                                        $editAlwaseetParams = array_filter([
+                                            'warehouse_id' => request('warehouse_id'),
+                                            'search' => request('search'),
+                                            'confirmed_by' => request('confirmed_by'),
+                                            'delegate_id' => request('delegate_id'),
+                                            'size_reviewed' => request('size_reviewed'),
+                                            'message_confirmed' => request('message_confirmed'),
+                                            'date_from' => request('date_from'),
+                                            'date_to' => request('date_to'),
+                                            'time_from' => request('time_from'),
+                                            'time_to' => request('time_to'),
+                                            'alwaseet_sent' => request('alwaseet_sent'),
+                                            'alwaseet_complete' => request('alwaseet_complete'),
+                                        ]);
+                                    @endphp
+                                    <a href="{{ route('admin.alwaseet.materials-list.orders.edit', array_merge([$order], $editAlwaseetParams)) }}" class="btn btn-primary w-full">
+                                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                        </svg>
+                                        تعديل بيانات الوسيط
+                                    </a>
+                                @endif
+
+                                <!-- زر تعديل الطلب -->
                                 @can('update', $order)
                                     @php
                                         $backParams = array_filter([
@@ -214,11 +240,11 @@
                                             'alwaseet_complete' => request('alwaseet_complete'),
                                         ]);
                                     @endphp
-                                    <a href="{{ route('admin.orders.edit', $order) }}?back_route=admin.alwaseet.materials-list&back_params={{ urlencode(json_encode($backParams)) }}" class="btn btn-primary w-full">
-                                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <a href="{{ route('admin.orders.edit', $order) }}?back_route=admin.alwaseet.materials-list&back_params={{ urlencode(json_encode($backParams)) }}" class="btn btn-success w-full">
+                                        <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                         </svg>
-                                        تعديل
+                                        تعديل الطلب
                                     </a>
                                 @endcan
 
