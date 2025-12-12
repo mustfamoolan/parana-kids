@@ -1238,6 +1238,12 @@ class OrderController extends Controller
             if ($statusCounts === null) {
                 $counts = [];
 
+                // تهيئة جميع الحالات أولاً بقيمة 0
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status['id'];
+                    $counts[$statusId] = 0;
+                }
+
                 // جلب جميع order IDs للمندوب
                 $orderIds = Order::where('status', 'confirmed')
                     ->where('delegate_id', auth()->id())
@@ -1245,14 +1251,7 @@ class OrderController extends Controller
                     ->pluck('id')
                     ->toArray();
 
-                if (empty($orderIds)) {
-                    // إرجاع أصفار لجميع الحالات
-                    foreach ($allStatuses as $status) {
-                        $statusId = (string)$status['id'];
-                        $counts[$statusId] = 0;
-                    }
-                    $statusCounts = $counts;
-                } else {
+                if (!empty($orderIds)) {
                     // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
                     $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
                         ->whereNotNull('status_id')
@@ -1264,25 +1263,25 @@ class OrderController extends Controller
                         })
                         ->toArray();
 
-                    // تهيئة العدادات لجميع الحالات
-                    foreach ($allStatuses as $status) {
-                        $statusId = (string)$status['id'];
-                        $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
-                    }
-                    
-                    // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
+                    // تحديث العدادات للحالات الموجودة
                     foreach ($statusCountsFromDb as $statusId => $count) {
                         $statusIdStr = (string)$statusId;
-                        if (!isset($counts[$statusIdStr])) {
-                            $counts[$statusIdStr] = (int)$count;
-                        }
+                        $counts[$statusIdStr] = (int)$count;
                     }
-
-                    $statusCounts = $counts;
                 }
+
+                $statusCounts = $counts;
                 
                 // حفظ في Cache لمدة 10 دقائق (حتى يتم تحديثها من Job)
                 Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
+            }
+            
+            // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
+            foreach ($allStatuses as $status) {
+                $statusId = (string)$status['id'];
+                if (!isset($statusCounts[$statusId])) {
+                    $statusCounts[$statusId] = 0;
+                }
             }
         }
 
@@ -1353,14 +1352,14 @@ class OrderController extends Controller
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         $showStatusCards = !$hasApiStatusFilter;
 
-        // فلترة الحالات: إخفاء الحالات التي عددها صفر
-        if ($showStatusCards && !empty($statusCounts)) {
-            $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
+        // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
+        if ($showStatusCards && !empty($allStatuses)) {
+            foreach ($allStatuses as $status) {
                 $statusId = (string)$status['id'];
-                return isset($statusCounts[$statusId]) && $statusCounts[$statusId] > 0;
-            });
-            // إعادة ترتيب المصفوفة بعد الفلترة
-            $allStatuses = array_values($allStatuses);
+                if (!isset($statusCounts[$statusId])) {
+                    $statusCounts[$statusId] = 0;
+                }
+            }
         }
 
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
