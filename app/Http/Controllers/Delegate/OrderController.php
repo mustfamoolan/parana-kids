@@ -1293,7 +1293,7 @@ class OrderController extends Controller
         })->get();
 
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
-        $showStatusCards = !$hasApiStatusFilter;
+        $showStatusCards = !$request->filled('api_status_id');
 
         // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
         if ($showStatusCards && !empty($allStatuses)) {
