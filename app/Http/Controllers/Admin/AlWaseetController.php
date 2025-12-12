@@ -1895,6 +1895,12 @@ class AlWaseetController extends Controller
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
+        // فلتر حسب الساعات (آخر X ساعة)
+        if ($request->filled('hours_filter')) {
+            $hoursAgo = now()->subHours($request->hours_filter);
+            $query->where('created_at', '>=', $hoursAgo);
+        }
+
         $perPage = $request->input('per_page', 15);
 
         // تحميل العلاقات المطلوبة
@@ -1970,6 +1976,11 @@ class AlWaseetController extends Controller
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
                     $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                }
+
+                if ($request->filled('hours_filter')) {
+                    $hoursAgo = now()->subHours($request->hours_filter);
+                    $query->where('created_at', '>=', $hoursAgo);
                 }
 
                 return $query;

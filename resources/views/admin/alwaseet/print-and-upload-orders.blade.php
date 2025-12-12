@@ -37,6 +37,7 @@
                     'date_to' => request('date_to'),
                     'time_from' => request('time_from'),
                     'time_to' => request('time_to'),
+                    'hours_filter' => request('hours_filter'),
                     'alwaseet_sent' => request('alwaseet_sent'),
                     'alwaseet_complete' => request('alwaseet_complete'),
                 ])) }}" class="btn btn-success">
@@ -56,6 +57,7 @@
                     'date_to' => request('date_to'),
                     'time_from' => request('time_from'),
                     'time_to' => request('time_to'),
+                    'hours_filter' => request('hours_filter'),
                     'alwaseet_sent' => request('alwaseet_sent'),
                     'alwaseet_complete' => request('alwaseet_complete'),
                 ])) }}" class="btn btn-primary">
@@ -248,6 +250,16 @@
                                 value="{{ request('time_to') }}"
                             >
                         </div>
+                        <div class="sm:w-40">
+                            <select name="hours_filter" id="hoursFilterPending" class="form-select">
+                                <option value="">كل الأوقات</option>
+                                @foreach(range(2, 30, 2) as $hours)
+                                    <option value="{{ $hours }}" {{ request('hours_filter') == $hours ? 'selected' : '' }}>
+                                        آخر {{ $hours }} ساعة
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,7 +279,7 @@
             </div>
 
             <!-- نتائج البحث -->
-            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
+            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('hours_filter'))
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div class="flex items-center gap-2">
                         <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
