@@ -1,4 +1,10 @@
 <x-layout.admin>
+    @php
+        // التأكد من تعريف $alwaseetOrdersData
+        if (!isset($alwaseetOrdersData)) {
+            $alwaseetOrdersData = [];
+        }
+    @endphp
     <div>
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">قائمة المواد المطلوبة</h5>
@@ -108,6 +114,18 @@
                         elseif ($shipment && isset($shipment->alwaseet_order_id) && !empty($shipment->alwaseet_order_id)) {
                             $alwaseetCode = (string)$shipment->alwaseet_order_id;
                         }
+
+                        // جلب حالة الطلب من API
+                        $apiOrderData = null;
+                        $orderStatus = null;
+                        if (isset($alwaseetOrdersData) && $shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
+                            $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
+                        }
+                        if ($apiOrderData && isset($apiOrderData['status'])) {
+                            $orderStatus = $apiOrderData['status'];
+                        } elseif ($shipment && isset($shipment->status) && $shipment->status) {
+                            $orderStatus = $shipment->status;
+                        }
                     @endphp
                     <div class="panel relative">
                         <!-- معلومات الطلب -->
@@ -117,6 +135,18 @@
                                 <div class="mb-3 text-center">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">كود الوسيط</span>
                                     <div class="text-4xl font-bold font-mono" style="color: #2563eb !important;">{{ $alwaseetCode }}</div>
+                                </div>
+                            @endif
+
+                            <!-- حالة الطلب من API -->
+                            @if($orderStatus)
+                                <div class="mb-3 text-center">
+                                    <span class="badge bg-info text-white text-sm font-bold px-3 py-1.5" title="حالة الطلب من الوسيط">
+                                        <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        {{ $orderStatus }}
+                                    </span>
                                 </div>
                             @endif
 

@@ -1,4 +1,10 @@
 <x-layout.admin>
+    @php
+        // التأكد من تعريف $alwaseetOrdersData
+        if (!isset($alwaseetOrdersData)) {
+            $alwaseetOrdersData = [];
+        }
+    @endphp
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">رفع وطباع طلبات الوسيط</h5>
@@ -343,8 +349,16 @@
 
                                         // محاولة الحصول على بيانات من API أولاً
                                         $apiOrderData = null;
-                                        if ($shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
+                                        if (isset($alwaseetOrdersData) && $shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
                                             $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
+                                        }
+
+                                        // جلب حالة الطلب من API
+                                        $orderStatus = null;
+                                        if ($apiOrderData && isset($apiOrderData['status'])) {
+                                            $orderStatus = $apiOrderData['status'];
+                                        } elseif ($shipment && isset($shipment->status) && $shipment->status) {
+                                            $orderStatus = $shipment->status;
                                         }
 
                                         // تحديد حالة "مرسل" - من API إذا كان متوفر، وإلا من قاعدة البيانات المحلية
@@ -391,7 +405,7 @@
                                             $isPrinted = $hasQrLink || $hasQrId || $hasPrintedAt;
                                         }
                                     @endphp
-                                    {{-- علامة مرسل/غير مرسل --}}
+                                    {{-- علامة مرسل/غير مرسل وحالة الطلب --}}
                                     <div class="flex flex-col gap-1 items-end">
                                         @if($isSent)
                                             <span class="badge bg-success text-white text-sm font-bold px-3 py-1.5">
@@ -409,7 +423,15 @@
                                             </span>
                                         @endif
 
-
+                                        {{-- حالة الطلب من API --}}
+                                        @if($orderStatus)
+                                            <span class="badge bg-info text-white text-sm font-bold px-3 py-1.5 mt-1" title="حالة الطلب من الوسيط">
+                                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                {{ $orderStatus }}
+                                            </span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -452,7 +474,7 @@
                                     $shipment = \App\Models\AlWaseetShipment::where('order_id', $order->id)->first();
                                 }
                                 $apiOrderData = null;
-                                if ($shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
+                                if (isset($alwaseetOrdersData) && $shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
                                     $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
                                 }
                                 $orderStatus = null;

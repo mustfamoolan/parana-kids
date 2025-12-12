@@ -2703,7 +2703,40 @@ class AlWaseetController extends Controller
             }
         }
 
-        return view('admin.alwaseet.materials-list', compact('orders'));
+        // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
+        $alwaseetOrdersData = [];
+        try {
+            // جمع alwaseet_order_id من shipments المرتبطة
+            $alwaseetOrderIds = [];
+            foreach ($orders as $order) {
+                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
+                    $alwaseetOrderIds[] = $order->alwaseetShipment->alwaseet_order_id;
+                }
+            }
+
+            // جلب الطلبات من API إذا كان هناك أي orders
+            if (!empty($alwaseetOrderIds)) {
+                // استخدام Cache لكل مجموعة من order IDs
+                $cacheKey = 'alwaseet_orders_' . md5(implode(',', $alwaseetOrderIds));
+                $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($alwaseetOrderIds) {
+                    return $this->alWaseetService->getOrdersByIds($alwaseetOrderIds);
+                });
+
+                // إنشاء array يربط alwaseet_order_id بالبيانات من API
+                foreach ($apiOrders as $apiOrder) {
+                    if (isset($apiOrder['id'])) {
+                        $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('AlWaseetController: Failed to load orders from AlWaseet API in getMaterialsListForPrintUpload', [
+                'error' => $e->getMessage(),
+            ]);
+            // في حالة الفشل، سنستخدم قاعدة البيانات المحلية كـ fallback
+        }
+
+        return view('admin.alwaseet.materials-list', compact('orders', 'alwaseetOrdersData'));
     }
 
     /**
