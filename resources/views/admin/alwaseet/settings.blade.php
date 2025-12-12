@@ -2,12 +2,12 @@
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">إعدادات ربط الواسط</h5>
-            <a href="{{ route('admin.alwaseet.index') }}" class="btn btn-outline-primary">
+            <button onclick="window.history.back()" class="btn btn-outline-primary">
                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                 </svg>
-                العودة للشحنات
-            </a>
+                رجوع
+            </button>
         </div>
 
         @if(session('success'))
