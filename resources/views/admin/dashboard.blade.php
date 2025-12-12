@@ -156,11 +156,23 @@
             <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.25), rgba(234, 179, 8, 0.2)) !important; border: 4px solid rgba(249, 115, 22, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3), 0 4px 6px -2px rgba(249, 115, 22, 0.2) !important;">
                 <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.35), rgba(234, 179, 8, 0.25)) !important; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2) !important;">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: #ea580c !important;">
-                        <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
                 <h3 class="text-xl font-extrabold mb-2" style="color: #ea580c !important;">رفع وطباع طلبات الوسيط</h3>
                 <p class="text-sm font-semibold" style="color: #c2410c !important;">رفع وطباعة طلبات الوسيط</p>
+            </a>
+
+            <!-- تتبع طلبات الوسيط -->
+            <a href="{{ route('admin.alwaseet.track-orders') }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2)) !important; border: 4px solid rgba(99, 102, 241, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.2) !important;">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.35), rgba(139, 92, 246, 0.25)) !important; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2) !important;">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: #6366f1 !important;">
+                        <path opacity="0.5" d="M12 2C8.13401 2 5 5.13401 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13401 15.866 2 12 2Z" fill="currentColor"/>
+                        <path d="M12 11C13.1046 11 14 10.1046 14 9C14 7.89543 13.1046 7 12 7C10.8954 7 10 7.89543 10 9C10 10.1046 10.8954 11 12 11Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-extrabold mb-2" style="color: #6366f1 !important;">تتبع طلبات الوسيط</h3>
+                <p class="text-sm font-semibold" style="color: #4f46e5 !important;">تتبع حالة الطلبات المقيدة</p>
             </a>
             @endif
 

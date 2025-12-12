@@ -5,7 +5,18 @@
 
         <!-- الأزرار الرئيسية -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-4xl mx-auto">
-            <!-- 1. تتبع طلبات -->
+            <!-- 1. رفع وطباع طلبات الوسيط -->
+            <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-purple/10 to-purple/5 border-2 border-purple/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-purple/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-purple mb-2">رفع وطباع طلبات الوسيط</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">رفع وطباعة طلبات الوسيط</p>
+            </a>
+
+            <!-- 2. تتبع طلبات -->
             <a href="{{ route('admin.alwaseet.track-orders') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-indigo/10 to-indigo/5 border-2 border-indigo/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-indigo/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-indigo" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -15,17 +26,6 @@
                 </div>
                 <h3 class="text-lg font-bold text-indigo mb-2">تتبع طلبات</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">تتبع حالة الطلبات المقيدة</p>
-            </a>
-
-            <!-- 2. رفع وطباع طلبات الوسيط -->
-            <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-purple/10 to-purple/5 border-2 border-purple/20">
-                <div class="w-16 h-16 mx-auto mb-4 bg-purple/20 rounded-full flex items-center justify-center">
-                    <svg class="w-8 h-8 text-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-bold text-purple mb-2">رفع وطباع طلبات الوسيط</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">رفع وطباعة طلبات الوسيط</p>
             </a>
 
             <!-- 3. الوسيط - الإعدادات -->
