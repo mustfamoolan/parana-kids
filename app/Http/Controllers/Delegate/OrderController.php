@@ -1235,9 +1235,12 @@ class OrderController extends Controller
         // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مباشرة - أسرع بكثير)
         $statusCounts = [];
         if (!$hasApiStatusFilter) {
-            // إزالة Cache تماماً - نستخدم قاعدة البيانات مباشرة
+            // إزالة جميع أنواع Cache - نستخدم قاعدة البيانات مباشرة
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
             Cache::forget($cacheKey);
+            // إزالة Cache للحالات أيضاً
+            Cache::forget('alwaseet_statuses_api');
+            Cache::forget('alwaseet_statuses');
 
             // حساب مباشر بدون Cache
             $counts = [];
