@@ -35,7 +35,7 @@
                 السابق
             </span>
         @else
-            <a href="{{ $items->previousPageUrl() }}"
+            <a href="{{ $items->appends(request()->query())->previousPageUrl() }}"
                class="px-3 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-md transition-colors">
                 السابق
             </a>
@@ -43,7 +43,7 @@
 
         {{-- Pagination Elements --}}
         <div class="hidden sm:flex gap-1">
-            @foreach ($items->getUrlRange(1, $items->lastPage()) as $page => $url)
+            @foreach ($items->appends(request()->query())->getUrlRange(1, $items->lastPage()) as $page => $url)
                 @if ($page == $items->currentPage())
                     <span class="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-md">
                         {{ $page }}
@@ -59,7 +59,7 @@
 
         {{-- Next Page Link --}}
         @if ($items->hasMorePages())
-            <a href="{{ $items->nextPageUrl() }}"
+            <a href="{{ $items->appends(request()->query())->nextPageUrl() }}"
                class="px-3 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-md transition-colors">
                 التالي
             </a>
