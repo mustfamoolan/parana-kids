@@ -1239,7 +1239,8 @@ class OrderController extends Controller
                 if (empty($orderIds)) {
                     // إرجاع أصفار لجميع الحالات
                     foreach ($allStatuses as $status) {
-                        $counts[$status['id']] = 0;
+                        $statusId = (string)$status['id'];
+                        $counts[$statusId] = 0;
                     }
                     return $counts;
                 }
@@ -1256,6 +1257,14 @@ class OrderController extends Controller
                     })
                     ->toArray();
 
+                // Log للتحقق من البيانات
+                \Log::info('Delegate status counts calculation', [
+                    'orderIds_count' => count($orderIds),
+                    'statusCountsFromDb' => $statusCountsFromDb,
+                    'allStatuses_count' => count($allStatuses),
+                    'allStatuses' => $allStatuses,
+                ]);
+
                 // تهيئة العدادات لجميع الحالات (تأكد من أن جميع الحالات موجودة)
                 foreach ($allStatuses as $status) {
                     $statusId = (string)$status['id']; // تحويل إلى string للمقارنة
@@ -1270,6 +1279,10 @@ class OrderController extends Controller
                         $counts[$statusIdStr] = (int)$count;
                     }
                 }
+
+                \Log::info('Final status counts', [
+                    'counts' => $counts,
+                ]);
 
                 return $counts;
             });
