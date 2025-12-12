@@ -1226,12 +1226,16 @@ class OrderController extends Controller
             $allStatuses = [];
         }
 
-        // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مع Cache - أسرع بكثير)
+        // حساب عدد الطلبات لكل حالة (من Cache - Job يحدثها كل 5 دقائق تلقائياً)
         $statusCounts = [];
         if (!$hasApiStatusFilter) {
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
             
-            $statusCounts = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($allStatuses) {
+            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق)
+            $statusCounts = Cache::get($cacheKey);
+            
+            // إذا لم تكن موجودة في Cache، حسابها مباشرة (fallback)
+            if ($statusCounts === null) {
                 $counts = [];
 
                 // جلب جميع order IDs للمندوب
@@ -1247,36 +1251,39 @@ class OrderController extends Controller
                         $statusId = (string)$status['id'];
                         $counts[$statusId] = 0;
                     }
-                    return $counts;
-                }
+                    $statusCounts = $counts;
+                } else {
+                    // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
+                    $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
+                        ->whereNotNull('status_id')
+                        ->selectRaw('status_id, COUNT(*) as count')
+                        ->groupBy('status_id')
+                        ->get()
+                        ->mapWithKeys(function($item) {
+                            return [(string)$item->status_id => (int)$item->count];
+                        })
+                        ->toArray();
 
-                // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
-                $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
-                    ->whereNotNull('status_id')
-                    ->selectRaw('status_id, COUNT(*) as count')
-                    ->groupBy('status_id')
-                    ->get()
-                    ->mapWithKeys(function($item) {
-                        return [(string)$item->status_id => (int)$item->count];
-                    })
-                    ->toArray();
+                    // تهيئة العدادات لجميع الحالات
+                    foreach ($allStatuses as $status) {
+                        $statusId = (string)$status['id'];
+                        $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                    }
+                    
+                    // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
+                    foreach ($statusCountsFromDb as $statusId => $count) {
+                        $statusIdStr = (string)$statusId;
+                        if (!isset($counts[$statusIdStr])) {
+                            $counts[$statusIdStr] = (int)$count;
+                        }
+                    }
 
-                // تهيئة العدادات لجميع الحالات
-                foreach ($allStatuses as $status) {
-                    $statusId = (string)$status['id'];
-                    $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                    $statusCounts = $counts;
                 }
                 
-                // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
-                foreach ($statusCountsFromDb as $statusId => $count) {
-                    $statusIdStr = (string)$statusId;
-                    if (!isset($counts[$statusIdStr])) {
-                        $counts[$statusIdStr] = (int)$count;
-                    }
-                }
-
-                return $counts;
-            });
+                // حفظ في Cache لمدة 10 دقائق (حتى يتم تحديثها من Job)
+                Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
+            }
         }
 
         // فلتر حسب حالة الطلب (من قاعدة البيانات مباشرة - أسرع بكثير)

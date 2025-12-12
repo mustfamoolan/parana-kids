@@ -2315,6 +2315,81 @@ class AlWaseetController extends Controller
             $allStatuses = [];
         }
 
+        // حساب عدد الطلبات لكل حالة (من Cache - Job يحدثها كل 5 دقائق تلقائياً)
+        $statusCounts = [];
+        if (!$hasApiStatusFilter) {
+            $cacheKey = 'admin_all_status_counts';
+            
+            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق)
+            $statusCounts = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            
+            // إذا لم تكن موجودة في Cache، حسابها مباشرة (fallback)
+            if ($statusCounts === null) {
+                $counts = [];
+
+                // جلب جميع order IDs (حسب الفلاتر المطبقة)
+                $baseQuery = Order::where('status', 'confirmed')
+                    ->whereHas('alwaseetShipment');
+
+                // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+                if (Auth::user()->isSupplier()) {
+                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+                    if (!empty($accessibleWarehouseIds)) {
+                        $baseQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                            $subQuery->select('order_id')
+                                ->from('order_items')
+                                ->join('products', 'order_items.product_id', '=', 'products.id')
+                                ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                                ->distinct();
+                        });
+                    } else {
+                        $baseQuery->whereRaw('1 = 0');
+                    }
+                }
+
+                $orderIds = $baseQuery->pluck('id')->toArray();
+
+                if (empty($orderIds)) {
+                    // إرجاع أصفار لجميع الحالات
+                    foreach ($allStatuses as $status) {
+                        $statusId = (string)$status['id'];
+                        $counts[$statusId] = 0;
+                    }
+                    $statusCounts = $counts;
+                } else {
+                    // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
+                    $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
+                        ->whereNotNull('status_id')
+                        ->selectRaw('status_id, COUNT(*) as count')
+                        ->groupBy('status_id')
+                        ->get()
+                        ->mapWithKeys(function($item) {
+                            return [(string)$item->status_id => (int)$item->count];
+                        })
+                        ->toArray();
+
+                    // تهيئة العدادات لجميع الحالات
+                    foreach ($allStatuses as $status) {
+                        $statusId = (string)$status['id'];
+                        $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                    }
+                    
+                    // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
+                    foreach ($statusCountsFromDb as $statusId => $count) {
+                        $statusIdStr = (string)$statusId;
+                        if (!isset($counts[$statusIdStr])) {
+                            $counts[$statusIdStr] = (int)$count;
+                        }
+                    }
+
+                    $statusCounts = $counts;
+                }
+                
+                // حفظ في Cache لمدة 10 دقائق (حتى يتم تحديثها من Job)
+                \Illuminate\Support\Facades\Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
+            }
+        }
+
         // فلتر حسب حالة الطلب من قاعدة البيانات (أسرع بكثير)
         if ($hasApiStatusFilter) {
             $filteredOrders = collect();
@@ -2373,7 +2448,20 @@ class AlWaseetController extends Controller
             );
         }
 
-        return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders'));
+        // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
+        $showStatusCards = !$hasApiStatusFilter;
+
+        // فلترة الحالات: إخفاء الحالات التي عددها صفر
+        if ($showStatusCards && !empty($statusCounts)) {
+            $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
+                $statusId = (string)$status['id'];
+                return isset($statusCounts[$statusId]) && $statusCounts[$statusId] > 0;
+            });
+            // إعادة ترتيب المصفوفة بعد الفلترة
+            $allStatuses = array_values($allStatuses);
+        }
+
+        return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders', 'statusCounts', 'showStatusCards'));
     }
 
     /**

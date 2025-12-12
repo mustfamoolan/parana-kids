@@ -8,6 +8,31 @@
         if (!isset($statusesMap)) {
             $statusesMap = [];
         }
+        if (!isset($allStatuses)) {
+            $allStatuses = [];
+        }
+        if (!isset($statusCounts)) {
+            $statusCounts = [];
+        }
+        if (!isset($showStatusCards)) {
+            $showStatusCards = true;
+        }
+        
+        // ألوان ديناميكية للحالات
+        $statusColors = [
+            'primary' => ['bg' => 'from-primary/10 to-primary/5', 'border' => 'border-primary/20', 'icon' => 'text-primary', 'iconBg' => 'bg-primary/20'],
+            'success' => ['bg' => 'from-success/10 to-success/5', 'border' => 'border-success/20', 'icon' => 'text-success', 'iconBg' => 'bg-success/20'],
+            'warning' => ['bg' => 'from-warning/10 to-warning/5', 'border' => 'border-warning/20', 'icon' => 'text-warning', 'iconBg' => 'bg-warning/20'],
+            'danger' => ['bg' => 'from-danger/10 to-danger/5', 'border' => 'border-danger/20', 'icon' => 'text-danger', 'iconBg' => 'bg-danger/20'],
+            'info' => ['bg' => 'from-info/10 to-info/5', 'border' => 'border-info/20', 'icon' => 'text-info', 'iconBg' => 'bg-info/20'],
+            'secondary' => ['bg' => 'from-secondary/10 to-secondary/5', 'border' => 'border-secondary/20', 'icon' => 'text-secondary', 'iconBg' => 'bg-secondary/20'],
+        ];
+        
+        // دالة للحصول على لون حسب index
+        $getStatusColor = function($index) use ($statusColors) {
+            $colorKeys = array_keys($statusColors);
+            return $statusColors[$colorKeys[$index % count($colorKeys)]];
+        };
     @endphp
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -180,6 +205,32 @@
                 </div>
             </form>
         </div>
+
+        @if($showStatusCards)
+            <!-- عرض مربعات الحالات -->
+            <div class="mb-5 grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                @foreach($allStatuses as $index => $status)
+                    @php
+                        $statusId = (string)$status['id'];
+                        $statusText = $status['status'];
+                        $count = isset($statusCounts[$statusId]) ? (int)$statusCounts[$statusId] : 0;
+                        $color = $getStatusColor($index);
+                    @endphp
+                    <a href="{{ route('admin.alwaseet.track-orders', ['api_status_id' => $statusId]) }}" 
+                       class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
+                        <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
+                            <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold {{ $color['icon'] }} mb-2">{{ $statusText }}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            <span class="badge {{ $color['icon'] === 'text-primary' ? 'bg-primary' : ($color['icon'] === 'text-success' ? 'bg-success' : ($color['icon'] === 'text-warning' ? 'bg-warning' : ($color['icon'] === 'text-danger' ? 'bg-danger' : ($color['icon'] === 'text-info' ? 'bg-info' : 'bg-secondary')))) }} text-white">{{ $count }}</span> طلب
+                        </p>
+                    </a>
+                @endforeach
+            </div>
+        @endif
 
         <!-- نتائج البحث -->
         @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))

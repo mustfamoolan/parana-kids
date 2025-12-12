@@ -73,6 +73,9 @@ class Kernel extends ConsoleKernel
         
         // تحديث حالات الطلبات من API (كل ساعة)
         $schedule->job(new \App\Jobs\SyncAlWaseetOrderStatusesJob)->hourly();
+        
+        // تحديث عدد الطلبات لكل حالة (كل 5 دقائق) - لتحسين الأداء
+        $schedule->job(new \App\Jobs\UpdateStatusCountsJob)->everyFiveMinutes();
     }
 
     /**
