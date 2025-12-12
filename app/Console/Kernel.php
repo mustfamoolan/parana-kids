@@ -70,6 +70,13 @@ class Kernel extends ConsoleKernel
 
         // تحديث status_id و status للطلبات المرتبطة (كل دقيقة)
         $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyMinute();
+
+        // تشغيل Queue Worker (كل دقيقة - يعالج Jobs المعلقة ثم يتوقف)
+        // هذا حل بديل إذا لم يكن هناك Queue Worker كـ Background Process
+        $schedule->command('queue:work database --stop-when-empty --max-jobs=50 --tries=3')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**
