@@ -68,8 +68,8 @@ class Kernel extends ConsoleKernel
             return $minutesSinceLastSync >= $syncInterval;
         });
 
-        // تحديث status_id و status للطلبات المرتبطة (كل دقيقة)
-        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyMinute();
+        // تحديث جميع بيانات API للطلبات المرتبطة (كل 10 دقائق)
+        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyTenMinutes();
     }
 
     /**

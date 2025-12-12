@@ -490,51 +490,30 @@
                                 if (isset($alwaseetOrdersData) && $shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
                                     $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
                                 }
+                                // استخدام البيانات المحفوظة من قاعدة البيانات مباشرة (أسرع بكثير)
+                                // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
                                 $orderStatus = null;
-                                if ($apiOrderData) {
-                                    // الأولوية: استخدام status مباشرة إذا كان موجوداً
-                                    if (isset($apiOrderData['status']) && !empty($apiOrderData['status'])) {
-                                        $orderStatus = $apiOrderData['status'];
-                                    }
-                                    // إذا لم يكن status موجوداً، استخدام status_id مع statusesMap
-                                    elseif (isset($apiOrderData['status_id']) && isset($statusesMap) && isset($statusesMap[$apiOrderData['status_id']])) {
-                                        $orderStatus = $statusesMap[$apiOrderData['status_id']];
-                                    }
-                                }
-                                // Fallback إلى قاعدة البيانات المحلية
-                                if (!$orderStatus && $shipment && isset($shipment->status) && $shipment->status) {
+                                if ($shipment && isset($shipment->status) && $shipment->status) {
                                     $orderStatus = $shipment->status;
                                 }
+                                // Fallback: استخدام status_id مع statusesMap
+                                elseif ($shipment && $shipment->status_id && isset($statusesMap) && isset($statusesMap[$shipment->status_id])) {
+                                    $orderStatus = $statusesMap[$shipment->status_id];
+                                }
 
-                                // جلب كود الوسيط (pickup_id أو qr_id فقط)
+                                // جلب كود الوسيط (من قاعدة البيانات مباشرة)
                                 $alwaseetOrderId = null;
-                                // الأولوية الأولى: pickup_id من API (الكود الصحيح من الواسط)
-                                if ($apiOrderData && isset($apiOrderData['pickup_id']) && !empty($apiOrderData['pickup_id'])) {
-                                    $alwaseetOrderId = (string)$apiOrderData['pickup_id'];
+                                // الأولوية الأولى: pickup_id من shipment (الكود الصحيح من الواسط)
+                                if ($shipment && isset($shipment->pickup_id) && !empty($shipment->pickup_id)) {
+                                    $alwaseetOrderId = (string)$shipment->pickup_id;
                                 }
-                                // الأولوية الثانية: qr_id من API (كود QR)
-                                elseif ($apiOrderData && isset($apiOrderData['qr_id']) && !empty($apiOrderData['qr_id'])) {
-                                    $alwaseetOrderId = (string)$apiOrderData['qr_id'];
-                                }
-                                // الأولوية الثالثة: qr_id من shipment المحلي
+                                // الأولوية الثانية: qr_id من shipment
                                 elseif ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
                                     $alwaseetOrderId = (string)$shipment->qr_id;
                                 }
-                                // الأولوية الرابعة: delivery_code من Order (فقط إذا كان متطابقاً مع pickup_id أو qr_id من API)
-                                elseif ($order->delivery_code) {
-                                    $expectedCode = null;
-                                    if ($apiOrderData && isset($apiOrderData['pickup_id']) && !empty($apiOrderData['pickup_id'])) {
-                                        $expectedCode = (string)$apiOrderData['pickup_id'];
-                                    } elseif ($apiOrderData && isset($apiOrderData['qr_id']) && !empty($apiOrderData['qr_id'])) {
-                                        $expectedCode = (string)$apiOrderData['qr_id'];
-                                    } elseif ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
-                                        $expectedCode = (string)$shipment->qr_id;
-                                    }
-
-                                    // استخدام delivery_code فقط إذا كان متطابقاً مع الكود المتوقع
-                                    if ($expectedCode && $order->delivery_code == $expectedCode) {
-                                        $alwaseetOrderId = $order->delivery_code;
-                                    }
+                                // الأولوية الثالثة: delivery_code من Order
+                                elseif ($order->delivery_code && !empty(trim($order->delivery_code))) {
+                                    $alwaseetOrderId = (string)$order->delivery_code;
                                 }
                             @endphp
                             <!-- بيانات الواسط -->

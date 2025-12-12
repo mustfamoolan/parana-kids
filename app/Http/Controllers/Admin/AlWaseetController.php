@@ -2084,38 +2084,9 @@ class AlWaseetController extends Controller
         }
         $pendingCount = $pendingCountQuery->count();
 
-        // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
-        $alwaseetOrdersData = [];
-        try {
-            // جمع alwaseet_order_id من shipments المرتبطة
-            $alwaseetOrderIds = [];
-            foreach ($orders as $order) {
-                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
-                    $alwaseetOrderIds[] = $order->alwaseetShipment->alwaseet_order_id;
-                }
-            }
-
-            // جلب الطلبات من API إذا كان هناك أي orders
-            if (!empty($alwaseetOrderIds)) {
-                // استخدام Cache لكل مجموعة من order IDs
-                $cacheKey = 'alwaseet_orders_' . md5(implode(',', $alwaseetOrderIds));
-                $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($alwaseetOrderIds) {
-                    return $this->alWaseetService->getOrdersByIds($alwaseetOrderIds);
-                });
-
-                // إنشاء array يربط alwaseet_order_id بالبيانات من API
-                foreach ($apiOrders as $apiOrder) {
-                    if (isset($apiOrder['id'])) {
-                        $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('AlWaseetController: Failed to load orders from AlWaseet API in printAndUploadOrders', [
-                'error' => $e->getMessage(),
-            ]);
-            // في حالة الفشل، سنستخدم قاعدة البيانات المحلية كـ fallback
-        }
+        // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
+        // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
+        $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
         // جلب قائمة الحالات من API وإنشاء mapping
         $statusesMap = [];
@@ -2312,52 +2283,9 @@ class AlWaseetController extends Controller
             ]);
         }
 
-        // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
-        $alwaseetOrdersData = [];
-        try {
-            // جمع alwaseet_order_id من shipments المرتبطة
-            $alwaseetOrderIds = [];
-            foreach ($ordersForApi as $order) {
-                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
-                    $alwaseetOrderIds[] = $order->alwaseetShipment->alwaseet_order_id;
-                }
-            }
-
-            // جلب الطلبات من API إذا كان هناك أي orders
-            if (!empty($alwaseetOrderIds)) {
-                // تقسيم الطلبات إلى batches أصغر (10 طلب في كل batch) لتجنب timeout
-                $batchSize = 10;
-                $batches = array_chunk($alwaseetOrderIds, $batchSize);
-                
-                foreach ($batches as $batch) {
-                    try {
-                        // استخدام Cache لكل batch
-                        $cacheKey = 'alwaseet_orders_' . md5(implode(',', $batch));
-                        $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($batch) {
-                            return $this->alWaseetService->getOrdersByIds($batch);
-                        });
-
-                        // إنشاء array يربط alwaseet_order_id بالبيانات من API
-                        foreach ($apiOrders as $apiOrder) {
-                            if (isset($apiOrder['id'])) {
-                                $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
-                            }
-                        }
-                    } catch (\Exception $batchException) {
-                        // في حالة فشل batch واحد، نستمر مع البقية
-                        Log::warning('AlWaseetController: Failed to load batch from AlWaseet API in trackOrders', [
-                            'error' => $batchException->getMessage(),
-                            'batch_size' => count($batch),
-                        ]);
-                        continue;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('AlWaseetController: Failed to load orders from AlWaseet API in trackOrders', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
+        // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
+        $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
         // جلب قائمة الحالات من API وإنشاء mapping
         $statusesMap = [];
@@ -2388,41 +2316,37 @@ class AlWaseetController extends Controller
             $allStatuses = [];
         }
 
-        // فلتر حسب حالة الطلب من API
+        // فلتر حسب حالة الطلب من قاعدة البيانات (أسرع بكثير)
         if ($hasApiStatusFilter) {
             $filteredOrders = collect();
             
             foreach ($ordersForApi as $order) {
                 $shouldInclude = false;
                 
-                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
-                    $apiOrderId = $order->alwaseetShipment->alwaseet_order_id;
+                if ($order->alwaseetShipment) {
+                    $shipment = $order->alwaseetShipment;
                     
-                    if (isset($alwaseetOrdersData[$apiOrderId])) {
-                        $apiOrder = $alwaseetOrdersData[$apiOrderId];
-                        
-                        // فلتر حسب status_id
-                        if ($request->filled('api_status_id')) {
-                            $requestedStatusId = $request->api_status_id;
-                            if (isset($apiOrder['status_id']) && (string)$apiOrder['status_id'] === (string)$requestedStatusId) {
-                                $shouldInclude = true;
-                            }
+                    // فلتر حسب status_id من قاعدة البيانات
+                    if ($request->filled('api_status_id')) {
+                        $requestedStatusId = $request->api_status_id;
+                        if ($shipment->status_id && (string)$shipment->status_id === (string)$requestedStatusId) {
+                            $shouldInclude = true;
                         }
-                        // فلتر حسب status text
-                        elseif ($request->filled('api_status_text')) {
-                            $requestedStatusText = $request->api_status_text;
-                            $orderStatus = null;
-                            
-                            // الحصول على حالة الطلب
-                            if (isset($apiOrder['status']) && !empty($apiOrder['status'])) {
-                                $orderStatus = $apiOrder['status'];
-                            } elseif (isset($apiOrder['status_id']) && isset($statusesMap[$apiOrder['status_id']])) {
-                                $orderStatus = $statusesMap[$apiOrder['status_id']];
-                            }
-                            
-                            if ($orderStatus && $orderStatus === $requestedStatusText) {
-                                $shouldInclude = true;
-                            }
+                    }
+                    // فلتر حسب status text من قاعدة البيانات
+                    elseif ($request->filled('api_status_text')) {
+                        $requestedStatusText = $request->api_status_text;
+                        $orderStatus = null;
+                        
+                        // الحصول على حالة الطلب من قاعدة البيانات
+                        if ($shipment->status && !empty($shipment->status)) {
+                            $orderStatus = $shipment->status;
+                        } elseif ($shipment->status_id && isset($statusesMap[$shipment->status_id])) {
+                            $orderStatus = $statusesMap[$shipment->status_id];
+                        }
+                        
+                        if ($orderStatus && $orderStatus === $requestedStatusText) {
+                            $shouldInclude = true;
                         }
                     }
                 }
@@ -3037,37 +2961,9 @@ class AlWaseetController extends Controller
         }
 
         // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
-        $alwaseetOrdersData = [];
-        try {
-            // جمع alwaseet_order_id من shipments المرتبطة
-            $alwaseetOrderIds = [];
-            foreach ($orders as $order) {
-                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
-                    $alwaseetOrderIds[] = $order->alwaseetShipment->alwaseet_order_id;
-                }
-            }
-
-            // جلب الطلبات من API إذا كان هناك أي orders
-            if (!empty($alwaseetOrderIds)) {
-                // استخدام Cache لكل مجموعة من order IDs
-                $cacheKey = 'alwaseet_orders_' . md5(implode(',', $alwaseetOrderIds));
-                $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($alwaseetOrderIds) {
-                    return $this->alWaseetService->getOrdersByIds($alwaseetOrderIds);
-                });
-
-                // إنشاء array يربط alwaseet_order_id بالبيانات من API
-                foreach ($apiOrders as $apiOrder) {
-                    if (isset($apiOrder['id'])) {
-                        $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('AlWaseetController: Failed to load orders from AlWaseet API in getMaterialsListForPrintUpload', [
-                'error' => $e->getMessage(),
-            ]);
-            // في حالة الفشل، سنستخدم قاعدة البيانات المحلية كـ fallback
-        }
+        // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
+        // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
+        $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
         // جلب قائمة الحالات من API وإنشاء mapping
         $statusesMap = [];

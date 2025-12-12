@@ -287,11 +287,15 @@
 
                         // جلب كود الوسيط (من قاعدة البيانات مباشرة)
                         $alwaseetCode = null;
-                        // الأولوية الأولى: qr_id من shipment
-                        if ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
+                        // الأولوية الأولى: pickup_id من shipment (الكود الصحيح من الواسط)
+                        if ($shipment && isset($shipment->pickup_id) && !empty($shipment->pickup_id)) {
+                            $alwaseetCode = (string)$shipment->pickup_id;
+                        }
+                        // الأولوية الثانية: qr_id من shipment
+                        elseif ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
                             $alwaseetCode = (string)$shipment->qr_id;
                         }
-                        // الأولوية الثانية: delivery_code من Order
+                        // الأولوية الثالثة: delivery_code من Order
                         elseif ($order->delivery_code && !empty(trim($order->delivery_code))) {
                             $alwaseetCode = (string)$order->delivery_code;
                         }

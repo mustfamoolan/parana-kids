@@ -233,44 +233,28 @@
                             $shipment = \App\Models\AlWaseetShipment::where('order_id', $order->id)->first();
                         }
 
-                        // جلب بيانات API
-                        $apiOrderData = null;
-                        if (isset($alwaseetOrdersData) && $shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
-                            $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
-                        }
-
-                        // جلب حالة الطلب من API
+                        // استخدام البيانات المحفوظة من قاعدة البيانات مباشرة (أسرع بكثير)
+                        // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
                         $orderStatus = null;
-                        if ($apiOrderData) {
-                            // الأولوية: استخدام status مباشرة إذا كان موجوداً
-                            if (isset($apiOrderData['status']) && !empty($apiOrderData['status'])) {
-                                $orderStatus = $apiOrderData['status'];
-                            }
-                            // إذا لم يكن status موجوداً، استخدام status_id مع statusesMap
-                            elseif (isset($apiOrderData['status_id']) && isset($statusesMap) && isset($statusesMap[$apiOrderData['status_id']])) {
-                                $orderStatus = $statusesMap[$apiOrderData['status_id']];
-                            }
-                        }
-                        // Fallback إلى قاعدة البيانات المحلية
-                        if (!$orderStatus && $shipment && isset($shipment->status) && $shipment->status) {
+                        if ($shipment && isset($shipment->status) && $shipment->status) {
                             $orderStatus = $shipment->status;
                         }
+                        // Fallback: استخدام status_id مع statusesMap
+                        elseif ($shipment && $shipment->status_id && isset($statusesMap) && isset($statusesMap[$shipment->status_id])) {
+                            $orderStatus = $statusesMap[$shipment->status_id];
+                        }
 
-                        // جلب كود الوسيط
+                        // جلب كود الوسيط (من قاعدة البيانات مباشرة)
                         $alwaseetCode = null;
-                        // الأولوية الأولى: pickup_id من API
-                        if ($apiOrderData && isset($apiOrderData['pickup_id']) && !empty($apiOrderData['pickup_id'])) {
-                            $alwaseetCode = (string)$apiOrderData['pickup_id'];
+                        // الأولوية الأولى: pickup_id من shipment (الكود الصحيح من الواسط)
+                        if ($shipment && isset($shipment->pickup_id) && !empty($shipment->pickup_id)) {
+                            $alwaseetCode = (string)$shipment->pickup_id;
                         }
-                        // الأولوية الثانية: qr_id من API
-                        elseif ($apiOrderData && isset($apiOrderData['qr_id']) && !empty($apiOrderData['qr_id'])) {
-                            $alwaseetCode = (string)$apiOrderData['qr_id'];
-                        }
-                        // الأولوية الثالثة: qr_id من shipment
+                        // الأولوية الثانية: qr_id من shipment
                         elseif ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
                             $alwaseetCode = (string)$shipment->qr_id;
                         }
-                        // الأولوية الرابعة: delivery_code من Order
+                        // الأولوية الثالثة: delivery_code من Order
                         elseif ($order->delivery_code && !empty(trim($order->delivery_code))) {
                             $alwaseetCode = (string)$order->delivery_code;
                         }

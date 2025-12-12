@@ -1116,7 +1116,7 @@ class OrderController extends Controller
         // إذا كان هناك فلتر حسب حالة API، نجلب عدد محدود من الطلبات للفلترة
         $hasApiStatusFilter = $request->filled('api_status_id') || $request->filled('api_status_text');
         $hasMoreOrders = false;
-        
+
         // جلب الطلبات (عدد محدود إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
         if ($hasApiStatusFilter) {
             $maxOrders = 30;
@@ -1126,7 +1126,7 @@ class OrderController extends Controller
                 'items.product.warehouse',
                 'alwaseetShipment'
             ])->orderBy('created_at', 'desc')->take($maxOrders)->get();
-            
+
             $totalOrdersCount = $query->count();
             if ($totalOrdersCount > $maxOrders) {
                 $hasMoreOrders = true;
@@ -1173,7 +1173,7 @@ class OrderController extends Controller
         }
 
         // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
-        // Job في الخلفية يقوم بتحديث status_id و status تلقائياً
+        // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
         $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
         // جلب قائمة الحالات من API وتحديث قاعدة البيانات
@@ -1188,10 +1188,10 @@ class OrderController extends Controller
             if (is_array($statuses)) {
                 // تحديث قاعدة البيانات بالحالات الجديدة
                 AlWaseetOrderStatus::syncFromApi($statuses);
-                
+
                 // جلب الحالات من قاعدة البيانات
                 $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
-                
+
                 foreach ($dbStatuses as $dbStatus) {
                     $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
                     $allStatuses[] = [
@@ -1220,17 +1220,17 @@ class OrderController extends Controller
         if (!$hasApiStatusFilter) {
             // فقط نحسب الأعداد إذا لم يكن هناك فلتر نشط
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
-            
+
             $statusCounts = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($allStatuses) {
                 $counts = [];
-                
+
                 // جلب جميع order IDs للمندوب
                 $orderIds = Order::where('status', 'confirmed')
                     ->where('delegate_id', auth()->id())
                     ->whereHas('alwaseetShipment')
                     ->pluck('id')
                     ->toArray();
-                
+
                 if (empty($orderIds)) {
                     // إرجاع أصفار لجميع الحالات
                     foreach ($allStatuses as $status) {
@@ -1238,7 +1238,7 @@ class OrderController extends Controller
                     }
                     return $counts;
                 }
-                
+
                 // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات (أسرع بكثير)
                 $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
                     ->whereNotNull('status_id')
@@ -1246,13 +1246,13 @@ class OrderController extends Controller
                     ->groupBy('status_id')
                     ->pluck('count', 'status_id')
                     ->toArray();
-                
+
                 // تهيئة العدادات لجميع الحالات
                 foreach ($allStatuses as $status) {
                     $statusId = $status['id'];
                     $counts[$statusId] = $statusCountsFromDb[$statusId] ?? 0;
                 }
-                
+
                 return $counts;
             });
         }
@@ -1260,14 +1260,14 @@ class OrderController extends Controller
         // فلتر حسب حالة الطلب (من قاعدة البيانات مباشرة - أسرع بكثير)
         if ($hasApiStatusFilter) {
             $filteredOrders = collect();
-            
+
             foreach ($ordersForApi as $order) {
                 $shouldInclude = false;
-                
+
                 // استخدام البيانات المحفوظة من قاعدة البيانات بدلاً من API
                 if ($order->alwaseetShipment) {
                     $shipment = $order->alwaseetShipment;
-                    
+
                     if ($request->filled('api_status_id')) {
                         $requestedStatusId = $request->api_status_id;
                         // استخدام status_id من قاعدة البيانات مباشرة
@@ -1282,17 +1282,17 @@ class OrderController extends Controller
                         }
                     }
                 }
-                
+
                 if ($shouldInclude) {
                     $filteredOrders->push($order);
                 }
             }
-            
+
             $perPage = 20;
             $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
             $total = $filteredOrders->count();
             $items = $filteredOrders->slice(($currentPage - 1) * $perPage, $perPage)->values();
-            
+
             $orders = new \Illuminate\Pagination\LengthAwarePaginator(
                 $items,
                 $total,
@@ -1323,7 +1323,7 @@ class OrderController extends Controller
 
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         $showStatusCards = !$hasApiStatusFilter;
-        
+
         // فلترة الحالات: إخفاء الحالات التي عددها صفر
         if ($showStatusCards && !empty($statusCounts)) {
             $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
@@ -1333,20 +1333,20 @@ class OrderController extends Controller
             // إعادة ترتيب المصفوفة بعد الفلترة
             $allStatuses = array_values($allStatuses);
         }
-        
+
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
         if ($showStatusCards) {
             $orders = collect(); // Empty collection
         }
-        
+
         return view('delegate.track-orders', compact(
-            'orders', 
-            'warehouses', 
-            'cities', 
-            'ordersWithRegions', 
-            'alwaseetOrdersData', 
-            'statusesMap', 
-            'allStatuses', 
+            'orders',
+            'warehouses',
+            'cities',
+            'ordersWithRegions',
+            'alwaseetOrdersData',
+            'statusesMap',
+            'allStatuses',
             'hasMoreOrders',
             'statusCounts',
             'showStatusCards'
