@@ -1201,6 +1201,13 @@ class OrderController extends Controller
         try {
             // جلب الحالات من قاعدة البيانات مباشرة (بدون Cache)
             $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
+            
+            \Log::info('Delegate: Loading statuses from database', [
+                'dbStatuses_count' => $dbStatuses->count(),
+                'dbStatuses' => $dbStatuses->map(function($s) {
+                    return ['id' => $s->status_id, 'text' => $s->status_text];
+                })->toArray(),
+            ]);
 
             foreach ($dbStatuses as $dbStatus) {
                 $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
@@ -1209,6 +1216,11 @@ class OrderController extends Controller
                     'status' => $dbStatus->status_text
                 ];
             }
+            
+            \Log::info('Delegate: allStatuses prepared', [
+                'allStatuses_count' => count($allStatuses),
+                'allStatuses' => $allStatuses,
+            ]);
         } catch (\Exception $e) {
             Log::error('Delegate/OrderController: Failed to load order statuses from database in trackOrders', [
                 'error' => $e->getMessage(),
@@ -1220,13 +1232,12 @@ class OrderController extends Controller
         // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مباشرة - أسرع بكثير)
         $statusCounts = [];
         if (!$hasApiStatusFilter) {
-            // فقط نحسب الأعداد إذا لم يكن هناك فلتر نشط
+            // إزالة Cache تماماً - نستخدم قاعدة البيانات مباشرة
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
-            
-            // إزالة Cache مؤقتاً للتأكد من الحصول على البيانات الصحيحة
-            // Cache::forget($cacheKey);
+            Cache::forget($cacheKey);
 
-            $statusCounts = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($allStatuses) {
+            // حساب مباشر بدون Cache
+            $counts = [];
                 $counts = [];
 
                 // جلب جميع order IDs للمندوب
@@ -1286,6 +1297,62 @@ class OrderController extends Controller
 
                 return $counts;
             });
+            
+            // حساب مباشر بدون Cache
+            // جلب جميع order IDs للمندوب
+            $orderIds = Order::where('status', 'confirmed')
+                ->where('delegate_id', auth()->id())
+                ->whereHas('alwaseetShipment')
+                ->pluck('id')
+                ->toArray();
+
+            \Log::info('Delegate: Calculating status counts', [
+                'orderIds_count' => count($orderIds),
+                'allStatuses_count' => count($allStatuses),
+            ]);
+
+            if (!empty($orderIds)) {
+                // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
+                $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
+                    ->whereNotNull('status_id')
+                    ->selectRaw('status_id, COUNT(*) as count')
+                    ->groupBy('status_id')
+                    ->get()
+                    ->mapWithKeys(function($item) {
+                        return [(string)$item->status_id => (int)$item->count];
+                    })
+                    ->toArray();
+
+                \Log::info('Delegate: statusCountsFromDb', [
+                    'statusCountsFromDb' => $statusCountsFromDb,
+                ]);
+
+                // تهيئة العدادات لجميع الحالات
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status['id'];
+                    $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                }
+                
+                // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
+                foreach ($statusCountsFromDb as $statusId => $count) {
+                    $statusIdStr = (string)$statusId;
+                    if (!isset($counts[$statusIdStr])) {
+                        $counts[$statusIdStr] = (int)$count;
+                    }
+                }
+            } else {
+                // إرجاع أصفار لجميع الحالات
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status['id'];
+                    $counts[$statusId] = 0;
+                }
+            }
+
+            $statusCounts = $counts;
+            
+            \Log::info('Delegate: Final statusCounts', [
+                'statusCounts' => $statusCounts,
+            ]);
         }
 
         // فلتر حسب حالة الطلب (من قاعدة البيانات مباشرة - أسرع بكثير)
