@@ -797,4 +797,14 @@
             }
         });
     </script>
+
+    <!-- Timeline حالات الطلب من الوسيط -->
+    @if($order->alwaseetShipment)
+        <div class="mt-5">
+            <x-alwaseet-status-timeline 
+                :timeline="$order->alwaseetShipment->getStatusTimelineWithCache()" 
+                :currentStatusId="$order->alwaseetShipment->status_id" 
+            />
+        </div>
+    @endif
 </x-layout.default>

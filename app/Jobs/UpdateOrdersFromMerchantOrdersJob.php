@@ -113,8 +113,25 @@ class UpdateOrdersFromMerchantOrdersJob implements ShouldQueue
                     
                     $shipment->update($updateData);
 
-                    // إرسال event إذا تغيرت الحالة
+                    // إرسال event إذا تغيرت الحالة وحفظ في History
                     if ($oldStatusId && $oldStatusId !== $updateData['status_id']) {
+                        // حفظ التغيير في History
+                        \App\Models\AlWaseetOrderStatusHistory::create([
+                            'order_id' => $shipment->order_id,
+                            'shipment_id' => $shipment->id,
+                            'status_id' => $updateData['status_id'],
+                            'status_text' => $updateData['status'] ?? '',
+                            'changed_at' => $updateData['alwaseet_updated_at'] ?? now(),
+                            'changed_by' => 'system_sync',
+                            'metadata' => [
+                                'old_status_id' => $oldStatusId,
+                                'synced_from_api' => true,
+                            ],
+                        ]);
+                        
+                        // مسح الـ cache للـ timeline
+                        \Illuminate\Support\Facades\Cache::forget('alwaseet_status_timeline_' . $shipment->id);
+                        
                         event(new \App\Events\AlWaseetShipmentStatusChanged($shipment, $oldStatusId, $updateData['status_id']));
                     }
 

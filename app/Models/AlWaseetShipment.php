@@ -69,6 +69,38 @@ class AlWaseetShipment extends Model
     }
 
     /**
+     * Get status history for this shipment
+     */
+    public function statusHistory()
+    {
+        return $this->hasMany(\App\Models\AlWaseetOrderStatusHistory::class, 'shipment_id')
+            ->orderBy('changed_at', 'asc');
+    }
+
+    /**
+     * Get status timeline with cache
+     */
+    public function getStatusTimelineWithCache()
+    {
+        $cacheKey = 'alwaseet_status_timeline_' . $this->id;
+        
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(10), function () {
+            return $this->statusHistory()
+                ->with('statusInfo')
+                ->get()
+                ->map(function ($history) {
+                    return [
+                        'status_id' => $history->status_id,
+                        'status_text' => $history->status_text,
+                        'changed_at' => $history->changed_at,
+                        'is_current' => $history->status_id === $this->status_id,
+                        'display_order' => $history->statusInfo->display_order ?? 999,
+                    ];
+                });
+        });
+    }
+
+    /**
      * Check if shipment is linked to an order
      */
     public function isLinked(): bool
