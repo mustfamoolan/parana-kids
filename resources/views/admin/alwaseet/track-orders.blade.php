@@ -38,6 +38,14 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">تتبع طلبات الوسيط</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                @if(!$showStatusCards)
+                    <a href="{{ route('admin.alwaseet.track-orders') }}" class="btn btn-outline-primary">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        العودة للكاردات
+                    </a>
+                @endif
                 <a href="{{ route('admin.alwaseet.print-and-upload-orders', array_filter([
                     'warehouse_id' => request('warehouse_id'),
                     'search' => request('search'),
@@ -76,6 +84,9 @@
         <!-- فلتر وبحث -->
         <div class="mb-5">
             <form method="GET" action="{{ route('admin.alwaseet.track-orders') }}" class="space-y-4">
+                @if(request('api_status_id'))
+                    <input type="hidden" name="api_status_id" value="{{ request('api_status_id') }}">
+                @endif
                 <!-- الصف الأول: البحث -->
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="flex-1">
@@ -232,7 +243,8 @@
                     @endif
                 @endforeach
             </div>
-        @endif
+        @else
+            <!-- عرض الفلاتر والطلبات -->
 
         <!-- نتائج البحث -->
         @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
@@ -503,9 +515,12 @@
                 </div>
             </div>
         @endif
+        @endif
 
         <!-- Pagination -->
-        <x-pagination :items="$orders" />
+        @if(!$showStatusCards)
+            <x-pagination :items="$orders" />
+        @endif
     </div>
 
 </x-layout.admin>
