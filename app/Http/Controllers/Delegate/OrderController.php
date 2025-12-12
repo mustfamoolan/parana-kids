@@ -1369,8 +1369,14 @@ class OrderController extends Controller
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         $showStatusCards = !$hasApiStatusFilter;
 
-        // عرض جميع الحالات المتاحة (بدون فلترة) لنرى جميع الحالات
-        // يمكن إعادة الفلترة لاحقاً إذا لزم الأمر
+        // Log نهائي قبل إرسال البيانات إلى View
+        \Log::info('Delegate: Before sending to view', [
+            'showStatusCards' => $showStatusCards,
+            'allStatuses_count' => count($allStatuses),
+            'allStatuses' => $allStatuses,
+            'statusCounts' => $statusCounts,
+            'statusCounts_keys' => array_keys($statusCounts),
+        ]);
 
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
         if ($showStatusCards) {
