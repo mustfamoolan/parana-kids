@@ -1262,7 +1262,11 @@ class OrderController extends Controller
                     ->whereNotNull('status_id')
                     ->selectRaw('status_id, COUNT(*) as count')
                     ->groupBy('status_id')
-                    ->pluck('count', 'status_id')
+                    ->get()
+                    ->mapWithKeys(function($item) {
+                        // تحويل status_id إلى string لضمان المقارنة الصحيحة
+                        return [(string)$item->status_id => (int)$item->count];
+                    })
                     ->toArray();
 
                 // تهيئة العدادات لجميع الحالات (تأكد من أن جميع الحالات موجودة)
