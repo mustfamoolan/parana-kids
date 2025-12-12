@@ -1113,33 +1113,23 @@ class OrderController extends Controller
             }
         }
 
-        // إذا كان هناك فلتر حسب حالة API، نجلب عدد محدود من الطلبات للفلترة
-        $hasApiStatusFilter = $request->filled('api_status_id') || $request->filled('api_status_text');
-        $hasMoreOrders = false;
-
-        // جلب الطلبات (عدد محدود إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
-        if ($hasApiStatusFilter) {
-            $maxOrders = 30;
-            $ordersForApi = $query->with([
-                'delegate',
-                'items.product.primaryImage',
-                'items.product.warehouse',
-                'alwaseetShipment'
-            ])->orderBy('created_at', 'desc')->take($maxOrders)->get();
-
-            $totalOrdersCount = $query->count();
-            if ($totalOrdersCount > $maxOrders) {
-                $hasMoreOrders = true;
-            }
-        } else {
-            $orders = $query->with([
-                'delegate',
-                'items.product.primaryImage',
-                'items.product.warehouse',
-                'alwaseetShipment'
-            ])->orderBy('created_at', 'desc')->paginate(20);
-            $ordersForApi = $orders;
+        // فلتر حسب حالة API مباشرة في SQL query (أسرع وأدق)
+        if ($request->filled('api_status_id')) {
+            $query->whereHas('alwaseetShipment', function($q) use ($request) {
+                $q->where('status_id', $request->api_status_id);
+            });
         }
+
+        // جلب الطلبات مع pagination عادي (بدون حد على العدد!)
+        $orders = $query->with([
+            'delegate',
+            'items.product.primaryImage',
+            'items.product.warehouse',
+            'alwaseetShipment'
+        ])->orderBy('created_at', 'desc')->paginate(20);
+        
+        $ordersForApi = $orders;
+        $hasMoreOrders = false;
 
         // جلب قائمة المدن من API (مع Cache لمدة 24 ساعة - لا حاجة للتحديث المستمر)
         $cities = [];
@@ -1228,7 +1218,7 @@ class OrderController extends Controller
 
         // حساب عدد الطلبات لكل حالة (من Cache - Job يحدثها كل 5 دقائق تلقائياً)
         $statusCounts = [];
-        if (!$hasApiStatusFilter) {
+        if (!$request->filled('api_status_id')) {
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
             
             // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق)
@@ -1285,53 +1275,6 @@ class OrderController extends Controller
             }
         }
 
-        // فلتر حسب حالة الطلب (من قاعدة البيانات مباشرة - أسرع بكثير)
-        if ($hasApiStatusFilter) {
-            $filteredOrders = collect();
-
-            foreach ($ordersForApi as $order) {
-                $shouldInclude = false;
-
-                // استخدام البيانات المحفوظة من قاعدة البيانات بدلاً من API
-                if ($order->alwaseetShipment) {
-                    $shipment = $order->alwaseetShipment;
-
-                    if ($request->filled('api_status_id')) {
-                        $requestedStatusId = $request->api_status_id;
-                        // استخدام status_id من قاعدة البيانات مباشرة
-                        if ($shipment->status_id && (string)$shipment->status_id === (string)$requestedStatusId) {
-                            $shouldInclude = true;
-                        }
-                    } elseif ($request->filled('api_status_text')) {
-                        $requestedStatusText = $request->api_status_text;
-                        // استخدام status من قاعدة البيانات مباشرة
-                        if ($shipment->status && $shipment->status === $requestedStatusText) {
-                            $shouldInclude = true;
-                        }
-                    }
-                }
-
-                if ($shouldInclude) {
-                    $filteredOrders->push($order);
-                }
-            }
-
-            $perPage = 20;
-            $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
-            $total = $filteredOrders->count();
-            $items = $filteredOrders->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-            $orders = new \Illuminate\Pagination\LengthAwarePaginator(
-                $items,
-                $total,
-                $perPage,
-                $currentPage,
-                [
-                    'path' => $request->url(),
-                    'query' => $request->query(),
-                ]
-            );
-        }
 
         // جلب قائمة المخازن (للمندوب: فقط المخازن التي له طلبات منها)
         $warehouses = \App\Models\Warehouse::whereIn('id', function($subQuery) {

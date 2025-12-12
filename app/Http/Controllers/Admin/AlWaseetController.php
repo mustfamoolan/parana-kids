@@ -2216,60 +2216,58 @@ class AlWaseetController extends Controller
             }
         }
 
-        // إذا كان هناك فلتر حسب حالة API، نجلب عدد محدود من الطلبات للفلترة
-        $hasApiStatusFilter = $request->filled('api_status_id') || $request->filled('api_status_text');
-        $hasMoreOrders = false;
-        
-        // جلب الطلبات (عدد محدود إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
-        if ($hasApiStatusFilter) {
-            // جلب عدد محدود من الطلبات للفلترة حسب حالة API (30 طلب فقط لتجنب timeout)
-            // تقليل العدد لتسريع جلب بيانات API
-            $maxOrders = 30;
-            $ordersForApi = $query->with([
-                'delegate',
-                'items.product.primaryImage',
-                'items.product.warehouse',
-                'alwaseetShipment'
-            ])->orderBy('created_at', 'desc')->take($maxOrders)->get();
-            
-            // التحقق من وجود المزيد من الطلبات
-            $totalOrdersCount = $query->count();
-            if ($totalOrdersCount > $maxOrders) {
-                $hasMoreOrders = true;
-            }
-        } else {
-            // جلب الطلبات مع pagination عادي
-            $orders = $query->with([
-                'delegate',
-                'items.product.primaryImage',
-                'items.product.warehouse',
-                'alwaseetShipment'
-            ])->orderBy('created_at', 'desc')->paginate(20);
-            $ordersForApi = $orders;
+        // فلتر حسب حالة API مباشرة في SQL query (أسرع وأدق)
+        if ($request->filled('api_status_id')) {
+            $query->whereHas('alwaseetShipment', function($q) use ($request) {
+                $q->where('status_id', $request->api_status_id);
+            });
         }
+        
+        // جلب الطلبات مع pagination عادي (بدون حد على العدد!)
+        $orders = $query->with([
+            'delegate',
+            'items.product.primaryImage',
+            'items.product.warehouse',
+            'alwaseetShipment'
+        ])->orderBy('created_at', 'desc')->paginate(20);
+        
+        $ordersForApi = $orders;
+        $hasMoreOrders = false;
 
-        // جلب قائمة المدن من API
+        // جلب قائمة المدن من API (مع Cache لمدة 24 ساعة - لا حاجة للتحديث المستمر)
         $cities = [];
         try {
-            $cities = $this->alWaseetService->getCities();
+            $cacheKey = 'alwaseet_cities_admin';
+            $cities = Cache::remember($cacheKey, now()->addHours(24), function () {
+                return $this->alWaseetService->getCities();
+            });
         } catch (\Exception $e) {
             Log::error('AlWaseetController: Failed to load cities in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
         }
 
-        // جلب المناطق للطلبات التي لديها city_id محفوظة
+        // جلب المناطق للطلبات التي لديها city_id محفوظة (مع Cache - أسرع بكثير)
         $ordersWithRegions = [];
         try {
-            foreach ($ordersForApi as $order) {
-                if ($order->alwaseet_city_id) {
-                    try {
-                        $regions = $this->alWaseetService->getRegions($order->alwaseet_city_id);
+            $uniqueCityIds = $ordersForApi->pluck('alwaseet_city_id')->filter()->unique()->toArray();
+            foreach ($uniqueCityIds as $cityId) {
+                $cacheKey = 'alwaseet_regions_' . $cityId;
+                $regions = Cache::remember($cacheKey, now()->addHours(24), function () use ($cityId) {
+                    return $this->alWaseetService->getRegions($cityId);
+                });
+                
+                // ربط المناطق بجميع الطلبات التي لها نفس city_id
+                foreach ($ordersForApi as $order) {
+                    if ($order->alwaseet_city_id == $cityId) {
                         $ordersWithRegions[$order->id] = $regions;
-                    } catch (\Exception $e) {
-                        $ordersWithRegions[$order->id] = [];
                     }
-                } else {
+                }
+            }
+            
+            // للطلبات التي لا تحتوي على city_id
+            foreach ($ordersForApi as $order) {
+                if (!$order->alwaseet_city_id && !isset($ordersWithRegions[$order->id])) {
                     $ordersWithRegions[$order->id] = [];
                 }
             }
@@ -2277,6 +2275,12 @@ class AlWaseetController extends Controller
             Log::error('AlWaseetController: Failed to load regions in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
+            // في حالة الفشل، نعطي array فارغ لكل طلب
+            foreach ($ordersForApi as $order) {
+                if (!isset($ordersWithRegions[$order->id])) {
+                    $ordersWithRegions[$order->id] = [];
+                }
+            }
         }
 
         // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
@@ -2317,7 +2321,7 @@ class AlWaseetController extends Controller
 
         // حساب عدد الطلبات لكل حالة (من Cache - Job يحدثها كل 5 دقائق تلقائياً)
         $statusCounts = [];
-        if (!$hasApiStatusFilter) {
+        if (!$request->filled('api_status_id')) {
             $cacheKey = 'admin_all_status_counts';
             
             // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق)
@@ -2389,76 +2393,8 @@ class AlWaseetController extends Controller
             }
         }
 
-        // فلتر حسب حالة الطلب من قاعدة البيانات (أسرع بكثير)
-        if ($hasApiStatusFilter) {
-            $filteredOrders = collect();
-            
-            foreach ($ordersForApi as $order) {
-                $shouldInclude = false;
-                
-                if ($order->alwaseetShipment) {
-                    $shipment = $order->alwaseetShipment;
-                    
-                    // فلتر حسب status_id من قاعدة البيانات
-                    if ($request->filled('api_status_id')) {
-                        $requestedStatusId = $request->api_status_id;
-                        if ($shipment->status_id && (string)$shipment->status_id === (string)$requestedStatusId) {
-                            $shouldInclude = true;
-                        }
-                    }
-                    // فلتر حسب status text من قاعدة البيانات
-                    elseif ($request->filled('api_status_text')) {
-                        $requestedStatusText = $request->api_status_text;
-                        $orderStatus = null;
-                        
-                        // الحصول على حالة الطلب من قاعدة البيانات
-                        if ($shipment->status && !empty($shipment->status)) {
-                            $orderStatus = $shipment->status;
-                        } elseif ($shipment->status_id && isset($statusesMap[$shipment->status_id])) {
-                            $orderStatus = $statusesMap[$shipment->status_id];
-                        }
-                        
-                        if ($orderStatus && $orderStatus === $requestedStatusText) {
-                            $shouldInclude = true;
-                        }
-                    }
-                }
-                
-                if ($shouldInclude) {
-                    $filteredOrders->push($order);
-                }
-            }
-            
-            // تطبيق pagination يدوياً
-            $perPage = 20;
-            $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
-            $total = $filteredOrders->count();
-            $items = $filteredOrders->slice(($currentPage - 1) * $perPage, $perPage)->values();
-            
-            $orders = new \Illuminate\Pagination\LengthAwarePaginator(
-                $items,
-                $total,
-                $perPage,
-                $currentPage,
-                [
-                    'path' => $request->url(),
-                    'query' => $request->query(),
-                ]
-            );
-        }
-
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
-        $showStatusCards = !$hasApiStatusFilter;
-
-        // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
-        if ($showStatusCards && !empty($allStatuses)) {
-            foreach ($allStatuses as $status) {
-                $statusId = (string)$status['id'];
-                if (!isset($statusCounts[$statusId])) {
-                    $statusCounts[$statusId] = 0;
-                }
-            }
-        }
+        $showStatusCards = !$request->filled('api_status_id');
 
         return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders', 'statusCounts', 'showStatusCards'));
     }
