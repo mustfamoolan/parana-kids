@@ -70,6 +70,9 @@ class Kernel extends ConsoleKernel
 
         // تحديث جميع بيانات API للطلبات المرتبطة (كل 10 دقائق)
         $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyTenMinutes();
+        
+        // تحديث حالات الطلبات من API (كل ساعة)
+        $schedule->job(new \App\Jobs\SyncAlWaseetOrderStatusesJob)->hourly();
     }
 
     /**

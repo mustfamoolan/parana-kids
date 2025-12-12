@@ -1194,36 +1194,14 @@ class OrderController extends Controller
         // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
         $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
-        // جلب قائمة الحالات من API وتحديث قاعدة البيانات
+        // جلب قائمة الحالات من قاعدة البيانات مباشرة (أسرع بكثير)
+        // Job في الخلفية يقوم بتحديث الحالات من API كل ساعة تلقائياً
         $statusesMap = [];
         $allStatuses = [];
         try {
-            $cacheKey = 'alwaseet_statuses_api';
-            $statuses = Cache::remember($cacheKey, now()->addHours(24), function () {
-                return $this->alWaseetService->getOrderStatuses();
-            });
-
-            if (is_array($statuses)) {
-                // تحديث قاعدة البيانات بالحالات الجديدة
-                AlWaseetOrderStatus::syncFromApi($statuses);
-
-                // جلب الحالات من قاعدة البيانات
-                $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
-
-                foreach ($dbStatuses as $dbStatus) {
-                    $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
-                    $allStatuses[] = [
-                        'id' => $dbStatus->status_id,
-                        'status' => $dbStatus->status_text
-                    ];
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('Delegate/OrderController: Failed to load order statuses from AlWaseet API in trackOrders', [
-                'error' => $e->getMessage(),
-            ]);
-            // Fallback: جلب الحالات من قاعدة البيانات فقط
+            // جلب الحالات من قاعدة البيانات مباشرة (بدون Cache)
             $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
+
             foreach ($dbStatuses as $dbStatus) {
                 $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
                 $allStatuses[] = [
@@ -1231,6 +1209,12 @@ class OrderController extends Controller
                     'status' => $dbStatus->status_text
                 ];
             }
+        } catch (\Exception $e) {
+            Log::error('Delegate/OrderController: Failed to load order statuses from database in trackOrders', [
+                'error' => $e->getMessage(),
+            ]);
+            // في حالة الفشل، نستخدم array فارغ
+            $allStatuses = [];
         }
 
         // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مباشرة - أسرع بكثير)

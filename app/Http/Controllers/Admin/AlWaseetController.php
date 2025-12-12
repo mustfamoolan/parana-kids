@@ -2088,22 +2088,18 @@ class AlWaseetController extends Controller
         // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
         $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
-        // جلب قائمة الحالات من API وإنشاء mapping
+        // جلب قائمة الحالات من قاعدة البيانات مباشرة (أسرع بكثير)
+        // Job في الخلفية يقوم بتحديث الحالات من API كل ساعة تلقائياً
         $statusesMap = [];
         try {
-            $cacheKey = 'alwaseet_statuses';
-            $statuses = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(24), function () {
-                return $this->alWaseetService->getOrderStatuses();
-            });
-
+            $dbStatuses = \App\Models\AlWaseetOrderStatus::getActiveStatuses();
+            
             // إنشاء mapping بين status_id و status text
-            foreach ($statuses as $status) {
-                if (isset($status['id']) && isset($status['status'])) {
-                    $statusesMap[$status['id']] = $status['status'];
-                }
+            foreach ($dbStatuses as $dbStatus) {
+                $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
             }
         } catch (\Exception $e) {
-            Log::error('AlWaseetController: Failed to load order statuses from AlWaseet API in printAndUploadOrders', [
+            Log::error('AlWaseetController: Failed to load order statuses from database in printAndUploadOrders', [
                 'error' => $e->getMessage(),
             ]);
             // في حالة الفشل، سنستخدم array فارغ
@@ -2965,22 +2961,18 @@ class AlWaseetController extends Controller
         // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
         $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
-        // جلب قائمة الحالات من API وإنشاء mapping
+        // جلب قائمة الحالات من قاعدة البيانات مباشرة (أسرع بكثير)
+        // Job في الخلفية يقوم بتحديث الحالات من API كل ساعة تلقائياً
         $statusesMap = [];
         try {
-            $cacheKey = 'alwaseet_statuses';
-            $statuses = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(24), function () {
-                return $this->alWaseetService->getOrderStatuses();
-            });
-
+            $dbStatuses = \App\Models\AlWaseetOrderStatus::getActiveStatuses();
+            
             // إنشاء mapping بين status_id و status text
-            foreach ($statuses as $status) {
-                if (isset($status['id']) && isset($status['status'])) {
-                    $statusesMap[$status['id']] = $status['status'];
-                }
+            foreach ($dbStatuses as $dbStatus) {
+                $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
             }
         } catch (\Exception $e) {
-            Log::error('AlWaseetController: Failed to load order statuses from AlWaseet API in getMaterialsListForPrintUpload', [
+            Log::error('AlWaseetController: Failed to load order statuses from database in getMaterialsListForPrintUpload', [
                 'error' => $e->getMessage(),
             ]);
             // في حالة الفشل، سنستخدم array فارغ
