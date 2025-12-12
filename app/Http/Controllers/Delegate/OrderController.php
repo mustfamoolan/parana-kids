@@ -1141,28 +1141,40 @@ class OrderController extends Controller
             $ordersForApi = $orders;
         }
 
-        // جلب قائمة المدن من API
+        // جلب قائمة المدن من API (مع Cache لمدة 24 ساعة - لا حاجة للتحديث المستمر)
         $cities = [];
         try {
-            $cities = $this->alWaseetService->getCities();
+            $cacheKey = 'alwaseet_cities_delegate';
+            $cities = Cache::remember($cacheKey, now()->addHours(24), function () {
+                return $this->alWaseetService->getCities();
+            });
         } catch (\Exception $e) {
             Log::error('Delegate/OrderController: Failed to load cities in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
         }
 
-        // جلب المناطق للطلبات التي لديها city_id محفوظة
+        // جلب المناطق للطلبات التي لديها city_id محفوظة (مع Cache - أسرع بكثير)
         $ordersWithRegions = [];
         try {
-            foreach ($ordersForApi as $order) {
-                if ($order->alwaseet_city_id) {
-                    try {
-                        $regions = $this->alWaseetService->getRegions($order->alwaseet_city_id);
+            $uniqueCityIds = $ordersForApi->pluck('alwaseet_city_id')->filter()->unique()->toArray();
+            foreach ($uniqueCityIds as $cityId) {
+                $cacheKey = 'alwaseet_regions_' . $cityId;
+                $regions = Cache::remember($cacheKey, now()->addHours(24), function () use ($cityId) {
+                    return $this->alWaseetService->getRegions($cityId);
+                });
+                
+                // ربط المناطق بجميع الطلبات التي لها نفس city_id
+                foreach ($ordersForApi as $order) {
+                    if ($order->alwaseet_city_id == $cityId) {
                         $ordersWithRegions[$order->id] = $regions;
-                    } catch (\Exception $e) {
-                        $ordersWithRegions[$order->id] = [];
                     }
-                } else {
+                }
+            }
+            
+            // للطلبات التي لا تحتوي على city_id
+            foreach ($ordersForApi as $order) {
+                if (!$order->alwaseet_city_id && !isset($ordersWithRegions[$order->id])) {
                     $ordersWithRegions[$order->id] = [];
                 }
             }
@@ -1170,6 +1182,12 @@ class OrderController extends Controller
             Log::error('Delegate/OrderController: Failed to load regions in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
+            // في حالة الفشل، نعطي array فارغ لكل طلب
+            foreach ($ordersForApi as $order) {
+                if (!isset($ordersWithRegions[$order->id])) {
+                    $ordersWithRegions[$order->id] = [];
+                }
+            }
         }
 
         // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
@@ -1247,10 +1265,18 @@ class OrderController extends Controller
                     ->pluck('count', 'status_id')
                     ->toArray();
 
-                // تهيئة العدادات لجميع الحالات
+                // تهيئة العدادات لجميع الحالات (تأكد من أن جميع الحالات موجودة)
                 foreach ($allStatuses as $status) {
-                    $statusId = $status['id'];
-                    $counts[$statusId] = $statusCountsFromDb[$statusId] ?? 0;
+                    $statusId = (string)$status['id']; // تحويل إلى string للمقارنة
+                    $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                }
+                
+                // أيضاً إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
+                foreach ($statusCountsFromDb as $statusId => $count) {
+                    $statusIdStr = (string)$statusId;
+                    if (!isset($counts[$statusIdStr])) {
+                        $counts[$statusIdStr] = (int)$count;
+                    }
                 }
 
                 return $counts;
@@ -1324,15 +1350,8 @@ class OrderController extends Controller
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         $showStatusCards = !$hasApiStatusFilter;
 
-        // فلترة الحالات: إخفاء الحالات التي عددها صفر
-        if ($showStatusCards && !empty($statusCounts)) {
-            $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
-                $statusId = $status['id'];
-                return isset($statusCounts[$statusId]) && $statusCounts[$statusId] > 0;
-            });
-            // إعادة ترتيب المصفوفة بعد الفلترة
-            $allStatuses = array_values($allStatuses);
-        }
+        // عرض جميع الحالات المتاحة (بدون فلترة) - المستخدم يريد رؤية جميع الحالات
+        // إذا كانت الحالة ليس لها طلبات، سيظهر العدد 0
 
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
         if ($showStatusCards) {

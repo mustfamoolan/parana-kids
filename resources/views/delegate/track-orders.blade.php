@@ -59,9 +59,10 @@
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 @foreach($allStatuses as $index => $status)
                     @php
-                        $statusId = $status['id'];
+                        $statusId = (string)$status['id']; // تحويل إلى string للمقارنة
                         $statusText = $status['status'];
-                        $count = $statusCounts[$statusId] ?? 0;
+                        // استخدام statusId كـ string للبحث في statusCounts
+                        $count = isset($statusCounts[$statusId]) ? (int)$statusCounts[$statusId] : 0;
                         $color = $getStatusColor($index);
                     @endphp
                     <a href="{{ route('delegate.orders.track', ['api_status_id' => $statusId]) }}" 
