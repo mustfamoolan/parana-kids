@@ -1238,67 +1238,7 @@ class OrderController extends Controller
 
             // حساب مباشر بدون Cache
             $counts = [];
-                $counts = [];
 
-                // جلب جميع order IDs للمندوب
-                $orderIds = Order::where('status', 'confirmed')
-                    ->where('delegate_id', auth()->id())
-                    ->whereHas('alwaseetShipment')
-                    ->pluck('id')
-                    ->toArray();
-
-                if (empty($orderIds)) {
-                    // إرجاع أصفار لجميع الحالات
-                    foreach ($allStatuses as $status) {
-                        $statusId = (string)$status['id'];
-                        $counts[$statusId] = 0;
-                    }
-                    return $counts;
-                }
-
-                // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات (أسرع بكثير)
-                $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
-                    ->whereNotNull('status_id')
-                    ->selectRaw('status_id, COUNT(*) as count')
-                    ->groupBy('status_id')
-                    ->get()
-                    ->mapWithKeys(function($item) {
-                        // تحويل status_id إلى string لضمان المقارنة الصحيحة
-                        return [(string)$item->status_id => (int)$item->count];
-                    })
-                    ->toArray();
-
-                // Log للتحقق من البيانات
-                \Log::info('Delegate status counts calculation', [
-                    'orderIds_count' => count($orderIds),
-                    'statusCountsFromDb' => $statusCountsFromDb,
-                    'allStatuses_count' => count($allStatuses),
-                    'allStatuses' => $allStatuses,
-                ]);
-
-                // تهيئة العدادات لجميع الحالات (تأكد من أن جميع الحالات موجودة)
-                foreach ($allStatuses as $status) {
-                    $statusId = (string)$status['id']; // تحويل إلى string للمقارنة
-                    // البحث في statusCountsFromDb باستخدام statusId كـ string
-                    $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
-                }
-                
-                // أيضاً إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
-                foreach ($statusCountsFromDb as $statusId => $count) {
-                    $statusIdStr = (string)$statusId;
-                    if (!isset($counts[$statusIdStr])) {
-                        $counts[$statusIdStr] = (int)$count;
-                    }
-                }
-
-                \Log::info('Final status counts', [
-                    'counts' => $counts,
-                ]);
-
-                return $counts;
-            });
-            
-            // حساب مباشر بدون Cache
             // جلب جميع order IDs للمندوب
             $orderIds = Order::where('status', 'confirmed')
                 ->where('delegate_id', auth()->id())
@@ -1309,6 +1249,7 @@ class OrderController extends Controller
             \Log::info('Delegate: Calculating status counts', [
                 'orderIds_count' => count($orderIds),
                 'allStatuses_count' => count($allStatuses),
+                'allStatuses' => $allStatuses,
             ]);
 
             if (!empty($orderIds)) {
