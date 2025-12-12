@@ -73,10 +73,16 @@ class UpdateStatusCountsJob implements ShouldQueue
                         ->orderBy('status_text')
                         ->get();
 
-                    // تهيئة العدادات لجميع الحالات
+                    // تهيئة العدادات لجميع الحالات أولاً بقيمة 0
                     foreach ($allStatuses as $status) {
                         $statusId = (string)$status->status_id;
-                        $statusCounts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                        $statusCounts[$statusId] = 0;
+                    }
+                    
+                    // تحديث العدادات للحالات الموجودة فقط
+                    foreach ($statusCountsFromDb as $statusId => $count) {
+                        $statusIdStr = (string)$statusId;
+                        $statusCounts[$statusIdStr] = (int)$count;
                     }
                     
                     // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
@@ -142,18 +148,16 @@ class UpdateStatusCountsJob implements ShouldQueue
                     ->orderBy('status_text')
                     ->get();
 
-                // تهيئة العدادات لجميع الحالات
+                // تهيئة العدادات لجميع الحالات أولاً بقيمة 0
                 foreach ($allStatuses as $status) {
                     $statusId = (string)$status->status_id;
-                    $statusCounts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
+                    $statusCounts[$statusId] = 0;
                 }
                 
-                // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
+                // تحديث العدادات للحالات الموجودة فقط
                 foreach ($statusCountsFromDb as $statusId => $count) {
                     $statusIdStr = (string)$statusId;
-                    if (!isset($statusCounts[$statusIdStr])) {
-                        $statusCounts[$statusIdStr] = (int)$count;
-                    }
+                    $statusCounts[$statusIdStr] = (int)$count;
                 }
             } else {
                 // إرجاع أصفار لجميع الحالات
