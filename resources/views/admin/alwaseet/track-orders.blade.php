@@ -501,6 +501,46 @@
                             </div>
                         </div>
 
+                        <!-- Timeline حالات الطلب -->
+                        @if($shipment && !$shipment->statusHistory->isEmpty())
+                            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <h4 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    سجل الحالات
+                                </h4>
+                                
+                                <!-- Timeline مصغر -->
+                                <div class="relative">
+                                    <div class="absolute right-2 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                                    @foreach($shipment->statusHistory as $history)
+                                        <div class="relative flex items-center gap-3 mb-2 last:mb-0">
+                                            <div class="relative z-10 w-5 h-5 rounded-full flex items-center justify-center
+                                                {{ $history->status_id === $shipment->status_id 
+                                                    ? 'bg-success ring-2 ring-success/30' : 'bg-gray-300 dark:bg-gray-600' }}">
+                                                @if($history->status_id === $shipment->status_id)
+                                                    <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                @else
+                                                    <div class="w-2 h-2 rounded-full bg-white"></div>
+                                                @endif
+                                            </div>
+                                            <div class="flex-1 text-xs">
+                                                <span class="font-medium {{ $history->status_id === $shipment->status_id ? 'text-success' : 'text-gray-600 dark:text-gray-400' }}">
+                                                    {{ $history->status_text }}
+                                                </span>
+                                                <span class="text-gray-400 mr-2">
+                                                    {{ $history->changed_at->format('m-d H:i') }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
                     </div>
                 @endforeach
             </div>
