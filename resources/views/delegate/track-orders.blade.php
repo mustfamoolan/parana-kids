@@ -56,6 +56,13 @@
 
         @if($showStatusCards)
             <!-- عرض مربعات الحالات -->
+            @php
+                \Log::info('Delegate View: Rendering status cards', [
+                    'allStatuses_count' => count($allStatuses),
+                    'allStatuses' => $allStatuses,
+                    'statusCounts' => $statusCounts ?? [],
+                ]);
+            @endphp
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 @foreach($allStatuses as $index => $status)
                     @php
