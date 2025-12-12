@@ -198,6 +198,20 @@
             </div>
         @endif
 
+        <!-- تحذير عند وجود المزيد من الطلبات -->
+        @if(isset($hasMoreOrders) && $hasMoreOrders)
+            <div class="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <span class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        تم عرض أول 200 طلب فقط. يرجى استخدام فلاتر إضافية (مثل التاريخ أو البحث) لتضييق النتائج.
+                    </span>
+                </div>
+            </div>
+        @endif
+
         <!-- كروت الطلبات -->
         @if($orders->count() > 0)
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -258,48 +272,22 @@
                         </div>
 
                         <!-- هيدر الكارت -->
-                        <div class="flex items-center justify-between mb-4 pl-12">
-                            <div>
-                                <div class="flex items-center gap-2 mb-1">
-                                    <div class="text-lg font-bold text-primary dark:text-primary-light relative inline-block">
-                                        رقم الطلب: {{ $order->order_number }}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onclick="copyDeliveryCode('{{ $order->order_number }}', 'order')"
-                                        class="btn btn-xs btn-outline-primary flex items-center gap-1"
-                                        title="نسخ رقم الطلب"
-                                    >
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                        </svg>
-                                        نسخ
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="text-right flex flex-col gap-1 items-end">
-                                {{-- حالة الطلب من API --}}
-                                @if($orderStatus)
-                                    <span class="badge bg-info text-white text-sm font-bold px-3 py-1.5" title="حالة الطلب من الوسيط">
-                                        <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        {{ $orderStatus }}
-                                    </span>
-                                @endif
-                                <span class="badge bg-success text-white text-sm font-bold px-3 py-1.5">
-                                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        <div class="flex items-center justify-center mb-4 pl-12">
+                            {{-- حالة الطلب من API --}}
+                            @if($orderStatus)
+                                <span class="badge bg-info text-white text-lg font-bold px-4 py-2" title="حالة الطلب من الوسيط">
+                                    <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
-                                    مقيد ومرسل
+                                    {{ $orderStatus }}
                                 </span>
-                            </div>
+                            @endif
                         </div>
 
-                        <!-- كود الوسيط -->
+                        <!-- رقم الوسيط -->
                         @if($alwaseetCode)
                             <div class="mb-4 text-center">
-                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">كود الوسيط</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">رقم الوسيط</span>
                                 <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;">{{ $alwaseetCode }}</div>
                             </div>
                         @endif
@@ -376,39 +364,6 @@
                             </div>
                         </div>
 
-                        <!-- أزرار الإجراءات -->
-                        <div class="flex gap-2 flex-wrap">
-                            @php
-                                $backRoute = 'admin.alwaseet.track-orders';
-                                $backParams = urlencode(json_encode(request()->query()));
-                            @endphp
-                            <a href="{{ route('admin.orders.show', $order) }}?back_route={{ $backRoute }}&back_params={{ $backParams }}" class="btn btn-sm btn-primary flex-1" title="عرض">
-                                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                                عرض
-                            </a>
-
-                            @can('update', $order)
-                                <a href="{{ route('admin.orders.edit', $order) }}?back_route={{ $backRoute }}&back_params={{ $backParams }}" class="btn btn-sm btn-warning flex-1" title="تعديل">
-                                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                    تعديل
-                                </a>
-                            @endcan
-
-                            <!-- زر الطباعة -->
-                            @if($shipment && !empty($shipment->qr_link))
-                                <button type="button" onclick="downloadOrderPdf({{ $order->id }})" class="btn btn-sm btn-info flex-1" id="print-btn-{{ $order->id }}" title="طباعة">
-                                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path>
-                                    </svg>
-                                    طباعة
-                                </button>
-                            @endif
-                        </div>
                     </div>
                 @endforeach
             </div>
@@ -428,111 +383,5 @@
         <x-pagination :items="$orders" />
     </div>
 
-    <script>
-        // دالة نسخ النص إلى الحافظة
-        function copyDeliveryCode(text, type = '') {
-            let successMessage = 'تم النسخ بنجاح!';
-            if (type === 'order') {
-                successMessage = 'تم نسخ رقم الطلب بنجاح!';
-            }
-
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-
-            textarea.select();
-            textarea.setSelectionRange(0, 99999);
-
-            try {
-                document.execCommand('copy');
-                showCopyNotification(successMessage);
-            } catch (err) {
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(text).then(function() {
-                        showCopyNotification(successMessage);
-                    }).catch(function() {
-                        showCopyNotification('فشل في النسخ', 'error');
-                    });
-                } else {
-                    showCopyNotification('فشل في النسخ', 'error');
-                }
-            }
-
-            document.body.removeChild(textarea);
-        }
-
-        // دالة إظهار إشعار النسخ
-        function showCopyNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
-            notification.textContent = message;
-
-            document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.style.opacity = '0';
-                setTimeout(() => {
-                    if (document.body.contains(notification)) {
-                        document.body.removeChild(notification);
-                    }
-                }, 300);
-            }, 3000);
-        }
-
-        // دالة تحميل PDF لطلب واحد
-        function downloadOrderPdf(orderId) {
-            const printButton = document.getElementById(`print-btn-${orderId}`);
-            const originalText = printButton.innerHTML;
-
-            printButton.disabled = true;
-            printButton.innerHTML = '<svg class="animate-spin w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> جاري التحميل...';
-
-            fetch(`{{ route('admin.alwaseet.orders.download-pdf', ':id') }}`.replace(':id', orderId), {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/pdf',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'فشل تحميل PDF');
-                    });
-                }
-                return response.blob();
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `alwaseet-order-${orderId}-${new Date().toISOString().slice(0, 10)}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-
-                if (typeof showCopyNotification === 'function') {
-                    showCopyNotification('تم تحميل ملف PDF بنجاح', 'success');
-                }
-
-                printButton.disabled = false;
-                printButton.innerHTML = originalText;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if (typeof showCopyNotification === 'function') {
-                    showCopyNotification(error.message || 'حدث خطأ أثناء تحميل PDF', 'error');
-                } else {
-                    alert(error.message || 'حدث خطأ أثناء تحميل PDF');
-                }
-                printButton.disabled = false;
-                printButton.innerHTML = originalText;
-            });
-        }
-    </script>
 </x-layout.admin>
 

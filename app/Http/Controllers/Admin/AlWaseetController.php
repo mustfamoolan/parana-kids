@@ -2241,18 +2241,26 @@ class AlWaseetController extends Controller
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
-        // إذا كان هناك فلتر حسب حالة API، نجلب جميع الطلبات (بدون pagination) للفلترة
+        // إذا كان هناك فلتر حسب حالة API، نجلب عدد محدود من الطلبات للفلترة
         $hasApiStatusFilter = $request->filled('api_status_id') || $request->filled('api_status_text');
+        $hasMoreOrders = false;
         
-        // جلب الطلبات (جميعها إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
+        // جلب الطلبات (عدد محدود إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
         if ($hasApiStatusFilter) {
-            // جلب جميع الطلبات للفلترة حسب حالة API
+            // جلب عدد محدود من الطلبات للفلترة حسب حالة API (200 طلب كحد أقصى لتجنب timeout)
+            $maxOrders = 200;
             $ordersForApi = $query->with([
                 'delegate',
                 'items.product.primaryImage',
                 'items.product.warehouse',
                 'alwaseetShipment'
-            ])->orderBy('created_at', 'desc')->get();
+            ])->orderBy('created_at', 'desc')->take($maxOrders)->get();
+            
+            // التحقق من وجود المزيد من الطلبات
+            $totalOrdersCount = $query->count();
+            if ($totalOrdersCount > $maxOrders) {
+                $hasMoreOrders = true;
+            }
         } else {
             // جلب الطلبات مع pagination عادي
             $orders = $query->with([
@@ -2418,7 +2426,7 @@ class AlWaseetController extends Controller
             );
         }
 
-        return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses'));
+        return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders'));
     }
 
     /**
