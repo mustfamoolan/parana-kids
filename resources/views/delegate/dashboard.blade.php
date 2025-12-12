@@ -98,8 +98,8 @@
                         <path d="M12 11C13.1046 11 14 10.1046 14 9C14 7.89543 13.1046 7 12 7C10.8954 7 10 7.89543 10 9C10 10.1046 10.8954 11 12 11Z" fill="currentColor"/>
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-indigo mb-2">تتبع طلباتي</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">تتبع حالة طلباتي المقيدة</p>
+                <h3 class="text-lg font-bold text-indigo mb-2">حركة طلبات الوسيط</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">تتبع حالة الطلبات المقيدة</p>
             </a>
 
             <!-- 4. المراسلة -->
