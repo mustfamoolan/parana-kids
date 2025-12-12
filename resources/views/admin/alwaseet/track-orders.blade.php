@@ -216,6 +216,7 @@
                         $count = isset($statusCounts[$statusId]) ? (int)$statusCounts[$statusId] : 0;
                         $color = $getStatusColor($index);
                     @endphp
+                    @if($count > 0)
                     <a href="{{ route('admin.alwaseet.track-orders', ['api_status_id' => $statusId]) }}" 
                        class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
                         <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
@@ -228,6 +229,7 @@
                             <span class="badge {{ $color['icon'] === 'text-primary' ? 'bg-primary' : ($color['icon'] === 'text-success' ? 'bg-success' : ($color['icon'] === 'text-warning' ? 'bg-warning' : ($color['icon'] === 'text-danger' ? 'bg-danger' : ($color['icon'] === 'text-info' ? 'bg-info' : 'bg-secondary')))) }} text-white">{{ $count }}</span> طلب
                         </p>
                     </a>
+                    @endif
                 @endforeach
             </div>
         @endif
