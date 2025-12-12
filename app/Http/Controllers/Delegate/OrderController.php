@@ -1125,7 +1125,7 @@ class OrderController extends Controller
             'delegate',
             'items.product.primaryImage',
             'items.product.warehouse',
-            'alwaseetShipment'
+            'alwaseetShipment.statusHistory.statusInfo' // إضافة Timeline
         ])->orderBy('created_at', 'desc')->paginate(20);
         
         $ordersForApi = $orders;
