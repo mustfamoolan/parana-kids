@@ -250,12 +250,12 @@
 
                                 <!-- زر الطباعة -->
                                 @if($shipment && !empty($shipment->qr_link))
-                                    <a href="{{ $shipment->qr_link }}" target="_blank" class="btn btn-info w-full">
+                                    <button type="button" onclick="downloadOrderPdf({{ $order->id }})" class="btn btn-info w-full" id="print-btn-{{ $order->id }}">
                                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path>
                                         </svg>
                                         طباعة الملف الوسيط
-                                    </a>
+                                    </button>
                                 @endif
                             </div>
                         </div>
@@ -370,5 +370,60 @@
                 closeImageModal();
             }
         });
+
+        // دالة تحميل PDF لطلب واحد
+        function downloadOrderPdf(orderId) {
+            const printButton = document.getElementById(`print-btn-${orderId}`);
+            const originalText = printButton.innerHTML;
+
+            printButton.disabled = true;
+            printButton.innerHTML = '<svg class="animate-spin w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> جاري التحميل...';
+
+            fetch(`{{ route('admin.alwaseet.orders.download-pdf', ':id') }}`.replace(':id', orderId), {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/pdf',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'فشل تحميل PDF');
+                    });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // إنشاء رابط تحميل للـ PDF
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `alwaseet-order-${orderId}-${new Date().toISOString().slice(0, 10)}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                // إظهار إشعار النجاح
+                if (typeof showCopyNotification === 'function') {
+                    showCopyNotification('تم تحميل ملف PDF بنجاح', 'success');
+                }
+
+                printButton.disabled = false;
+                printButton.innerHTML = originalText;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (typeof showCopyNotification === 'function') {
+                    showCopyNotification(error.message || 'حدث خطأ أثناء تحميل PDF', 'error');
+                } else {
+                    alert(error.message || 'حدث خطأ أثناء تحميل PDF');
+                }
+                printButton.disabled = false;
+                printButton.innerHTML = originalText;
+            });
+        }
     </script>
 </x-layout.admin>

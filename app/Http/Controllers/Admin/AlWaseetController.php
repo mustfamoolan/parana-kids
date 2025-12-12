@@ -2490,6 +2490,46 @@ class AlWaseetController extends Controller
     }
 
     /**
+     * Download PDF for a single order.
+     */
+    public function downloadOrderPdf(Order $order)
+    {
+        $this->authorize('view', $order);
+
+        try {
+            $shipment = $order->alwaseetShipment;
+            
+            if (!$shipment || empty($shipment->qr_link)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يوجد ملف PDF متاح لهذا الطلب',
+                ], 404);
+            }
+
+            // استخدام AlWaseetService لتحميل PDF مع token محدث
+            $qrLink = trim($shipment->qr_link);
+            $pdfResponse = $this->alWaseetService->downloadReceiptPdf($qrLink);
+
+            // تحديث اسم الملف ليشمل رقم الطلب
+            return $pdfResponse->header(
+                'Content-Disposition',
+                'attachment; filename="alwaseet-order-' . $order->order_number . '-' . date('Y-m-d-His') . '.pdf"'
+            );
+        } catch (\Exception $e) {
+            Log::error('AlWaseetController: Download order PDF failed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل تحميل PDF: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get materials list for print-and-upload-orders page.
      */
     public function getMaterialsListForPrintUpload(Request $request)

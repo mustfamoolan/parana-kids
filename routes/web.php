@@ -100,6 +100,7 @@ Route::prefix('admin')->group(function () {
             Route::get('/materials-list/orders/{order}/edit', [\App\Http\Controllers\Admin\AlWaseetController::class, 'editOrderFromMaterialsList'])->name('materials-list.orders.edit');
             Route::post('/materials-list/orders/{order}/update', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrderFromMaterialsList'])->name('materials-list.orders.update');
             Route::post('/print-all-orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'printAllOrders'])->name('print-all-orders');
+            Route::get('/orders/{order}/download-pdf', [\App\Http\Controllers\Admin\AlWaseetController::class, 'downloadOrderPdf'])->name('orders.download-pdf');
             Route::post('/orders/{id}/update-alwaseet-fields', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrderAlwaseetFields'])->name('orders.update-alwaseet-fields');
             Route::post('/orders/{id}/update-delivery-time-note', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateDeliveryTimeNote'])->name('orders.update-delivery-time-note');
             Route::post('/orders/{id}/send', [\App\Http\Controllers\Admin\AlWaseetController::class, 'sendOrderToAlWaseet'])->name('orders.send');
