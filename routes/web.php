@@ -376,6 +376,7 @@ Route::prefix('delegate')->group(function () {
         Route::get('carts/{cart}/checkout', [DelegateOrderController::class, 'create'])->name('delegate.orders.create');
         Route::post('orders', [DelegateOrderController::class, 'store'])->name('delegate.orders.store');
         Route::get('orders', [DelegateOrderController::class, 'index'])->name('delegate.orders.index');
+        Route::get('orders/track', [DelegateOrderController::class, 'trackOrders'])->name('delegate.orders.track');
         Route::get('orders/{order}', [DelegateOrderController::class, 'show'])->name('delegate.orders.show');
         Route::get('orders/{order}/edit', [DelegateOrderController::class, 'edit'])->name('delegate.orders.edit');
         Route::put('orders/{order}', [DelegateOrderController::class, 'update'])->name('delegate.orders.update');

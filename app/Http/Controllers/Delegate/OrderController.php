@@ -11,16 +11,22 @@ use App\Models\Product;
 use App\Models\ProductSize;
 use App\Models\ProductMovement;
 use App\Services\SweetAlertService;
+use App\Services\AlWaseetService;
+use App\Models\AlWaseetOrderStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class OrderController extends Controller
 {
     protected $sweetAlertService;
+    protected $alWaseetService;
 
-    public function __construct(SweetAlertService $sweetAlertService)
+    public function __construct(SweetAlertService $sweetAlertService, AlWaseetService $alWaseetService)
     {
         $this->sweetAlertService = $sweetAlertService;
+        $this->alWaseetService = $alWaseetService;
     }
 
     /**
@@ -1039,5 +1045,375 @@ class OrderController extends Controller
                          ->orWhere('size_name', '=', $searchTerm);
             });
         });
+    }
+
+    /**
+     * تتبع طلبات المندوب (المقيدة والمرسلة للوسيط)
+     */
+    public function trackOrders(Request $request)
+    {
+        // Base query - الطلبات المقيدة فقط والتي لها shipment (مرسلة) للمندوب الحالي
+        $query = Order::where('status', 'confirmed')
+            ->where('delegate_id', auth()->id())
+            ->whereHas('alwaseetShipment');
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->whereIn('id', function($subQuery) use ($request) {
+                $subQuery->select('order_id')
+                    ->from('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->where('products.warehouse_id', $request->warehouse_id)
+                    ->distinct();
+            });
+        }
+
+        // البحث في الطلبات
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
+                      $productQuery->where('name', 'like', "%{$searchTerm}%")
+                                   ->orWhere('code', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        // فلتر حسب التاريخ
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // فلتر حسب الوقت
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+
+        // فلتر حسب الساعات
+        if ($request->filled('hours_ago')) {
+            $hoursAgo = (int)$request->hours_ago;
+            if ($hoursAgo > 0) {
+                $query->where('created_at', '>=', now()->subHours($hoursAgo));
+            }
+        }
+
+        // إذا كان هناك فلتر حسب حالة API، نجلب عدد محدود من الطلبات للفلترة
+        $hasApiStatusFilter = $request->filled('api_status_id') || $request->filled('api_status_text');
+        $hasMoreOrders = false;
+        
+        // جلب الطلبات (عدد محدود إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
+        if ($hasApiStatusFilter) {
+            $maxOrders = 30;
+            $ordersForApi = $query->with([
+                'delegate',
+                'items.product.primaryImage',
+                'items.product.warehouse',
+                'alwaseetShipment'
+            ])->orderBy('created_at', 'desc')->take($maxOrders)->get();
+            
+            $totalOrdersCount = $query->count();
+            if ($totalOrdersCount > $maxOrders) {
+                $hasMoreOrders = true;
+            }
+        } else {
+            $orders = $query->with([
+                'delegate',
+                'items.product.primaryImage',
+                'items.product.warehouse',
+                'alwaseetShipment'
+            ])->orderBy('created_at', 'desc')->paginate(20);
+            $ordersForApi = $orders;
+        }
+
+        // جلب قائمة المدن من API
+        $cities = [];
+        try {
+            $cities = $this->alWaseetService->getCities();
+        } catch (\Exception $e) {
+            Log::error('Delegate/OrderController: Failed to load cities in trackOrders', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // جلب المناطق للطلبات التي لديها city_id محفوظة
+        $ordersWithRegions = [];
+        try {
+            foreach ($ordersForApi as $order) {
+                if ($order->alwaseet_city_id) {
+                    try {
+                        $regions = $this->alWaseetService->getRegions($order->alwaseet_city_id);
+                        $ordersWithRegions[$order->id] = $regions;
+                    } catch (\Exception $e) {
+                        $ordersWithRegions[$order->id] = [];
+                    }
+                } else {
+                    $ordersWithRegions[$order->id] = [];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Delegate/OrderController: Failed to load regions in trackOrders', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
+        $alwaseetOrdersData = [];
+        try {
+            $alwaseetOrderIds = [];
+            foreach ($ordersForApi as $order) {
+                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
+                    $alwaseetOrderIds[] = $order->alwaseetShipment->alwaseet_order_id;
+                }
+            }
+
+            if (!empty($alwaseetOrderIds)) {
+                $batchSize = 10;
+                $batches = array_chunk($alwaseetOrderIds, $batchSize);
+                
+                foreach ($batches as $batch) {
+                    try {
+                        $cacheKey = 'alwaseet_orders_' . md5(implode(',', $batch));
+                        $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($batch) {
+                            return $this->alWaseetService->getOrdersByIds($batch);
+                        });
+
+                        foreach ($apiOrders as $apiOrder) {
+                            if (isset($apiOrder['id'])) {
+                                $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
+                            }
+                        }
+                    } catch (\Exception $batchException) {
+                        Log::warning('Delegate/OrderController: Failed to load batch from AlWaseet API in trackOrders', [
+                            'error' => $batchException->getMessage(),
+                            'batch_size' => count($batch),
+                        ]);
+                        continue;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Delegate/OrderController: Failed to load orders from AlWaseet API in trackOrders', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // جلب قائمة الحالات من API وتحديث قاعدة البيانات
+        $statusesMap = [];
+        $allStatuses = [];
+        try {
+            $cacheKey = 'alwaseet_statuses_api';
+            $statuses = Cache::remember($cacheKey, now()->addHours(24), function () {
+                return $this->alWaseetService->getOrderStatuses();
+            });
+
+            if (is_array($statuses)) {
+                // تحديث قاعدة البيانات بالحالات الجديدة
+                AlWaseetOrderStatus::syncFromApi($statuses);
+                
+                // جلب الحالات من قاعدة البيانات
+                $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
+                
+                foreach ($dbStatuses as $dbStatus) {
+                    $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
+                    $allStatuses[] = [
+                        'id' => $dbStatus->status_id,
+                        'status' => $dbStatus->status_text
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Delegate/OrderController: Failed to load order statuses from AlWaseet API in trackOrders', [
+                'error' => $e->getMessage(),
+            ]);
+            // Fallback: جلب الحالات من قاعدة البيانات فقط
+            $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
+            foreach ($dbStatuses as $dbStatus) {
+                $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
+                $allStatuses[] = [
+                    'id' => $dbStatus->status_id,
+                    'status' => $dbStatus->status_text
+                ];
+            }
+        }
+
+        // حساب عدد الطلبات لكل حالة (مع Cache)
+        $statusCounts = [];
+        if (!$hasApiStatusFilter) {
+            // فقط نحسب الأعداد إذا لم يكن هناك فلتر نشط
+            $cacheKey = 'delegate_all_status_counts_' . auth()->id();
+            
+            $statusCounts = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($allStatuses) {
+                $counts = [];
+                
+                // جلب جميع الطلبات للمندوب مرة واحدة
+                $ordersQuery = Order::where('status', 'confirmed')
+                    ->where('delegate_id', auth()->id())
+                    ->whereHas('alwaseetShipment');
+                
+                // جلب order IDs
+                $orderIds = $ordersQuery->pluck('id')->toArray();
+                
+                if (empty($orderIds)) {
+                    // إرجاع أصفار لجميع الحالات
+                    foreach ($allStatuses as $status) {
+                        $counts[$status['id']] = 0;
+                    }
+                    return $counts;
+                }
+                
+                // جلب shipments
+                $shipments = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
+                    ->whereNotNull('alwaseet_order_id')
+                    ->pluck('alwaseet_order_id')
+                    ->toArray();
+                
+                if (empty($shipments)) {
+                    // إرجاع أصفار لجميع الحالات
+                    foreach ($allStatuses as $status) {
+                        $counts[$status['id']] = 0;
+                    }
+                    return $counts;
+                }
+                
+                // تهيئة العدادات
+                foreach ($allStatuses as $status) {
+                    $counts[$status['id']] = 0;
+                }
+                
+                // جلب بيانات API للطلبات (مرة واحدة لجميع الطلبات)
+                $batchSize = 10;
+                $batches = array_chunk($shipments, $batchSize);
+                
+                foreach ($batches as $batch) {
+                    try {
+                        $apiOrders = $this->alWaseetService->getOrdersByIds($batch);
+                        foreach ($apiOrders as $apiOrder) {
+                            if (isset($apiOrder['status_id'])) {
+                                $statusId = (string)$apiOrder['status_id'];
+                                if (isset($counts[$statusId])) {
+                                    $counts[$statusId]++;
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Delegate/OrderController: Failed to count orders for statuses', [
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+                
+                return $counts;
+            });
+        }
+
+        // فلتر حسب حالة الطلب من API
+        if ($hasApiStatusFilter) {
+            $filteredOrders = collect();
+            
+            foreach ($ordersForApi as $order) {
+                $shouldInclude = false;
+                
+                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
+                    $apiOrderId = $order->alwaseetShipment->alwaseet_order_id;
+                    
+                    if (isset($alwaseetOrdersData[$apiOrderId])) {
+                        $apiOrder = $alwaseetOrdersData[$apiOrderId];
+                        
+                        if ($request->filled('api_status_id')) {
+                            $requestedStatusId = $request->api_status_id;
+                            if (isset($apiOrder['status_id']) && (string)$apiOrder['status_id'] === (string)$requestedStatusId) {
+                                $shouldInclude = true;
+                            }
+                        } elseif ($request->filled('api_status_text')) {
+                            $requestedStatusText = $request->api_status_text;
+                            $orderStatus = null;
+                            
+                            if (isset($apiOrder['status']) && !empty($apiOrder['status'])) {
+                                $orderStatus = $apiOrder['status'];
+                            } elseif (isset($apiOrder['status_id']) && isset($statusesMap[$apiOrder['status_id']])) {
+                                $orderStatus = $statusesMap[$apiOrder['status_id']];
+                            }
+                            
+                            if ($orderStatus && $orderStatus === $requestedStatusText) {
+                                $shouldInclude = true;
+                            }
+                        }
+                    }
+                }
+                
+                if ($shouldInclude) {
+                    $filteredOrders->push($order);
+                }
+            }
+            
+            $perPage = 20;
+            $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
+            $total = $filteredOrders->count();
+            $items = $filteredOrders->slice(($currentPage - 1) * $perPage, $perPage)->values();
+            
+            $orders = new \Illuminate\Pagination\LengthAwarePaginator(
+                $items,
+                $total,
+                $perPage,
+                $currentPage,
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ]
+            );
+        }
+
+        // جلب قائمة المخازن (للمندوب: فقط المخازن التي له طلبات منها)
+        $warehouses = \App\Models\Warehouse::whereIn('id', function($subQuery) {
+            $subQuery->select('products.warehouse_id')
+                ->from('products')
+                ->join('order_items', 'products.id', '=', 'order_items.product_id')
+                ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                ->where('orders.delegate_id', auth()->id())
+                ->where('orders.status', 'confirmed')
+                ->whereExists(function($query) {
+                    $query->select(DB::raw(1))
+                        ->from('alwaseet_shipments')
+                        ->whereColumn('alwaseet_shipments.order_id', 'orders.id');
+                })
+                ->distinct();
+        })->get();
+
+        // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
+        $showStatusCards = !$hasApiStatusFilter;
+        
+        // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
+        if ($showStatusCards) {
+            $orders = collect(); // Empty collection
+        }
+        
+        return view('delegate.track-orders', compact(
+            'orders', 
+            'warehouses', 
+            'cities', 
+            'ordersWithRegions', 
+            'alwaseetOrdersData', 
+            'statusesMap', 
+            'allStatuses', 
+            'hasMoreOrders',
+            'statusCounts',
+            'showStatusCards'
+        ));
     }
 }

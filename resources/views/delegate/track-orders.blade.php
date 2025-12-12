@@ -1,56 +1,111 @@
-<x-layout.admin>
+<x-layout.default>
     @php
-        // التأكد من تعريف $alwaseetOrdersData
+        // التأكد من تعريف المتغيرات
         if (!isset($alwaseetOrdersData)) {
             $alwaseetOrdersData = [];
         }
-        // التأكد من تعريف $statusesMap
         if (!isset($statusesMap)) {
             $statusesMap = [];
         }
+        if (!isset($allStatuses)) {
+            $allStatuses = [];
+        }
+        if (!isset($statusCounts)) {
+            $statusCounts = [];
+        }
+        if (!isset($showStatusCards)) {
+            $showStatusCards = true;
+        }
+        
+        // ألوان ديناميكية للحالات
+        $statusColors = [
+            'primary' => ['bg' => 'from-primary/10 to-primary/5', 'border' => 'border-primary/20', 'icon' => 'text-primary', 'iconBg' => 'bg-primary/20'],
+            'success' => ['bg' => 'from-success/10 to-success/5', 'border' => 'border-success/20', 'icon' => 'text-success', 'iconBg' => 'bg-success/20'],
+            'warning' => ['bg' => 'from-warning/10 to-warning/5', 'border' => 'border-warning/20', 'icon' => 'text-warning', 'iconBg' => 'bg-warning/20'],
+            'danger' => ['bg' => 'from-danger/10 to-danger/5', 'border' => 'border-danger/20', 'icon' => 'text-danger', 'iconBg' => 'bg-danger/20'],
+            'info' => ['bg' => 'from-info/10 to-info/5', 'border' => 'border-info/20', 'icon' => 'text-info', 'iconBg' => 'bg-info/20'],
+            'secondary' => ['bg' => 'from-secondary/10 to-secondary/5', 'border' => 'border-secondary/20', 'icon' => 'text-secondary', 'iconBg' => 'bg-secondary/20'],
+        ];
+        
+        // دالة للحصول على لون حسب index
+        $getStatusColor = function($index) use ($statusColors) {
+            $colorKeys = array_keys($statusColors);
+            return $statusColors[$colorKeys[$index % count($colorKeys)]];
+        };
     @endphp
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h5 class="text-lg font-semibold dark:text-white-light">تتبع طلبات الوسيط</h5>
+            <h5 class="text-lg font-semibold dark:text-white-light">تتبع طلباتي</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.alwaseet.print-and-upload-orders', array_filter([
-                    'warehouse_id' => request('warehouse_id'),
-                    'search' => request('search'),
-                    'confirmed_by' => request('confirmed_by'),
-                    'delegate_id' => request('delegate_id'),
-                    'date_from' => request('date_from'),
-                    'date_to' => request('date_to'),
-                    'time_from' => request('time_from'),
-                    'time_to' => request('time_to'),
-                ])) }}" class="btn btn-primary">
+                @if(!$showStatusCards)
+                    <a href="{{ route('delegate.orders.track') }}" class="btn btn-outline-primary">
+                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        العودة للمربعات
+                    </a>
+                @endif
+                <a href="{{ route('delegate.dashboard') }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                     </svg>
-                    رفع وطباع الطلبات
+                    لوحة التحكم
                 </a>
             </div>
         </div>
 
-        <!-- إحصائيات سريعة -->
-        <div class="mb-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div class="panel p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الطلبات المقيدة المرسلة</h6>
-                        <p class="text-xl font-bold text-success">{{ $orders->total() }}</p>
-                    </div>
-                    <div class="p-2 bg-success/10 rounded-lg">
-                        <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
+        @if($showStatusCards)
+            <!-- عرض مربعات الحالات -->
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                @foreach($allStatuses as $index => $status)
+                    @php
+                        $statusId = $status['id'];
+                        $statusText = $status['status'];
+                        $count = $statusCounts[$statusId] ?? 0;
+                        $color = $getStatusColor($index);
+                    @endphp
+                    <a href="{{ route('delegate.orders.track', ['api_status_id' => $statusId]) }}" 
+                       class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
+                        <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
+                            <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold {{ $color['icon'] }} mb-2">{{ $statusText }}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            <span class="badge {{ $color['icon'] === 'text-primary' ? 'bg-primary' : ($color['icon'] === 'text-success' ? 'bg-success' : ($color['icon'] === 'text-warning' ? 'bg-warning' : ($color['icon'] === 'text-danger' ? 'bg-danger' : ($color['icon'] === 'text-info' ? 'bg-info' : 'bg-secondary')))) }} text-white">{{ $count }}</span> طلب
+                        </p>
+                    </a>
+                @endforeach
             </div>
-        </div>
+        @else
+            <!-- عرض الطلبات -->
+            @php
+                $selectedStatus = null;
+                if (request('api_status_id')) {
+                    foreach ($allStatuses as $status) {
+                        if ($status['id'] == request('api_status_id')) {
+                            $selectedStatus = $status;
+                            break;
+                        }
+                    }
+                }
+            @endphp
+            
+            @if($selectedStatus)
+                <div class="mb-5 p-4 bg-info/10 border-2 border-info/20 rounded-lg">
+                    <h6 class="text-lg font-bold text-info mb-2">حالة الطلب: {{ $selectedStatus['status'] }}</h6>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">عرض {{ $orders->total() }} طلب</p>
+                </div>
+            @endif
 
-        <!-- فلتر وبحث -->
-        <div class="mb-5">
-            <form method="GET" action="{{ route('admin.alwaseet.track-orders') }}" class="space-y-4">
+            <!-- فلتر وبحث -->
+            <div class="mb-5">
+                <form method="GET" action="{{ route('delegate.orders.track') }}" class="space-y-4">
+                    <!-- إضافة api_status_id hidden إذا كان موجود -->
+                    @if(request('api_status_id'))
+                        <input type="hidden" name="api_status_id" value="{{ request('api_status_id') }}">
+                    @endif
                 <!-- الصف الأول: البحث -->
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="flex-1">
@@ -65,7 +120,7 @@
                     </div>
                 </div>
 
-                <!-- الصف الثاني: المخزن والمجهز والمندوب وحالة الطلب -->
+                <!-- الصف الثاني: المخزن وحالة الطلب -->
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="sm:w-48">
                         <select name="warehouse_id" class="form-select" id="warehouseFilter">
@@ -73,26 +128,6 @@
                             @foreach($warehouses as $warehouse)
                                 <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
                                     {{ $warehouse->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="sm:w-48">
-                        <select name="confirmed_by" id="confirmedByFilter" class="form-select">
-                            <option value="">كل المجهزين والمديرين</option>
-                            @foreach($suppliers as $supplier)
-                                <option value="{{ $supplier->id }}" {{ request('confirmed_by') == $supplier->id ? 'selected' : '' }}>
-                                    {{ $supplier->name }} ({{ $supplier->code }}) - {{ $supplier->role === 'admin' ? 'مدير' : 'مجهز' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="sm:w-48">
-                        <select name="delegate_id" id="delegateIdFilter" class="form-select">
-                            <option value="">كل المندوبين</option>
-                            @foreach($delegates as $delegate)
-                                <option value="{{ $delegate->id }}" {{ request('delegate_id') == $delegate->id ? 'selected' : '' }}>
-                                    {{ $delegate->name }} ({{ $delegate->code }})
                                 </option>
                             @endforeach
                         </select>
@@ -170,7 +205,7 @@
                             </svg>
                             بحث
                         </button>
-                        <a href="{{ route('admin.alwaseet.track-orders') }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
+                        <a href="{{ route('delegate.orders.track') }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -182,7 +217,7 @@
         </div>
 
         <!-- نتائج البحث -->
-        @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
+        @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('hours_ago'))
             <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <div class="flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,6 +237,9 @@
                             @elseif(request('date_to'))
                                 حتى {{ request('date_to') }}
                             @endif
+                        @endif
+                        @if(request('hours_ago'))
+                            - قبل {{ request('hours_ago') }} ساعة
                         @endif
                     </span>
                 </div>
@@ -467,9 +505,12 @@
             </div>
         @endif
 
-        <!-- Pagination -->
-        <x-pagination :items="$orders" />
+            <!-- Pagination -->
+            @if(isset($orders))
+                <x-pagination :items="$orders" />
+            @endif
+        @endif
     </div>
 
-</x-layout.admin>
+</x-layout.default>
 

@@ -2241,6 +2241,14 @@ class AlWaseetController extends Controller
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
+        // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة)
+        if ($request->filled('hours_ago')) {
+            $hoursAgo = (int)$request->hours_ago;
+            if ($hoursAgo > 0) {
+                $query->where('created_at', '>=', now()->subHours($hoursAgo));
+            }
+        }
+
         // إذا كان هناك فلتر حسب حالة API، نجلب عدد محدود من الطلبات للفلترة
         $hasApiStatusFilter = $request->filled('api_status_id') || $request->filled('api_status_text');
         $hasMoreOrders = false;
