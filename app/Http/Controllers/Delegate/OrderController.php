@@ -1194,71 +1194,62 @@ class OrderController extends Controller
         // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
         $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
-        // جلب قائمة الحالات من قاعدة البيانات مباشرة (أسرع بكثير)
+        // جلب قائمة الحالات من قاعدة البيانات مع Cache (أسرع بكثير)
         // Job في الخلفية يقوم بتحديث الحالات من API كل ساعة تلقائياً
         $statusesMap = [];
         $allStatuses = [];
         try {
-            // جلب جميع الحالات من قاعدة البيانات (ليس فقط is_active=true)
-            // لأن بعض الحالات قد تكون غير نشطة لكن لديها طلبات
-            $dbStatuses = AlWaseetOrderStatus::orderBy('display_order')
-                ->orderBy('status_text')
-                ->get();
+            $cacheKey = 'delegate_statuses_' . auth()->id();
+            $allStatuses = Cache::remember($cacheKey, now()->addHours(1), function () {
+                $dbStatuses = AlWaseetOrderStatus::orderBy('display_order')
+                    ->orderBy('status_text')
+                    ->get();
+                
+                $statuses = [];
+                foreach ($dbStatuses as $dbStatus) {
+                    $statuses[] = [
+                        'id' => $dbStatus->status_id,
+                        'status' => $dbStatus->status_text
+                    ];
+                }
+                return $statuses;
+            });
             
-            \Log::info('Delegate: Loading statuses from database', [
-                'dbStatuses_count' => $dbStatuses->count(),
-                'dbStatuses' => $dbStatuses->map(function($s) {
-                    return ['id' => $s->status_id, 'text' => $s->status_text, 'is_active' => $s->is_active];
-                })->toArray(),
-            ]);
-
-            foreach ($dbStatuses as $dbStatus) {
-                $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
-                $allStatuses[] = [
-                    'id' => $dbStatus->status_id,
-                    'status' => $dbStatus->status_text
-                ];
+            // إنشاء statusesMap
+            foreach ($allStatuses as $status) {
+                $statusesMap[$status['id']] = $status['status'];
             }
-            
-            \Log::info('Delegate: allStatuses prepared', [
-                'allStatuses_count' => count($allStatuses),
-                'allStatuses' => $allStatuses,
-            ]);
         } catch (\Exception $e) {
             Log::error('Delegate/OrderController: Failed to load order statuses from database in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
-            // في حالة الفشل، نستخدم array فارغ
             $allStatuses = [];
         }
 
-        // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مباشرة - أسرع بكثير)
+        // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مع Cache - أسرع بكثير)
         $statusCounts = [];
         if (!$hasApiStatusFilter) {
-            // إزالة جميع أنواع Cache - نستخدم قاعدة البيانات مباشرة
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
-            Cache::forget($cacheKey);
-            // إزالة Cache للحالات أيضاً
-            Cache::forget('alwaseet_statuses_api');
-            Cache::forget('alwaseet_statuses');
+            
+            $statusCounts = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($allStatuses) {
+                $counts = [];
 
-            // حساب مباشر بدون Cache
-            $counts = [];
+                // جلب جميع order IDs للمندوب
+                $orderIds = Order::where('status', 'confirmed')
+                    ->where('delegate_id', auth()->id())
+                    ->whereHas('alwaseetShipment')
+                    ->pluck('id')
+                    ->toArray();
 
-            // جلب جميع order IDs للمندوب
-            $orderIds = Order::where('status', 'confirmed')
-                ->where('delegate_id', auth()->id())
-                ->whereHas('alwaseetShipment')
-                ->pluck('id')
-                ->toArray();
+                if (empty($orderIds)) {
+                    // إرجاع أصفار لجميع الحالات
+                    foreach ($allStatuses as $status) {
+                        $statusId = (string)$status['id'];
+                        $counts[$statusId] = 0;
+                    }
+                    return $counts;
+                }
 
-            \Log::info('Delegate: Calculating status counts', [
-                'orderIds_count' => count($orderIds),
-                'allStatuses_count' => count($allStatuses),
-                'allStatuses' => $allStatuses,
-            ]);
-
-            if (!empty($orderIds)) {
                 // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
                 $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
                     ->whereNotNull('status_id')
@@ -1269,10 +1260,6 @@ class OrderController extends Controller
                         return [(string)$item->status_id => (int)$item->count];
                     })
                     ->toArray();
-
-                \Log::info('Delegate: statusCountsFromDb', [
-                    'statusCountsFromDb' => $statusCountsFromDb,
-                ]);
 
                 // تهيئة العدادات لجميع الحالات
                 foreach ($allStatuses as $status) {
@@ -1287,19 +1274,9 @@ class OrderController extends Controller
                         $counts[$statusIdStr] = (int)$count;
                     }
                 }
-            } else {
-                // إرجاع أصفار لجميع الحالات
-                foreach ($allStatuses as $status) {
-                    $statusId = (string)$status['id'];
-                    $counts[$statusId] = 0;
-                }
-            }
 
-            $statusCounts = $counts;
-            
-            \Log::info('Delegate: Final statusCounts', [
-                'statusCounts' => $statusCounts,
-            ]);
+                return $counts;
+            });
         }
 
         // فلتر حسب حالة الطلب (من قاعدة البيانات مباشرة - أسرع بكثير)
@@ -1369,14 +1346,15 @@ class OrderController extends Controller
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         $showStatusCards = !$hasApiStatusFilter;
 
-        // Log نهائي قبل إرسال البيانات إلى View
-        \Log::info('Delegate: Before sending to view', [
-            'showStatusCards' => $showStatusCards,
-            'allStatuses_count' => count($allStatuses),
-            'allStatuses' => $allStatuses,
-            'statusCounts' => $statusCounts,
-            'statusCounts_keys' => array_keys($statusCounts),
-        ]);
+        // فلترة الحالات: إخفاء الحالات التي عددها صفر
+        if ($showStatusCards && !empty($statusCounts)) {
+            $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
+                $statusId = (string)$status['id'];
+                return isset($statusCounts[$statusId]) && $statusCounts[$statusId] > 0;
+            });
+            // إعادة ترتيب المصفوفة بعد الفلترة
+            $allStatuses = array_values($allStatuses);
+        }
 
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
         if ($showStatusCards) {

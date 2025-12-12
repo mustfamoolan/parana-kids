@@ -56,30 +56,13 @@
 
         @if($showStatusCards)
             <!-- عرض مربعات الحالات -->
-            @php
-                \Log::info('Delegate View: Rendering status cards', [
-                    'allStatuses_count' => count($allStatuses),
-                    'allStatuses' => $allStatuses,
-                    'statusCounts' => $statusCounts ?? [],
-                    'statusCounts_keys' => isset($statusCounts) ? array_keys($statusCounts) : [],
-                ]);
-            @endphp
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 @foreach($allStatuses as $index => $status)
                     @php
-                        $statusId = (string)$status['id']; // تحويل إلى string للمقارنة
+                        $statusId = (string)$status['id'];
                         $statusText = $status['status'];
-                        // استخدام statusId كـ string للبحث في statusCounts
                         $count = isset($statusCounts[$statusId]) ? (int)$statusCounts[$statusId] : 0;
                         $color = $getStatusColor($index);
-                        
-                        // Log لكل حالة
-                        \Log::info('Delegate View: Rendering status', [
-                            'statusId' => $statusId,
-                            'statusText' => $statusText,
-                            'count' => $count,
-                            'hasCount' => isset($statusCounts[$statusId]),
-                        ]);
                     @endphp
                     <a href="{{ route('delegate.orders.track', ['api_status_id' => $statusId]) }}" 
                        class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">

@@ -2283,32 +2283,35 @@ class AlWaseetController extends Controller
         // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
         $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
-        // جلب قائمة الحالات من API وإنشاء mapping
+        // جلب قائمة الحالات من قاعدة البيانات مع Cache (أسرع بكثير)
+        // Job في الخلفية يقوم بتحديث الحالات من API كل ساعة تلقائياً
         $statusesMap = [];
         $allStatuses = [];
         try {
-            $cacheKey = 'alwaseet_statuses';
-            $statuses = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(24), function () {
-                return $this->alWaseetService->getOrderStatuses();
-            });
-
-            // إنشاء mapping بين status_id و status text
-            if (is_array($statuses)) {
-                foreach ($statuses as $status) {
-                    if (isset($status['id']) && isset($status['status'])) {
-                        $statusesMap[$status['id']] = $status['status'];
-                        $allStatuses[] = [
-                            'id' => $status['id'],
-                            'status' => $status['status']
-                        ];
-                    }
+            $cacheKey = 'admin_statuses';
+            $allStatuses = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(1), function () {
+                $dbStatuses = \App\Models\AlWaseetOrderStatus::orderBy('display_order')
+                    ->orderBy('status_text')
+                    ->get();
+                
+                $statuses = [];
+                foreach ($dbStatuses as $dbStatus) {
+                    $statuses[] = [
+                        'id' => $dbStatus->status_id,
+                        'status' => $dbStatus->status_text
+                    ];
                 }
+                return $statuses;
+            });
+            
+            // إنشاء mapping
+            foreach ($allStatuses as $status) {
+                $statusesMap[$status['id']] = $status['status'];
             }
         } catch (\Exception $e) {
-            Log::error('AlWaseetController: Failed to load order statuses from AlWaseet API in trackOrders', [
+            Log::error('AlWaseetController: Failed to load order statuses from database in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
-            // التأكد من أن $allStatuses هو array فارغ وليس null
             $allStatuses = [];
         }
 
