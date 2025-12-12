@@ -1350,8 +1350,15 @@ class OrderController extends Controller
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         $showStatusCards = !$hasApiStatusFilter;
 
-        // عرض جميع الحالات المتاحة (بدون فلترة) - المستخدم يريد رؤية جميع الحالات
-        // إذا كانت الحالة ليس لها طلبات، سيظهر العدد 0
+        // فلترة الحالات: إخفاء الحالات التي عددها صفر
+        if ($showStatusCards && !empty($statusCounts)) {
+            $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
+                $statusId = (string)$status['id'];
+                return isset($statusCounts[$statusId]) && $statusCounts[$statusId] > 0;
+            });
+            // إعادة ترتيب المصفوفة بعد الفلترة
+            $allStatuses = array_values($allStatuses);
+        }
 
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
         if ($showStatusCards) {
