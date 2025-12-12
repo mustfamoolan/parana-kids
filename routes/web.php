@@ -94,6 +94,7 @@ Route::prefix('admin')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AlWaseetController::class, 'index'])->name('index');
             Route::get('/add-order-from-pending', [\App\Http\Controllers\Admin\AlWaseetController::class, 'addOrderFromPending'])->name('add-order-from-pending');
             Route::get('/print-and-upload-orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'printAndUploadOrders'])->name('print-and-upload-orders');
+            Route::get('/track-orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'trackOrders'])->name('track-orders');
             Route::get('/materials-list', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getMaterialsListForPrintUpload'])->name('materials-list');
             Route::get('/materials-list-grouped', [\App\Http\Controllers\Admin\AlWaseetController::class, 'getMaterialsListGroupedForPrintUpload'])->name('materials-list-grouped');
             Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Admin\AlWaseetController::class, 'confirmOrder'])->name('orders.confirm');

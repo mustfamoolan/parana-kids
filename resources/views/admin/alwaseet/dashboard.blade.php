@@ -51,7 +51,19 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">رفع وطباعة طلبات الوسيط</p>
             </a>
 
-            <!-- 5. الوسيط - الوصولات -->
+            <!-- 5. تتبع طلبات -->
+            <a href="{{ route('admin.alwaseet.track-orders') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-indigo/10 to-indigo/5 border-2 border-indigo/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-indigo/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-indigo" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path opacity="0.5" d="M12 2C8.13401 2 5 5.13401 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13401 15.866 2 12 2Z" fill="currentColor"/>
+                        <path d="M12 11C13.1046 11 14 10.1046 14 9C14 7.89543 13.1046 7 12 7C10.8954 7 10 7.89543 10 9C10 10.1046 10.8954 11 12 11Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-indigo mb-2">تتبع طلبات</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">تتبع حالة الطلبات المقيدة</p>
+            </a>
+
+            <!-- 6. الوسيط - الوصولات -->
             <a href="{{ route('admin.alwaseet.receipts') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -62,7 +74,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">عرض وصولات الوسيط</p>
             </a>
 
-            <!-- 6. الوسيط - الفواتير -->
+            <!-- 7. الوسيط - الفواتير -->
             <a href="{{ route('admin.alwaseet.invoices.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-danger/10 to-danger/5 border-2 border-danger/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-danger/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -73,7 +85,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">عرض فواتير الوسيط</p>
             </a>
 
-            <!-- 7. الوسيط - التكامل التلقائي -->
+            <!-- 8. الوسيط - التكامل التلقائي -->
             <a href="{{ route('admin.alwaseet.auto-integration') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -84,7 +96,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">إعدادات التكامل التلقائي</p>
             </a>
 
-            <!-- 8. الوسيط - المزامنة التلقائية -->
+            <!-- 9. الوسيط - المزامنة التلقائية -->
             <a href="{{ route('admin.alwaseet.auto-sync') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-success/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -95,7 +107,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">إعدادات المزامنة التلقائية</p>
             </a>
 
-            <!-- 9. الوسيط - الإشعارات -->
+            <!-- 10. الوسيط - الإشعارات -->
             <a href="{{ route('admin.alwaseet.notifications') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -106,7 +118,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">عرض إشعارات الوسيط</p>
             </a>
 
-            <!-- 10. الوسيط - التقارير -->
+            <!-- 11. الوسيط - التقارير -->
             <a href="{{ route('admin.alwaseet.reports') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -117,7 +129,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">عرض تقارير الوسيط</p>
             </a>
 
-            <!-- 11. الوسيط - Rate Limiting -->
+            <!-- 12. الوسيط - Rate Limiting -->
             <a href="{{ route('admin.alwaseet.rate-limiting') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-danger/10 to-danger/5 border-2 border-danger/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-danger/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -128,7 +140,7 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">إعدادات Rate Limiting</p>
             </a>
 
-            <!-- 12. الوسيط - الإعدادات -->
+            <!-- 13. الوسيط - الإعدادات -->
             <a href="{{ route('admin.alwaseet.settings') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 border-2 border-secondary/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

@@ -4,6 +4,10 @@
         if (!isset($alwaseetOrdersData)) {
             $alwaseetOrdersData = [];
         }
+        // التأكد من تعريف $statusesMap
+        if (!isset($statusesMap)) {
+            $statusesMap = [];
+        }
     @endphp
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -355,9 +359,18 @@
 
                                         // جلب حالة الطلب من API
                                         $orderStatus = null;
-                                        if ($apiOrderData && isset($apiOrderData['status'])) {
-                                            $orderStatus = $apiOrderData['status'];
-                                        } elseif ($shipment && isset($shipment->status) && $shipment->status) {
+                                        if ($apiOrderData) {
+                                            // الأولوية: استخدام status مباشرة إذا كان موجوداً
+                                            if (isset($apiOrderData['status']) && !empty($apiOrderData['status'])) {
+                                                $orderStatus = $apiOrderData['status'];
+                                            }
+                                            // إذا لم يكن status موجوداً، استخدام status_id مع statusesMap
+                                            elseif (isset($apiOrderData['status_id']) && isset($statusesMap) && isset($statusesMap[$apiOrderData['status_id']])) {
+                                                $orderStatus = $statusesMap[$apiOrderData['status_id']];
+                                            }
+                                        }
+                                        // Fallback إلى قاعدة البيانات المحلية
+                                        if (!$orderStatus && $shipment && isset($shipment->status) && $shipment->status) {
                                             $orderStatus = $shipment->status;
                                         }
 
@@ -478,9 +491,18 @@
                                     $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
                                 }
                                 $orderStatus = null;
-                                if ($apiOrderData && isset($apiOrderData['status'])) {
-                                    $orderStatus = $apiOrderData['status'];
-                                } elseif ($shipment && $shipment->status) {
+                                if ($apiOrderData) {
+                                    // الأولوية: استخدام status مباشرة إذا كان موجوداً
+                                    if (isset($apiOrderData['status']) && !empty($apiOrderData['status'])) {
+                                        $orderStatus = $apiOrderData['status'];
+                                    }
+                                    // إذا لم يكن status موجوداً، استخدام status_id مع statusesMap
+                                    elseif (isset($apiOrderData['status_id']) && isset($statusesMap) && isset($statusesMap[$apiOrderData['status_id']])) {
+                                        $orderStatus = $statusesMap[$apiOrderData['status_id']];
+                                    }
+                                }
+                                // Fallback إلى قاعدة البيانات المحلية
+                                if (!$orderStatus && $shipment && isset($shipment->status) && $shipment->status) {
                                     $orderStatus = $shipment->status;
                                 }
 
