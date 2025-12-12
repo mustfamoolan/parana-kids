@@ -1238,6 +1238,9 @@ class OrderController extends Controller
         if (!$hasApiStatusFilter) {
             // فقط نحسب الأعداد إذا لم يكن هناك فلتر نشط
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
+            
+            // إزالة Cache مؤقتاً للتأكد من الحصول على البيانات الصحيحة
+            // Cache::forget($cacheKey);
 
             $statusCounts = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($allStatuses) {
                 $counts = [];
@@ -1272,6 +1275,7 @@ class OrderController extends Controller
                 // تهيئة العدادات لجميع الحالات (تأكد من أن جميع الحالات موجودة)
                 foreach ($allStatuses as $status) {
                     $statusId = (string)$status['id']; // تحويل إلى string للمقارنة
+                    // البحث في statusCountsFromDb باستخدام statusId كـ string
                     $counts[$statusId] = isset($statusCountsFromDb[$statusId]) ? (int)$statusCountsFromDb[$statusId] : 0;
                 }
                 
@@ -1356,12 +1360,35 @@ class OrderController extends Controller
 
         // فلترة الحالات: إخفاء الحالات التي عددها صفر
         if ($showStatusCards && !empty($statusCounts)) {
+            // Debug: Log للتحقق من البيانات
+            \Log::info('Delegate status counts debug', [
+                'allStatuses_count' => count($allStatuses),
+                'statusCounts' => $statusCounts,
+                'allStatuses' => $allStatuses,
+            ]);
+            
             $allStatuses = array_filter($allStatuses, function($status) use ($statusCounts) {
                 $statusId = (string)$status['id'];
-                return isset($statusCounts[$statusId]) && $statusCounts[$statusId] > 0;
+                $hasCount = isset($statusCounts[$statusId]);
+                $count = $hasCount ? $statusCounts[$statusId] : 0;
+                
+                // Debug: Log لكل حالة
+                \Log::info('Filtering status', [
+                    'statusId' => $statusId,
+                    'statusText' => $status['status'] ?? 'N/A',
+                    'hasCount' => $hasCount,
+                    'count' => $count,
+                    'willShow' => $count > 0,
+                ]);
+                
+                return $count > 0;
             });
             // إعادة ترتيب المصفوفة بعد الفلترة
             $allStatuses = array_values($allStatuses);
+            
+            \Log::info('After filtering', [
+                'filtered_count' => count($allStatuses),
+            ]);
         }
 
         // إذا كان عرض المربعات فقط، لا نحتاج لتعريف $orders
