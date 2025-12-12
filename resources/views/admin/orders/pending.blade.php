@@ -15,6 +15,7 @@
                     'date_to' => request('date_to'),
                     'time_from' => request('time_from'),
                     'time_to' => request('time_to'),
+                    'hours_filter' => request('hours_filter'),
                 ])) }}" class="btn btn-success">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
@@ -33,6 +34,7 @@
                     'date_to' => request('date_to'),
                     'time_from' => request('time_from'),
                     'time_to' => request('time_to'),
+                    'hours_filter' => request('hours_filter'),
                 ])) }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
@@ -225,6 +227,16 @@
                                 value="{{ request('time_to') }}"
                             >
                         </div>
+                        <div class="sm:w-40">
+                            <select name="hours_filter" id="hoursFilterPending" class="form-select">
+                                <option value="">كل الأوقات</option>
+                                @foreach(range(2, 30, 2) as $hours)
+                                    <option value="{{ $hours }}" {{ request('hours_filter') == $hours ? 'selected' : '' }}>
+                                        آخر {{ $hours }} ساعة
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,7 +244,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id') || request('confirmed_by') || request('delegate_id') || request('size_reviewed') || request('message_confirmed'))
+                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id') || request('confirmed_by') || request('delegate_id') || request('size_reviewed') || request('message_confirmed') || request('hours_filter'))
                                 <a href="{{ route('admin.orders.pending') }}" class="btn btn-outline-secondary" id="clearFiltersBtn">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -246,7 +258,7 @@
             </div>
 
             <!-- نتائج البحث -->
-            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to'))
+            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('hours_filter'))
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div class="flex items-center gap-2">
                         <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
