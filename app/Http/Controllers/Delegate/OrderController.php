@@ -1199,13 +1199,16 @@ class OrderController extends Controller
         $statusesMap = [];
         $allStatuses = [];
         try {
-            // جلب الحالات من قاعدة البيانات مباشرة (بدون Cache)
-            $dbStatuses = AlWaseetOrderStatus::getActiveStatuses();
+            // جلب جميع الحالات من قاعدة البيانات (ليس فقط is_active=true)
+            // لأن بعض الحالات قد تكون غير نشطة لكن لديها طلبات
+            $dbStatuses = AlWaseetOrderStatus::orderBy('display_order')
+                ->orderBy('status_text')
+                ->get();
             
             \Log::info('Delegate: Loading statuses from database', [
                 'dbStatuses_count' => $dbStatuses->count(),
                 'dbStatuses' => $dbStatuses->map(function($s) {
-                    return ['id' => $s->status_id, 'text' => $s->status_text];
+                    return ['id' => $s->status_id, 'text' => $s->status_text, 'is_active' => $s->is_active];
                 })->toArray(),
             ]);
 
