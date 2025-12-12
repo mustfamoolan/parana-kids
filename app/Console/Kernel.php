@@ -67,6 +67,9 @@ class Kernel extends ConsoleKernel
             $minutesSinceLastSync = $lastSync->completed_at->diffInMinutes(now());
             return $minutesSinceLastSync >= $syncInterval;
         });
+
+        // تحديث status_id و status للطلبات المرتبطة (كل دقيقة)
+        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyMinute();
     }
 
     /**

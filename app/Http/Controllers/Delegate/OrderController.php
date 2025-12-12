@@ -1172,46 +1172,9 @@ class OrderController extends Controller
             ]);
         }
 
-        // جلب حالة الطلبات من API الواسط مع Cache (5 دقائق)
-        $alwaseetOrdersData = [];
-        try {
-            $alwaseetOrderIds = [];
-            foreach ($ordersForApi as $order) {
-                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
-                    $alwaseetOrderIds[] = $order->alwaseetShipment->alwaseet_order_id;
-                }
-            }
-
-            if (!empty($alwaseetOrderIds)) {
-                $batchSize = 10;
-                $batches = array_chunk($alwaseetOrderIds, $batchSize);
-                
-                foreach ($batches as $batch) {
-                    try {
-                        $cacheKey = 'alwaseet_orders_' . md5(implode(',', $batch));
-                        $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($batch) {
-                            return $this->alWaseetService->getOrdersByIds($batch);
-                        });
-
-                        foreach ($apiOrders as $apiOrder) {
-                            if (isset($apiOrder['id'])) {
-                                $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
-                            }
-                        }
-                    } catch (\Exception $batchException) {
-                        Log::warning('Delegate/OrderController: Failed to load batch from AlWaseet API in trackOrders', [
-                            'error' => $batchException->getMessage(),
-                            'batch_size' => count($batch),
-                        ]);
-                        continue;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('Delegate/OrderController: Failed to load orders from AlWaseet API in trackOrders', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
+        // Job في الخلفية يقوم بتحديث status_id و status تلقائياً
+        $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
 
         // جلب قائمة الحالات من API وتحديث قاعدة البيانات
         $statusesMap = [];
@@ -1252,22 +1215,21 @@ class OrderController extends Controller
             }
         }
 
-        // حساب عدد الطلبات لكل حالة (مع Cache)
+        // حساب عدد الطلبات لكل حالة (من قاعدة البيانات مباشرة - أسرع بكثير)
         $statusCounts = [];
         if (!$hasApiStatusFilter) {
             // فقط نحسب الأعداد إذا لم يكن هناك فلتر نشط
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
             
-            $statusCounts = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($allStatuses) {
+            $statusCounts = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($allStatuses) {
                 $counts = [];
                 
-                // جلب جميع الطلبات للمندوب مرة واحدة
-                $ordersQuery = Order::where('status', 'confirmed')
+                // جلب جميع order IDs للمندوب
+                $orderIds = Order::where('status', 'confirmed')
                     ->where('delegate_id', auth()->id())
-                    ->whereHas('alwaseetShipment');
-                
-                // جلب order IDs
-                $orderIds = $ordersQuery->pluck('id')->toArray();
+                    ->whereHas('alwaseetShipment')
+                    ->pluck('id')
+                    ->toArray();
                 
                 if (empty($orderIds)) {
                     // إرجاع أصفار لجميع الحالات
@@ -1277,82 +1239,46 @@ class OrderController extends Controller
                     return $counts;
                 }
                 
-                // جلب shipments
-                $shipments = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
-                    ->whereNotNull('alwaseet_order_id')
-                    ->pluck('alwaseet_order_id')
+                // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات (أسرع بكثير)
+                $statusCountsFromDb = \App\Models\AlWaseetShipment::whereIn('order_id', $orderIds)
+                    ->whereNotNull('status_id')
+                    ->selectRaw('status_id, COUNT(*) as count')
+                    ->groupBy('status_id')
+                    ->pluck('count', 'status_id')
                     ->toArray();
                 
-                if (empty($shipments)) {
-                    // إرجاع أصفار لجميع الحالات
-                    foreach ($allStatuses as $status) {
-                        $counts[$status['id']] = 0;
-                    }
-                    return $counts;
-                }
-                
-                // تهيئة العدادات
+                // تهيئة العدادات لجميع الحالات
                 foreach ($allStatuses as $status) {
-                    $counts[$status['id']] = 0;
-                }
-                
-                // جلب بيانات API للطلبات (مرة واحدة لجميع الطلبات)
-                $batchSize = 10;
-                $batches = array_chunk($shipments, $batchSize);
-                
-                foreach ($batches as $batch) {
-                    try {
-                        $apiOrders = $this->alWaseetService->getOrdersByIds($batch);
-                        foreach ($apiOrders as $apiOrder) {
-                            if (isset($apiOrder['status_id'])) {
-                                $statusId = (string)$apiOrder['status_id'];
-                                if (isset($counts[$statusId])) {
-                                    $counts[$statusId]++;
-                                }
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        Log::warning('Delegate/OrderController: Failed to count orders for statuses', [
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
+                    $statusId = $status['id'];
+                    $counts[$statusId] = $statusCountsFromDb[$statusId] ?? 0;
                 }
                 
                 return $counts;
             });
         }
 
-        // فلتر حسب حالة الطلب من API
+        // فلتر حسب حالة الطلب (من قاعدة البيانات مباشرة - أسرع بكثير)
         if ($hasApiStatusFilter) {
             $filteredOrders = collect();
             
             foreach ($ordersForApi as $order) {
                 $shouldInclude = false;
                 
-                if ($order->alwaseetShipment && $order->alwaseetShipment->alwaseet_order_id) {
-                    $apiOrderId = $order->alwaseetShipment->alwaseet_order_id;
+                // استخدام البيانات المحفوظة من قاعدة البيانات بدلاً من API
+                if ($order->alwaseetShipment) {
+                    $shipment = $order->alwaseetShipment;
                     
-                    if (isset($alwaseetOrdersData[$apiOrderId])) {
-                        $apiOrder = $alwaseetOrdersData[$apiOrderId];
-                        
-                        if ($request->filled('api_status_id')) {
-                            $requestedStatusId = $request->api_status_id;
-                            if (isset($apiOrder['status_id']) && (string)$apiOrder['status_id'] === (string)$requestedStatusId) {
-                                $shouldInclude = true;
-                            }
-                        } elseif ($request->filled('api_status_text')) {
-                            $requestedStatusText = $request->api_status_text;
-                            $orderStatus = null;
-                            
-                            if (isset($apiOrder['status']) && !empty($apiOrder['status'])) {
-                                $orderStatus = $apiOrder['status'];
-                            } elseif (isset($apiOrder['status_id']) && isset($statusesMap[$apiOrder['status_id']])) {
-                                $orderStatus = $statusesMap[$apiOrder['status_id']];
-                            }
-                            
-                            if ($orderStatus && $orderStatus === $requestedStatusText) {
-                                $shouldInclude = true;
-                            }
+                    if ($request->filled('api_status_id')) {
+                        $requestedStatusId = $request->api_status_id;
+                        // استخدام status_id من قاعدة البيانات مباشرة
+                        if ($shipment->status_id && (string)$shipment->status_id === (string)$requestedStatusId) {
+                            $shouldInclude = true;
+                        }
+                    } elseif ($request->filled('api_status_text')) {
+                        $requestedStatusText = $request->api_status_text;
+                        // استخدام status من قاعدة البيانات مباشرة
+                        if ($shipment->status && $shipment->status === $requestedStatusText) {
+                            $shouldInclude = true;
                         }
                     }
                 }
