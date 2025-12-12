@@ -2247,8 +2247,9 @@ class AlWaseetController extends Controller
         
         // جلب الطلبات (عدد محدود إذا كان هناك فلتر حالة، أو مع pagination إذا لم يكن)
         if ($hasApiStatusFilter) {
-            // جلب عدد محدود من الطلبات للفلترة حسب حالة API (200 طلب كحد أقصى لتجنب timeout)
-            $maxOrders = 200;
+            // جلب عدد محدود من الطلبات للفلترة حسب حالة API (30 طلب فقط لتجنب timeout)
+            // تقليل العدد لتسريع جلب بيانات API
+            $maxOrders = 30;
             $ordersForApi = $query->with([
                 'delegate',
                 'items.product.primaryImage',
@@ -2316,16 +2317,31 @@ class AlWaseetController extends Controller
 
             // جلب الطلبات من API إذا كان هناك أي orders
             if (!empty($alwaseetOrderIds)) {
-                // استخدام Cache لكل مجموعة من order IDs
-                $cacheKey = 'alwaseet_orders_' . md5(implode(',', $alwaseetOrderIds));
-                $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($alwaseetOrderIds) {
-                    return $this->alWaseetService->getOrdersByIds($alwaseetOrderIds);
-                });
+                // تقسيم الطلبات إلى batches أصغر (10 طلب في كل batch) لتجنب timeout
+                $batchSize = 10;
+                $batches = array_chunk($alwaseetOrderIds, $batchSize);
+                
+                foreach ($batches as $batch) {
+                    try {
+                        // استخدام Cache لكل batch
+                        $cacheKey = 'alwaseet_orders_' . md5(implode(',', $batch));
+                        $apiOrders = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($batch) {
+                            return $this->alWaseetService->getOrdersByIds($batch);
+                        });
 
-                // إنشاء array يربط alwaseet_order_id بالبيانات من API
-                foreach ($apiOrders as $apiOrder) {
-                    if (isset($apiOrder['id'])) {
-                        $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
+                        // إنشاء array يربط alwaseet_order_id بالبيانات من API
+                        foreach ($apiOrders as $apiOrder) {
+                            if (isset($apiOrder['id'])) {
+                                $alwaseetOrdersData[$apiOrder['id']] = $apiOrder;
+                            }
+                        }
+                    } catch (\Exception $batchException) {
+                        // في حالة فشل batch واحد، نستمر مع البقية
+                        Log::warning('AlWaseetController: Failed to load batch from AlWaseet API in trackOrders', [
+                            'error' => $batchException->getMessage(),
+                            'batch_size' => count($batch),
+                        ]);
+                        continue;
                     }
                 }
             }
