@@ -582,8 +582,9 @@
                             <div class="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
                                 <button 
                                     type="button" 
-                                    onclick="deleteOrderFromTrack({{ $order->id }}, '{{ $order->order_number }}')" 
-                                    class="btn btn-danger btn-sm w-full"
+                                    class="btn btn-danger btn-sm w-full delete-order-btn"
+                                    data-order-id="{{ $order->id }}"
+                                    data-order-number="{{ $order->order_number }}"
                                     title="حذف مؤقت - سيتم إزالة هذا الزر لاحقاً"
                                 >
                                     <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -705,6 +706,16 @@ function closeDeleteModal() {
 
 // إغلاق Modal عند الضغط خارجها
 document.addEventListener('DOMContentLoaded', function() {
+    // إضافة event listeners لأزرار الحذف
+    const deleteButtons = document.querySelectorAll('.delete-order-btn');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.dataset.orderId;
+            const orderNumber = this.dataset.orderNumber;
+            deleteOrderFromTrack(orderId, orderNumber);
+        });
+    });
+    
     const modal = document.getElementById('deleteOrderModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
