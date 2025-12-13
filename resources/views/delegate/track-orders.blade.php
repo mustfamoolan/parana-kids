@@ -257,37 +257,57 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($orders as $index => $order)
                     @php
-                        // جلب shipment
+                        // جلب shipment (للبيانات الثابتة فقط)
                         $shipment = $order->alwaseetShipment;
                         if (!$shipment) {
                             $shipment = \App\Models\AlWaseetShipment::where('order_id', $order->id)->first();
                         }
 
-                        // استخدام البيانات المحفوظة من قاعدة البيانات مباشرة (أسرع بكثير)
-                        // Job في الخلفية يقوم بتحديث status_id و status تلقائياً
+                        // جلب بيانات الطلب من API مباشرة (للحصول على الحالة المحدثة)
+                        $apiOrderData = null;
                         $orderStatus = null;
-                        if ($shipment) {
+                        $apiStatusId = null;
+                        
+                        if ($shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
+                            $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
+                            // استخدام الحالة من API مباشرة (أحدث البيانات)
+                            $orderStatus = $apiOrderData['status'] ?? null;
+                            $apiStatusId = $apiOrderData['status_id'] ?? null;
+                        }
+                        
+                        // Fallback: استخدام البيانات المحفوظة في قاعدة البيانات
+                        if (!$orderStatus && $shipment) {
                             // استخدام status من قاعدة البيانات مباشرة
                             if ($shipment->status && !empty($shipment->status)) {
                                 $orderStatus = $shipment->status;
+                                $apiStatusId = $shipment->status_id;
                             }
                             // Fallback: استخدام status_id مع statusesMap
                             elseif ($shipment->status_id && isset($statusesMap) && isset($statusesMap[$shipment->status_id])) {
                                 $orderStatus = $statusesMap[$shipment->status_id];
+                                $apiStatusId = $shipment->status_id;
                             }
                         }
 
-                        // جلب كود الوسيط (من قاعدة البيانات مباشرة)
+                        // جلب كود الوسيط (من API أولاً، ثم من قاعدة البيانات)
                         $alwaseetCode = null;
-                        // الأولوية الأولى: pickup_id من shipment (الكود الصحيح من الواسط)
-                        if ($shipment && isset($shipment->pickup_id) && !empty($shipment->pickup_id)) {
+                        // الأولوية الأولى: من API مباشرة
+                        if ($apiOrderData && isset($apiOrderData['pickup_id']) && !empty($apiOrderData['pickup_id'])) {
+                            $alwaseetCode = (string)$apiOrderData['pickup_id'];
+                        }
+                        // الأولوية الثانية: pickup_id من shipment (من قاعدة البيانات)
+                        elseif ($shipment && isset($shipment->pickup_id) && !empty($shipment->pickup_id)) {
                             $alwaseetCode = (string)$shipment->pickup_id;
                         }
-                        // الأولوية الثانية: qr_id من shipment
+                        // الأولوية الثالثة: qr_id من API
+                        elseif ($apiOrderData && isset($apiOrderData['qr_id']) && !empty($apiOrderData['qr_id'])) {
+                            $alwaseetCode = (string)$apiOrderData['qr_id'];
+                        }
+                        // الأولوية الرابعة: qr_id من shipment
                         elseif ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
                             $alwaseetCode = (string)$shipment->qr_id;
                         }
-                        // الأولوية الثالثة: delivery_code من Order
+                        // الأولوية الخامسة: delivery_code من Order
                         elseif ($order->delivery_code && !empty(trim($order->delivery_code))) {
                             $alwaseetCode = (string)$order->delivery_code;
                         }
@@ -499,9 +519,9 @@
                                     @foreach($order->alwaseetShipment->statusHistory as $history)
                                         <div class="relative flex items-center gap-3 mb-2 last:mb-0">
                                             <div class="relative z-10 w-5 h-5 rounded-full flex items-center justify-center
-                                                {{ $history->status_id === $order->alwaseetShipment->status_id 
+                                                {{ $history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id) 
                                                     ? 'bg-success ring-2 ring-success/30' : 'bg-gray-300 dark:bg-gray-600' }}">
-                                                @if($history->status_id === $order->alwaseetShipment->status_id)
+                                                @if($history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id))
                                                     <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                                     </svg>
@@ -510,7 +530,7 @@
                                                 @endif
                                             </div>
                                             <div class="flex-1 text-xs">
-                                                <span class="font-medium {{ $history->status_id === $order->alwaseetShipment->status_id ? 'text-success' : 'text-gray-600 dark:text-gray-400' }}">
+                                                <span class="font-medium {{ $history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id) ? 'text-success' : 'text-gray-600 dark:text-gray-400' }}">
                                                     {{ $history->status_text }}
                                                 </span>
                                                 <span class="text-gray-400 mr-2">

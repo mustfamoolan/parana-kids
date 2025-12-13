@@ -2298,9 +2298,50 @@ class AlWaseetController extends Controller
             }
         }
 
-        // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات
-        // Job في الخلفية يقوم بتحديث جميع بيانات API كل 10 دقائق تلقائياً
-        $alwaseetOrdersData = []; // فارغ - لا حاجة لاستخدامه بعد الآن
+        // جلب بيانات الطلبات من API مباشرة (مع Cache قصير المدى - 30 ثانية)
+        // هذا يضمن أن الحالات محدثة دائماً من API مباشرة
+        $alwaseetOrdersData = [];
+        try {
+            // جمع alwaseet_order_ids من الطلبات المعروضة
+            $alwaseetOrderIds = $ordersForApi->pluck('alwaseetShipment.alwaseet_order_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+            
+            if (!empty($alwaseetOrderIds)) {
+                // استخدام Cache قصير المدى (30 ثانية) لتقليل الطلبات على API
+                $cacheKey = 'alwaseet_orders_data_' . md5(implode(',', $alwaseetOrderIds));
+                $alwaseetOrdersData = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($alwaseetOrderIds) {
+                    try {
+                        // تقسيم إلى batches (10 طلبات في كل batch)
+                        $batchSize = 10;
+                        $batches = array_chunk($alwaseetOrderIds, $batchSize);
+                        $allOrdersData = [];
+                        
+                        foreach ($batches as $batch) {
+                            $apiOrders = $this->alWaseetService->getOrdersByIds($batch);
+                            foreach ($apiOrders as $apiOrder) {
+                                if (isset($apiOrder['id'])) {
+                                    $allOrdersData[$apiOrder['id']] = $apiOrder;
+                                }
+                            }
+                        }
+                        
+                        return $allOrdersData;
+                    } catch (\Exception $e) {
+                        Log::error('AlWaseetController: Failed to fetch orders from API in trackOrders', [
+                            'error' => $e->getMessage(),
+                        ]);
+                        return [];
+                    }
+                });
+            }
+        } catch (\Exception $e) {
+            Log::error('AlWaseetController: Failed to load orders data from API in trackOrders', [
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // جلب قائمة الحالات من قاعدة البيانات مع Cache (أسرع بكثير)
         // Job في الخلفية يقوم بتحديث الحالات من API كل ساعة تلقائياً
