@@ -375,9 +375,8 @@
                                     <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;" id="alwaseet-code-{{ $order->id }}">{{ $alwaseetCode }}</div>
                                     <button 
                                         type="button" 
-                                        class="btn btn-sm btn-primary copy-code-btn"
-                                        data-code="{{ $alwaseetCode }}"
-                                        data-order-id="{{ $order->id }}"
+                                        onclick="copyDeliveryCode('{{ $alwaseetCode }}', 'delivery')"
+                                        class="btn btn-sm btn-primary"
                                         title="نسخ كود الوسيط"
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -665,24 +664,70 @@
 
 @push('scripts')
 <script>
-function copyAlWaseetCode(code, orderId, buttonElement) {
-    navigator.clipboard.writeText(code).then(function() {
-        // إظهار رسالة نجاح
-        if (buttonElement) {
-            const originalHTML = buttonElement.innerHTML;
-            buttonElement.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-            buttonElement.classList.remove('btn-primary');
-            buttonElement.classList.add('bg-success');
-            setTimeout(() => {
-                buttonElement.innerHTML = originalHTML;
-                buttonElement.classList.remove('bg-success');
-                buttonElement.classList.add('btn-primary');
-            }, 2000);
+// دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
+function copyDeliveryCode(text, type = '') {
+    // تحديد نوع الرسالة
+    let successMessage = 'تم النسخ بنجاح!';
+    let errorMessage = 'فشل في النسخ';
+
+    if (type === 'order') {
+        successMessage = 'تم نسخ رقم الطلب بنجاح!';
+        errorMessage = 'فشل في نسخ رقم الطلب';
+    } else if (type === 'delivery') {
+        successMessage = 'تم نسخ كود الوسيط بنجاح!';
+        errorMessage = 'فشل في نسخ كود الوسيط';
+    }
+
+    // إنشاء عنصر مؤقت
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+
+    // تحديد ونسخ النص
+    textarea.select();
+    textarea.setSelectionRange(0, 99999); // للهواتف المحمولة
+
+    try {
+        document.execCommand('copy');
+        showCopyNotification(successMessage);
+    } catch (err) {
+        // استخدام Clipboard API إذا كان متاحاً
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function() {
+                showCopyNotification(successMessage);
+            }).catch(function() {
+                showCopyNotification(errorMessage, 'error');
+            });
+        } else {
+            showCopyNotification(errorMessage, 'error');
         }
-    }).catch(function(err) {
-        console.error('فشل النسخ:', err);
-        alert('فشل نسخ الكود');
-    });
+    }
+
+    // إزالة العنصر المؤقت
+    document.body.removeChild(textarea);
+}
+
+// دالة إظهار إشعار النسخ
+function showCopyNotification(message, type = 'success') {
+    // إنشاء عنصر الإشعار
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
+    notification.textContent = message;
+
+    // إضافة الإشعار للصفحة
+    document.body.appendChild(notification);
+
+    // إزالة الإشعار بعد 3 ثوان
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 // حذف طلب واحد
@@ -707,16 +752,6 @@ function closeDeleteModal() {
 
 // إغلاق Modal عند الضغط خارجها
 document.addEventListener('DOMContentLoaded', function() {
-    // إضافة event listeners لأزرار النسخ
-    const copyButtons = document.querySelectorAll('.copy-code-btn');
-    copyButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const code = this.dataset.code;
-            const orderId = this.dataset.orderId;
-            copyAlWaseetCode(code, orderId, this);
-        });
-    });
-    
     // إضافة event listeners لأزرار الحذف
     const deleteButtons = document.querySelectorAll('.delete-order-btn');
     deleteButtons.forEach(button => {
