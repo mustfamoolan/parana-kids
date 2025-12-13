@@ -45,20 +45,6 @@
                         </svg>
                         العودة للكاردات
                     </a>
-                    @if($orders->count() > 0)
-                        <button 
-                            type="button" 
-                            id="deleteSelectedBtn" 
-                            onclick="showDeleteModal()" 
-                            class="btn btn-danger"
-                            disabled
-                        >
-                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            حذف المحدد (<span id="selectedCount">0</span>)
-                        </button>
-                    @endif
                 @endif
                 <a href="{{ route('admin.alwaseet.print-and-upload-orders', array_filter([
                     'warehouse_id' => request('warehouse_id'),
@@ -361,22 +347,6 @@
                         }
                     @endphp
                     <div id="order-{{ $order->id }}" class="panel border-2 border-success dark:border-success relative">
-                        <!-- Checkbox للتحديد - يظهر فقط عند عرض الطلبات (ليس في صفحة الكاردات) -->
-                        @if(!$showStatusCards)
-                            <div class="absolute top-2 left-2 z-20">
-                                <label class="flex items-center cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        class="form-checkbox order-checkbox" 
-                                        value="{{ $order->id }}"
-                                        data-order-number="{{ $order->order_number }}"
-                                        data-customer-name="{{ $order->customer_name }}"
-                                        data-customer-phone="{{ $order->customer_phone }}"
-                                    >
-                                    <span class="text-xs text-gray-600 dark:text-gray-400 mr-1">تحديد</span>
-                                </label>
-                            </div>
-                        @endif
                         <!-- رقم تسلسلي دائري -->
                         <div class="absolute top-2 right-2 bg-primary text-white rounded-full w-10 h-10 flex items-center justify-center text-sm font-bold shadow-lg z-10">
                             {{ $orders->firstItem() + $index }}
@@ -607,6 +577,23 @@
                             </div>
                         @endif
 
+                        <!-- زر الحذف - يظهر فقط عند عرض الطلبات (ليس في صفحة الكاردات) -->
+                        @if(!$showStatusCards)
+                            <div class="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
+                                <button 
+                                    type="button" 
+                                    onclick="deleteOrderFromTrack({{ $order->id }}, '{{ $order->order_number }}')" 
+                                    class="btn btn-danger btn-sm w-full"
+                                    title="حذف مؤقت - سيتم إزالة هذا الزر لاحقاً"
+                                >
+                                    <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                    حذف من القائمة
+                                </button>
+                            </div>
+                        @endif
+
                     </div>
                 @endforeach
             </div>
@@ -629,38 +616,30 @@
         @endif
     </div>
 
-    <!-- Modal حذف الطلبات المحددة -->
-    <div id="deleteSelectedModal" class="fixed inset-0 z-[9999] hidden bg-black/60 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="p-6 flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
-                <div class="flex items-center gap-3 mb-2">
+    <!-- Modal حذف طلب واحد -->
+    <div id="deleteOrderModal" class="fixed inset-0 z-[9999] hidden bg-black/60 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-danger/20 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">حذف الطلبات المحددة</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400" id="selectedOrdersCountText"></p>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">حذف الطلب من القائمة</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" id="deleteOrderNumber"></p>
                     </div>
                 </div>
-            </div>
 
-            <div class="flex-1 overflow-y-auto p-6">
-                <p class="text-gray-700 dark:text-gray-300 mb-4">
-                    سيتم حذف الطلبات التالية من القائمة:
+                <p class="text-gray-700 dark:text-gray-300 mb-6">
+                    هل أنت متأكد من حذف هذا الطلب من القائمة؟<br>
+                    <span class="text-sm text-gray-500">سيتم إخفاء الطلب فقط من هذه الصفحة.</span>
                 </p>
-                
-                <div id="selectedOrdersList" class="space-y-2 max-h-96 overflow-y-auto">
-                    <!-- سيتم ملؤها بالـ JavaScript -->
-                </div>
-            </div>
 
-            <div class="p-6 flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
-                <form id="deleteSelectedForm" method="POST" action="{{ route('admin.alwaseet.orders.delete-selected') }}">
+                <form id="deleteOrderForm" method="POST" action="">
                     @csrf
                     @method('DELETE')
-                    <input type="hidden" id="selectedOrderIds" name="order_ids" value="">
                     
                     <div class="flex gap-3">
                         <button 
@@ -674,7 +653,7 @@
                             type="submit" 
                             class="btn btn-danger flex-1"
                         >
-                            حذف الطلبات المحددة
+                            حذف من القائمة
                         </button>
                     </div>
                 </form>
@@ -704,74 +683,15 @@ function copyAlWaseetCode(code, orderId, buttonElement) {
     });
 }
 
-// تحديث عدد الطلبات المحددة
-function updateSelectedCount() {
-    const checkboxes = document.querySelectorAll('.order-checkbox:checked');
-    const count = checkboxes.length;
-    const countSpan = document.getElementById('selectedCount');
-    const deleteBtn = document.getElementById('deleteSelectedBtn');
+// حذف طلب واحد
+function deleteOrderFromTrack(orderId, orderNumber) {
+    const modal = document.getElementById('deleteOrderModal');
+    const form = document.getElementById('deleteOrderForm');
+    const orderNumberSpan = document.getElementById('deleteOrderNumber');
     
-    if (countSpan) {
-        countSpan.textContent = count;
-    }
-    
-    if (deleteBtn) {
-        deleteBtn.disabled = count === 0;
-    }
-}
-
-// عرض Modal مع الطلبات المحددة
-function showDeleteModal() {
-    const checkboxes = document.querySelectorAll('.order-checkbox:checked');
-    
-    if (checkboxes.length === 0) {
-        return;
-    }
-
-    const modal = document.getElementById('deleteSelectedModal');
-    const listContainer = document.getElementById('selectedOrdersList');
-    const countText = document.getElementById('selectedOrdersCountText');
-    const idsInput = document.getElementById('selectedOrderIds');
-    
-    // جمع IDs
-    const orderIds = [];
-    const ordersList = [];
-    
-    checkboxes.forEach(checkbox => {
-        orderIds.push(checkbox.value);
-        ordersList.push({
-            id: checkbox.value,
-            number: checkbox.dataset.orderNumber,
-            customer: checkbox.dataset.customerName,
-            phone: checkbox.dataset.customerPhone
-        });
-    });
-    
-    // تعيين IDs في form
-    idsInput.value = orderIds.join(',');
-    
-    // تحديث النص
-    countText.textContent = `تم تحديد ${ordersList.length} طلب`;
-    
-    // عرض قائمة الطلبات
-    listContainer.innerHTML = '';
-    ordersList.forEach((order, index) => {
-        const orderDiv = document.createElement('div');
-        orderDiv.className = 'bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600';
-        orderDiv.innerHTML = `
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-sm font-bold text-primary">
-                    ${index + 1}
-                </div>
-                <div class="flex-1">
-                    <p class="font-semibold text-gray-900 dark:text-white">#${order.number}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">${order.customer}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-500">${order.phone}</p>
-                </div>
-            </div>
-        `;
-        listContainer.appendChild(orderDiv);
-    });
+    // تعيين route الحذف
+    form.action = '{{ route("admin.alwaseet.orders.delete", ":id") }}'.replace(':id', orderId);
+    orderNumberSpan.textContent = 'الطلب #' + orderNumber;
     
     // عرض Modal
     modal.classList.remove('hidden');
@@ -779,23 +699,13 @@ function showDeleteModal() {
 
 // إغلاق Modal
 function closeDeleteModal() {
-    const modal = document.getElementById('deleteSelectedModal');
+    const modal = document.getElementById('deleteOrderModal');
     modal.classList.add('hidden');
 }
 
 // إغلاق Modal عند الضغط خارجها
 document.addEventListener('DOMContentLoaded', function() {
-    updateSelectedCount();
-    
-    // إضافة event listeners لجميع checkboxes
-    const checkboxes = document.querySelectorAll('.order-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            updateSelectedCount();
-        });
-    });
-    
-    const modal = document.getElementById('deleteSelectedModal');
+    const modal = document.getElementById('deleteOrderModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
             if (e.target === this) {

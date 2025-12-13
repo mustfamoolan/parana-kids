@@ -2457,74 +2457,30 @@ class AlWaseetController extends Controller
     }
 
     /**
-     * حذف طلبات محددة من صفحة track-orders (مؤقت - حذف بسيط فقط)
+     * حذف طلب واحد من صفحة track-orders (مؤقت - حذف بسيط فقط)
      */
-    public function deleteSelectedOrders(Request $request)
+    public function deleteOrder(Request $request, Order $order)
     {
-        $request->validate([
-            'order_ids' => 'required|string',
-        ]);
+        $this->authorize('delete', $order);
 
-        $orderIds = array_filter(array_map('trim', explode(',', $request->order_ids)));
-        
-        if (empty($orderIds)) {
+        // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
+        if (!in_array($order->status, ['pending', 'confirmed'])) {
             return redirect()->back()
-                            ->withErrors(['error' => 'لم يتم تحديد أي طلبات للحذف']);
+                            ->withErrors(['error' => 'لا يمكن حذف هذا الطلب']);
         }
 
         try {
-            $deletedCount = 0;
-            $failedCount = 0;
-            $deletedOrderNumbers = [];
-
-            foreach ($orderIds as $orderId) {
-                try {
-                    $order = Order::find($orderId);
-                    
-                    if (!$order) {
-                        $failedCount++;
-                        continue;
-                    }
-
-                    // التحقق من الصلاحيات
-                    if (!Auth::user()->can('delete', $order)) {
-                        $failedCount++;
-                        continue;
-                    }
-
-                    // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
-                    if (!in_array($order->status, ['pending', 'confirmed'])) {
-                        $failedCount++;
-                        continue;
-                    }
-
-                    // حذف بسيط فقط - بدون إرجاع منتجات أو تغييرات
-                    $order->deleted_by = Auth::id();
-                    $order->deletion_reason = 'حذف من صفحة track-orders - طلبات قديمة غير موجودة في API';
-                    $order->save();
-                    $order->delete(); // soft delete
-
-                    $deletedCount++;
-                    $deletedOrderNumbers[] = $order->order_number;
-                } catch (\Exception $e) {
-                    $failedCount++;
-                    Log::error('AlWaseetController: Failed to delete order', [
-                        'order_id' => $orderId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            $message = "تم حذف {$deletedCount} طلب من القائمة";
-            if ($failedCount > 0) {
-                $message .= " (فشل حذف {$failedCount} طلب)";
-            }
+            // حذف بسيط فقط - بدون إرجاع منتجات أو تغييرات
+            $order->deleted_by = Auth::id();
+            $order->deletion_reason = 'حذف من صفحة track-orders - طلبات قديمة غير موجودة في API';
+            $order->save();
+            $order->delete(); // soft delete
 
             return redirect()->back()
-                            ->with('success', $message);
+                            ->with('success', 'تم حذف الطلب #' . $order->order_number . ' من القائمة');
         } catch (\Exception $e) {
             return redirect()->back()
-                            ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلبات: ' . $e->getMessage()]);
+                            ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage()]);
         }
     }
 

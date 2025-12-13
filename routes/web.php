@@ -105,7 +105,7 @@ Route::prefix('admin')->group(function () {
             Route::post('/orders/{id}/update-alwaseet-fields', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateOrderAlwaseetFields'])->name('orders.update-alwaseet-fields');
             Route::post('/orders/{id}/update-delivery-time-note', [\App\Http\Controllers\Admin\AlWaseetController::class, 'updateDeliveryTimeNote'])->name('orders.update-delivery-time-note');
             Route::post('/orders/{id}/send', [\App\Http\Controllers\Admin\AlWaseetController::class, 'sendOrderToAlWaseet'])->name('orders.send');
-            Route::delete('/orders/delete-selected', [\App\Http\Controllers\Admin\AlWaseetController::class, 'deleteSelectedOrders'])->name('orders.delete-selected');
+            Route::delete('/orders/{order}/delete', [\App\Http\Controllers\Admin\AlWaseetController::class, 'deleteOrder'])->name('orders.delete');
 
             // Orders routes
             Route::get('/orders', [\App\Http\Controllers\Admin\AlWaseetController::class, 'orders'])->name('orders');
