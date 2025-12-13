@@ -68,8 +68,8 @@ class Kernel extends ConsoleKernel
             return $minutesSinceLastSync >= $syncInterval;
         });
 
-        // تحديث جميع بيانات API للطلبات المرتبطة (كل دقيقتين)
-        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->cron('*/2 * * * *');
+        // تحديث جميع بيانات API للطلبات المرتبطة (كل دقيقة)
+        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyMinute();
 
         // تحديث حالات الطلبات من API (كل ساعتين)
         $schedule->job(new \App\Jobs\SyncAlWaseetOrderStatusesJob)->everyTwoHours();

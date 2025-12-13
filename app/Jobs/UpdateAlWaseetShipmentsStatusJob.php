@@ -31,12 +31,12 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
     public function handle(AlWaseetService $alWaseetService): void
     {
         try {
-            // جلب فقط الطلبات المرتبطة (التي لها order_id) والتي لم يتم تحديثها في آخر 10 دقائق
+            // جلب فقط الطلبات المرتبطة (التي لها order_id) والتي لم يتم تحديثها في آخر دقيقة
             $shipments = AlWaseetShipment::whereNotNull('order_id')
                 ->whereNotNull('alwaseet_order_id')
                 ->where(function($query) {
                     $query->whereNull('synced_at')
-                        ->orWhere('synced_at', '<', now()->subMinutes(10));
+                        ->orWhere('synced_at', '<', now()->subMinute());
                 })
                 ->select('id', 'alwaseet_order_id', 'status_id', 'status')
                 ->get();
