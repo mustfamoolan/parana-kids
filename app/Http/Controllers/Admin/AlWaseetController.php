@@ -2412,12 +2412,22 @@ class AlWaseetController extends Controller
         // حساب عدد الطلبات لكل حالة (من Cache - Job يحدثها كل 5 دقائق تلقائياً)
         $statusCounts = [];
         if (!$request->filled('api_status_id')) {
+            // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
+            $hasFilters = $request->filled('warehouse_id') || 
+                         $request->filled('confirmed_by') || 
+                         $request->filled('delegate_id') || 
+                         $request->filled('date_from') || 
+                         $request->filled('date_to') || 
+                         $request->filled('time_from') || 
+                         $request->filled('time_to') || 
+                         $request->filled('hours_ago');
+            
             $cacheKey = 'admin_all_status_counts';
             
-            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق)
-            $statusCounts = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق) - فقط إذا لم يكن هناك فلاتر
+            $statusCounts = $hasFilters ? null : \Illuminate\Support\Facades\Cache::get($cacheKey);
             
-            // إذا لم تكن موجودة في Cache، حسابها مباشرة (fallback)
+            // إذا لم تكن موجودة في Cache أو كان هناك فلاتر، حسابها مباشرة
             if ($statusCounts === null) {
                 $counts = [];
 
