@@ -2196,6 +2196,9 @@ class AlWaseetController extends Controller
                   ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
                       $productQuery->where('name', 'like', "%{$searchTerm}%")
                                    ->orWhere('code', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('alwaseetShipment', function($shipmentQuery) use ($searchTerm) {
+                      $shipmentQuery->where('alwaseet_order_id', 'like', "%{$searchTerm}%");
                   });
             });
         }
@@ -2406,7 +2409,8 @@ class AlWaseetController extends Controller
         }
 
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
-        $showStatusCards = !$request->filled('api_status_id');
+        // إذا كان هناك بحث أو فلتر api_status_id، عرض الطلبات مباشرة
+        $showStatusCards = !$request->filled('api_status_id') && !$request->filled('search');
 
         return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders', 'statusCounts', 'showStatusCards'));
     }
