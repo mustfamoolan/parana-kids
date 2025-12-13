@@ -375,8 +375,9 @@
                                     <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;" id="alwaseet-code-{{ $order->id }}">{{ $alwaseetCode }}</div>
                                     <button 
                                         type="button" 
-                                        onclick="copyAlWaseetCode('{{ $alwaseetCode }}', '{{ $order->id }}', this)" 
-                                        class="btn btn-sm btn-primary"
+                                        class="btn btn-sm btn-primary copy-code-btn"
+                                        data-code="{{ $alwaseetCode }}"
+                                        data-order-id="{{ $order->id }}"
                                         title="نسخ كود الوسيط"
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -706,6 +707,16 @@ function closeDeleteModal() {
 
 // إغلاق Modal عند الضغط خارجها
 document.addEventListener('DOMContentLoaded', function() {
+    // إضافة event listeners لأزرار النسخ
+    const copyButtons = document.querySelectorAll('.copy-code-btn');
+    copyButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const code = this.dataset.code;
+            const orderId = this.dataset.orderId;
+            copyAlWaseetCode(code, orderId, this);
+        });
+    });
+    
     // إضافة event listeners لأزرار الحذف
     const deleteButtons = document.querySelectorAll('.delete-order-btn');
     deleteButtons.forEach(button => {
