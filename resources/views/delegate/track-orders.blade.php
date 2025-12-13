@@ -565,10 +565,9 @@
         @endif
     </div>
 
-@push('scripts')
-<script>
-// دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
-function copyDeliveryCode(text, type = '') {
+    <script>
+        // دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
+        function copyDeliveryCode(text, type = '') {
     // تحديد نوع الرسالة
     let successMessage = 'تم النسخ بنجاح!';
     let errorMessage = 'فشل في النسخ';
@@ -632,8 +631,7 @@ function showCopyNotification(message, type = 'success') {
         }, 300);
     }, 3000);
 }
-</script>
-@endpush
+    </script>
 
 </x-layout.default>
 

@@ -662,73 +662,72 @@
         </div>
     </div>
 
-@push('scripts')
-<script>
-// دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
-function copyDeliveryCode(text, type = '') {
-    // تحديد نوع الرسالة
-    let successMessage = 'تم النسخ بنجاح!';
-    let errorMessage = 'فشل في النسخ';
+    <script>
+        // دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
+        function copyDeliveryCode(text, type = '') {
+            // تحديد نوع الرسالة
+            let successMessage = 'تم النسخ بنجاح!';
+            let errorMessage = 'فشل في النسخ';
 
-    if (type === 'order') {
-        successMessage = 'تم نسخ رقم الطلب بنجاح!';
-        errorMessage = 'فشل في نسخ رقم الطلب';
-    } else if (type === 'delivery') {
-        successMessage = 'تم نسخ كود الوسيط بنجاح!';
-        errorMessage = 'فشل في نسخ كود الوسيط';
-    }
-
-    // إنشاء عنصر مؤقت
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-
-    // تحديد ونسخ النص
-    textarea.select();
-    textarea.setSelectionRange(0, 99999); // للهواتف المحمولة
-
-    try {
-        document.execCommand('copy');
-        showCopyNotification(successMessage);
-    } catch (err) {
-        // استخدام Clipboard API إذا كان متاحاً
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(text).then(function() {
-                showCopyNotification(successMessage);
-            }).catch(function() {
-                showCopyNotification(errorMessage, 'error');
-            });
-        } else {
-            showCopyNotification(errorMessage, 'error');
-        }
-    }
-
-    // إزالة العنصر المؤقت
-    document.body.removeChild(textarea);
-}
-
-// دالة إظهار إشعار النسخ
-function showCopyNotification(message, type = 'success') {
-    // إنشاء عنصر الإشعار
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
-    notification.textContent = message;
-
-    // إضافة الإشعار للصفحة
-    document.body.appendChild(notification);
-
-    // إزالة الإشعار بعد 3 ثوان
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
+            if (type === 'order') {
+                successMessage = 'تم نسخ رقم الطلب بنجاح!';
+                errorMessage = 'فشل في نسخ رقم الطلب';
+            } else if (type === 'delivery') {
+                successMessage = 'تم نسخ كود الوسيط بنجاح!';
+                errorMessage = 'فشل في نسخ كود الوسيط';
             }
-        }, 300);
-    }, 3000);
-}
+
+            // إنشاء عنصر مؤقت
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+
+            // تحديد ونسخ النص
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // للهواتف المحمولة
+
+            try {
+                document.execCommand('copy');
+                showCopyNotification(successMessage);
+            } catch (err) {
+                // استخدام Clipboard API إذا كان متاحاً
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(function() {
+                        showCopyNotification(successMessage);
+                    }).catch(function() {
+                        showCopyNotification(errorMessage, 'error');
+                    });
+                } else {
+                    showCopyNotification(errorMessage, 'error');
+                }
+            }
+
+            // إزالة العنصر المؤقت
+            document.body.removeChild(textarea);
+        }
+
+        // دالة إظهار إشعار النسخ
+        function showCopyNotification(message, type = 'success') {
+            // إنشاء عنصر الإشعار
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
+            notification.textContent = message;
+
+            // إضافة الإشعار للصفحة
+            document.body.appendChild(notification);
+
+            // إزالة الإشعار بعد 3 ثوان
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
 
 // حذف طلب واحد
 function deleteOrderFromTrack(orderId, orderNumber) {
@@ -772,7 +771,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-@endpush
 
 </x-layout.admin>
 
