@@ -228,7 +228,14 @@
                         $color = $getStatusColor($index);
                     @endphp
                     @if($count > 0)
-                    <a href="{{ route('admin.alwaseet.track-orders', ['api_status_id' => $statusId]) }}" 
+                    @php
+                        // الحفاظ على جميع الفلاتر الحالية مع إضافة api_status_id
+                        $allFilters = array_merge(
+                            request()->except(['api_status_id', 'page']),
+                            ['api_status_id' => $statusId]
+                        );
+                    @endphp
+                    <a href="{{ route('admin.alwaseet.track-orders', array_filter($allFilters)) }}" 
                        class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
                         <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
                             <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -577,8 +584,8 @@
                             </div>
                         @endif
 
-                        <!-- زر الحذف - يظهر فقط عند عرض الطلبات (ليس في صفحة الكاردات) -->
-                        @if(!$showStatusCards)
+                        {{-- زر الحذف - يظهر فقط عند عرض الطلبات (ليس في صفحة الكاردات) - معطل مؤقتا --}}
+                        {{-- @if(!$showStatusCards)
                             <div class="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
                                 <button 
                                     type="button" 
@@ -593,7 +600,7 @@
                                     حذف من القائمة
                                 </button>
                             </div>
-                        @endif
+                        @endif --}}
 
                     </div>
                 @endforeach

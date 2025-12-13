@@ -1052,10 +1052,8 @@ class OrderController extends Controller
      */
     public function trackOrders(Request $request)
     {
-        // Base query - الطلبات المقيدة فقط والتي لها shipment (مرسلة) للمندوب الحالي
-        $query = Order::where('status', 'confirmed')
-            ->where('delegate_id', auth()->id())
-            ->whereHas('alwaseetShipment');
+        // Base query - جميع طلبات المندوب الحالي (بدون شرط confirmed أو alwaseetShipment لأن هذه الصفحة لتتبع الحالات من API مباشرة)
+        $query = Order::where('delegate_id', auth()->id());
 
         // البحث في الطلبات
         if ($request->filled('search')) {
@@ -1077,31 +1075,66 @@ class OrderController extends Controller
             });
         }
 
-        // فلتر حسب التاريخ
+        // فلتر حسب التاريخ - تطبيق على آخر changed_at من statusHistory
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $query->whereHas('alwaseetShipment', function($q) use ($request) {
+                $q->whereIn('id', function($subQuery) use ($request) {
+                    $subQuery->select('shipment_id')
+                        ->from('alwaseet_order_status_history')
+                        ->whereDate('changed_at', '>=', $request->date_from)
+                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                });
+            });
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $query->whereHas('alwaseetShipment', function($q) use ($request) {
+                $q->whereIn('id', function($subQuery) use ($request) {
+                    $subQuery->select('shipment_id')
+                        ->from('alwaseet_order_status_history')
+                        ->whereDate('changed_at', '<=', $request->date_to)
+                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                });
+            });
         }
 
-        // فلتر حسب الوقت
+        // فلتر حسب الوقت - تطبيق على آخر changed_at من statusHistory
         if ($request->filled('time_from')) {
             $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+            $query->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
+                $q->whereIn('id', function($subQuery) use ($request, $dateFrom) {
+                    $subQuery->select('shipment_id')
+                        ->from('alwaseet_order_status_history')
+                        ->where('changed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00')
+                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                });
+            });
         }
 
         if ($request->filled('time_to')) {
             $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+            $query->whereHas('alwaseetShipment', function($q) use ($request, $dateTo) {
+                $q->whereIn('id', function($subQuery) use ($request, $dateTo) {
+                    $subQuery->select('shipment_id')
+                        ->from('alwaseet_order_status_history')
+                        ->where('changed_at', '<=', $dateTo . ' ' . $request->time_to . ':00')
+                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                });
+            });
         }
 
-        // فلتر حسب الساعات
+        // فلتر حسب الساعات - تطبيق على آخر changed_at من statusHistory
         if ($request->filled('hours_ago')) {
             $hoursAgo = (int)$request->hours_ago;
             if ($hoursAgo > 0) {
-                $query->where('created_at', '>=', now()->subHours($hoursAgo));
+                $query->whereHas('alwaseetShipment', function($q) use ($hoursAgo) {
+                    $q->whereIn('id', function($subQuery) use ($hoursAgo) {
+                        $subQuery->select('shipment_id')
+                            ->from('alwaseet_order_status_history')
+                            ->where('changed_at', '>=', now()->subHours($hoursAgo))
+                            ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                    });
+                });
             }
         }
 
@@ -1119,7 +1152,7 @@ class OrderController extends Controller
             'items.product.warehouse',
             'alwaseetShipment.statusHistory.statusInfo' // إضافة Timeline
         ])->orderBy('created_at', 'desc')->paginate(20);
-        
+
         $ordersForApi = $orders;
         $hasMoreOrders = false;
 
@@ -1145,7 +1178,7 @@ class OrderController extends Controller
                 $regions = Cache::remember($cacheKey, now()->addHours(24), function () use ($cityId) {
                     return $this->alWaseetService->getRegions($cityId);
                 });
-                
+
                 // ربط المناطق بجميع الطلبات التي لها نفس city_id
                 foreach ($ordersForApi as $order) {
                     if ($order->alwaseet_city_id == $cityId) {
@@ -1153,7 +1186,7 @@ class OrderController extends Controller
                     }
                 }
             }
-            
+
             // للطلبات التي لا تحتوي على city_id
             foreach ($ordersForApi as $order) {
                 if (!$order->alwaseet_city_id && !isset($ordersWithRegions[$order->id])) {
@@ -1182,7 +1215,7 @@ class OrderController extends Controller
                 ->unique()
                 ->values()
                 ->toArray();
-            
+
             if (!empty($alwaseetOrderIds)) {
                 // استخدام Cache قصير المدى (30 ثانية) لتقليل الطلبات على API
                 $cacheKey = 'alwaseet_orders_data_delegate_' . auth()->id() . '_' . md5(implode(',', $alwaseetOrderIds));
@@ -1192,7 +1225,7 @@ class OrderController extends Controller
                         $batchSize = 10;
                         $batches = array_chunk($alwaseetOrderIds, $batchSize);
                         $allOrdersData = [];
-                        
+
                         foreach ($batches as $batch) {
                             $apiOrders = $this->alWaseetService->getOrdersByIds($batch);
                             foreach ($apiOrders as $apiOrder) {
@@ -1201,7 +1234,7 @@ class OrderController extends Controller
                                 }
                             }
                         }
-                        
+
                         return $allOrdersData;
                     } catch (\Exception $e) {
                         Log::error('Delegate/OrderController: Failed to fetch orders from API in trackOrders', [
@@ -1227,7 +1260,7 @@ class OrderController extends Controller
                 $dbStatuses = AlWaseetOrderStatus::orderBy('display_order')
                     ->orderBy('status_text')
                     ->get();
-                
+
                 $statuses = [];
                 foreach ($dbStatuses as $dbStatus) {
                     $statuses[] = [
@@ -1237,7 +1270,7 @@ class OrderController extends Controller
                 }
                 return $statuses;
             });
-            
+
             // إنشاء statusesMap
             foreach ($allStatuses as $status) {
                 $statusesMap[$status['id']] = $status['status'];
@@ -1253,10 +1286,10 @@ class OrderController extends Controller
         $statusCounts = [];
         if (!$request->filled('api_status_id')) {
             $cacheKey = 'delegate_all_status_counts_' . auth()->id();
-            
+
             // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق)
             $statusCounts = Cache::get($cacheKey);
-            
+
             // إذا لم تكن موجودة في Cache، حسابها مباشرة (fallback)
             if ($statusCounts === null) {
                 $counts = [];
@@ -1267,12 +1300,73 @@ class OrderController extends Controller
                     $counts[$statusId] = 0;
                 }
 
-                // جلب جميع order IDs للمندوب
-                $orderIds = Order::where('status', 'confirmed')
-                    ->where('delegate_id', auth()->id())
-                    ->whereHas('alwaseetShipment')
-                    ->pluck('id')
-                    ->toArray();
+                // جلب جميع order IDs للمندوب (بدون شرط confirmed أو alwaseetShipment) مع تطبيق الفلاتر
+                $baseQuery = Order::where('delegate_id', auth()->id());
+
+                // فلتر حسب التاريخ - تطبيق على آخر changed_at من statusHistory
+                if ($request->filled('date_from')) {
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
+                        $q->whereIn('id', function($subQuery) use ($request) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->whereDate('changed_at', '>=', $request->date_from)
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                if ($request->filled('date_to')) {
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
+                        $q->whereIn('id', function($subQuery) use ($request) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->whereDate('changed_at', '<=', $request->date_to)
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                // فلتر حسب الوقت - تطبيق على آخر changed_at من statusHistory
+                if ($request->filled('time_from')) {
+                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
+                        $q->whereIn('id', function($subQuery) use ($request, $dateFrom) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->where('changed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00')
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                if ($request->filled('time_to')) {
+                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateTo) {
+                        $q->whereIn('id', function($subQuery) use ($request, $dateTo) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->where('changed_at', '<=', $dateTo . ' ' . $request->time_to . ':00')
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                // فلتر حسب الساعات - تطبيق على آخر changed_at من statusHistory
+                if ($request->filled('hours_ago')) {
+                    $hoursAgo = (int)$request->hours_ago;
+                    if ($hoursAgo > 0) {
+                        $baseQuery->whereHas('alwaseetShipment', function($q) use ($hoursAgo) {
+                            $q->whereIn('id', function($subQuery) use ($hoursAgo) {
+                                $subQuery->select('shipment_id')
+                                    ->from('alwaseet_order_status_history')
+                                    ->where('changed_at', '>=', now()->subHours($hoursAgo))
+                                    ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                            });
+                        });
+                    }
+                }
+
+                $orderIds = $baseQuery->pluck('id')->toArray();
 
                 if (!empty($orderIds)) {
                     // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
@@ -1294,11 +1388,11 @@ class OrderController extends Controller
                 }
 
                 $statusCounts = $counts;
-                
+
                 // حفظ في Cache لمدة 10 دقائق (حتى يتم تحديثها من Job)
                 Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
             }
-            
+
             // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
             foreach ($allStatuses as $status) {
                 $statusId = (string)$status['id'];

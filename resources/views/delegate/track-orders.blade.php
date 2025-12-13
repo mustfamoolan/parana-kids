@@ -172,7 +172,14 @@
                         $color = $getStatusColor($index);
                     @endphp
                     @if($count > 0)
-                        <a href="{{ route('delegate.orders.track', ['api_status_id' => $statusId]) }}" 
+                        @php
+                            // الحفاظ على جميع الفلاتر الحالية مع إضافة api_status_id
+                            $allFilters = array_merge(
+                                request()->except(['api_status_id', 'page']),
+                                ['api_status_id' => $statusId]
+                            );
+                        @endphp
+                        <a href="{{ route('delegate.orders.track', array_filter($allFilters)) }}" 
                            class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
                             <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
                                 <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
