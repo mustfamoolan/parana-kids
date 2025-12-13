@@ -23,7 +23,30 @@ class DashboardController extends Controller
         $notificationService = new NotificationService();
         $unreadMessagesCount = $notificationService->getUnreadCount(auth()->id(), 'message');
 
-        return view('admin.dashboard', compact('unreadMessagesCount'));
+        // حساب عدد الطلبات pending للرفع والطباعة (نفس منطق printAndUploadOrders)
+        $printUploadOrdersQuery = Order::where('status', 'pending');
+        
+        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        if (Auth::user()->isSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            
+            if (!empty($accessibleWarehouseIds)) {
+                $printUploadOrdersQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                    $subQuery->select('order_id')
+                        ->from('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                        ->distinct();
+                });
+            } else {
+                // إذا لم يكن لديه مخازن، لا توجد طلبات
+                $printUploadOrdersQuery->whereRaw('1 = 0');
+            }
+        }
+        
+        $printUploadOrdersCount = $printUploadOrdersQuery->count();
+
+        return view('admin.dashboard', compact('unreadMessagesCount', 'printUploadOrdersCount'));
     }
 
     /**

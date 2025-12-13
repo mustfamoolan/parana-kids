@@ -14,7 +14,16 @@
                     </svg>
                 </div>
                 <h3 class="text-xl font-extrabold mb-2" style="color: #ea580c !important;">رفع وطباع طلبات الوسيط</h3>
-                <p class="text-sm font-semibold" style="color: #c2410c !important;">رفع وطباعة طلبات الوسيط</p>
+                <p class="text-sm font-semibold" style="color: #c2410c !important;">
+                    @php
+                        $printUploadOrdersCount = $printUploadOrdersCount ?? 0;
+                    @endphp
+                    @if($printUploadOrdersCount > 0)
+                        <span class="badge bg-warning" style="background-color: #ea580c !important; color: white !important; padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 600;">{{ $printUploadOrdersCount }}</span> طلب
+                    @else
+                        رفع وطباعة طلبات الوسيط
+                    @endif
+                </p>
             </a>
 
             <!-- تتبع طلبات الوسيط -->
