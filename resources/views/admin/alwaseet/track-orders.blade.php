@@ -372,7 +372,6 @@
                                         data-order-number="{{ $order->order_number }}"
                                         data-customer-name="{{ $order->customer_name }}"
                                         data-customer-phone="{{ $order->customer_phone }}"
-                                        onchange="updateSelectedCount()"
                                     >
                                     <span class="text-xs text-gray-600 dark:text-gray-400 mr-1">تحديد</span>
                                 </label>
@@ -787,6 +786,14 @@ function closeDeleteModal() {
 // إغلاق Modal عند الضغط خارجها
 document.addEventListener('DOMContentLoaded', function() {
     updateSelectedCount();
+    
+    // إضافة event listeners لجميع checkboxes
+    const checkboxes = document.querySelectorAll('.order-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectedCount();
+        });
+    });
     
     const modal = document.getElementById('deleteSelectedModal');
     if (modal) {
