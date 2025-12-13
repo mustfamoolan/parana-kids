@@ -68,15 +68,15 @@ class Kernel extends ConsoleKernel
             return $minutesSinceLastSync >= $syncInterval;
         });
 
-        // تحديث جميع بيانات API للطلبات المرتبطة (كل 20 دقيقة)
-        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyTwentyMinutes();
-        
+        // تحديث جميع بيانات API للطلبات المرتبطة (كل دقيقتين)
+        $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->cron('*/2 * * * *');
+
         // تحديث حالات الطلبات من API (كل ساعتين)
         $schedule->job(new \App\Jobs\SyncAlWaseetOrderStatusesJob)->everyTwoHours();
-        
+
         // تحديث جميع الطلبات من merchant-orders API (كل 15 دقيقة) - لتحديث قاعدة البيانات المحلية
         $schedule->job(new \App\Jobs\UpdateOrdersFromMerchantOrdersJob)->everyFifteenMinutes();
-        
+
         // تحديث عدد الطلبات لكل حالة (كل 15 دقيقة) - لتحسين الأداء
         $schedule->job(new \App\Jobs\UpdateStatusCountsJob)->everyFifteenMinutes();
     }
