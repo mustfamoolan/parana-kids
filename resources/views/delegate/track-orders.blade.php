@@ -75,18 +75,8 @@
                     </div>
                 </div>
 
-                <!-- الصف الثاني: المخزن وحالة الطلب -->
+                <!-- الصف الثاني: حالة الطلب -->
                 <div class="flex flex-col sm:flex-row gap-4">
-                    <div class="sm:w-48">
-                        <select name="warehouse_id" class="form-select" id="warehouseFilter">
-                            <option value="">كل المخازن</option>
-                            @foreach($warehouses as $warehouse)
-                                <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
-                                    {{ $warehouse->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
                     <div class="sm:w-48">
                         <select name="api_status_id" id="apiStatusFilter" class="form-select">
                             <option value="">كل حالات الطلب</option>
@@ -310,14 +300,16 @@
 
                         <!-- هيدر الكارت -->
                         <div class="flex items-center justify-center mb-4 pl-12">
-                            {{-- حالة الطلب من API --}}
+                            {{-- حالة الطلب من API - محسنة --}}
                             @if($orderStatus)
-                                <span class="badge bg-info text-white text-lg font-bold px-4 py-2" title="حالة الطلب من الوسيط">
-                                    <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    {{ $orderStatus }}
-                                </span>
+                                <div class="bg-gradient-to-r from-info/20 to-info/10 border-2 border-info/50 rounded-lg px-4 py-2">
+                                    <span class="badge bg-info text-white text-lg font-bold px-4 py-2" title="حالة الطلب من الوسيط">
+                                        <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        {{ $orderStatus }}
+                                    </span>
+                                </div>
                             @endif
                         </div>
 
@@ -325,7 +317,19 @@
                         @if($alwaseetCode)
                             <div class="mb-4 text-center">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">رقم الوسيط</span>
-                                <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;">{{ $alwaseetCode }}</div>
+                                <div class="flex items-center justify-center gap-2">
+                                    <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;" id="alwaseet-code-{{ $order->id }}">{{ $alwaseetCode }}</div>
+                                    <button 
+                                        type="button" 
+                                        onclick="copyAlWaseetCode('{{ $alwaseetCode }}', '{{ $order->id }}', this)" 
+                                        class="btn btn-sm btn-primary"
+                                        title="نسخ كود الوسيط"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         @endif
 
@@ -540,6 +544,30 @@
             @endif
         @endif
     </div>
+
+@push('scripts')
+<script>
+function copyAlWaseetCode(code, orderId, buttonElement) {
+    navigator.clipboard.writeText(code).then(function() {
+        // إظهار رسالة نجاح
+        if (buttonElement) {
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+            buttonElement.classList.remove('btn-primary');
+            buttonElement.classList.add('bg-success');
+            setTimeout(() => {
+                buttonElement.innerHTML = originalHTML;
+                buttonElement.classList.remove('bg-success');
+                buttonElement.classList.add('btn-primary');
+            }, 2000);
+        }
+    }).catch(function(err) {
+        console.error('فشل النسخ:', err);
+        alert('فشل نسخ الكود');
+    });
+}
+</script>
+@endpush
 
 </x-layout.default>
 
