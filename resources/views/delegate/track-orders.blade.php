@@ -116,7 +116,7 @@
                             name="search"
                             id="searchFilter"
                             class="form-input"
-                            placeholder="ابحث برقم الطلب، اسم الزبون، رقم الهاتف، العنوان، أو اسم/كود المنتج..."
+                            placeholder="ابحث برقم الطلب، اسم الزبون، رقم الهاتف، العنوان، كود الوسيط، أو اسم/كود المنتج..."
                             value="{{ request('search') }}"
                         >
                     </div>
