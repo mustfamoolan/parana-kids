@@ -52,6 +52,17 @@
             </a>
             @endif
 
+            <!-- 0. إرجاع استبدال -->
+            <a href="{{ route('admin.bulk-exchange-returns.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-warning mb-2">إرجاع استبدال</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إرجاع استبدال بالجملة</p>
+            </a>
+
             <!-- 1. الطلبات -->
             <a href="{{ route('admin.orders.management') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">

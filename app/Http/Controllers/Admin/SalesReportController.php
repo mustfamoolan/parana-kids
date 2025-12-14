@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductMovement;
 use App\Models\ReturnItem;
 use App\Models\SalesReport;
 use App\Models\Setting;
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 class SalesReportController extends Controller
 {
     public function index(Request $request)
-    {
+{
         // التأكد من أن المستخدم مدير فقط
         if (!Auth::user()->isAdmin()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
@@ -148,6 +149,36 @@ class SalesReportController extends Controller
             }
         }
 
+        // جلب جميع ProductMovement من نوع return_exchange_bulk في نطاق التاريخ
+        $exchangeReturnMovementsQuery = ProductMovement::where('movement_type', 'return_exchange_bulk')
+            ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo]);
+
+        // فلترة حسب warehouse_id إذا كان موجوداً
+        if ($request->filled('warehouse_id')) {
+            $exchangeReturnMovementsQuery->where('warehouse_id', $request->warehouse_id);
+        }
+
+        $exchangeReturnMovements = $exchangeReturnMovementsQuery->with('product')->get();
+
+        // حساب المبلغ المخصوم من إرجاع الاستبدال
+        $exchangeReturnAmount = 0;
+        $exchangeReturnProfit = 0;
+        foreach ($exchangeReturnMovements as $movement) {
+            if ($movement->product && $movement->product->selling_price) {
+                // حساب المبلغ: quantity * selling_price
+                $exchangeReturnAmount += $movement->quantity * $movement->product->selling_price;
+                
+                // حساب الربح المخصوم: (selling_price - purchase_price) * quantity
+                if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
+                    $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
+                    $exchangeReturnProfit += $profitPerUnit * $movement->quantity;
+                }
+            }
+        }
+
+        // خصم المبلغ من المبيعات
+        $totalAmountWithoutDelivery = max(0, $totalAmountWithoutDelivery - $exchangeReturnAmount);
+
         // عدد الطلبات المقيدة
         $confirmedOrders = $orders->where('status', 'confirmed');
         $confirmedOrderIds = $confirmedOrders->pluck('id');
@@ -212,6 +243,9 @@ class SalesReportController extends Controller
             }
         }
 
+        // خصم الربح من إرجاع الاستبدال
+        $totalProfitWithoutMargin = max(0, $totalProfitWithoutMargin - $exchangeReturnProfit);
+
         // حساب الأرباح مع الفروقات
         $totalProfitWithMargin = $totalProfitWithoutMargin + $totalMarginAmount;
 
@@ -240,6 +274,7 @@ class SalesReportController extends Controller
             'orders_count' => $ordersCount,
             'items_count' => max(0, $itemsCount),
             'return_amount' => $returnAmount,
+            'exchange_return_amount' => $exchangeReturnAmount,
         ];
     }
 
@@ -329,6 +364,41 @@ class SalesReportController extends Controller
                     $profitsWithMarginByDate[$date] += $orderProfit + ($orderProfitMargin * $warehouseRatio);
                 } else {
                     $profitsWithMarginByDate[$date] += $orderProfit;
+                }
+            }
+        }
+
+        // خصم مبلغ إرجاع الاستبدال من المبيعات حسب التاريخ
+        $exchangeReturnMovementsQuery = ProductMovement::where('movement_type', 'return_exchange_bulk')
+            ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo]);
+
+        if ($request->filled('warehouse_id')) {
+            $exchangeReturnMovementsQuery->where('warehouse_id', $request->warehouse_id);
+        }
+
+        $exchangeReturnMovements = $exchangeReturnMovementsQuery->with('product')->get();
+
+        foreach ($exchangeReturnMovements as $movement) {
+            if ($movement->product && $movement->product->selling_price) {
+                $date = $movement->created_at->format('Y-m-d');
+                $amount = $movement->quantity * $movement->product->selling_price;
+                
+                if (isset($salesByDate[$date])) {
+                    $salesByDate[$date] = max(0, $salesByDate[$date] - $amount);
+                }
+
+                // خصم الربح
+                if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
+                    $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
+                    $profit = $profitPerUnit * $movement->quantity;
+                    
+                    if (isset($profitsByDate[$date])) {
+                        $profitsByDate[$date] = max(0, $profitsByDate[$date] - $profit);
+                    }
+                    
+                    if (isset($profitsWithMarginByDate[$date])) {
+                        $profitsWithMarginByDate[$date] = max(0, $profitsWithMarginByDate[$date] - $profit);
+                    }
                 }
             }
         }

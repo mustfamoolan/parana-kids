@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\BulkReturnController;
+use App\Http\Controllers\Admin\BulkExchangeReturnController;
 use App\Http\Controllers\Admin\ProductMovementController as AdminProductMovementController;
 use App\Http\Controllers\Delegate\OrderController as DelegateOrderController;
 use App\Http\Controllers\Admin\ProductLinkController;
@@ -334,6 +335,11 @@ Route::prefix('admin')->group(function () {
         Route::get('bulk-returns', [BulkReturnController::class, 'index'])->name('admin.bulk-returns.index');
         Route::get('bulk-returns/search', [BulkReturnController::class, 'searchProducts'])->name('admin.bulk-returns.search');
         Route::post('bulk-returns', [BulkReturnController::class, 'returnProducts'])->name('admin.bulk-returns.store');
+
+        // Bulk Exchange Return routes
+        Route::get('bulk-exchange-returns', [BulkExchangeReturnController::class, 'index'])->name('admin.bulk-exchange-returns.index');
+        Route::get('bulk-exchange-returns/search', [BulkExchangeReturnController::class, 'searchProducts'])->name('admin.bulk-exchange-returns.search');
+        Route::post('bulk-exchange-returns', [BulkExchangeReturnController::class, 'returnProducts'])->name('admin.bulk-exchange-returns.store');
 
         // Product Links routes
         Route::get('product-links/get-sizes', [ProductLinkController::class, 'getSizes'])->name('admin.product-links.get-sizes');
