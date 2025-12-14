@@ -69,6 +69,21 @@ Route::prefix('admin')->group(function () {
             Route::delete('/{contact}', [\App\Http\Controllers\Admin\PhoneBookController::class, 'deleteContact'])->name('delete-contact');
         });
 
+        // Order Creation routes (Admin and Supplier)
+        Route::prefix('orders/create')->name('admin.orders.create.')->group(function () {
+            Route::get('/start', [\App\Http\Controllers\Admin\OrderCreationController::class, 'start'])->name('start');
+            Route::post('/initialize', [\App\Http\Controllers\Admin\OrderCreationController::class, 'initialize'])->name('initialize');
+            Route::post('/submit', [\App\Http\Controllers\Admin\OrderCreationController::class, 'submit'])->name('submit');
+        });
+
+        // Cart routes (Admin and Supplier)
+        Route::get('carts/view', [\App\Http\Controllers\Admin\CartController::class, 'view'])->name('admin.carts.view');
+
+        // Cart Items routes (Admin and Supplier)
+        Route::post('carts/items', [\App\Http\Controllers\Admin\CartItemController::class, 'store'])->name('admin.carts.items.store');
+        Route::put('cart-items/{cartItem}', [\App\Http\Controllers\Admin\CartItemController::class, 'update'])->name('admin.cart-items.update');
+        Route::delete('cart-items/{cartItem}', [\App\Http\Controllers\Admin\CartItemController::class, 'destroy'])->name('admin.cart-items.destroy');
+
         // صفحة التقارير (للمدير فقط)
         Route::get('reports', [AdminDashboardController::class, 'reports'])->name('admin.reports');
 
@@ -225,6 +240,8 @@ Route::prefix('admin')->group(function () {
         Route::get('users/{userId}/invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'viewSupplierInvoices'])->name('admin.users.invoices');
 
         // Product routes
+        Route::get('products', [AdminProductController::class, 'allProducts'])->name('admin.products.index');
+        Route::get('api/products/{product}', [AdminProductController::class, 'getProductData'])->name('admin.api.products.data');
         Route::resource('warehouses.products', AdminProductController::class)->names([
             'index' => 'admin.warehouses.products.index',
             'create' => 'admin.warehouses.products.create',

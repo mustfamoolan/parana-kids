@@ -39,6 +39,19 @@
             </a>
             @endif
 
+            @if(auth()->user()->isAdmin() || auth()->user()->isSupplier())
+            <!-- 0. إنشاء طلب جديد -->
+            <a href="{{ route('admin.orders.create.start') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-success/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-success mb-2">إنشاء طلب جديد</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إنشاء طلب جديد للزبون</p>
+            </a>
+            @endif
+
             <!-- 1. الطلبات -->
             <a href="{{ route('admin.orders.management') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">

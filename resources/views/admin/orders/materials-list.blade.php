@@ -98,6 +98,8 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ $order->customer_name }}</p>
                             @if($order->delegate)
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">المندوب: {{ $order->delegate->name }}</p>
+                            @else
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">المندوب: -</p>
                             @endif
 
                             <!-- الأزرار -->

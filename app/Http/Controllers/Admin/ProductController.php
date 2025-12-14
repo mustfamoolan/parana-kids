@@ -16,6 +16,233 @@ use Illuminate\Support\Facades\Log;
 class ProductController extends Controller
 {
     /**
+     * Display all products from accessible warehouses (for order creation)
+     */
+    public function allProducts(Request $request)
+    {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
+            abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
+        }
+
+        // للمدير: جميع المخازن
+        // للمجهز: فقط المخازن المصرح بها
+        if (Auth::user()->isAdmin()) {
+            $warehouseIds = \App\Models\Warehouse::pluck('id')->toArray();
+            $warehouses = \App\Models\Warehouse::orderBy('name')->get();
+        } else {
+            $warehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $warehouses = Auth::user()->warehouses()->orderBy('name')->get();
+        }
+
+        // بناء الاستعلام الأساسي (استبعاد المنتجات المحجوبة)
+        $query = Product::whereIn('warehouse_id', $warehouseIds)
+                        ->where('is_hidden', false)
+                        ->with(['primaryImage', 'images', 'sizes', 'warehouse.activePromotion']);
+
+        // فلتر التخفيض
+        if ($request->filled('has_discount') && $request->has_discount == '1') {
+            $query->where(function($q) {
+                // تخفيض المنتج الواحد
+                $q->whereNotNull('discount_type')
+                  ->where('discount_type', '!=', 'none')
+                  ->whereNotNull('discount_value')
+                  ->where(function($dateQ) {
+                      // إذا لم تكن هناك تواريخ محددة، يعتبر التخفيض دائماً نشطاً
+                      // أو إذا كانت التواريخ ضمن النطاق الصحيح
+                      $dateQ->where(function($noDates) {
+                          $noDates->whereNull('discount_start_date')
+                                  ->whereNull('discount_end_date');
+                      })->orWhere(function($withDates) {
+                          $withDates->where(function($startDate) {
+                              $startDate->whereNull('discount_start_date')
+                                        ->orWhere('discount_start_date', '<=', now());
+                          })->where(function($endDate) {
+                              $endDate->whereNull('discount_end_date')
+                                      ->orWhere('discount_end_date', '>=', now());
+                          });
+                      });
+                  });
+            });
+        }
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $warehouseId = $request->warehouse_id;
+            if (in_array($warehouseId, $warehouseIds)) {
+                $query->where('warehouse_id', $warehouseId);
+            }
+        }
+
+        // فلتر النوع
+        if ($request->filled('gender_type')) {
+            $genderType = $request->gender_type;
+            if ($genderType == 'boys') {
+                $query->whereIn('gender_type', ['boys', 'boys_girls']);
+            } elseif ($genderType == 'girls') {
+                $query->whereIn('gender_type', ['girls', 'boys_girls']);
+            } else {
+                $query->where('gender_type', $genderType);
+            }
+        }
+
+        // البحث بالقياس أولاً، ثم الكود، ثم النوع، ثم الاسم
+        $searchedSize = null;
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            \Log::info('Search applied', ['search_term' => $search]);
+
+            // أولاً: البحث في القياسات (أولوية)
+            $sizeMatches = ProductSize::whereHas('product', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouse_id', $warehouseIds)
+                  ->where('is_hidden', false);
+            })
+            ->where('size_name', 'LIKE', "%{$search}%")
+            ->whereRaw('quantity > (
+                SELECT COALESCE(SUM(quantity_reserved), 0)
+                FROM stock_reservations
+                WHERE product_size_id = product_sizes.id
+            )')
+            ->exists();
+
+            if ($sizeMatches) {
+                // إذا كان البحث عن قياس، اعرض المنتجات التي تحتوي على هذا القياس
+                $query->whereHas('sizes', function($q) use ($search) {
+                    $q->where('size_name', 'LIKE', "%{$search}%")
+                      ->whereRaw('quantity > (
+                          SELECT COALESCE(SUM(quantity_reserved), 0)
+                          FROM stock_reservations
+                          WHERE product_size_id = product_sizes.id
+                      )');
+                });
+                $searchedSize = $search; // حفظ القياس المبحوث
+            } else {
+                // ثانياً: البحث في كود المنتج
+                $codeMatches = Product::whereIn('warehouse_id', $warehouseIds)
+                                      ->where('code', 'LIKE', "%{$search}%")
+                                      ->exists();
+
+                if ($codeMatches) {
+                    // إذا كان البحث عن كود منتج، أظهر المنتج بكل قياساته
+                    $query->where('code', 'LIKE', "%{$search}%");
+                } else {
+                    // ثالثاً: البحث في النوع
+                    $genderTypeMap = [
+                        'ولادي' => ['boys', 'boys_girls'],
+                        'بناتي' => ['girls', 'boys_girls'],
+                        'ولادي بناتي' => ['boys_girls'],
+                        'اكسسوار' => ['accessories'],
+                        'boys' => ['boys', 'boys_girls'],
+                        'girls' => ['girls', 'boys_girls'],
+                        'boys_girls' => ['boys_girls'],
+                        'accessories' => ['accessories'],
+                    ];
+
+                    $lowerSearch = mb_strtolower($search);
+                    $foundGenderType = false;
+
+                    foreach ($genderTypeMap as $key => $types) {
+                        if (mb_strtolower($key) == $lowerSearch || stripos($key, $search) !== false || stripos($search, $key) !== false) {
+                            $query->whereIn('gender_type', $types);
+                            $foundGenderType = true;
+                            break;
+                        }
+                    }
+
+                    // رابعاً: إذا لم يكن البحث عن النوع، ابحث في اسم المنتج
+                    if (!$foundGenderType) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    }
+                }
+            }
+        }
+
+        $products = $query->latest()->paginate(30)->appends($request->except('page'));
+
+        $searchedSize = $searchedSize ?? null;
+
+        // جلب بيانات الكارت النشط إذا كان موجوداً
+        $activeCart = null;
+        $customerData = null;
+        $cartId = session('current_cart_id');
+        if ($cartId) {
+            $activeCart = \App\Models\Cart::with('items')->find($cartId);
+            if ($activeCart && $activeCart->created_by === auth()->id() && $activeCart->status === 'active') {
+                $customerData = [
+                    'customer_name' => $activeCart->customer_name,
+                    'customer_phone' => $activeCart->customer_phone,
+                    'customer_address' => $activeCart->customer_address,
+                    'customer_social_link' => $activeCart->customer_social_link,
+                    'notes' => $activeCart->notes,
+                ];
+            } else {
+                $activeCart = null;
+            }
+        }
+
+        // إذا كان الطلب AJAX، إرجاع JSON
+        if ($request->expectsJson() || $request->ajax()) {
+            $productsHtml = view('admin.products.partials.product-cards', [
+                'products' => $products,
+                'searchedSize' => $searchedSize
+            ])->render();
+
+            return response()->json([
+                'products' => $productsHtml,
+                'has_more' => $products->hasMorePages(),
+                'total' => $products->total(),
+                'current_page' => $products->currentPage(),
+            ]);
+        }
+
+        return view('admin.products.all', compact('products', 'warehouses', 'activeCart', 'customerData', 'searchedSize'));
+    }
+
+    /**
+     * Get product data for modal (API endpoint)
+     */
+    public function getProductData($id)
+    {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
+            return response()->json(['error' => 'غير مصرح لك بالوصول'], 403);
+        }
+
+        $product = Product::with(['sizes', 'primaryImage', 'warehouse'])
+                         ->where('is_hidden', false)
+                         ->findOrFail($id);
+
+        // للمدير: جميع المخازن
+        // للمجهز: فقط المخازن المصرح بها
+        if (Auth::user()->isAdmin()) {
+            $warehouseIds = \App\Models\Warehouse::pluck('id')->toArray();
+        } else {
+            $warehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+        }
+
+        // التحقق من صلاحية الوصول للمخزن
+        if (!in_array($product->warehouse_id, $warehouseIds)) {
+            return response()->json(['error' => 'ليس لديك صلاحية للوصول إلى هذا المنتج'], 403);
+        }
+
+        return response()->json([
+            'id' => $product->id,
+            'name' => $product->name,
+            'code' => $product->code,
+            'selling_price' => $product->selling_price,
+            'image' => $product->primaryImage ? $product->primaryImage->image_url : null,
+            'sizes' => $product->sizes->map(function($size) {
+                return [
+                    'id' => $size->id,
+                    'size_name' => $size->size_name,
+                    'available_quantity' => $size->available_quantity,
+                    'quantity' => $size->quantity,
+                ];
+            })
+        ]);
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request, Warehouse $warehouse)
@@ -201,7 +428,24 @@ class ProductController extends Controller
             $totalPurchasePrice = $product->purchase_price * $totalQuantity;
         }
 
-        return view('admin.products.show', compact('product', 'totalQuantity', 'totalSellingPrice', 'totalPurchasePrice'));
+        // التحقق من وجود cart نشط للمدير/المجهز
+        $activeCart = null;
+        $customerData = null;
+        $cartId = session('current_cart_id');
+        if ($cartId) {
+            $activeCart = \App\Models\Cart::with('items')->find($cartId);
+            if ($activeCart && $activeCart->created_by === auth()->id() && $activeCart->status === 'active') {
+                $customerData = [
+                    'customer_name' => $activeCart->customer_name,
+                    'customer_phone' => $activeCart->customer_phone,
+                    'customer_address' => $activeCart->customer_address,
+                ];
+            } else {
+                $activeCart = null;
+            }
+        }
+
+        return view('admin.products.show', compact('product', 'totalQuantity', 'totalSellingPrice', 'totalPurchasePrice', 'activeCart', 'customerData'));
     }
 
     /**

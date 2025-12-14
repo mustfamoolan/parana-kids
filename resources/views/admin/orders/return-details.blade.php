@@ -37,7 +37,7 @@
                 <div>
                     <h6 class="text-lg font-semibold">طلب رقم: {{ $order->order_number }}</h6>
                     <p class="text-sm text-gray-500">الزبون: {{ $order->customer_name }} - {{ $order->customer_phone }}</p>
-                    <p class="text-sm text-gray-500">المندوب: {{ $order->delegate->name }}</p>
+                    <p class="text-sm text-gray-500">المندوب: {{ $order->delegate ? $order->delegate->name : '-' }}</p>
                 </div>
             </div>
 

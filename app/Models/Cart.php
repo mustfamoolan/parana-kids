@@ -11,6 +11,7 @@ class Cart extends Model
 
     protected $fillable = [
         'delegate_id',
+        'created_by',
         'session_id',
         'cart_name',
         'status',
@@ -30,6 +31,11 @@ class Cart extends Model
     public function delegate()
     {
         return $this->belongsTo(User::class, 'delegate_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function items()

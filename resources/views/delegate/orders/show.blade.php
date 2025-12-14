@@ -231,7 +231,11 @@
 
                     <div class="flex items-center justify-between">
                         <span class="text-gray-500 dark:text-gray-400">المندوب:</span>
-                        <span class="font-medium">{{ $order->delegate->name }}</span>
+                        @if($order->delegate)
+                            <span class="font-medium">{{ $order->delegate->name }}</span>
+                        @else
+                            <span class="font-medium text-gray-400">-</span>
+                        @endif
                     </div>
 
                     <div class="flex items-center justify-between">

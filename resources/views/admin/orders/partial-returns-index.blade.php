@@ -141,7 +141,11 @@
                         <div class="mb-4">
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المندوب</span>
-                                <p class="font-medium">{{ $order->delegate->name }}</p>
+                                @if($order->delegate)
+                                    <p class="font-medium">{{ $order->delegate->name }}</p>
+                                @else
+                                    <p class="font-medium text-gray-400">-</p>
+                                @endif
                                 @if($order->delivery_code)
                                 <div class="flex items-center gap-2 mt-1">
                                     <p class="text-sm text-gray-500">كود الوسيط: <span class="font-medium">{{ $order->delivery_code }}</span></p>

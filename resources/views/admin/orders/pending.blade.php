@@ -413,8 +413,12 @@
                             <div class="mb-4">
                                 <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المندوب</span>
-                                    <p class="font-medium">{{ $order->delegate->name }}</p>
-                                    <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
+                                    @if($order->delegate)
+                                        <p class="font-medium">{{ $order->delegate->name }}</p>
+                                        <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
+                                    @else
+                                        <p class="font-medium text-gray-400">-</p>
+                                    @endif
                                 </div>
                             </div>
 
