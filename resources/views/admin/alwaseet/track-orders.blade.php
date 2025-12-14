@@ -526,6 +526,18 @@
                             </div>
                         </div>
 
+                        <!-- زر الإرجاع الجزئي (فقط عندما api_status_id=15) -->
+                        @if(request('api_status_id') == 15 && $order->status === 'confirmed')
+                            <div class="mb-4">
+                                <a href="{{ route('admin.orders.partial-return', $order->id) }}?return_to_track=15" class="btn btn-warning w-full">
+                                    <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                                    </svg>
+                                    إرجاع جزئي
+                                </a>
+                            </div>
+                        @endif
+
                         <!-- قائمة المنتجات -->
                         <div class="mb-4">
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">

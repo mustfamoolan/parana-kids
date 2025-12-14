@@ -1,13 +1,17 @@
 <x-layout.admin>
     <div>
+        @php
+            $returnToTrack = request('return_to_track');
+            $backUrl = $returnToTrack ? route('admin.alwaseet.track-orders', ['api_status_id' => $returnToTrack]) : route('admin.orders.partial-returns.index');
+        @endphp
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">إرجاع جزئي - منتجات الطلب</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <a href="{{ route('admin.orders.partial-returns.index') }}" class="btn btn-outline-secondary">
+                <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
-                    العودة للقائمة
+                    {{ $returnToTrack ? 'العودة إلى تاجر' : 'العودة للقائمة' }}
                 </a>
             </div>
         </div>
@@ -90,6 +94,9 @@
 
         <form method="POST" action="{{ route('admin.orders.partial-return.process', $order) }}" id="partialReturnForm">
             @csrf
+            @if($returnToTrack)
+                <input type="hidden" name="return_to_track" value="{{ $returnToTrack }}">
+            @endif
 
             <div class="panel">
                 <div class="mb-5">
@@ -323,14 +330,14 @@
 
                 <!-- أزرار الإجراء -->
                 <div class="flex gap-3 justify-end">
-                    <a href="{{ route('admin.orders.partial-returns.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary">
                         إلغاء
                     </a>
                     <button type="submit" class="btn btn-warning" id="submitBtn" disabled>
                         <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                         </svg>
-                        تأكيد الإرجاع
+                        {{ $returnToTrack ? 'تأكيد الإرجاع والعودة إلى تاجر' : 'تأكيد الإرجاع' }}
                     </button>
                 </div>
             </div>

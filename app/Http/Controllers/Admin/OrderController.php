@@ -2767,6 +2767,17 @@ class OrderController extends Controller
             $order->refresh();
             $allItemsReturned = $order->items()->where('quantity', '>', 0)->count() === 0;
 
+            // التحقق من وجود return_to_track للعودة إلى صفحة track-orders
+            $returnToTrack = $request->input('return_to_track');
+            if ($returnToTrack) {
+                if ($allItemsReturned && $order->trashed()) {
+                    return redirect()->route('admin.alwaseet.track-orders', ['api_status_id' => $returnToTrack])
+                                    ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
+                }
+                return redirect()->route('admin.alwaseet.track-orders', ['api_status_id' => $returnToTrack])
+                                ->with('success', 'تم إرجاع المنتجات بنجاح');
+            }
+
             if ($allItemsReturned && $order->trashed()) {
                 return redirect()->route('admin.orders.partial-returns.index')
                                 ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
