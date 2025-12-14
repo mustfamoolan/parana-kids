@@ -13,6 +13,12 @@
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">رفع وطباع طلبات الوسيط</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a href="{{ route('admin.alwaseet.track-orders') }}" class="btn btn-primary">
+                    <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    تتبع الحركات
+                </a>
                 @if($sentOrdersCount > 0)
                     <button
                         type="button"
