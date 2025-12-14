@@ -5,6 +5,8 @@ namespace App\Listeners;
 use App\Events\AlWaseetShipmentStatusChanged;
 use App\Models\AlWaseetNotification;
 use App\Models\Setting;
+use App\Models\User;
+use App\Services\TelegramService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
@@ -49,10 +51,100 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                     'new_status' => $event->newStatusId,
                 ]);
             }
+
+            // إرسال إشعارات التليجرام
+            $this->sendTelegramNotifications($event);
         } catch (\Exception $e) {
             Log::error('AlWaseet: Failed to create notification', [
                 'shipment_id' => $event->shipment->id,
                 'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Send Telegram notifications to users with warehouse permissions
+     */
+    protected function sendTelegramNotifications(AlWaseetShipmentStatusChanged $event): void
+    {
+        try {
+            $shipment = $event->shipment;
+            $order = $shipment->order;
+
+            if (!$order) {
+                Log::warning('AlWaseet: Order not found for shipment', [
+                    'shipment_id' => $shipment->id,
+                ]);
+                return;
+            }
+
+            // جلب warehouseIds من منتجات الطلب
+            $warehouseIds = $order->items()
+                ->with('product')
+                ->get()
+                ->pluck('product.warehouse_id')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            if (empty($warehouseIds)) {
+                Log::info('AlWaseet: No warehouses found for order', [
+                    'order_id' => $order->id,
+                ]);
+                return;
+            }
+
+            // جلب المجهزين (suppliers) الذين لديهم صلاحية على نفس المخزن
+            $supplierIds = User::whereIn('role', ['admin', 'supplier'])
+                ->whereHas('warehouses', function($q) use ($warehouseIds) {
+                    $q->whereIn('warehouses.id', $warehouseIds);
+                })
+                ->pluck('id')
+                ->toArray();
+
+            // إضافة المديرين دائماً
+            $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+            $recipientIds = array_unique(array_merge($supplierIds, $adminIds));
+
+            if (empty($recipientIds)) {
+                Log::info('AlWaseet: No recipients found for Telegram notification', [
+                    'order_id' => $order->id,
+                ]);
+                return;
+            }
+
+            // جلب المستخدمين المربوطين بالتليجرام
+            $recipients = User::whereIn('id', $recipientIds)
+                ->whereNotNull('telegram_chat_id')
+                ->get();
+
+            if ($recipients->isEmpty()) {
+                Log::info('AlWaseet: No Telegram-linked users found', [
+                    'order_id' => $order->id,
+                ]);
+                return;
+            }
+
+            // إرسال إشعارات التليجرام
+            $telegramService = app(TelegramService::class);
+            foreach ($recipients as $recipient) {
+                $telegramService->sendOrderStatusNotification(
+                    $recipient->telegram_chat_id,
+                    $shipment,
+                    $order
+                );
+            }
+
+            Log::info('AlWaseet: Telegram notifications sent', [
+                'shipment_id' => $shipment->id,
+                'order_id' => $order->id,
+                'recipients_count' => $recipients->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AlWaseet: Failed to send Telegram notifications', [
+                'shipment_id' => $event->shipment->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
     }

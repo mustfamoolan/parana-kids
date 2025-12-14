@@ -93,6 +93,22 @@ class Order extends Model
                 $order->message_confirmed = 'not_sent';
             }
         });
+
+        // إرسال إشعار عند حذف الطلب
+        static::deleting(function ($order) {
+            // التأكد من أن الحذف soft delete وليس force delete
+            if (!$order->isForceDeleting()) {
+                app(\App\Services\SweetAlertService::class)->notifyOrderDeleted($order);
+            }
+        });
+
+        // إرسال إشعار عند تقييد الطلب
+        static::updating(function ($order) {
+            // التحقق من أن confirmed_at تم تعيينه لأول مرة
+            if ($order->isDirty('confirmed_at') && $order->confirmed_at && !$order->getOriginal('confirmed_at')) {
+                app(\App\Services\SweetAlertService::class)->notifyOrderConfirmed($order);
+            }
+        });
     }
 
     public function delegate()

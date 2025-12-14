@@ -202,11 +202,35 @@ class SweetAlertService
 
     /**
      * Create alert for order confirmed
-     * إشعار للمندوب (نفس المخزن)
+     * إشعار للمجهز (نفس المخزن) أو المدير
      */
     public function notifyOrderConfirmed(Order $order)
     {
-        if (!$order->delegate_id) {
+        $warehouseIds = $order->items()
+            ->with('product')
+            ->get()
+            ->pluck('product.warehouse_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        if (empty($warehouseIds)) {
+            return;
+        }
+
+        // جلب المجهزين (suppliers) الذين لديهم صلاحية على نفس المخزن
+        $supplierIds = User::whereIn('role', ['admin', 'supplier'])
+            ->whereHas('warehouses', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouses.id', $warehouseIds);
+            })
+            ->pluck('id')
+            ->toArray();
+
+        // إضافة المديرين دائماً
+        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+        $recipientIds = array_unique(array_merge($supplierIds, $adminIds));
+
+        if (empty($recipientIds)) {
             return;
         }
 
@@ -217,7 +241,25 @@ class SweetAlertService
             'order_number' => $order->order_number,
         ];
 
-        $this->create($order->delegate_id, 'order_confirmed', $title, $message, 'success', $data);
+        // إرسال SweetAlert
+        $this->createForUsers($recipientIds, 'order_confirmed', $title, $message, 'success', $data);
+
+        // إرسال إشعارات تليجرام للمستخدمين المربوطين
+        try {
+            $telegramService = app(TelegramService::class);
+            $recipients = User::whereIn('id', $recipientIds)
+                ->whereNotNull('telegram_chat_id')
+                ->get();
+
+            foreach ($recipients as $recipient) {
+                $telegramService->sendOrderRestrictedNotification($recipient->telegram_chat_id, $order);
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send Telegram notifications for order confirmed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -278,7 +320,25 @@ class SweetAlertService
             'order_number' => $order->order_number,
         ];
 
+        // إرسال SweetAlert
         $this->createForUsers($recipientIds, 'order_deleted', $title, $message, 'warning', $data);
+
+        // إرسال إشعارات تليجرام للمستخدمين المربوطين
+        try {
+            $telegramService = app(TelegramService::class);
+            $recipients = User::whereIn('id', $recipientIds)
+                ->whereNotNull('telegram_chat_id')
+                ->get();
+
+            foreach ($recipients as $recipient) {
+                $telegramService->sendOrderDeletedNotification($recipient->telegram_chat_id, $order);
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send Telegram notifications for order deleted', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

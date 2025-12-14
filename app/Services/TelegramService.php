@@ -31,7 +31,7 @@ class TelegramService
     /**
      * Send message to a specific chat
      */
-    public function sendMessage($chatId, $message, $parseMode = 'HTML')
+    public function sendMessage($chatId, $message, $parseMode = 'HTML', $replyMarkup = null)
     {
         if (!$this->telegram) {
             Log::warning('TelegramService: Telegram API not initialized');
@@ -39,11 +39,17 @@ class TelegramService
         }
 
         try {
-            $response = $this->telegram->sendMessage([
+            $params = [
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
-            ]);
+            ];
+
+            if ($replyMarkup) {
+                $params['reply_markup'] = $replyMarkup;
+            }
+
+            $response = $this->telegram->sendMessage($params);
 
             Log::info('TelegramService: Message sent successfully', [
                 'chat_id' => $chatId,
@@ -115,6 +121,178 @@ class TelegramService
             ]);
             return null;
         }
+    }
+
+    /**
+     * Format phone number for WhatsApp and call
+     */
+    protected function formatPhoneForAction($phone)
+    {
+        // إزالة المسافات والأحرف
+        $phone = preg_replace('/[^0-9+]/', '', $phone);
+
+        // إذا كان يبدأ بـ 0، استبدله بـ 964
+        if (strpos($phone, '0') === 0) {
+            $phone = '964' . substr($phone, 1);
+        } elseif (strpos($phone, '+964') === 0) {
+            $phone = substr($phone, 1); // إزالة +
+        } elseif (strpos($phone, '964') !== 0) {
+            $phone = '964' . $phone;
+        }
+
+        return $phone;
+    }
+
+    /**
+     * Build inline keyboard for order notifications
+     */
+    protected function buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink = null)
+    {
+        $keyboard = [];
+
+        // زر نسخ رقم الوسيط
+        if ($alwaseetOrderId) {
+            $keyboard[] = [
+                [
+                    'text' => '📋 نسخ رقم الوسيط',
+                    'callback_data' => 'copy_order_id_' . preg_replace('/[^0-9]/', '', (string)$alwaseetOrderId)
+                ]
+            ];
+        }
+
+        // أزرار الهاتف
+        if ($phone) {
+            $formattedPhone = $this->formatPhoneForAction($phone);
+            $phoneClean = preg_replace('/[^0-9]/', '', (string)$phone);
+            $keyboard[] = [
+                [
+                    'text' => '📞 اتصال',
+                    'url' => 'tel:+' . $formattedPhone
+                ],
+                [
+                    'text' => '💬 واتساب',
+                    'url' => 'https://wa.me/' . $formattedPhone
+                ],
+                [
+                    'text' => '📋 نسخ رقم الهاتف',
+                    'callback_data' => 'copy_phone_' . $phoneClean
+                ]
+            ];
+        }
+
+        // زر رابط السوشال ميديا
+        if ($socialLink) {
+            $keyboard[] = [
+                [
+                    'text' => '🔗 رابط السوشال ميديا',
+                    'url' => $socialLink
+                ]
+            ];
+        }
+
+        if (empty($keyboard)) {
+            return null;
+        }
+
+        return json_encode(['inline_keyboard' => $keyboard]);
+    }
+
+    /**
+     * Send order status notification (from API)
+     */
+    public function sendOrderStatusNotification($chatId, $shipment, $order)
+    {
+        $status = $shipment->status ?? 'غير محدد';
+        $alwaseetOrderId = $shipment->alwaseet_order_id ?? null;
+        $phone = $shipment->client_mobile ?? $order->customer_phone ?? null;
+        $socialLink = $order->customer_social_link ?? null;
+
+        $message = "🔔 <b>تغيير حالة الطلب</b>\n\n";
+        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
+        $message .= "📊 الحالة: <b>{$status}</b>\n";
+
+        if ($alwaseetOrderId) {
+            $message .= "🔢 رقم الوسيط: <code>{$alwaseetOrderId}</code>\n";
+        }
+
+        $message .= "👤 العميل: {$order->customer_name}\n";
+
+        if ($phone) {
+            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+        }
+
+        if ($order->customer_address) {
+            $message .= "📍 العنوان: {$order->customer_address}\n";
+        }
+
+        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ الوقت: " . now()->format('Y-m-d H:i:s');
+
+        $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
+
+        return $this->sendMessage($chatId, $message, 'HTML', $keyboard);
+    }
+
+    /**
+     * Send order deleted notification
+     */
+    public function sendOrderDeletedNotification($chatId, $order)
+    {
+        $phone = $order->customer_phone ?? null;
+        $socialLink = $order->customer_social_link ?? null;
+        $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
+
+        $message = "🗑️ <b>تم حذف الطلب</b>\n\n";
+        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
+        $message .= "👤 العميل: {$order->customer_name}\n";
+
+        if ($phone) {
+            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+        }
+
+        if ($order->customer_address) {
+            $message .= "📍 العنوان: {$order->customer_address}\n";
+        }
+
+        if ($order->deletion_reason) {
+            $message .= "📝 سبب الحذف: {$order->deletion_reason}\n";
+        }
+
+        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ وقت الحذف: " . ($order->deleted_at ? $order->deleted_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
+
+        $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
+
+        return $this->sendMessage($chatId, $message, 'HTML', $keyboard);
+    }
+
+    /**
+     * Send order restricted notification (confirmed)
+     */
+    public function sendOrderRestrictedNotification($chatId, $order)
+    {
+        $phone = $order->customer_phone ?? null;
+        $socialLink = $order->customer_social_link ?? null;
+        $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
+
+        $message = "🔒 <b>تم تقييد الطلب</b>\n\n";
+        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
+        $message .= "👤 العميل: {$order->customer_name}\n";
+
+        if ($phone) {
+            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+        }
+
+        if ($order->customer_address) {
+            $message .= "📍 العنوان: {$order->customer_address}\n";
+        }
+
+        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ وقت التقييد: " . ($order->confirmed_at ? $order->confirmed_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
+
+        $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
+
+        return $this->sendMessage($chatId, $message, 'HTML', $keyboard);
     }
 }
 
