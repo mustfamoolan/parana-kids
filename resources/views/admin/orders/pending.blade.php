@@ -158,11 +158,14 @@
                             </select>
                         </div>
                         <div class="sm:w-48">
+                            @php
+                                $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();
+                            @endphp
                             <select name="delegate_id" id="delegateIdFilterPending" class="form-select">
-                                <option value="">كل المندوبين</option>
-                                @foreach($delegates as $delegate)
-                                    <option value="{{ $delegate->id }}" {{ request('delegate_id') == $delegate->id ? 'selected' : '' }}>
-                                        {{ $delegate->name }} ({{ $delegate->code }})
+                                <option value="">كل المندوبين والمديرين والمجهزين</option>
+                                @foreach($orderCreators as $creator)
+                                    <option value="{{ $creator->id }}" {{ request('delegate_id') == $creator->id ? 'selected' : '' }}>
+                                        {{ $creator->name }} ({{ $creator->code }}) - {{ $creator->role === 'admin' ? 'مدير' : ($creator->role === 'supplier' ? 'مجهز' : 'مندوب') }}
                                     </option>
                                 @endforeach
                             </select>
@@ -409,14 +412,18 @@
                                 </div>
                             @endif
 
-                            <!-- معلومات المندوب -->
+                            <!-- معلومات المندوب/المدير/المجهز -->
                             <div class="mb-4">
                                 <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
-                                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المندوب</span>
                                     @if($order->delegate)
+                                        @php
+                                            $userType = $order->delegate->role === 'admin' ? 'مدير' : ($order->delegate->role === 'supplier' ? 'مجهز' : 'مندوب');
+                                        @endphp
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">{{ $userType }}</span>
                                         <p class="font-medium">{{ $order->delegate->name }}</p>
                                         <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
                                     @else
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">-</span>
                                         <p class="font-medium text-gray-400">-</p>
                                     @endif
                                 </div>

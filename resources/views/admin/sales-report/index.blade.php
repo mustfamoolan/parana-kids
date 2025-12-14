@@ -15,14 +15,17 @@
         <div class="panel mb-6">
             <form method="GET" action="{{ route('admin.sales-report') }}" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- فلتر المندوب -->
+                    <!-- فلتر المندوب/المدير/المجهز -->
                     <div>
-                        <label class="form-label">المندوب</label>
+                        <label class="form-label">المندوب/المدير/المجهز</label>
+                        @php
+                            $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();
+                        @endphp
                         <select name="delegate_id" class="form-select">
-                            <option value="">كل المندوبين</option>
-                            @foreach($delegates as $delegate)
-                                <option value="{{ $delegate->id }}" {{ request('delegate_id') == $delegate->id ? 'selected' : '' }}>
-                                    {{ $delegate->name }} ({{ $delegate->code }})
+                            <option value="">كل المندوبين والمديرين والمجهزين</option>
+                            @foreach($orderCreators as $creator)
+                                <option value="{{ $creator->id }}" {{ request('delegate_id') == $creator->id ? 'selected' : '' }}>
+                                    {{ $creator->name }} ({{ $creator->code }}) - {{ $creator->role === 'admin' ? 'مدير' : ($creator->role === 'supplier' ? 'مجهز' : 'مندوب') }}
                                 </option>
                             @endforeach
                         </select>

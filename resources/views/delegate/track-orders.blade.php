@@ -438,10 +438,13 @@
                         <div class="mb-4">
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <div class="flex items-center justify-between gap-4">
-                                    <!-- معلومات المندوب -->
+                                    <!-- معلومات المندوب/المدير/المجهز -->
                                     @if($order->delegate)
+                                        @php
+                                            $userType = $order->delegate->role === 'admin' ? 'مدير' : ($order->delegate->role === 'supplier' ? 'مجهز' : 'مندوب');
+                                        @endphp
                                         <div class="flex-1">
-                                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المندوب</span>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">{{ $userType }}</span>
                                             <p class="font-medium">{{ $order->delegate->name }}</p>
                                             <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
                                         </div>

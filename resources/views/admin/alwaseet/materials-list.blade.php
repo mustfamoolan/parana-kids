@@ -171,7 +171,10 @@
 
                             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ $order->customer_name }}</p>
                             @if($order->delegate)
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">المندوب: {{ $order->delegate->name }}</p>
+                                @php
+                                    $userType = $order->delegate->role === 'admin' ? 'مدير' : ($order->delegate->role === 'supplier' ? 'مجهز' : 'مندوب');
+                                @endphp
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ $userType }}: {{ $order->delegate->name }}</p>
                             @endif
 
                             <!-- رقم الطلب - في الأسفل -->

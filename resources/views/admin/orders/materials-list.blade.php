@@ -97,9 +97,12 @@
                             <h6 class="font-semibold text-base dark:text-white-light mb-2">طلب #{{ $order->order_number }}</h6>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ $order->customer_name }}</p>
                             @if($order->delegate)
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">المندوب: {{ $order->delegate->name }}</p>
+                                @php
+                                    $userType = $order->delegate->role === 'admin' ? 'مدير' : ($order->delegate->role === 'supplier' ? 'مجهز' : 'مندوب');
+                                @endphp
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">{{ $userType }}: {{ $order->delegate->name }}</p>
                             @else
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">المندوب: -</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">-</p>
                             @endif
 
                             <!-- الأزرار -->

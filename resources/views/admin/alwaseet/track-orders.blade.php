@@ -124,11 +124,14 @@
                         </select>
                     </div>
                     <div class="sm:w-48">
+                        @php
+                            $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();
+                        @endphp
                         <select name="delegate_id" id="delegateIdFilter" class="form-select">
-                            <option value="">كل المندوبين</option>
-                            @foreach($delegates as $delegate)
-                                <option value="{{ $delegate->id }}" {{ request('delegate_id') == $delegate->id ? 'selected' : '' }}>
-                                    {{ $delegate->name }} ({{ $delegate->code }})
+                            <option value="">كل المندوبين والمديرين والمجهزين</option>
+                            @foreach($orderCreators as $creator)
+                                <option value="{{ $creator->id }}" {{ request('delegate_id') == $creator->id ? 'selected' : '' }}>
+                                    {{ $creator->name }} ({{ $creator->code }}) - {{ $creator->role === 'admin' ? 'مدير' : ($creator->role === 'supplier' ? 'مجهز' : 'مندوب') }}
                                 </option>
                             @endforeach
                         </select>
@@ -355,12 +358,12 @@
                         // Fallback: استخدام البيانات المحفوظة في قاعدة البيانات
                         if (!$orderStatus) {
                             if ($shipment && isset($shipment->status) && $shipment->status) {
-                                $orderStatus = $shipment->status;
+                            $orderStatus = $shipment->status;
                                 $apiStatusId = $shipment->status_id;
-                            }
-                            // Fallback: استخدام status_id مع statusesMap
-                            elseif ($shipment && $shipment->status_id && isset($statusesMap) && isset($statusesMap[$shipment->status_id])) {
-                                $orderStatus = $statusesMap[$shipment->status_id];
+                        }
+                        // Fallback: استخدام status_id مع statusesMap
+                        elseif ($shipment && $shipment->status_id && isset($statusesMap) && isset($statusesMap[$shipment->status_id])) {
+                            $orderStatus = $statusesMap[$shipment->status_id];
                                 $apiStatusId = $shipment->status_id;
                             }
                         }
@@ -507,10 +510,13 @@
                         <div class="mb-4">
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <div class="flex items-center justify-between gap-4">
-                                    <!-- معلومات المندوب -->
+                                    <!-- معلومات المندوب/المدير/المجهز -->
                                     @if($order->delegate)
+                                        @php
+                                            $userType = $order->delegate->role === 'admin' ? 'مدير' : ($order->delegate->role === 'supplier' ? 'مجهز' : 'مندوب');
+                                        @endphp
                                         <div class="flex-1">
-                                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المندوب</span>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">{{ $userType }}</span>
                                             <p class="font-medium">{{ $order->delegate->name }}</p>
                                             <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
                                         </div>
@@ -633,7 +639,7 @@
                                                     </span>
                                                     <span class="px-1.5 py-0.5 rounded text-xs font-bold {{ $history->changed_at->format('H') < 12 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' }}">
                                                         {{ $history->changed_at->format('H') < 12 ? 'صباحاً' : 'مساءً' }}
-                                                    </span>
+                                                </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -727,7 +733,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         // دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
         function copyDeliveryCode(text, type = '') {
             // تحديد نوع الرسالة
@@ -832,8 +838,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.target === this) {
                 closeDeleteModal();
             }
-        });
-    }
+    });
+}
 });
 </script>
 
