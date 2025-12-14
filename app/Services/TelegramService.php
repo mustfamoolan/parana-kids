@@ -242,6 +242,12 @@ class TelegramService
         $socialLink = $order->customer_social_link ?? null;
         $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
 
+        // تحميل المستخدم الذي حذف الطلب
+        $order->load('deletedByUser');
+        $deletedBy = $order->deletedByUser;
+        $deletedByName = $deletedBy ? $deletedBy->name : null;
+        $deletedByRole = $deletedBy ? $this->getUserRoleName($deletedBy->role) : null;
+
         $message = "🗑️ <b>تم حذف الطلب</b>\n\n";
         $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
         $message .= "👤 العميل: {$order->customer_name}\n";
@@ -252,6 +258,11 @@ class TelegramService
 
         if ($order->customer_address) {
             $message .= "📍 العنوان: {$order->customer_address}\n";
+        }
+
+        if ($deletedByName) {
+            $roleText = $deletedByRole ? " ({$deletedByRole})" : '';
+            $message .= "👨‍💼 تم الحذف بواسطة: <b>{$deletedByName}</b>{$roleText}\n";
         }
 
         if ($order->deletion_reason) {
@@ -275,6 +286,12 @@ class TelegramService
         $socialLink = $order->customer_social_link ?? null;
         $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
 
+        // تحميل المستخدم الذي قيد الطلب
+        $order->load('confirmedBy');
+        $confirmedBy = $order->confirmedBy;
+        $confirmedByName = $confirmedBy ? $confirmedBy->name : null;
+        $confirmedByRole = $confirmedBy ? $this->getUserRoleName($confirmedBy->role) : null;
+
         $message = "🔒 <b>تم تقييد الطلب</b>\n\n";
         $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
         $message .= "👤 العميل: {$order->customer_name}\n";
@@ -287,12 +304,32 @@ class TelegramService
             $message .= "📍 العنوان: {$order->customer_address}\n";
         }
 
+        if ($confirmedByName) {
+            $roleText = $confirmedByRole ? " ({$confirmedByRole})" : '';
+            $message .= "👨‍💼 تم التقييد بواسطة: <b>{$confirmedByName}</b>{$roleText}\n";
+        }
+
         $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
         $message .= "⏰ وقت التقييد: " . ($order->confirmed_at ? $order->confirmed_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
 
         $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
 
         return $this->sendMessage($chatId, $message, 'HTML', $keyboard);
+    }
+
+    /**
+     * Get user role name in Arabic
+     */
+    protected function getUserRoleName($role)
+    {
+        $roleNames = [
+            'admin' => 'مدير',
+            'supplier' => 'مجهز',
+            'delegate' => 'مندوب',
+            'private_supplier' => 'مورد',
+        ];
+
+        return $roleNames[$role] ?? $role;
     }
 }
 
