@@ -218,6 +218,39 @@
         </div>
 
         @if($showStatusCards)
+            @auth
+                @if(auth()->user()->isAdmin() && isset($statusAmounts))
+                    <!-- كاردات إحصائيات المبالغ (فقط للمدير) -->
+                    <div class="mb-5 grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                        @foreach($allStatuses as $index => $status)
+                            @php
+                                $statusId = (string)$status['id'];
+                                $statusText = $status['status'];
+                                $amount = isset($statusAmounts[$statusId]) ? (float)$statusAmounts[$statusId] : 0;
+                                $count = isset($statusCounts[$statusId]) ? (int)$statusCounts[$statusId] : 0;
+                                $color = $getStatusColor($index);
+                            @endphp
+                            @if($count > 0)
+                            <div class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
+                                <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
+                                    <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold {{ $color['icon'] }} mb-2">{{ $statusText }}</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                    <span class="badge {{ $color['icon'] === 'text-primary' ? 'bg-primary' : ($color['icon'] === 'text-success' ? 'bg-success' : ($color['icon'] === 'text-warning' ? 'bg-warning' : ($color['icon'] === 'text-danger' ? 'bg-danger' : ($color['icon'] === 'text-info' ? 'bg-info' : 'bg-secondary')))) }} text-white">{{ $count }}</span> طلب
+                                </p>
+                                <p class="text-lg font-bold text-success dark:text-success-light">
+                                    {{ number_format($amount, 2) }} دينار
+                                </p>
+                            </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
+            @endauth
+            
             <!-- عرض مربعات الحالات -->
             <div class="mb-5 grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 @foreach($allStatuses as $index => $status)
@@ -279,6 +312,26 @@
                 </div>
             </div>
         @endif
+
+        @auth
+            @if(auth()->user()->isAdmin() && isset($totalOrdersAmount))
+                <!-- كارد إحصائية المبلغ الكلي للطلبات المعروضة -->
+                <div class="mb-5 panel p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h6 class="text-xs font-semibold dark:text-white-light text-gray-500 mb-1">المبلغ الكلي للطلبات المعروضة</h6>
+                            <p class="text-2xl font-bold text-success">{{ number_format($totalOrdersAmount, 2) }} دينار</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ $orders->total() }} طلب</p>
+                        </div>
+                        <div class="p-3 bg-success/10 rounded-lg">
+                            <svg class="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endauth
 
         <!-- تحذير عند وجود المزيد من الطلبات -->
         @if(isset($hasMoreOrders) && $hasMoreOrders)

@@ -2272,6 +2272,14 @@ class AlWaseetController extends Controller
             });
         }
         
+        // حساب المبلغ الكلي للطلبات المعروضة (فقط للمدير وعند عرض الطلبات)
+        $totalOrdersAmount = 0;
+        $showStatusCards = !$request->filled('api_status_id') && !$request->filled('search');
+        if (Auth::user()->isAdmin() && !$showStatusCards) {
+            // استخدام نفس query لحساب المبلغ الكلي قبل pagination
+            $totalOrdersAmount = (clone $query)->sum(\DB::raw('COALESCE(total_amount, 0) + COALESCE(delivery_fee_at_confirmation, 0)'));
+        }
+        
         // جلب الطلبات مع pagination عادي (بدون حد على العدد!)
         $orders = $query->with([
             'delegate',
@@ -2577,11 +2585,181 @@ class AlWaseetController extends Controller
             }
         }
 
+        // حساب المبالغ الكلية لكل حالة (فقط للمدير)
+        $statusAmounts = [];
+        if (Auth::user()->isAdmin() && !$request->filled('api_status_id')) {
+            // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
+            $hasFilters = $request->filled('warehouse_id') || 
+                         $request->filled('confirmed_by') || 
+                         $request->filled('delegate_id') || 
+                         $request->filled('date_from') || 
+                         $request->filled('date_to') || 
+                         $request->filled('time_from') || 
+                         $request->filled('time_to') || 
+                         $request->filled('hours_ago');
+            
+            $cacheKey = 'admin_all_status_amounts';
+            
+            // محاولة جلب من Cache أولاً - فقط إذا لم يكن هناك فلاتر
+            $statusAmounts = $hasFilters ? null : \Illuminate\Support\Facades\Cache::get($cacheKey);
+            
+            // إذا لم تكن موجودة في Cache أو كان هناك فلاتر، حسابها مباشرة
+            if ($statusAmounts === null) {
+                $amounts = [];
+
+                // تهيئة جميع الحالات أولاً بقيمة 0
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status['id'];
+                    $amounts[$statusId] = 0;
+                }
+
+                // جلب جميع order IDs (حسب الفلاتر المطبقة) - نفس baseQuery المستخدم في statusCounts
+                $baseQuery = Order::query();
+
+                // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+                if (Auth::user()->isSupplier()) {
+                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+                    if (!empty($accessibleWarehouseIds)) {
+                        $baseQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                            $subQuery->select('order_id')
+                                ->from('order_items')
+                                ->join('products', 'order_items.product_id', '=', 'products.id')
+                                ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                                ->distinct();
+                        });
+                    } else {
+                        $baseQuery->whereRaw('1 = 0');
+                    }
+                }
+
+                // تطبيق نفس الفلاتر المطبقة على الطلبات
+                // فلتر المخزن
+                if ($request->filled('warehouse_id')) {
+                    $baseQuery->whereIn('id', function($subQuery) use ($request) {
+                        $subQuery->select('order_id')
+                            ->from('order_items')
+                            ->join('products', 'order_items.product_id', '=', 'products.id')
+                            ->where('products.warehouse_id', $request->warehouse_id)
+                            ->distinct();
+                    });
+                }
+
+                // فلتر المجهز
+                if ($request->filled('confirmed_by')) {
+                    $baseQuery->where('confirmed_by', $request->confirmed_by);
+                }
+
+                // فلتر المندوب
+                if ($request->filled('delegate_id')) {
+                    $baseQuery->where('delegate_id', $request->delegate_id);
+                }
+
+                // فلتر حسب التاريخ - تطبيق على آخر changed_at من statusHistory
+                if ($request->filled('date_from')) {
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
+                        $q->whereIn('id', function($subQuery) use ($request) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->whereDate('changed_at', '>=', $request->date_from)
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                if ($request->filled('date_to')) {
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
+                        $q->whereIn('id', function($subQuery) use ($request) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->whereDate('changed_at', '<=', $request->date_to)
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                // فلتر حسب الوقت - تطبيق على آخر changed_at من statusHistory
+                if ($request->filled('time_from')) {
+                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
+                        $q->whereIn('id', function($subQuery) use ($request, $dateFrom) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->where('changed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00')
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                if ($request->filled('time_to')) {
+                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateTo) {
+                        $q->whereIn('id', function($subQuery) use ($request, $dateTo) {
+                            $subQuery->select('shipment_id')
+                                ->from('alwaseet_order_status_history')
+                                ->where('changed_at', '<=', $dateTo . ' ' . $request->time_to . ':00')
+                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                        });
+                    });
+                }
+
+                // فلتر حسب الساعات - تطبيق على آخر changed_at من statusHistory
+                if ($request->filled('hours_ago')) {
+                    $hoursAgo = (int)$request->hours_ago;
+                    if ($hoursAgo > 0) {
+                        $baseQuery->whereHas('alwaseetShipment', function($q) use ($hoursAgo) {
+                            $q->whereIn('id', function($subQuery) use ($hoursAgo) {
+                                $subQuery->select('shipment_id')
+                                    ->from('alwaseet_order_status_history')
+                                    ->where('changed_at', '>=', now()->subHours($hoursAgo))
+                                    ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
+                            });
+                        });
+                    }
+                }
+
+                $orderIds = $baseQuery->pluck('id')->toArray();
+
+                if (!empty($orderIds)) {
+                    // حساب المبلغ الكلي لكل حالة (total_amount + delivery_fee_at_confirmation)
+                    $statusAmountsFromDb = \DB::table('orders')
+                        ->join('alwaseet_shipments', 'orders.id', '=', 'alwaseet_shipments.order_id')
+                        ->whereIn('orders.id', $orderIds)
+                        ->whereNotNull('alwaseet_shipments.status_id')
+                        ->selectRaw('alwaseet_shipments.status_id, SUM(COALESCE(orders.total_amount, 0) + COALESCE(orders.delivery_fee_at_confirmation, 0)) as total_amount')
+                        ->groupBy('alwaseet_shipments.status_id')
+                        ->get()
+                        ->mapWithKeys(function($item) {
+                            return [(string)$item->status_id => (float)$item->total_amount];
+                        })
+                        ->toArray();
+
+                    // تحديث المبالغ للحالات الموجودة
+                    foreach ($statusAmountsFromDb as $statusId => $amount) {
+                        $statusIdStr = (string)$statusId;
+                        $amounts[$statusIdStr] = (float)$amount;
+                    }
+                }
+
+                $statusAmounts = $amounts;
+                
+                // حفظ في Cache لمدة 10 دقائق
+                \Illuminate\Support\Facades\Cache::put($cacheKey, $statusAmounts, now()->addMinutes(10));
+            }
+            
+            // التأكد من أن جميع الحالات موجودة في statusAmounts (حتى لو كانت 0)
+            foreach ($allStatuses as $status) {
+                $statusId = (string)$status['id'];
+                if (!isset($statusAmounts[$statusId])) {
+                    $statusAmounts[$statusId] = 0;
+                }
+            }
+        }
+
         // تحديد ما إذا كان يجب عرض المربعات أو الطلبات
         // إذا كان هناك بحث أو فلتر api_status_id، عرض الطلبات مباشرة
-        $showStatusCards = !$request->filled('api_status_id') && !$request->filled('search');
+        // (تم تعريف $showStatusCards أعلاه)
 
-        return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders', 'statusCounts', 'showStatusCards'));
+        return view('admin.alwaseet.track-orders', compact('orders', 'warehouses', 'suppliers', 'delegates', 'cities', 'ordersWithRegions', 'alwaseetOrdersData', 'statusesMap', 'allStatuses', 'hasMoreOrders', 'statusCounts', 'statusAmounts', 'showStatusCards', 'totalOrdersAmount'));
     }
 
     /**
