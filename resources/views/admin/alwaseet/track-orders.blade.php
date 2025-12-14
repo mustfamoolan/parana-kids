@@ -533,10 +533,22 @@
                             </div>
                         </div>
 
-                        <!-- زر الإرجاع الجزئي (عندما يوجد api_status_id والطلب مقيد) -->
-                        @if(request('api_status_id') && $order->status === 'confirmed')
+                        <!-- زر الإرجاع الجزئي (فقط للحالتين 15 و 16 عندما يكون الطلب مقيد) -->
+                        @php
+                            // الحصول على api_status_id من الطلب (من API أولاً، ثم من shipment، ثم من request)
+                            $orderApiStatusId = $apiStatusId ?? $shipment->status_id ?? request('api_status_id');
+
+                            // الحالات المسموحة للإرجاع الجزئي
+                            $allowedStatusesForReturn = ['15', '16'];
+
+                            // التحقق من الشروط
+                            $canShowPartialReturn = $order->status === 'confirmed' &&
+                                                   $orderApiStatusId &&
+                                                   in_array((string)$orderApiStatusId, $allowedStatusesForReturn);
+                        @endphp
+                        @if($canShowPartialReturn)
                             <div class="mb-4">
-                                <a href="{{ route('admin.orders.partial-return', $order->id) }}?return_to_track={{ request('api_status_id') }}" class="btn btn-warning w-full">
+                                <a href="{{ route('admin.orders.partial-return', $order->id) }}?return_to_track={{ $orderApiStatusId }}" class="btn btn-warning w-full">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                                     </svg>
