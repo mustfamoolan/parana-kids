@@ -126,27 +126,9 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="sm:w-48">
-                            <input
-                                type="date"
-                                name="confirmed_from"
-                                class="form-input"
-                                placeholder="من تاريخ التقييد"
-                                value="{{ request('confirmed_from') }}"
-                            >
-                        </div>
-                        <div class="sm:w-48">
-                            <input
-                                type="date"
-                                name="confirmed_to"
-                                class="form-input"
-                                placeholder="إلى تاريخ التقييد"
-                                value="{{ request('confirmed_to') }}"
-                            >
-                        </div>
                     </div>
 
-                    <!-- الصف الثالث: التاريخ -->
+                    <!-- الصف الثالث: التاريخ والوقت -->
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="sm:w-48">
                             <input
@@ -184,6 +166,16 @@
                                 value="{{ request('time_to') }}"
                             >
                         </div>
+                        <div class="sm:w-48">
+                            <select name="hours_ago" class="form-select">
+                                <option value="">كل الطلبات</option>
+                                @for($i = 2; $i <= 30; $i += 2)
+                                    <option value="{{ $i }}" {{ request('hours_ago') == $i ? 'selected' : '' }}>
+                                        قبل {{ $i }} ساعة
+                                    </option>
+                                @endfor
+                            </select>
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,7 +183,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('warehouse_id') || request('confirmed_by') || request('delegate_id') || request('confirmed_from') || request('confirmed_to'))
+                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('hours_ago') || request('warehouse_id') || request('confirmed_by') || request('delegate_id'))
                                 <a href="{{ route('admin.orders.confirmed') }}" class="btn btn-outline-secondary">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

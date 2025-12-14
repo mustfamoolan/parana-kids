@@ -461,26 +461,28 @@ class OrderController extends Controller
                 }
 
                 if ($request->filled('date_from')) {
-                    $query->whereDate('created_at', '>=', $request->date_from);
+                    $query->whereDate('confirmed_at', '>=', $request->date_from);
                 }
 
                 if ($request->filled('date_to')) {
-                    $query->whereDate('created_at', '<=', $request->date_to);
+                    $query->whereDate('confirmed_at', '<=', $request->date_to);
                 }
 
                 if ($request->filled('time_from')) {
                     $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                    $query->where('confirmed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
                 }
 
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                    $query->where('confirmed_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
                 }
 
-                if ($request->filled('hours_filter')) {
-                    $hoursAgo = now()->subHours($request->hours_filter);
-                    $query->where('created_at', '>=', $hoursAgo);
+                if ($request->filled('hours_ago')) {
+                    $hoursAgo = (int)$request->hours_ago;
+                    if ($hoursAgo > 0) {
+                        $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
+                    }
                 }
 
                 return $query;
@@ -589,33 +591,32 @@ class OrderController extends Controller
             });
         }
 
-        // فلتر حسب التاريخ
+        // فلتر حسب التاريخ - تطبيق على تاريخ التقيد (confirmed_at)
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $query->whereDate('confirmed_at', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $query->whereDate('confirmed_at', '<=', $request->date_to);
         }
 
-        // فلتر حسب الوقت
+        // فلتر حسب الوقت - تطبيق على تاريخ التقيد (confirmed_at)
         if ($request->filled('time_from')) {
             $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+            $query->where('confirmed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
         }
 
         if ($request->filled('time_to')) {
             $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+            $query->where('confirmed_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
-        // فلتر حسب تاريخ التقييد (للطلبات المقيدة)
-        if ($request->filled('confirmed_from')) {
-            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
-        }
-
-        if ($request->filled('confirmed_to')) {
-            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة) - تطبيق على تاريخ التقيد
+        if ($request->filled('hours_ago')) {
+            $hoursAgo = (int)$request->hours_ago;
+            if ($hoursAgo > 0) {
+                $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
+            }
         }
 
         $perPage = $request->input('per_page', 15);
@@ -670,26 +671,28 @@ class OrderController extends Controller
                 }
 
                 if ($request->filled('date_from')) {
-                    $query->whereDate('created_at', '>=', $request->date_from);
+                    $query->whereDate('confirmed_at', '>=', $request->date_from);
                 }
 
                 if ($request->filled('date_to')) {
-                    $query->whereDate('created_at', '<=', $request->date_to);
+                    $query->whereDate('confirmed_at', '<=', $request->date_to);
                 }
 
                 if ($request->filled('time_from')) {
                     $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                    $query->where('confirmed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
                 }
 
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                    $query->where('confirmed_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
                 }
 
-                if ($request->filled('hours_filter')) {
-                    $hoursAgo = now()->subHours($request->hours_filter);
-                    $query->where('created_at', '>=', $hoursAgo);
+                if ($request->filled('hours_ago')) {
+                    $hoursAgo = (int)$request->hours_ago;
+                    if ($hoursAgo > 0) {
+                        $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
+                    }
                 }
 
                 return $query;
