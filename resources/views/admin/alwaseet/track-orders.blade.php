@@ -210,11 +210,12 @@
                             بحث
                         </button>
                         @php
-                            // الحفاظ على api_status_id عند مسح الفلاتر
-                            $clearFiltersUrl = route('admin.alwaseet.track-orders');
+                            // الحفاظ على api_status_id عند مسح الفلاتر وإضافة معامل clear_filters
+                            $clearFiltersParams = ['clear_filters' => '1'];
                             if (request('api_status_id')) {
-                                $clearFiltersUrl = route('admin.alwaseet.track-orders', ['api_status_id' => request('api_status_id')]);
+                                $clearFiltersParams['api_status_id'] = request('api_status_id');
                             }
+                            $clearFiltersUrl = route('admin.alwaseet.track-orders', $clearFiltersParams);
                         @endphp
                         <a href="{{ $clearFiltersUrl }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -843,6 +844,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Local Storage لجميع الفلاتر
     const urlParams = new URLSearchParams(window.location.search);
+    // التحقق من وجود معامل clear_filters - إذا كان موجوداً، لا نستعيد الفلاتر من localStorage
+    const shouldClearFilters = urlParams.has('clear_filters');
     const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
                         urlParams.has('delegate_id') || urlParams.has('api_status_id') || urlParams.has('date_from') || 
                         urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') || urlParams.has('hours_ago');
@@ -864,11 +867,22 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasSavedFilters = false;
     const savedParams = new URLSearchParams();
 
+    // إذا كان shouldClearFilters موجوداً، مسح جميع الفلاتر من localStorage
+    if (shouldClearFilters) {
+        filters.forEach(filter => {
+            localStorage.removeItem(filter.key);
+        });
+        // إزالة معامل clear_filters من URL
+        urlParams.delete('clear_filters');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
     filters.forEach(filter => {
         const element = document.getElementById(filter.id);
         if (element) {
-            // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
-            if (!hasUrlParams) {
+            // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL ولم يتم طلب مسح الفلاتر
+            if (!hasUrlParams && !shouldClearFilters) {
                 const savedValue = localStorage.getItem(filter.key);
                 if (savedValue) {
                     element.value = savedValue;
@@ -889,8 +903,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL
-    if (!hasUrlParams && hasSavedFilters && savedParams.toString()) {
+    // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL ولم يتم طلب مسح الفلاتر
+    if (!hasUrlParams && !shouldClearFilters && hasSavedFilters && savedParams.toString()) {
         const form = document.querySelector('form[action*="track-orders"]');
         if (form) {
             // الحفاظ على api_status_id إذا كان موجوداً في URL
