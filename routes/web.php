@@ -60,6 +60,15 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['admin'])->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
+        // Phone Book routes (Admin only)
+        Route::prefix('phone-book')->name('admin.phone-book.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\PhoneBookController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\Admin\PhoneBookController::class, 'store'])->name('store');
+            Route::post('/{contact}/add-phone', [\App\Http\Controllers\Admin\PhoneBookController::class, 'addPhone'])->name('add-phone');
+            Route::delete('/phone/{phoneNumber}', [\App\Http\Controllers\Admin\PhoneBookController::class, 'deletePhone'])->name('delete-phone');
+            Route::delete('/{contact}', [\App\Http\Controllers\Admin\PhoneBookController::class, 'deleteContact'])->name('delete-contact');
+        });
+
         // صفحة التقارير (للمدير فقط)
         Route::get('reports', [AdminDashboardController::class, 'reports'])->name('admin.reports');
 
