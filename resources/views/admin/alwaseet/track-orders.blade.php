@@ -840,6 +840,94 @@ document.addEventListener('DOMContentLoaded', function() {
             }
     });
 }
+
+    // Local Storage لجميع الفلاتر
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+                        urlParams.has('delegate_id') || urlParams.has('api_status_id') || urlParams.has('date_from') || 
+                        urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') || urlParams.has('hours_ago');
+
+    // قائمة الفلاتر مع مفاتيح localStorage
+    const filters = [
+        { id: 'searchFilter', key: 'selectedSearch_track_orders', param: 'search' },
+        { id: 'warehouseFilter', key: 'selectedWarehouse_track_orders', param: 'warehouse_id' },
+        { id: 'confirmedByFilter', key: 'selectedConfirmedBy_track_orders', param: 'confirmed_by' },
+        { id: 'delegateIdFilter', key: 'selectedDelegateId_track_orders', param: 'delegate_id' },
+        { id: 'apiStatusFilter', key: 'selectedApiStatus_track_orders', param: 'api_status_id' },
+        { id: 'dateFromFilter', key: 'selectedDateFrom_track_orders', param: 'date_from' },
+        { id: 'dateToFilter', key: 'selectedDateTo_track_orders', param: 'date_to' },
+        { id: 'timeFromFilter', key: 'selectedTimeFrom_track_orders', param: 'time_from' },
+        { id: 'timeToFilter', key: 'selectedTimeTo_track_orders', param: 'time_to' },
+        { id: 'hoursAgoFilter', key: 'selectedHoursAgo_track_orders', param: 'hours_ago' }
+    ];
+
+    let hasSavedFilters = false;
+    const savedParams = new URLSearchParams();
+
+    filters.forEach(filter => {
+        const element = document.getElementById(filter.id);
+        if (element) {
+            // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
+            if (!hasUrlParams) {
+                const savedValue = localStorage.getItem(filter.key);
+                if (savedValue) {
+                    element.value = savedValue;
+                    savedParams.append(filter.param, savedValue);
+                    hasSavedFilters = true;
+                }
+            }
+
+            // حفظ الفلتر في Local Storage عند التغيير
+            const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
+            element.addEventListener(eventType, function() {
+                if (this.value) {
+                    localStorage.setItem(filter.key, this.value);
+                } else {
+                    localStorage.removeItem(filter.key);
+                }
+            });
+        }
+    });
+
+    // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL
+    if (!hasUrlParams && hasSavedFilters && savedParams.toString()) {
+        const form = document.querySelector('form[action*="track-orders"]');
+        if (form) {
+            // الحفاظ على api_status_id إذا كان موجوداً في URL
+            if (urlParams.has('api_status_id')) {
+                savedParams.set('api_status_id', urlParams.get('api_status_id'));
+            }
+            
+            // إضافة الفلاتر المحفوظة إلى النموذج
+            savedParams.forEach((value, key) => {
+                const existingInput = form.querySelector(`[name="${key}"]`);
+                if (existingInput) {
+                    existingInput.value = value;
+                } else {
+                    // إنشاء input مخفي إذا لم يكن موجوداً
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = key;
+                    hiddenInput.value = value;
+                    form.appendChild(hiddenInput);
+                }
+            });
+            // إرسال النموذج تلقائياً
+            form.submit();
+        }
+    }
+
+    // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function(e) {
+            // حذف جميع الفلاتر من localStorage
+            filters.forEach(filter => {
+                localStorage.removeItem(filter.key);
+            });
+            // السماح بالانتقال الطبيعي للرابط
+        });
+    }
 });
 </script>
 
