@@ -598,6 +598,36 @@ Route::get('/api/check-auth', function () {
 // Telegram webhook route
 Route::post('/telegram/webhook', [App\Http\Controllers\TelegramController::class, 'webhook'])->name('telegram.webhook');
 
+// Route مؤقت لتشغيل سيدر الهواتف في Laravel Cloud
+// استخدم: https://your-domain.com/run-phone-seeder?token=YOUR_SECRET_TOKEN
+Route::get('/run-phone-seeder', function (\Illuminate\Http\Request $request) {
+    $secretToken = env('SEEDER_SECRET_TOKEN', 'change-this-secret-token');
+    $token = $request->query('token');
+
+    // التحقق من الـ token
+    if ($token !== $secretToken) {
+        return response()->json([
+            'error' => 'Unauthorized. Invalid token.',
+        ], 401);
+    }
+
+    try {
+        $seeder = new \Database\Seeders\PhoneBookSeeder();
+        $seeder->run();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'PhoneBookSeeder executed successfully.',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Seeder execution failed.',
+            'message' => $e->getMessage(),
+            'trace' => config('app.debug') ? $e->getTraceAsString() : null,
+        ], 500);
+    }
+})->name('run-phone-seeder');
+
 // Handle missing or empty Nunito font files - return 204 (No Content) to prevent timeout
 Route::get('/assets/fonts/nunito/{filename}', function ($filename) {
     $filePath = public_path("assets/fonts/nunito/{$filename}");
