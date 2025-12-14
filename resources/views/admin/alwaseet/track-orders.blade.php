@@ -206,7 +206,14 @@
                             </svg>
                             بحث
                         </button>
-                        <a href="{{ route('admin.alwaseet.track-orders') }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
+                        @php
+                            // الحفاظ على api_status_id عند مسح الفلاتر
+                            $clearFiltersUrl = route('admin.alwaseet.track-orders');
+                            if (request('api_status_id')) {
+                                $clearFiltersUrl = route('admin.alwaseet.track-orders', ['api_status_id' => request('api_status_id')]);
+                            }
+                        @endphp
+                        <a href="{{ $clearFiltersUrl }}" id="clearFiltersBtn" class="btn btn-outline-secondary">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
