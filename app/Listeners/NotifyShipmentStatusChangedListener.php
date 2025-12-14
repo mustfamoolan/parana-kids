@@ -94,6 +94,8 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 return;
             }
 
+            $recipientIds = [];
+
             // جلب المجهزين (suppliers) الذين لديهم صلاحية على نفس المخزن
             $supplierIds = User::whereIn('role', ['admin', 'supplier'])
                 ->whereHas('warehouses', function($q) use ($warehouseIds) {
@@ -101,10 +103,26 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 })
                 ->pluck('id')
                 ->toArray();
+            $recipientIds = array_merge($recipientIds, $supplierIds);
 
             // إضافة المديرين دائماً
             $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
-            $recipientIds = array_unique(array_merge($supplierIds, $adminIds));
+            $recipientIds = array_merge($recipientIds, $adminIds);
+
+            // إضافة المندوب (نفس المخزن)
+            if ($order->delegate_id) {
+                $delegate = User::find($order->delegate_id);
+                if ($delegate && !empty($warehouseIds)) {
+                    $hasAccess = $delegate->warehouses()
+                        ->whereIn('warehouses.id', $warehouseIds)
+                        ->exists();
+                    if ($hasAccess) {
+                        $recipientIds[] = $order->delegate_id;
+                    }
+                }
+            }
+
+            $recipientIds = array_unique($recipientIds);
 
             if (empty($recipientIds)) {
                 Log::info('AlWaseet: No recipients found for Telegram notification', [

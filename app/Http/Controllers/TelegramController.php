@@ -149,11 +149,11 @@ class TelegramController extends Controller
             return;
         }
 
-        // Check if user is supplier or admin
-        if (!$user->isAdminOrSupplier()) {
+        // Check if user is admin, supplier, or delegate
+        if (!in_array($user->role, ['admin', 'supplier', 'delegate', 'private_supplier'])) {
             $this->sendMessage(
                 $chatId,
-                "❌ هذا الحساب ليس لديه صلاحية لاستقبال إشعارات الطلبات.\n\nفقط المجهزين والمديرين يمكنهم ربط حساباتهم."
+                "❌ هذا الحساب ليس لديه صلاحية لاستقبال إشعارات الطلبات.\n\nفقط المديرين والمجهزين والمندوبين يمكنهم ربط حساباتهم."
             );
             return;
         }
