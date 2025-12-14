@@ -18,7 +18,7 @@
                 <div class="flex-1">
                     <label for="search" class="block text-sm font-medium mb-2">البحث</label>
                     <input type="text" id="search" name="search" value="{{ request('search') }}"
-                           class="form-input" placeholder="ابحث بالاسم، الهاتف، الكود، أو البريد...">
+                           class="form-input" placeholder="ابحث بالاسم أو الكود...">
                 </div>
                 <div class="sm:w-48">
                     <label for="role" class="block text-sm font-medium mb-2">نوع المستخدم</label>
@@ -76,11 +76,6 @@
 
                             <!-- Content -->
                             <div class="space-y-3">
-                                <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">رقم الهاتف:</span>
-                                    <div class="font-medium font-mono">{{ $user->phone }}</div>
-                                </div>
-
                                 @if($user->code)
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">الكود:</span>
@@ -92,13 +87,6 @@
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">اسم البيج:</span>
                                     <div><span class="badge badge-outline-primary">{{ $user->page_name }}</span></div>
-                                </div>
-                                @endif
-
-                                @if($user->email)
-                                <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">البريد الإلكتروني:</span>
-                                    <div class="text-sm break-all">{{ $user->email }}</div>
                                 </div>
                                 @endif
 

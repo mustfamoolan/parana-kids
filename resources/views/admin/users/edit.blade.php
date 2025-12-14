@@ -112,17 +112,6 @@
                         @enderror
                     </div>
 
-                    <!-- رقم الهاتف -->
-                    <div>
-                        <label for="phone" class="block text-sm font-medium mb-2">رقم الهاتف <span class="text-red-500">*</span></label>
-                        <input type="tel" id="phone" name="phone" value="{{ old('phone', $user->phone) }}"
-                               class="form-input @error('phone') border-red-500 @enderror"
-                               placeholder="0501234567" required>
-                        @error('phone')
-                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
-                        @enderror
-                    </div>
-
                     <!-- الكود (للمجهز والمندوب والمورد) -->
                     <div x-show="selectedRole === 'supplier' || selectedRole === 'delegate' || selectedRole === 'private_supplier'">
                         <label for="code" class="block text-sm font-medium mb-2">الكود <span class="text-red-500">*</span></label>
@@ -146,18 +135,6 @@
                                placeholder="مثال: برنا كدز">
                         <div class="text-sm text-gray-500 mt-1">اختياري - سيظهر في رسالة الواتساب</div>
                         @error('page_name')
-                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <!-- البريد الإلكتروني (اختياري للجميع) -->
-                    <div>
-                        <label for="email" class="block text-sm font-medium mb-2">البريد الإلكتروني</label>
-                        <input type="email" id="email" name="email" value="{{ old('email', $user->email) }}"
-                               class="form-input @error('email') border-red-500 @enderror"
-                               placeholder="user@example.com">
-                        <div class="text-sm text-gray-500 mt-1">اختياري</div>
-                        @error('email')
                             <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
                         @enderror
                     </div>
