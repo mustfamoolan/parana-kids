@@ -250,7 +250,7 @@
                         @auth
                             @if(auth()->user()->isAdmin() && $amount > 0)
                                 <p class="text-base font-bold text-success dark:text-success-light mt-2">
-                                    {{ number_format($amount, 2) }} دينار
+                                    {{ rtrim(rtrim(number_format($amount, 2), '0'), '.') }} دينار
                                 </p>
                             @endif
                         @endauth
@@ -295,7 +295,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h6 class="text-xs font-semibold dark:text-white-light text-gray-500 mb-1">المبلغ الكلي للطلبات المعروضة</h6>
-                            <p class="text-2xl font-bold text-success">{{ number_format($totalOrdersAmount, 2) }} دينار</p>
+                            <p class="text-2xl font-bold text-success">{{ rtrim(rtrim(number_format($totalOrdersAmount, 2), '0'), '.') }} دينار</p>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ $orders->total() }} طلب</p>
                         </div>
                         <div class="p-3 bg-success/10 rounded-lg">
