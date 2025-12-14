@@ -17,7 +17,7 @@
         if (!isset($showStatusCards)) {
             $showStatusCards = true;
         }
-        
+
         // ألوان ديناميكية للحالات
         $statusColors = [
             'primary' => ['bg' => 'from-primary/10 to-primary/5', 'border' => 'border-primary/20', 'icon' => 'text-primary', 'iconBg' => 'bg-primary/20'],
@@ -27,7 +27,7 @@
             'info' => ['bg' => 'from-info/10 to-info/5', 'border' => 'border-info/20', 'icon' => 'text-info', 'iconBg' => 'bg-info/20'],
             'secondary' => ['bg' => 'from-secondary/10 to-secondary/5', 'border' => 'border-secondary/20', 'icon' => 'text-secondary', 'iconBg' => 'bg-secondary/20'],
         ];
-        
+
         // دالة للحصول على لون حسب index
         $getStatusColor = function($index) use ($statusColors) {
             $colorKeys = array_keys($statusColors);
@@ -247,7 +247,7 @@
                             ['api_status_id' => $statusId]
                         );
                     @endphp
-                    <a href="{{ route('admin.alwaseet.track-orders', array_filter($allFilters)) }}" 
+                    <a href="{{ route('admin.alwaseet.track-orders', array_filter($allFilters)) }}"
                        class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
                         <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
                             <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,14 +348,14 @@
                         $apiOrderData = null;
                         $orderStatus = null;
                         $apiStatusId = null;
-                        
+
                         if ($shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
                             $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
                             // استخدام الحالة من API مباشرة (أحدث البيانات)
                             $orderStatus = $apiOrderData['status'] ?? null;
                             $apiStatusId = $apiOrderData['status_id'] ?? null;
                         }
-                        
+
                         // Fallback: استخدام البيانات المحفوظة في قاعدة البيانات
                         if (!$orderStatus) {
                             if ($shipment && isset($shipment->status) && $shipment->status) {
@@ -419,8 +419,8 @@
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">رقم الوسيط</span>
                                 <div class="flex items-center justify-center gap-2">
                                     <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;" id="alwaseet-code-{{ $order->id }}">{{ $alwaseetCode }}</div>
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onclick="copyDeliveryCode('{{ $alwaseetCode }}', 'delivery')"
                                         class="btn btn-sm btn-primary"
                                         title="نسخ كود الوسيط"
@@ -438,13 +438,13 @@
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">اسم الزبون</span>
                                 <p class="font-medium mb-2">{{ $order->customer_name }}</p>
-                                
+
                                 <!-- عنوان الزبون -->
                                 <div class="mb-2">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">عنوان الزبون</span>
                                     <div class="text-lg font-bold !text-primary dark:!text-primary-light">{{ $order->customer_address ?? 'لا يوجد عنوان' }}</div>
                                 </div>
-                                
+
                                 <!-- رابط السوشل ميديا -->
                                 @if($order->customer_social_link)
                                     <div class="mb-2">
@@ -483,7 +483,7 @@
                                             </div>
                                         </div>
                                     @endif
-                                    
+
                                     @if($order->customer_phone2)
                                         <div class="{{ $order->customer_phone ? 'pt-2 border-t' : '' }}">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 block mb-2">الرقم الثاني: {{ $order->customer_phone2 }}</span>
@@ -522,7 +522,7 @@
                                             <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
                                         </div>
                                     @endif
-                                    
+
                                     <!-- التاريخ -->
                                     <div class="flex-1 text-right">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">تاريخ التقييد</span>
@@ -610,14 +610,14 @@
                                     </svg>
                                     سجل الحالات
                                 </h4>
-                                
+
                                 <!-- Timeline مصغر -->
                                 <div class="relative">
                                     <div class="absolute right-2 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
                                     @foreach($shipment->statusHistory as $history)
                                         <div class="relative flex items-center gap-3 mb-2 last:mb-0">
                                             <div class="relative z-10 w-5 h-5 rounded-full flex items-center justify-center
-                                                {{ $history->status_id === ($apiStatusId ?? $shipment->status_id) 
+                                                {{ $history->status_id === ($apiStatusId ?? $shipment->status_id)
                                                     ? 'bg-success ring-2 ring-success/30' : 'bg-gray-300 dark:bg-gray-600' }}">
                                                 @if($history->status_id === ($apiStatusId ?? $shipment->status_id))
                                                     <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -652,8 +652,8 @@
                         {{-- زر الحذف - يظهر فقط عند عرض الطلبات (ليس في صفحة الكاردات) - معطل مؤقتا --}}
                         {{-- @if(!$showStatusCards)
                             <div class="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     class="btn btn-danger btn-sm w-full delete-order-btn"
                                     data-order-id="{{ $order->id }}"
                                     data-order-number="{{ $order->order_number }}"
@@ -713,17 +713,17 @@
                 <form id="deleteOrderForm" method="POST" action="">
                     @csrf
                     @method('DELETE')
-                    
+
                     <div class="flex gap-3">
-                        <button 
-                            type="button" 
-                            onclick="closeDeleteModal()" 
+                        <button
+                            type="button"
+                            onclick="closeDeleteModal()"
                             class="btn btn-outline-secondary flex-1"
                         >
                             إلغاء
                         </button>
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             class="btn btn-danger flex-1"
                         >
                             حذف من القائمة
@@ -806,11 +806,11 @@ function deleteOrderFromTrack(orderId, orderNumber) {
     const modal = document.getElementById('deleteOrderModal');
     const form = document.getElementById('deleteOrderForm');
     const orderNumberSpan = document.getElementById('deleteOrderNumber');
-    
+
     // تعيين route الحذف
     form.action = '{{ route("admin.alwaseet.orders.delete", ":id") }}'.replace(':id', orderId);
     orderNumberSpan.textContent = 'الطلب #' + orderNumber;
-    
+
     // عرض Modal
     modal.classList.remove('hidden');
 }
@@ -832,7 +832,7 @@ document.addEventListener('DOMContentLoaded', function() {
             deleteOrderFromTrack(orderId, orderNumber);
         });
     });
-    
+
     const modal = document.getElementById('deleteOrderModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -846,8 +846,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     // التحقق من وجود معامل clear_filters - إذا كان موجوداً، لا نستعيد الفلاتر من localStorage
     const shouldClearFilters = urlParams.has('clear_filters');
+    // استثناء clear_filters و api_status_id من التحقق (api_status_id ليس فلتر عادي)
     const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
-                        urlParams.has('delegate_id') || urlParams.has('api_status_id') || urlParams.has('date_from') || 
+                        urlParams.has('delegate_id') || urlParams.has('date_from') ||
                         urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') || urlParams.has('hours_ago');
 
     // قائمة الفلاتر مع مفاتيح localStorage
@@ -867,15 +868,28 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasSavedFilters = false;
     const savedParams = new URLSearchParams();
 
-    // إذا كان shouldClearFilters موجوداً، مسح جميع الفلاتر من localStorage
+    // إذا كان shouldClearFilters موجوداً، مسح جميع الفلاتر من localStorage ومسح قيم الحقول
     if (shouldClearFilters) {
+        // مسح جميع الفلاتر من localStorage
         filters.forEach(filter => {
             localStorage.removeItem(filter.key);
+            // مسح قيم الحقول في النموذج
+            const element = document.getElementById(filter.id);
+            if (element) {
+                element.value = '';
+            }
         });
-        // إزالة معامل clear_filters من URL
-        urlParams.delete('clear_filters');
-        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-        window.history.replaceState({}, '', newUrl);
+
+        // الحفاظ على api_status_id إذا كان موجوداً
+        const apiStatusId = urlParams.get('api_status_id');
+
+        // إعادة تحميل الصفحة بدون معاملات (إلا api_status_id)
+        let newUrl = window.location.pathname;
+        if (apiStatusId) {
+            newUrl += '?api_status_id=' + apiStatusId;
+        }
+        window.location.href = newUrl;
+        return; // إيقاف تنفيذ باقي الكود
     }
 
     filters.forEach(filter => {
@@ -911,7 +925,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (urlParams.has('api_status_id')) {
                 savedParams.set('api_status_id', urlParams.get('api_status_id'));
             }
-            
+
             // إضافة الفلاتر المحفوظة إلى النموذج
             savedParams.forEach((value, key) => {
                 const existingInput = form.querySelector(`[name="${key}"]`);
@@ -931,15 +945,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage
+    // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage ومسح قيم الحقول
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+
             // حذف جميع الفلاتر من localStorage
             filters.forEach(filter => {
                 localStorage.removeItem(filter.key);
+                // مسح قيم الحقول في النموذج
+                const element = document.getElementById(filter.id);
+                if (element) {
+                    element.value = '';
+                }
             });
-            // السماح بالانتقال الطبيعي للرابط
+
+            // الحفاظ على api_status_id إذا كان موجوداً في URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const apiStatusId = urlParams.get('api_status_id');
+
+            // الانتقال إلى الصفحة بدون معاملات (إلا api_status_id)
+            let newUrl = '{{ route("admin.alwaseet.track-orders") }}';
+            if (apiStatusId) {
+                newUrl += '?api_status_id=' + apiStatusId;
+            }
+            window.location.href = newUrl;
         });
     }
 });
