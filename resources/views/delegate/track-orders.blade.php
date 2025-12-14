@@ -376,8 +376,11 @@
                                 @if($order->customer_social_link)
                                     <div class="mb-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">رابط السوشل ميديا</span>
-                                        <a href="{{ $order->customer_social_link }}" target="_blank" class="text-primary dark:text-primary-light hover:underline break-all text-sm">
-                                            {{ $order->customer_social_link }}
+                                        <a href="{{ $order->customer_social_link }}" target="_blank" class="btn btn-sm btn-primary w-full">
+                                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                            </svg>
+                                            فتح الرابط
                                         </a>
                                     </div>
                                 @endif
