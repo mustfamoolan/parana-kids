@@ -60,11 +60,11 @@
         @endif
 
         <!-- Header ثابت -->
-        <div class="sticky top-0 bg-white dark:bg-gray-900 z-10 pb-4">
+        <div id="filtersHeader" class="sticky top-0 bg-white dark:bg-gray-900 z-10 pb-4 transition-transform duration-300 shadow-sm">
             <h1 class="text-2xl font-bold mb-4 text-center">المنتجات</h1>
 
             <!-- الفلاتر -->
-            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <!-- فلتر المخزن -->
                 <div>
                     <label for="warehouse_filter" class="block text-sm font-medium mb-2">المخزن</label>
@@ -530,8 +530,36 @@
             loadProducts(true);
         };
 
-        // Infinite scroll
+        // إخفاء/إظهار الفلاتر عند التمرير
+        let lastScrollTop = 0;
+        const filtersHeader = document.getElementById('filtersHeader');
+        let isScrolling = false;
+
         window.addEventListener('scroll', function() {
+            // معالجة إخفاء/إظهار الفلاتر
+            if (!isScrolling) {
+                isScrolling = true;
+                requestAnimationFrame(function() {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+                    // إخفاء الفلاتر عند التمرير للأسفل، إظهارها عند التمرير للأعلى
+                    if (filtersHeader) {
+                        if (scrollTop > lastScrollTop && scrollTop > 100) {
+                            // التمرير للأسفل - إخفاء الفلاتر
+                            filtersHeader.style.transform = 'translateY(-100%)';
+                            filtersHeader.style.transition = 'transform 0.3s ease-in-out';
+                        } else if (scrollTop < lastScrollTop) {
+                            // التمرير للأعلى - إظهار الفلاتر
+                            filtersHeader.style.transform = 'translateY(0)';
+                        }
+                    }
+
+                    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+                    isScrolling = false;
+                });
+            }
+
+            // Infinite scroll
             if (loading || !hasMore) return;
 
             const scrollPosition = window.innerHeight + window.scrollY;
