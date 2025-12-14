@@ -624,9 +624,17 @@
                                                 <span class="font-medium {{ $history->status_id === ($apiStatusId ?? $shipment->status_id) ? 'text-success' : 'text-gray-600 dark:text-gray-400' }}">
                                                     {{ $history->status_text }}
                                                 </span>
-                                                <span class="text-gray-400 mr-2">
-                                                    {{ $history->changed_at->format('m-d H:i') }}
-                                                </span>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                                        {{ $history->changed_at->format('m-d') }}
+                                                    </span>
+                                                    <span class="text-sm font-bold {{ $history->changed_at->format('H') < 12 ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400' }}">
+                                                        {{ $history->changed_at->format('h:i') }}
+                                                    </span>
+                                                    <span class="px-1.5 py-0.5 rounded text-xs font-bold {{ $history->changed_at->format('H') < 12 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' }}">
+                                                        {{ $history->changed_at->format('H') < 12 ? 'صباحاً' : 'مساءً' }}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     @endforeach

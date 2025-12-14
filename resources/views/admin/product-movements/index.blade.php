@@ -117,8 +117,15 @@
                         <!-- التاريخ ونوع الحركة -->
                         <div class="flex items-center justify-between mb-3">
                             <div>
-                                <div class="font-semibold text-base dark:text-white-light">{{ $movement->created_at->format('Y-m-d') }}</div>
-                                <div class="text-xs text-gray-500">{{ $movement->created_at->format('H:i') }}</div>
+                                <div class="font-semibold text-base dark:text-white-light mb-1">{{ $movement->created_at->format('Y-m-d') }}</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg font-bold {{ $movement->created_at->format('H') < 12 ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400' }}">
+                                        {{ $movement->created_at->format('h:i') }}
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold {{ $movement->created_at->format('H') < 12 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' }}">
+                                        {{ $movement->created_at->format('H') < 12 ? 'صباحاً' : 'مساءً' }}
+                                    </span>
+                                </div>
                             </div>
                             <span class="badge bg-{{ $movement->movement_color }}">
                                 {{ $movement->movement_type_name }}

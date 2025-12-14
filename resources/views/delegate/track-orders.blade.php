@@ -575,7 +575,7 @@
         @endif
     </div>
 
-    <script>
+<script>
         // دالة نسخ النص إلى الحافظة (رقم الطلب أو كود الوسيط)
         function copyDeliveryCode(text, type = '') {
     // تحديد نوع الرسالة
@@ -634,14 +634,14 @@ function showCopyNotification(message, type = 'success') {
     // إزالة الإشعار بعد 3 ثوان
     setTimeout(() => {
         notification.style.opacity = '0';
-        setTimeout(() => {
+            setTimeout(() => {
             if (document.body.contains(notification)) {
                 document.body.removeChild(notification);
             }
         }, 300);
     }, 3000);
 }
-    </script>
+</script>
 
 </x-layout.default>
 
