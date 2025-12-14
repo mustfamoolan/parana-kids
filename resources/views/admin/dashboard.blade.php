@@ -52,15 +52,15 @@
             </a>
             @endif
 
-            <!-- 0. إرجاع استبدال -->
-            <a href="{{ route('admin.bulk-exchange-returns.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
-                <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
-                    <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+            <!-- 4. المخازن -->
+            <a href="{{ route('admin.warehouses.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-warning mb-2">إرجاع استبدال</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">إرجاع استبدال بالجملة</p>
+                <h3 class="text-lg font-bold text-info mb-2">المخازن</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن والمنتجات</p>
             </a>
 
             <!-- 1. الطلبات -->
@@ -209,17 +209,6 @@
             </a>
             @endif
 
-            <!-- 4. المخازن -->
-            <a href="{{ route('admin.warehouses.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-info/10 to-info/5 border-2 border-info/20">
-                <div class="w-16 h-16 mx-auto mb-4 bg-info/20 rounded-full flex items-center justify-center">
-                    <svg class="w-8 h-8 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-bold text-info mb-2">المخازن</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن والمنتجات</p>
-            </a>
-
             <!-- 5. كشف حركة المواد -->
             <a href="{{ route('admin.product-movements.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
@@ -284,6 +273,17 @@
                 </div>
                 <h3 class="text-lg font-bold text-info mb-2">إرجاع طلبات</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">إرجاع طلبات بالجملة</p>
+            </a>
+
+            <!-- 9.1. إرجاع استبدال -->
+            <a href="{{ route('admin.bulk-exchange-returns.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-warning mb-2">إرجاع استبدال</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إرجاع استبدال بالجملة</p>
             </a>
 
             @if(auth()->user()->isAdmin())
