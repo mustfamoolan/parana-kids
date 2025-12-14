@@ -61,7 +61,6 @@ class UserController extends Controller
 
         $rules = [
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|unique:users,phone',
             'password' => 'required|string|min:6',
             'role' => 'required|in:admin,supplier,delegate,private_supplier',
         ];
@@ -76,13 +75,26 @@ class UserController extends Controller
             $rules['page_name'] = 'nullable|string|max:255';
         }
 
-        // البريد اختياري لكن يجب أن يكون فريد
+        // الهاتف اختياري لكن يجب أن يكون فريد إذا كان موجوداً
+        if ($request->filled('phone')) {
+            $rules['phone'] = 'string|unique:users,phone';
+        }
+
+        // البريد اختياري لكن يجب أن يكون فريد إذا كان موجوداً
         if ($request->filled('email')) {
             $rules['email'] = 'email|unique:users,email';
         }
 
         $validated = $request->validate($rules);
         $validated['password'] = Hash::make($validated['password']);
+
+        // تعيين phone و email كـ null إذا لم يتم إرسالهما
+        if (!$request->filled('phone')) {
+            $validated['phone'] = null;
+        }
+        if (!$request->filled('email')) {
+            $validated['email'] = null;
+        }
 
         DB::transaction(function() use ($validated, $request) {
             $user = User::create($validated);
@@ -122,7 +134,6 @@ class UserController extends Controller
 
         $rules = [
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|unique:users,phone,' . $user->id,
             'role' => 'required|in:admin,supplier,delegate,private_supplier',
         ];
 
@@ -136,7 +147,12 @@ class UserController extends Controller
             $rules['page_name'] = 'nullable|string|max:255';
         }
 
-        // البريد اختياري
+        // الهاتف اختياري لكن يجب أن يكون فريد إذا كان موجوداً
+        if ($request->filled('phone')) {
+            $rules['phone'] = 'string|unique:users,phone,' . $user->id;
+        }
+
+        // البريد اختياري لكن يجب أن يكون فريد إذا كان موجوداً
         if ($request->filled('email')) {
             $rules['email'] = 'email|unique:users,email,' . $user->id;
         }
@@ -152,6 +168,14 @@ class UserController extends Controller
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
+        }
+
+        // تعيين phone و email كـ null إذا لم يتم إرسالهما
+        if (!$request->filled('phone')) {
+            $validated['phone'] = null;
+        }
+        if (!$request->filled('email')) {
+            $validated['email'] = null;
         }
 
         DB::transaction(function() use ($user, $validated, $request) {
