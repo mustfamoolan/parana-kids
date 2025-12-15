@@ -15,8 +15,8 @@ class PhoneBookController extends Controller
      */
     public function index(Request $request)
     {
-        // التأكد من أن المستخدم مدير فقط
-        if (!Auth::user()->isAdmin()) {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
@@ -43,8 +43,8 @@ class PhoneBookController extends Controller
      */
     public function store(Request $request)
     {
-        // التأكد من أن المستخدم مدير فقط
-        if (!Auth::user()->isAdmin()) {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
@@ -71,8 +71,8 @@ class PhoneBookController extends Controller
      */
     public function addPhone(Request $request, PhoneContact $contact)
     {
-        // التأكد من أن المستخدم مدير فقط
-        if (!Auth::user()->isAdmin()) {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
@@ -94,8 +94,8 @@ class PhoneBookController extends Controller
      */
     public function deletePhone(PhoneNumber $phoneNumber)
     {
-        // التأكد من أن المستخدم مدير فقط
-        if (!Auth::user()->isAdmin()) {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
@@ -110,8 +110,8 @@ class PhoneBookController extends Controller
      */
     public function deleteContact(PhoneContact $contact)
     {
-        // التأكد من أن المستخدم مدير فقط
-        if (!Auth::user()->isAdmin()) {
+        // التأكد من أن المستخدم مدير أو مجهز
+        if (!Auth::user()->isAdmin() && !Auth::user()->isSupplier()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
