@@ -83,34 +83,29 @@ class TelegramService
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
         $message = "🔔 <b>طلب جديد</b>\n\n";
-        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
-        
-        if ($alwaseetOrderId) {
-            $message .= "🔢 رقم الوسيط: <code>{$alwaseetOrderId}</code>\n";
-        }
-        
-        $message .= "👤 العميل: {$order->customer_name}\n";
-        
+        $message .= "📦 {$order->order_number}\n";
+        $message .= "👤 {$order->customer_name}\n";
+
         if ($phone) {
-            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+            $message .= "📞 <code>{$phone}</code>\n";
         }
-        
+
         if ($order->customer_address) {
-            $message .= "📍 العنوان: {$order->customer_address}\n";
+            $message .= "📍 {$order->customer_address}\n";
         }
 
         if ($delegateName) {
             $roleText = $delegateRole ? " ({$delegateRole})" : '';
-            $message .= "👨‍💼 تم الإنشاء بواسطة: <b>{$delegateName}</b>{$roleText}\n";
+            $message .= "👨‍💼 {$delegateName}{$roleText}\n";
         }
 
-        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "💰 " . number_format($order->total_amount, 2) . " د.ع\n";
 
         if ($order->notes) {
-            $message .= "📝 ملاحظات: {$order->notes}\n";
+            $message .= "📝 {$order->notes}\n";
         }
 
-        $message .= "⏰ الوقت: " . $order->created_at->format('Y-m-d H:i:s');
+        $message .= "⏰ " . $order->created_at->format('Y-m-d H:i:s');
 
         $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
 
@@ -238,31 +233,31 @@ class TelegramService
         $delegateName = $delegate ? $delegate->name : null;
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
-        $message = "🔔 <b>تغيير حالة الطلب</b>\n\n";
-        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
-        $message .= "📊 الحالة: <b>{$status}</b>\n";
-
+        $message = "📊 <b>{$status}</b>\n\n";
+        
         if ($alwaseetOrderId) {
-            $message .= "🔢 رقم الوسيط: <code>{$alwaseetOrderId}</code>\n";
+            $message .= "📦 {$order->order_number} | 🔢 <code>{$alwaseetOrderId}</code>\n";
+        } else {
+            $message .= "📦 {$order->order_number}\n";
         }
-
-        $message .= "👤 العميل: {$order->customer_name}\n";
+        
+        $message .= "👤 {$order->customer_name}\n";
 
         if ($phone) {
-            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+            $message .= "📞 <code>{$phone}</code>\n";
         }
 
         if ($order->customer_address) {
-            $message .= "📍 العنوان: {$order->customer_address}\n";
+            $message .= "📍 {$order->customer_address}\n";
         }
 
         if ($delegateName) {
             $roleText = $delegateRole ? " ({$delegateRole})" : '';
-            $message .= "👨‍💼 المندوب: <b>{$delegateName}</b>{$roleText}\n";
+            $message .= "👨‍💼 {$delegateName}{$roleText}\n";
         }
 
-        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
-        $message .= "⏰ الوقت: " . now()->format('Y-m-d H:i:s');
+        $message .= "💰 " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ " . now()->format('Y-m-d H:i:s');
 
         $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
 
@@ -288,34 +283,40 @@ class TelegramService
         $delegateName = $delegate ? $delegate->name : null;
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
-        $message = "🗑️ <b>تم حذف الطلب</b>\n\n";
-        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
-        $message .= "👤 العميل: {$order->customer_name}\n";
+        $message = "🗑️ <b>تم الحذف</b>\n\n";
+        
+        if ($alwaseetOrderId) {
+            $message .= "📦 {$order->order_number} | 🔢 <code>{$alwaseetOrderId}</code>\n";
+        } else {
+            $message .= "📦 {$order->order_number}\n";
+        }
+        
+        $message .= "👤 {$order->customer_name}\n";
 
         if ($phone) {
-            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+            $message .= "📞 <code>{$phone}</code>\n";
         }
 
         if ($order->customer_address) {
-            $message .= "📍 العنوان: {$order->customer_address}\n";
+            $message .= "📍 {$order->customer_address}\n";
         }
 
         if ($delegateName) {
             $roleText = $delegateRole ? " ({$delegateRole})" : '';
-            $message .= "👨‍💼 المندوب الأصلي: <b>{$delegateName}</b>{$roleText}\n";
+            $message .= "👨‍💼 المندوب: {$delegateName}{$roleText}\n";
         }
 
         if ($deletedByName) {
             $roleText = $deletedByRole ? " ({$deletedByRole})" : '';
-            $message .= "🗑️ تم الحذف بواسطة: <b>{$deletedByName}</b>{$roleText}\n";
+            $message .= "🗑️ حذفه: {$deletedByName}{$roleText}\n";
         }
 
         if ($order->deletion_reason) {
-            $message .= "📝 سبب الحذف: {$order->deletion_reason}\n";
+            $message .= "📝 {$order->deletion_reason}\n";
         }
 
-        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
-        $message .= "⏰ وقت الحذف: " . ($order->deleted_at ? $order->deleted_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
+        $message .= "💰 " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ " . ($order->deleted_at ? $order->deleted_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
 
         $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
 
@@ -341,30 +342,36 @@ class TelegramService
         $delegateName = $delegate ? $delegate->name : null;
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
-        $message = "🔒 <b>تم تقييد الطلب</b>\n\n";
-        $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
-        $message .= "👤 العميل: {$order->customer_name}\n";
+        $message = "🔒 <b>تم التقييد</b>\n\n";
+        
+        if ($alwaseetOrderId) {
+            $message .= "📦 {$order->order_number} | 🔢 <code>{$alwaseetOrderId}</code>\n";
+        } else {
+            $message .= "📦 {$order->order_number}\n";
+        }
+        
+        $message .= "👤 {$order->customer_name}\n";
 
         if ($phone) {
-            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+            $message .= "📞 <code>{$phone}</code>\n";
         }
 
         if ($order->customer_address) {
-            $message .= "📍 العنوان: {$order->customer_address}\n";
+            $message .= "📍 {$order->customer_address}\n";
         }
 
         if ($delegateName) {
             $roleText = $delegateRole ? " ({$delegateRole})" : '';
-            $message .= "👨‍💼 المندوب الأصلي: <b>{$delegateName}</b>{$roleText}\n";
+            $message .= "👨‍💼 المندوب: {$delegateName}{$roleText}\n";
         }
 
         if ($confirmedByName) {
             $roleText = $confirmedByRole ? " ({$confirmedByRole})" : '';
-            $message .= "🔒 تم التقييد بواسطة: <b>{$confirmedByName}</b>{$roleText}\n";
+            $message .= "🔒 قيّده: {$confirmedByName}{$roleText}\n";
         }
 
-        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
-        $message .= "⏰ وقت التقييد: " . ($order->confirmed_at ? $order->confirmed_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
+        $message .= "💰 " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ " . ($order->confirmed_at ? $order->confirmed_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'));
 
         $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
 
