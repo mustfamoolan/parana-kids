@@ -26,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // تسجيل Observers
+        \App\Models\AlWaseetShipment::observe(\App\Observers\AlWaseetShipmentObserver::class);
+
         // إنشاء storage link تلقائياً إذا لم يكن موجوداً
         // هذا مهم جداً في Laravel Cloud حيث يتم حذف symlink عند كل deployment
         $link = public_path('storage');
