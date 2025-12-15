@@ -166,10 +166,6 @@ class TelegramService
             $phoneClean = preg_replace('/[^0-9]/', '', (string)$phone);
             $keyboard[] = [
                 [
-                    'text' => '📞 اتصال',
-                    'url' => 'tel:+' . $formattedPhone
-                ],
-                [
                     'text' => '💬 واتساب',
                     'url' => 'https://wa.me/' . $formattedPhone
                 ],
