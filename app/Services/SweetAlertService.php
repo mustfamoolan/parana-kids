@@ -186,11 +186,13 @@ class SweetAlertService
         try {
             $telegramService = app(TelegramService::class);
             $recipients = User::whereIn('id', $recipientIds)
-                ->whereNotNull('telegram_chat_id')
+                ->whereHas('telegramChats')
                 ->get();
 
             foreach ($recipients as $recipient) {
-                $telegramService->sendOrderNotification($recipient->telegram_chat_id, $order);
+                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $order) {
+                    $telegramService->sendOrderNotification($chatId, $order);
+                });
             }
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send Telegram notifications', [
@@ -248,11 +250,13 @@ class SweetAlertService
         try {
             $telegramService = app(TelegramService::class);
             $recipients = User::whereIn('id', $recipientIds)
-                ->whereNotNull('telegram_chat_id')
+                ->whereHas('telegramChats')
                 ->get();
 
             foreach ($recipients as $recipient) {
-                $telegramService->sendOrderRestrictedNotification($recipient->telegram_chat_id, $order);
+                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $order) {
+                    $telegramService->sendOrderRestrictedNotification($chatId, $order);
+                });
             }
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send Telegram notifications for order confirmed', [
@@ -327,11 +331,13 @@ class SweetAlertService
         try {
             $telegramService = app(TelegramService::class);
             $recipients = User::whereIn('id', $recipientIds)
-                ->whereNotNull('telegram_chat_id')
+                ->whereHas('telegramChats')
                 ->get();
 
             foreach ($recipients as $recipient) {
-                $telegramService->sendOrderDeletedNotification($recipient->telegram_chat_id, $order);
+                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $order) {
+                    $telegramService->sendOrderDeletedNotification($chatId, $order);
+                });
             }
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send Telegram notifications for order deleted', [

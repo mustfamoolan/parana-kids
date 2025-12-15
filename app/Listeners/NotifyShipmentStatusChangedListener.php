@@ -133,7 +133,7 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
 
             // جلب المستخدمين المربوطين بالتليجرام
             $recipients = User::whereIn('id', $recipientIds)
-                ->whereNotNull('telegram_chat_id')
+                ->whereHas('telegramChats')
                 ->get();
 
             if ($recipients->isEmpty()) {
@@ -143,14 +143,12 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 return;
             }
 
-            // إرسال إشعارات التليجرام
+            // إرسال إشعارات التليجرام لجميع أجهزة كل مستخدم
             $telegramService = app(TelegramService::class);
             foreach ($recipients as $recipient) {
-                $telegramService->sendOrderStatusNotification(
-                    $recipient->telegram_chat_id,
-                    $shipment,
-                    $order
-                );
+                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $shipment, $order) {
+                    $telegramService->sendOrderStatusNotification($chatId, $shipment, $order);
+                });
             }
 
             Log::info('AlWaseet: Telegram notifications sent', [

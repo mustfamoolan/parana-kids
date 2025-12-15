@@ -224,26 +224,67 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all telegram chats for this user
+     */
+    public function telegramChats()
+    {
+        return $this->hasMany(UserTelegramChat::class);
+    }
+
+    /**
      * Check if user is linked to Telegram
      */
     public function isLinkedToTelegram()
     {
-        return !empty($this->telegram_chat_id);
+        return $this->telegramChats()->exists();
+    }
+
+    /**
+     * Check if specific chat_id is linked to this user
+     */
+    public function isChatIdLinked($chatId)
+    {
+        return $this->telegramChats()->where('chat_id', $chatId)->exists();
     }
 
     /**
      * Link user to Telegram chat
      */
-    public function linkToTelegram($chatId)
+    public function linkToTelegram($chatId, $deviceName = null)
     {
+        // إضافة أو تحديث chat_id في الجدول الجديد
+        UserTelegramChat::updateOrCreate(
+            ['user_id' => $this->id, 'chat_id' => $chatId],
+            ['device_name' => $deviceName, 'linked_at' => now()]
+        );
+
+        // الحفاظ على العمود القديم للتوافق (نخزن آخر chat_id)
         $this->update(['telegram_chat_id' => $chatId]);
     }
 
     /**
-     * Unlink user from Telegram
+     * Unlink specific telegram chat
      */
-    public function unlinkFromTelegram()
+    public function unlinkFromTelegram($chatId = null)
     {
-        $this->update(['telegram_chat_id' => null]);
+        if ($chatId) {
+            // حذف chat_id محدد
+            $this->telegramChats()->where('chat_id', $chatId)->delete();
+        } else {
+            // حذف جميع الأجهزة
+            $this->telegramChats()->delete();
+        }
+
+        // تحديث العمود القديم
+        $lastChat = $this->telegramChats()->latest()->first();
+        $this->update(['telegram_chat_id' => $lastChat ? $lastChat->chat_id : null]);
+    }
+
+    /**
+     * Get all chat IDs for this user
+     */
+    public function getTelegramChatIds()
+    {
+        return $this->telegramChats()->pluck('chat_id')->toArray();
     }
 }

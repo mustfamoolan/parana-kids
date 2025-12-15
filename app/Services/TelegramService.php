@@ -68,6 +68,34 @@ class TelegramService
     }
 
     /**
+     * Send notification to all user's telegram devices
+     */
+    public function sendToAllUserDevices($user, $callback)
+    {
+        $chatIds = $user->getTelegramChatIds();
+        
+        if (empty($chatIds)) {
+            return 0;
+        }
+
+        $successCount = 0;
+        foreach ($chatIds as $chatId) {
+            try {
+                $callback($chatId);
+                $successCount++;
+            } catch (\Exception $e) {
+                Log::error('TelegramService: Failed to send to device', [
+                    'user_id' => $user->id,
+                    'chat_id' => $chatId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $successCount;
+    }
+
+    /**
      * Send order notification to user
      */
     public function sendOrderNotification($chatId, $order)
@@ -234,13 +262,13 @@ class TelegramService
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
         $message = "📊 <b>{$status}</b>\n\n";
-        
+
         if ($alwaseetOrderId) {
             $message .= "📦 {$order->order_number} | 🔢 <code>{$alwaseetOrderId}</code>\n";
         } else {
             $message .= "📦 {$order->order_number}\n";
         }
-        
+
         $message .= "👤 {$order->customer_name}\n";
 
         if ($phone) {
@@ -284,13 +312,13 @@ class TelegramService
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
         $message = "🗑️ <b>تم الحذف</b>\n\n";
-        
+
         if ($alwaseetOrderId) {
             $message .= "📦 {$order->order_number} | 🔢 <code>{$alwaseetOrderId}</code>\n";
         } else {
             $message .= "📦 {$order->order_number}\n";
         }
-        
+
         $message .= "👤 {$order->customer_name}\n";
 
         if ($phone) {
@@ -343,13 +371,13 @@ class TelegramService
         $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
         $message = "🔒 <b>تم التقييد</b>\n\n";
-        
+
         if ($alwaseetOrderId) {
             $message .= "📦 {$order->order_number} | 🔢 <code>{$alwaseetOrderId}</code>\n";
         } else {
             $message .= "📦 {$order->order_number}\n";
         }
-        
+
         $message .= "👤 {$order->customer_name}\n";
 
         if ($phone) {

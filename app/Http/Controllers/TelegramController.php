@@ -75,7 +75,7 @@ class TelegramController extends Controller
         // Check if user is in password verification step
         $pendingLink = Cache::get("telegram_link_{$chatId}");
         if ($pendingLink) {
-            $this->handlePasswordVerification($chatId, $text, $pendingLink);
+            $this->handlePasswordVerification($chatId, $text, $pendingLink, $from);
             return;
         }
 
@@ -96,13 +96,14 @@ class TelegramController extends Controller
      */
     protected function handleStartCommand($chatId, $from)
     {
-        // Check if user is already linked
-        $user = User::where('telegram_chat_id', $chatId)->first();
+        // Check if this chat_id is already linked to any user
+        $linkedChat = \App\Models\UserTelegramChat::where('chat_id', $chatId)->first();
 
-        if ($user) {
+        if ($linkedChat) {
+            $user = $linkedChat->user;
             $this->sendMessage(
                 $chatId,
-                "✅ مرحباً {$user->name}!\n\nأنت مربوط بالفعل بحسابك في النظام.\n\nيمكنك إلغاء الربط بإرسال /unlink"
+                "✅ مرحباً {$user->name}!\n\nأنت مربوط بالفعل بحسابك في النظام.\n\nيمكنك إلغاء الربط من هذا الجهاز بإرسال /unlink"
             );
             return;
         }
@@ -158,11 +159,11 @@ class TelegramController extends Controller
             return;
         }
 
-        // Check if user is already linked to another Telegram account
-        if ($user->telegram_chat_id && $user->telegram_chat_id != $chatId) {
+        // Check if this specific chat_id is already linked to this user
+        if ($user->isChatIdLinked($chatId)) {
             $this->sendMessage(
                 $chatId,
-                "⚠️ هذا الحساب مربوط بالفعل بحساب تليجرام آخر.\n\nيرجى إلغاء الربط من الحساب السابق أولاً."
+                "✅ هذا الجهاز مربوط بالفعل بحسابك.\n\nلا حاجة للربط مرة أخرى."
             );
             return;
         }
@@ -183,7 +184,7 @@ class TelegramController extends Controller
     /**
      * Handle password verification - Step 2
      */
-    protected function handlePasswordVerification($chatId, $password, $pendingLink)
+    protected function handlePasswordVerification($chatId, $password, $pendingLink, $from = [])
     {
         $user = User::find($pendingLink['user_id']);
 
@@ -208,16 +209,30 @@ class TelegramController extends Controller
         // Password is correct, link the user
         Cache::forget("telegram_link_{$chatId}");
 
-        $user->linkToTelegram($chatId);
+        // Get device name from Telegram user info (optional)
+        $deviceName = null;
+        if (isset($from['first_name'])) {
+            $deviceName = $from['first_name'];
+            if (isset($from['last_name'])) {
+                $deviceName .= ' ' . $from['last_name'];
+            }
+        }
+
+        $user->linkToTelegram($chatId, $deviceName);
+
+        // عد الأجهزة المربوطة
+        $devicesCount = $user->telegramChats()->count();
 
         $this->sendMessage(
             $chatId,
-            "✅ تم ربط حسابك بنجاح!\n\nمرحباً {$user->name}!\n\nستصلك إشعارات الطلبات الجديدة تلقائياً.\n\nيمكنك إلغاء الربط بإرسال /unlink"
+            "✅ تم ربط حسابك بنجاح!\n\nمرحباً {$user->name}!\n\n📱 عدد الأجهزة المربوطة: {$devicesCount}\n\nستصلك إشعارات الطلبات الجديدة تلقائياً على جميع أجهزتك.\n\nيمكنك إلغاء ربط هذا الجهاز بإرسال /unlink"
         );
 
         Log::info('User linked to Telegram', [
             'user_id' => $user->id,
             'chat_id' => $chatId,
+            'device_name' => $deviceName,
+            'total_devices' => $devicesCount,
         ]);
     }
 
@@ -226,23 +241,32 @@ class TelegramController extends Controller
      */
     protected function handleUnlinkCommand($chatId)
     {
-        $user = User::where('telegram_chat_id', $chatId)->first();
+        $linkedChat = \App\Models\UserTelegramChat::where('chat_id', $chatId)->first();
 
-        if (!$user) {
-            $this->sendMessage($chatId, "❌ حسابك غير مربوط.");
+        if (!$linkedChat) {
+            $this->sendMessage($chatId, "❌ هذا الجهاز غير مربوط.");
             return;
         }
 
-        $user->unlinkFromTelegram();
+        $user = $linkedChat->user;
+        $user->unlinkFromTelegram($chatId);
 
-        $this->sendMessage(
-            $chatId,
-            "✅ تم إلغاء ربط حسابك بنجاح.\n\nلن تصلك إشعارات بعد الآن.\n\nيمكنك إعادة الربط بإرسال /start"
-        );
+        $remainingDevices = $user->telegramChats()->count();
+
+        $message = "✅ تم إلغاء ربط هذا الجهاز بنجاح.\n\n";
+        if ($remainingDevices > 0) {
+            $message .= "📱 لا تزال لديك {$remainingDevices} أجهزة أخرى مربوطة تستقبل الإشعارات.\n\n";
+        } else {
+            $message .= "لن تصلك إشعارات بعد الآن.\n\n";
+        }
+        $message .= "يمكنك إعادة ربط هذا الجهاز بإرسال /start";
+
+        $this->sendMessage($chatId, $message);
 
         Log::info('User unlinked from Telegram', [
             'user_id' => $user->id,
             'chat_id' => $chatId,
+            'remaining_devices' => $remainingDevices,
         ]);
     }
 
