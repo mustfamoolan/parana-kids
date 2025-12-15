@@ -854,39 +854,38 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 }
 
-    // Local Storage لجميع الفلاتر
+    // معالجة clear_filters parameter
     const urlParams = new URLSearchParams(window.location.search);
-    // التحقق من وجود معامل clear_filters - إذا كان موجوداً، لا نستعيد الفلاتر من localStorage
     const shouldClearFilters = urlParams.has('clear_filters');
-    // استثناء clear_filters و api_status_id من التحقق (api_status_id ليس فلتر عادي)
-    const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
-                        urlParams.has('delegate_id') || urlParams.has('date_from') ||
-                        urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') || urlParams.has('hours_ago');
 
-    // قائمة الفلاتر مع مفاتيح localStorage
-    const filters = [
-        { id: 'searchFilter', key: 'selectedSearch_track_orders', param: 'search' },
-        { id: 'warehouseFilter', key: 'selectedWarehouse_track_orders', param: 'warehouse_id' },
-        { id: 'confirmedByFilter', key: 'selectedConfirmedBy_track_orders', param: 'confirmed_by' },
-        { id: 'delegateIdFilter', key: 'selectedDelegateId_track_orders', param: 'delegate_id' },
-        { id: 'apiStatusFilter', key: 'selectedApiStatus_track_orders', param: 'api_status_id' },
-        { id: 'dateFromFilter', key: 'selectedDateFrom_track_orders', param: 'date_from' },
-        { id: 'dateToFilter', key: 'selectedDateTo_track_orders', param: 'date_to' },
-        { id: 'timeFromFilter', key: 'selectedTimeFrom_track_orders', param: 'time_from' },
-        { id: 'timeToFilter', key: 'selectedTimeTo_track_orders', param: 'time_to' },
-        { id: 'hoursAgoFilter', key: 'selectedHoursAgo_track_orders', param: 'hours_ago' }
-    ];
-
-    let hasSavedFilters = false;
-    const savedParams = new URLSearchParams();
-
-    // إذا كان shouldClearFilters موجوداً، مسح جميع الفلاتر من localStorage ومسح قيم الحقول
     if (shouldClearFilters) {
-        // مسح جميع الفلاتر من localStorage
-        filters.forEach(filter => {
-            localStorage.removeItem(filter.key);
-            // مسح قيم الحقول في النموذج
-            const element = document.getElementById(filter.id);
+        // مسح جميع الفلاتر من localStorage (للتنظيف)
+        const filterKeys = [
+            'selectedSearch_track_orders',
+            'selectedWarehouse_track_orders',
+            'selectedConfirmedBy_track_orders',
+            'selectedDelegateId_track_orders',
+            'selectedApiStatus_track_orders',
+            'selectedDateFrom_track_orders',
+            'selectedDateTo_track_orders',
+            'selectedTimeFrom_track_orders',
+            'selectedTimeTo_track_orders',
+            'selectedHoursAgo_track_orders'
+        ];
+
+        filterKeys.forEach(key => {
+            localStorage.removeItem(key);
+        });
+
+        // مسح قيم الحقول في النموذج
+        const filterIds = [
+            'searchFilter', 'warehouseFilter', 'confirmedByFilter',
+            'delegateIdFilter', 'apiStatusFilter', 'dateFromFilter',
+            'dateToFilter', 'timeFromFilter', 'timeToFilter', 'hoursAgoFilter'
+        ];
+
+        filterIds.forEach(id => {
+            const element = document.getElementById(id);
             if (element) {
                 element.value = '';
             }
@@ -894,88 +893,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // الحفاظ على api_status_id إذا كان موجوداً
         const apiStatusId = urlParams.get('api_status_id');
-
-        // إعادة تحميل الصفحة بدون معاملات (إلا api_status_id)
         let newUrl = window.location.pathname;
         if (apiStatusId) {
             newUrl += '?api_status_id=' + apiStatusId;
+        } else {
+            // إذا لم يكن هناك api_status_id، العودة للصفحة بدون معاملات لعرض status cards
+            newUrl = window.location.pathname;
         }
         window.location.href = newUrl;
-        return; // إيقاف تنفيذ باقي الكود
+        return;
     }
 
-    filters.forEach(filter => {
-        const element = document.getElementById(filter.id);
-        if (element) {
-            // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL ولم يتم طلب مسح الفلاتر
-            if (!hasUrlParams && !shouldClearFilters) {
-                const savedValue = localStorage.getItem(filter.key);
-                if (savedValue) {
-                    element.value = savedValue;
-                    savedParams.append(filter.param, savedValue);
-                    hasSavedFilters = true;
-                }
-            }
-
-            // حفظ الفلتر في Local Storage عند التغيير
-            const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
-            element.addEventListener(eventType, function() {
-                if (this.value) {
-                    localStorage.setItem(filter.key, this.value);
-                } else {
-                    localStorage.removeItem(filter.key);
-                }
-            });
-        }
-    });
-
-    // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL ولم يتم طلب مسح الفلاتر
-    if (!hasUrlParams && !shouldClearFilters && hasSavedFilters && savedParams.toString()) {
-        const form = document.querySelector('form[action*="track-orders"]');
-        if (form) {
-            // الحفاظ على api_status_id إذا كان موجوداً في URL
-            if (urlParams.has('api_status_id')) {
-                savedParams.set('api_status_id', urlParams.get('api_status_id'));
-            }
-
-            // إضافة الفلاتر المحفوظة إلى النموذج
-            savedParams.forEach((value, key) => {
-                const existingInput = form.querySelector(`[name="${key}"]`);
-                if (existingInput) {
-                    existingInput.value = value;
-                } else {
-                    // إنشاء input مخفي إذا لم يكن موجوداً
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = key;
-                    hiddenInput.value = value;
-                    form.appendChild(hiddenInput);
-                }
-            });
-            // إرسال النموذج تلقائياً
-            form.submit();
-        }
-    }
-
-    // معالجة زر مسح الفلتر - حذف جميع الفلاتر من localStorage ومسح قيم الحقول
+    // معالجة زر مسح الفلتر
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function(e) {
             e.preventDefault();
 
-            // حذف جميع الفلاتر من localStorage
-            filters.forEach(filter => {
-                localStorage.removeItem(filter.key);
-                // مسح قيم الحقول في النموذج
-                const element = document.getElementById(filter.id);
-                if (element) {
-                    element.value = '';
-                }
+            // مسح localStorage (للتنظيف)
+            const filterKeys = [
+                'selectedSearch_track_orders',
+                'selectedWarehouse_track_orders',
+                'selectedConfirmedBy_track_orders',
+                'selectedDelegateId_track_orders',
+                'selectedApiStatus_track_orders',
+                'selectedDateFrom_track_orders',
+                'selectedDateTo_track_orders',
+                'selectedTimeFrom_track_orders',
+                'selectedTimeTo_track_orders',
+                'selectedHoursAgo_track_orders'
+            ];
+
+            filterKeys.forEach(key => {
+                localStorage.removeItem(key);
             });
 
             // الحفاظ على api_status_id إذا كان موجوداً في URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const apiStatusId = urlParams.get('api_status_id');
+            const currentUrlParams = new URLSearchParams(window.location.search);
+            const apiStatusId = currentUrlParams.get('api_status_id');
 
             // الانتقال إلى الصفحة بدون معاملات (إلا api_status_id)
             let newUrl = '{{ route("admin.alwaseet.track-orders") }}';
