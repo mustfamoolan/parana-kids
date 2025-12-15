@@ -1,26 +1,4 @@
 <x-layout.admin>
-    @php
-        // دالة لتحويل الرقم إلى صيغة واتساب مع مفتاح الدولة العراق
-        function formatPhoneForWhatsApp($phone) {
-            // إزالة كل شيء غير الأرقام
-            $cleaned = preg_replace('/[^0-9]/', '', $phone);
-            
-            // إزالة البادئات الدولية
-            if (strpos($cleaned, '00964') === 0) {
-                $cleaned = substr($cleaned, 5); // إزالة 00964
-            } elseif (strpos($cleaned, '964') === 0) {
-                $cleaned = substr($cleaned, 3); // إزالة 964
-            }
-            
-            // إزالة 0 من البداية إذا كانت موجودة
-            if (strpos($cleaned, '0') === 0) {
-                $cleaned = substr($cleaned, 1);
-            }
-            
-            // إضافة مفتاح الدولة العراق 964
-            return '964' . $cleaned;
-        }
-    @endphp
     <div class="panel">
         <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h5 class="text-lg font-semibold dark:text-white-light">دفتر تلفونات</h5>
@@ -107,8 +85,8 @@
                                         <!-- الأزرار -->
                                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                             <!-- زر واتساب -->
-                                            <a 
-                                                href="https://wa.me/{{ formatPhoneForWhatsApp($phoneNumber->phone_number) }}" 
+                                            <a
+                                                href="https://wa.me/{{ formatPhoneForWhatsApp($phoneNumber->phone_number) }}"
                                                 target="_blank"
                                                 class="btn btn-success w-full flex items-center justify-center gap-2 py-3"
                                                 title="واتساب"
@@ -119,8 +97,8 @@
                                                 <span class="hidden sm:inline">واتساب</span>
                                             </a>
                                             <!-- زر اتصال -->
-                                            <a 
-                                                href="tel:{{ $phoneNumber->phone_number }}" 
+                                            <a
+                                                href="tel:{{ $phoneNumber->phone_number }}"
                                                 class="btn btn-primary w-full flex items-center justify-center gap-2 py-3"
                                                 title="اتصال"
                                             >
@@ -130,7 +108,7 @@
                                                 <span class="hidden sm:inline">اتصال</span>
                                             </a>
                                             <!-- زر نسخ -->
-                                            <button 
+                                            <button
                                                 type="button"
                                                 onclick="copyPhoneNumber('{{ $phoneNumber->phone_number }}')"
                                                 class="btn btn-info w-full flex items-center justify-center gap-2 py-3"
