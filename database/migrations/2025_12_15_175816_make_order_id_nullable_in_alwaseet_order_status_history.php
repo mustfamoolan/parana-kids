@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('alwaseet_order_status_history', function (Blueprint $table) {
             // حذف foreign key constraint القديم
             $table->dropForeign(['order_id']);
-            
+
             // تعديل order_id ليصبح nullable
             $table->foreignId('order_id')->nullable()->change()->constrained('orders')->onDelete('cascade');
         });

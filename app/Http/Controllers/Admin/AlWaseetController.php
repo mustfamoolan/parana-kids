@@ -2202,68 +2202,32 @@ class AlWaseetController extends Controller
             });
         }
 
-        // فلتر حسب التاريخ والوقت - يطبق على تاريخ الحالة الأخيرة للطلب (آخر changed_at من statusHistory)
-        // مهم: الفلتر يعمل على آخر تغيير حالة فقط، ليس على تاريخ إنشاء الطلب
-        // يستخدم MAX(changed_at) لضمان اختيار أحدث حالة لكل shipment_id
+        // فلتر حسب التاريخ والوقت - يطبق على تاريخ تقييد الطلب (created_at)
+        // مهم: الفلتر يعمل على تاريخ إنشاء/تقييد الطلب، ليس على آخر حالة
 
         if ($request->filled('date_from')) {
-            $query->whereHas('alwaseetShipment', function($q) use ($request) {
-                $q->whereIn('id', function($subQuery) use ($request) {
-                    $subQuery->select('shipment_id')
-                        ->from('alwaseet_order_status_history')
-                        ->whereDate('changed_at', '>=', $request->date_from)
-                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                });
-            });
+            $query->whereDate('created_at', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereHas('alwaseetShipment', function($q) use ($request) {
-                $q->whereIn('id', function($subQuery) use ($request) {
-                    $subQuery->select('shipment_id')
-                        ->from('alwaseet_order_status_history')
-                        ->whereDate('changed_at', '<=', $request->date_to)
-                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                });
-            });
+            $query->whereDate('created_at', '<=', $request->date_to);
         }
 
         if ($request->filled('time_from')) {
             $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-            $query->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
-                $q->whereIn('id', function($subQuery) use ($request, $dateFrom) {
-                    $subQuery->select('shipment_id')
-                        ->from('alwaseet_order_status_history')
-                        ->where('changed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00')
-                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                });
-            });
+            $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
         }
 
         if ($request->filled('time_to')) {
             $dateTo = $request->date_to ?? now()->format('Y-m-d');
-            $query->whereHas('alwaseetShipment', function($q) use ($request, $dateTo) {
-                $q->whereIn('id', function($subQuery) use ($request, $dateTo) {
-                    $subQuery->select('shipment_id')
-                        ->from('alwaseet_order_status_history')
-                        ->where('changed_at', '<=', $dateTo . ' ' . $request->time_to . ':00')
-                        ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                });
-            });
+            $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
-        // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة) - تطبيق على آخر changed_at من statusHistory
+        // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة) - تطبيق على تاريخ تقييد الطلب
         if ($request->filled('hours_ago')) {
             $hoursAgo = (int)$request->hours_ago;
             if ($hoursAgo > 0) {
-                $query->whereHas('alwaseetShipment', function($q) use ($hoursAgo) {
-                    $q->whereIn('id', function($subQuery) use ($hoursAgo) {
-                        $subQuery->select('shipment_id')
-                            ->from('alwaseet_order_status_history')
-                            ->where('changed_at', '>=', now()->subHours($hoursAgo))
-                            ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                    });
-                });
+                $query->where('created_at', '>=', now()->subHours($hoursAgo));
             }
         }
 
@@ -2506,66 +2470,31 @@ class AlWaseetController extends Controller
                     $baseQuery->where('delegate_id', $request->delegate_id);
                 }
 
-                // فلتر حسب التاريخ - تطبيق على آخر changed_at من statusHistory
+                // فلتر حسب التاريخ - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('date_from')) {
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
-                        $q->whereIn('id', function($subQuery) use ($request) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->whereDate('changed_at', '>=', $request->date_from)
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->whereDate('created_at', '>=', $request->date_from);
                 }
 
                 if ($request->filled('date_to')) {
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
-                        $q->whereIn('id', function($subQuery) use ($request) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->whereDate('changed_at', '<=', $request->date_to)
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->whereDate('created_at', '<=', $request->date_to);
                 }
 
-                // فلتر حسب الوقت - تطبيق على آخر changed_at من statusHistory
+                // فلتر حسب الوقت - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('time_from')) {
                     $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
-                        $q->whereIn('id', function($subQuery) use ($request, $dateFrom) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->where('changed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00')
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
                 }
 
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateTo) {
-                        $q->whereIn('id', function($subQuery) use ($request, $dateTo) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->where('changed_at', '<=', $dateTo . ' ' . $request->time_to . ':00')
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
                 }
 
-                // فلتر حسب الساعات - تطبيق على آخر changed_at من statusHistory
+                // فلتر حسب الساعات - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('hours_ago')) {
                     $hoursAgo = (int)$request->hours_ago;
                     if ($hoursAgo > 0) {
-                        $baseQuery->whereHas('alwaseetShipment', function($q) use ($hoursAgo) {
-                            $q->whereIn('id', function($subQuery) use ($hoursAgo) {
-                                $subQuery->select('shipment_id')
-                                    ->from('alwaseet_order_status_history')
-                                    ->where('changed_at', '>=', now()->subHours($hoursAgo))
-                                    ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                            });
-                        });
+                        $baseQuery->where('created_at', '>=', now()->subHours($hoursAgo));
                     }
                 }
 
@@ -2692,66 +2621,31 @@ class AlWaseetController extends Controller
                     $baseQuery->where('delegate_id', $request->delegate_id);
                 }
 
-                // فلتر حسب التاريخ - تطبيق على آخر changed_at من statusHistory
+                // فلتر حسب التاريخ - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('date_from')) {
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
-                        $q->whereIn('id', function($subQuery) use ($request) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->whereDate('changed_at', '>=', $request->date_from)
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->whereDate('created_at', '>=', $request->date_from);
                 }
 
                 if ($request->filled('date_to')) {
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request) {
-                        $q->whereIn('id', function($subQuery) use ($request) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->whereDate('changed_at', '<=', $request->date_to)
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->whereDate('created_at', '<=', $request->date_to);
                 }
 
-                // فلتر حسب الوقت - تطبيق على آخر changed_at من statusHistory
+                // فلتر حسب الوقت - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('time_from')) {
                     $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
-                        $q->whereIn('id', function($subQuery) use ($request, $dateFrom) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->where('changed_at', '>=', $dateFrom . ' ' . $request->time_from . ':00')
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
                 }
 
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $baseQuery->whereHas('alwaseetShipment', function($q) use ($request, $dateTo) {
-                        $q->whereIn('id', function($subQuery) use ($request, $dateTo) {
-                            $subQuery->select('shipment_id')
-                                ->from('alwaseet_order_status_history')
-                                ->where('changed_at', '<=', $dateTo . ' ' . $request->time_to . ':00')
-                                ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                        });
-                    });
+                    $baseQuery->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
                 }
 
-                // فلتر حسب الساعات - تطبيق على آخر changed_at من statusHistory
+                // فلتر حسب الساعات - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('hours_ago')) {
                     $hoursAgo = (int)$request->hours_ago;
                     if ($hoursAgo > 0) {
-                        $baseQuery->whereHas('alwaseetShipment', function($q) use ($hoursAgo) {
-                            $q->whereIn('id', function($subQuery) use ($hoursAgo) {
-                                $subQuery->select('shipment_id')
-                                    ->from('alwaseet_order_status_history')
-                                    ->where('changed_at', '>=', now()->subHours($hoursAgo))
-                                    ->whereRaw('changed_at = (SELECT MAX(changed_at) FROM alwaseet_order_status_history AS h2 WHERE h2.shipment_id = alwaseet_order_status_history.shipment_id)');
-                            });
-                        });
+                        $baseQuery->where('created_at', '>=', now()->subHours($hoursAgo));
                     }
                 }
 
