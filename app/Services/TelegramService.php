@@ -73,7 +73,7 @@ class TelegramService
     public function sendToAllUserDevices($user, $callback)
     {
         $chatIds = $user->getTelegramChatIds();
-        
+
         if (empty($chatIds)) {
             return 0;
         }
