@@ -72,20 +72,49 @@ class TelegramService
      */
     public function sendOrderNotification($chatId, $order)
     {
+        $phone = $order->customer_phone ?? null;
+        $socialLink = $order->customer_social_link ?? null;
+        $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
+
+        // تحميل المستخدم الذي أنشأ الطلب (المندوب)
+        $order->load('delegate');
+        $delegate = $order->delegate;
+        $delegateName = $delegate ? $delegate->name : null;
+        $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
+
         $message = "🔔 <b>طلب جديد</b>\n\n";
         $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
+        
+        if ($alwaseetOrderId) {
+            $message .= "🔢 رقم الوسيط: <code>{$alwaseetOrderId}</code>\n";
+        }
+        
         $message .= "👤 العميل: {$order->customer_name}\n";
-        $message .= "📞 الهاتف: {$order->customer_phone}\n";
-        $message .= "📍 العنوان: {$order->customer_address}\n";
-        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n\n";
+        
+        if ($phone) {
+            $message .= "📞 الهاتف: <code>{$phone}</code>\n";
+        }
+        
+        if ($order->customer_address) {
+            $message .= "📍 العنوان: {$order->customer_address}\n";
+        }
+
+        if ($delegateName) {
+            $roleText = $delegateRole ? " ({$delegateRole})" : '';
+            $message .= "👨‍💼 تم الإنشاء بواسطة: <b>{$delegateName}</b>{$roleText}\n";
+        }
+
+        $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
 
         if ($order->notes) {
-            $message .= "📝 ملاحظات: {$order->notes}\n\n";
+            $message .= "📝 ملاحظات: {$order->notes}\n";
         }
 
         $message .= "⏰ الوقت: " . $order->created_at->format('Y-m-d H:i:s');
 
-        return $this->sendMessage($chatId, $message);
+        $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
+
+        return $this->sendMessage($chatId, $message, 'HTML', $keyboard);
     }
 
     /**
@@ -203,6 +232,12 @@ class TelegramService
         $phone = $shipment->client_mobile ?? $order->customer_phone ?? null;
         $socialLink = $order->customer_social_link ?? null;
 
+        // تحميل المستخدم الذي أنشأ الطلب (المندوب)
+        $order->load('delegate');
+        $delegate = $order->delegate;
+        $delegateName = $delegate ? $delegate->name : null;
+        $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
+
         $message = "🔔 <b>تغيير حالة الطلب</b>\n\n";
         $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
         $message .= "📊 الحالة: <b>{$status}</b>\n";
@@ -219,6 +254,11 @@ class TelegramService
 
         if ($order->customer_address) {
             $message .= "📍 العنوان: {$order->customer_address}\n";
+        }
+
+        if ($delegateName) {
+            $roleText = $delegateRole ? " ({$delegateRole})" : '';
+            $message .= "👨‍💼 المندوب: <b>{$delegateName}</b>{$roleText}\n";
         }
 
         $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
@@ -238,11 +278,15 @@ class TelegramService
         $socialLink = $order->customer_social_link ?? null;
         $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
 
-        // تحميل المستخدم الذي حذف الطلب
-        $order->load('deletedByUser');
+        // تحميل المستخدم الذي حذف الطلب والمندوب الأصلي
+        $order->load(['deletedByUser', 'delegate']);
         $deletedBy = $order->deletedByUser;
         $deletedByName = $deletedBy ? $deletedBy->name : null;
         $deletedByRole = $deletedBy ? $this->getUserRoleName($deletedBy->role) : null;
+
+        $delegate = $order->delegate;
+        $delegateName = $delegate ? $delegate->name : null;
+        $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
         $message = "🗑️ <b>تم حذف الطلب</b>\n\n";
         $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
@@ -256,9 +300,14 @@ class TelegramService
             $message .= "📍 العنوان: {$order->customer_address}\n";
         }
 
+        if ($delegateName) {
+            $roleText = $delegateRole ? " ({$delegateRole})" : '';
+            $message .= "👨‍💼 المندوب الأصلي: <b>{$delegateName}</b>{$roleText}\n";
+        }
+
         if ($deletedByName) {
             $roleText = $deletedByRole ? " ({$deletedByRole})" : '';
-            $message .= "👨‍💼 تم الحذف بواسطة: <b>{$deletedByName}</b>{$roleText}\n";
+            $message .= "🗑️ تم الحذف بواسطة: <b>{$deletedByName}</b>{$roleText}\n";
         }
 
         if ($order->deletion_reason) {
@@ -282,11 +331,15 @@ class TelegramService
         $socialLink = $order->customer_social_link ?? null;
         $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
 
-        // تحميل المستخدم الذي قيد الطلب
-        $order->load('confirmedBy');
+        // تحميل المستخدم الذي قيد الطلب والمندوب الأصلي
+        $order->load(['confirmedBy', 'delegate']);
         $confirmedBy = $order->confirmedBy;
         $confirmedByName = $confirmedBy ? $confirmedBy->name : null;
         $confirmedByRole = $confirmedBy ? $this->getUserRoleName($confirmedBy->role) : null;
+
+        $delegate = $order->delegate;
+        $delegateName = $delegate ? $delegate->name : null;
+        $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
 
         $message = "🔒 <b>تم تقييد الطلب</b>\n\n";
         $message .= "📦 رقم الطلب: <b>{$order->order_number}</b>\n";
@@ -300,9 +353,14 @@ class TelegramService
             $message .= "📍 العنوان: {$order->customer_address}\n";
         }
 
+        if ($delegateName) {
+            $roleText = $delegateRole ? " ({$delegateRole})" : '';
+            $message .= "👨‍💼 المندوب الأصلي: <b>{$delegateName}</b>{$roleText}\n";
+        }
+
         if ($confirmedByName) {
             $roleText = $confirmedByRole ? " ({$confirmedByRole})" : '';
-            $message .= "👨‍💼 تم التقييد بواسطة: <b>{$confirmedByName}</b>{$roleText}\n";
+            $message .= "🔒 تم التقييد بواسطة: <b>{$confirmedByName}</b>{$roleText}\n";
         }
 
         $message .= "💰 المبلغ الإجمالي: " . number_format($order->total_amount, 2) . " د.ع\n";
