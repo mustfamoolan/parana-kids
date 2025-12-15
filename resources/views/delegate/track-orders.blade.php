@@ -16,7 +16,7 @@
         if (!isset($showStatusCards)) {
             $showStatusCards = true;
         }
-        
+
         // ألوان ديناميكية للحالات
         $statusColors = [
             'primary' => ['bg' => 'from-primary/10 to-primary/5', 'border' => 'border-primary/20', 'icon' => 'text-primary', 'iconBg' => 'bg-primary/20'],
@@ -26,7 +26,7 @@
             'info' => ['bg' => 'from-info/10 to-info/5', 'border' => 'border-info/20', 'icon' => 'text-info', 'iconBg' => 'bg-info/20'],
             'secondary' => ['bg' => 'from-secondary/10 to-secondary/5', 'border' => 'border-secondary/20', 'icon' => 'text-secondary', 'iconBg' => 'bg-secondary/20'],
         ];
-        
+
         // دالة للحصول على لون حسب index
         $getStatusColor = function($index) use ($statusColors) {
             $colorKeys = array_keys($statusColors);
@@ -179,7 +179,7 @@
                                 ['api_status_id' => $statusId]
                             );
                         @endphp
-                        <a href="{{ route('delegate.orders.track', array_filter($allFilters)) }}" 
+                        <a href="{{ route('delegate.orders.track', array_filter($allFilters)) }}"
                            class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br {{ $color['bg'] }} border-2 {{ $color['border'] }}">
                             <div class="w-16 h-16 mx-auto mb-4 {{ $color['iconBg'] }} rounded-full flex items-center justify-center">
                                 <svg class="w-8 h-8 {{ $color['icon'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +207,7 @@
                     }
                 }
             @endphp
-            
+
             @if($selectedStatus)
                 <div class="mb-5 p-4 bg-info/10 border-2 border-info/20 rounded-lg">
                     <h6 class="text-lg font-bold text-info mb-2">حالة الطلب: {{ $selectedStatus['status'] }}</h6>
@@ -274,14 +274,14 @@
                         $apiOrderData = null;
                         $orderStatus = null;
                         $apiStatusId = null;
-                        
+
                         if ($shipment && isset($shipment->alwaseet_order_id) && isset($alwaseetOrdersData[$shipment->alwaseet_order_id])) {
                             $apiOrderData = $alwaseetOrdersData[$shipment->alwaseet_order_id];
                             // استخدام الحالة من API مباشرة (أحدث البيانات)
                             $orderStatus = $apiOrderData['status'] ?? null;
                             $apiStatusId = $apiOrderData['status_id'] ?? null;
                         }
-                        
+
                         // Fallback: استخدام البيانات المحفوظة في قاعدة البيانات
                         if (!$orderStatus && $shipment) {
                             // استخدام status من قاعدة البيانات مباشرة
@@ -346,8 +346,8 @@
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">رقم الوسيط</span>
                                 <div class="flex items-center justify-center gap-2">
                                     <div class="text-3xl font-bold font-mono" style="color: #2563eb !important;" id="alwaseet-code-{{ $order->id }}">{{ $alwaseetCode }}</div>
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onclick="copyDeliveryCode('{{ $alwaseetCode }}', 'delivery')"
                                         class="btn btn-sm btn-primary"
                                         title="نسخ كود الوسيط"
@@ -365,13 +365,13 @@
                             <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
                                 <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">اسم الزبون</span>
                                 <p class="font-medium mb-2">{{ $order->customer_name }}</p>
-                                
+
                                 <!-- عنوان الزبون -->
                                 <div class="mb-2">
                                     <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">عنوان الزبون</span>
                                     <div class="text-lg font-bold !text-primary dark:!text-primary-light">{{ $order->customer_address ?? 'لا يوجد عنوان' }}</div>
                                 </div>
-                                
+
                                 <!-- رابط السوشل ميديا -->
                                 @if($order->customer_social_link)
                                     <div class="mb-2">
@@ -410,7 +410,7 @@
                                             </div>
                                         </div>
                                     @endif
-                                    
+
                                     @if($order->customer_phone2)
                                         <div class="{{ $order->customer_phone ? 'pt-2 border-t' : '' }}">
                                             <span class="text-xs text-gray-500 dark:text-gray-400 block mb-2">الرقم الثاني: {{ $order->customer_phone2 }}</span>
@@ -449,7 +449,7 @@
                                             <p class="text-sm text-gray-500">{{ $order->delegate->code }}</p>
                                         </div>
                                     @endif
-                                    
+
                                     <!-- التاريخ -->
                                     <div class="flex-1 text-right">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">تاريخ التقييد</span>
@@ -525,14 +525,14 @@
                                     </svg>
                                     سجل الحالات
                                 </h4>
-                                
+
                                 <!-- Timeline مصغر -->
                                 <div class="relative">
                                     <div class="absolute right-2 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
                                     @foreach($order->alwaseetShipment->statusHistory as $history)
                                         <div class="relative flex items-center gap-3 mb-2 last:mb-0">
                                             <div class="relative z-10 w-5 h-5 rounded-full flex items-center justify-center
-                                                {{ $history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id) 
+                                                {{ $history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id)
                                                     ? 'bg-success ring-2 ring-success/30' : 'bg-gray-300 dark:bg-gray-600' }}">
                                                 @if($history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id))
                                                     <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -546,9 +546,17 @@
                                                 <span class="font-medium {{ $history->status_id === ($apiStatusId ?? $order->alwaseetShipment->status_id) ? 'text-success' : 'text-gray-600 dark:text-gray-400' }}">
                                                     {{ $history->status_text }}
                                                 </span>
-                                                <span class="text-gray-400 mr-2">
-                                                    {{ $history->changed_at->format('m-d H:i') }}
-                                                </span>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                                        {{ $history->changed_at->format('Y-m-d') }}
+                                                    </span>
+                                                    <span class="text-sm font-bold {{ $history->changed_at->format('H') < 12 ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400' }}">
+                                                        {{ $history->changed_at->format('h:i') }}
+                                                    </span>
+                                                    <span class="px-1.5 py-0.5 rounded text-xs font-bold {{ $history->changed_at->format('H') < 12 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' }}">
+                                                        {{ $history->changed_at->format('H') < 12 ? 'صباحاً' : 'مساءً' }}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     @endforeach

@@ -645,7 +645,7 @@
                                                 </span>
                                                 <div class="flex items-center gap-2 mt-1">
                                                     <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                                        {{ $history->changed_at->format('m-d') }}
+                                                        {{ $history->changed_at->format('Y-m-d') }}
                                                     </span>
                                                     <span class="text-sm font-bold {{ $history->changed_at->format('H') < 12 ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400' }}">
                                                         {{ $history->changed_at->format('h:i') }}

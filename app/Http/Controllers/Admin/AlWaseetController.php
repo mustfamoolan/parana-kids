@@ -2202,7 +2202,10 @@ class AlWaseetController extends Controller
             });
         }
 
-        // فلتر حسب التاريخ - تطبيق على آخر changed_at من statusHistory
+        // فلتر حسب التاريخ والوقت - يطبق على تاريخ الحالة الأخيرة للطلب (آخر changed_at من statusHistory)
+        // مهم: الفلتر يعمل على آخر تغيير حالة فقط، ليس على تاريخ إنشاء الطلب
+        // يستخدم MAX(changed_at) لضمان اختيار أحدث حالة لكل shipment_id
+
         if ($request->filled('date_from')) {
             $query->whereHas('alwaseetShipment', function($q) use ($request) {
                 $q->whereIn('id', function($subQuery) use ($request) {
@@ -2225,7 +2228,6 @@ class AlWaseetController extends Controller
             });
         }
 
-        // فلتر حسب الوقت - تطبيق على آخر changed_at من statusHistory
         if ($request->filled('time_from')) {
             $dateFrom = $request->date_from ?? now()->format('Y-m-d');
             $query->whereHas('alwaseetShipment', function($q) use ($request, $dateFrom) {
