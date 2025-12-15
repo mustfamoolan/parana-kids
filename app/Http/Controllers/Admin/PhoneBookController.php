@@ -33,7 +33,9 @@ class PhoneBookController extends Controller
             });
         }
 
-        $contacts = $query->orderBy('name')->paginate(20);
+        // عدد النتائج في الصفحة (مع الحفاظ على القيمة عند التنقل)
+        $perPage = $request->input('per_page', 20);
+        $contacts = $query->orderBy('name')->paginate($perPage)->appends($request->except('page'));
 
         return view('admin.phone-book.index', compact('contacts'));
     }

@@ -171,9 +171,7 @@
         </div>
 
         <!-- Pagination -->
-        <div class="mt-5">
-            {{ $contacts->links() }}
-        </div>
+        <x-pagination :items="$contacts" />
     </div>
 
     <script>
