@@ -891,15 +891,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // الحفاظ على api_status_id إذا كان موجوداً
-        const apiStatusId = urlParams.get('api_status_id');
+        // إزالة api_status_id أيضاً عند مسح الفلاتر لعرض جميع status cards
         let newUrl = window.location.pathname;
-        if (apiStatusId) {
-            newUrl += '?api_status_id=' + apiStatusId;
-        } else {
-            // إذا لم يكن هناك api_status_id، العودة للصفحة بدون معاملات لعرض status cards
-            newUrl = window.location.pathname;
-        }
         window.location.href = newUrl;
         return;
     }
@@ -928,15 +921,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.removeItem(key);
             });
 
-            // الحفاظ على api_status_id إذا كان موجوداً في URL
-            const currentUrlParams = new URLSearchParams(window.location.search);
-            const apiStatusId = currentUrlParams.get('api_status_id');
-
-            // الانتقال إلى الصفحة بدون معاملات (إلا api_status_id)
+            // الانتقال إلى الصفحة بدون أي معاملات لعرض جميع status cards
             let newUrl = '{{ route("admin.alwaseet.track-orders") }}';
-            if (apiStatusId) {
-                newUrl += '?api_status_id=' + apiStatusId;
-            }
             window.location.href = newUrl;
         });
     }
