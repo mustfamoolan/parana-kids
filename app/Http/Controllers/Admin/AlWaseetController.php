@@ -2105,7 +2105,7 @@ class AlWaseetController extends Controller
         $statusesMap = [];
         try {
             $dbStatuses = \App\Models\AlWaseetOrderStatus::getActiveStatuses();
-            
+
             // إنشاء mapping بين status_id و status text
             foreach ($dbStatuses as $dbStatus) {
                 $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;
@@ -2271,7 +2271,7 @@ class AlWaseetController extends Controller
                 $q->where('status_id', $request->api_status_id);
             });
         }
-        
+
         // حساب المبلغ الكلي للطلبات المعروضة (فقط للمدير وعند عرض الطلبات)
         $totalOrdersAmount = 0;
         $showStatusCards = !$request->filled('api_status_id') && !$request->filled('search');
@@ -2279,7 +2279,7 @@ class AlWaseetController extends Controller
             // استخدام نفس query لحساب المبلغ الكلي قبل pagination
             $totalOrdersAmount = (clone $query)->sum(\DB::raw('COALESCE(total_amount, 0) + COALESCE(delivery_fee_at_confirmation, 0)'));
         }
-        
+
         // جلب الطلبات مع pagination عادي (بدون حد على العدد!)
         $orders = $query->with([
             'delegate',
@@ -2287,7 +2287,7 @@ class AlWaseetController extends Controller
             'items.product.warehouse',
             'alwaseetShipment.statusHistory.statusInfo' // إضافة Timeline
         ])->orderBy('created_at', 'desc')->paginate(20);
-        
+
         $ordersForApi = $orders;
         $hasMoreOrders = false;
 
@@ -2313,7 +2313,7 @@ class AlWaseetController extends Controller
                 $regions = Cache::remember($cacheKey, now()->addHours(24), function () use ($cityId) {
                     return $this->alWaseetService->getRegions($cityId);
                 });
-                
+
                 // ربط المناطق بجميع الطلبات التي لها نفس city_id
                 foreach ($ordersForApi as $order) {
                     if ($order->alwaseet_city_id == $cityId) {
@@ -2321,7 +2321,7 @@ class AlWaseetController extends Controller
                     }
                 }
             }
-            
+
             // للطلبات التي لا تحتوي على city_id
             foreach ($ordersForApi as $order) {
                 if (!$order->alwaseet_city_id && !isset($ordersWithRegions[$order->id])) {
@@ -2350,7 +2350,7 @@ class AlWaseetController extends Controller
                 ->unique()
                 ->values()
                 ->toArray();
-            
+
             if (!empty($alwaseetOrderIds)) {
                 // استخدام Cache قصير المدى (30 ثانية) لتقليل الطلبات على API
                 $cacheKey = 'alwaseet_orders_data_' . md5(implode(',', $alwaseetOrderIds));
@@ -2360,7 +2360,7 @@ class AlWaseetController extends Controller
                         $batchSize = 10;
                         $batches = array_chunk($alwaseetOrderIds, $batchSize);
                         $allOrdersData = [];
-                        
+
                         foreach ($batches as $batch) {
                             $apiOrders = $this->alWaseetService->getOrdersByIds($batch);
                             foreach ($apiOrders as $apiOrder) {
@@ -2369,7 +2369,7 @@ class AlWaseetController extends Controller
                                 }
                             }
                         }
-                        
+
                         return $allOrdersData;
                     } catch (\Exception $e) {
                         Log::error('AlWaseetController: Failed to fetch orders from API in trackOrders', [
@@ -2395,7 +2395,7 @@ class AlWaseetController extends Controller
                 $dbStatuses = \App\Models\AlWaseetOrderStatus::orderBy('display_order')
                     ->orderBy('status_text')
                     ->get();
-                
+
                 $statuses = [];
                 foreach ($dbStatuses as $dbStatus) {
                     $statuses[] = [
@@ -2405,7 +2405,7 @@ class AlWaseetController extends Controller
                 }
                 return $statuses;
             });
-            
+
             // إنشاء mapping
             foreach ($allStatuses as $status) {
                 $statusesMap[$status['id']] = $status['status'];
@@ -2421,21 +2421,39 @@ class AlWaseetController extends Controller
         $statusCounts = [];
         if (!$request->filled('api_status_id')) {
             // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
-            $hasFilters = $request->filled('warehouse_id') || 
-                         $request->filled('confirmed_by') || 
-                         $request->filled('delegate_id') || 
-                         $request->filled('date_from') || 
-                         $request->filled('date_to') || 
-                         $request->filled('time_from') || 
-                         $request->filled('time_to') || 
+            $hasFilters = $request->filled('warehouse_id') ||
+                         $request->filled('confirmed_by') ||
+                         $request->filled('delegate_id') ||
+                         $request->filled('date_from') ||
+                         $request->filled('date_to') ||
+                         $request->filled('time_from') ||
+                         $request->filled('time_to') ||
                          $request->filled('hours_ago');
-            
-            $cacheKey = 'admin_all_status_counts';
-            
-            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق) - فقط إذا لم يكن هناك فلاتر
-            $statusCounts = $hasFilters ? null : \Illuminate\Support\Facades\Cache::get($cacheKey);
-            
-            // إذا لم تكن موجودة في Cache أو كان هناك فلاتر، حسابها مباشرة
+
+            // إنشاء مفتاح Cache فريد بناءً على الفلاتر المطبقة
+            if ($hasFilters || Auth::user()->isSupplier()) {
+                // إذا كانت هناك فلاتر أو المستخدم مجهز، استخدم مفتاح فريد
+                $filterParams = [
+                    'warehouse_id' => $request->warehouse_id,
+                    'confirmed_by' => $request->confirmed_by,
+                    'delegate_id' => $request->delegate_id,
+                    'date_from' => $request->date_from,
+                    'date_to' => $request->date_to,
+                    'time_from' => $request->time_from,
+                    'time_to' => $request->time_to,
+                    'hours_ago' => $request->hours_ago,
+                    'supplier_role' => Auth::user()->isSupplier() ? Auth::user()->id : null,
+                ];
+                $cacheKey = 'admin_status_counts_' . md5(json_encode($filterParams));
+            } else {
+                // إذا لم تكن هناك فلاتر، استخدم نفس المفتاح الذي يحدثه Job
+                $cacheKey = 'admin_all_status_counts';
+            }
+
+            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق للبيانات الكاملة فقط)
+            $statusCounts = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+            // إذا لم تكن موجودة في Cache، حسابها مباشرة
             if ($statusCounts === null) {
                 $counts = [];
 
@@ -2571,11 +2589,12 @@ class AlWaseetController extends Controller
                 }
 
                 $statusCounts = $counts;
-                
-                // حفظ في Cache لمدة 10 دقائق (حتى يتم تحديثها من Job)
-                \Illuminate\Support\Facades\Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
+
+                // حفظ في Cache (2 دقيقة للبيانات المفلترة، 10 دقائق للبيانات الكاملة التي يحدثها Job)
+                $cacheDuration = $hasFilters ? now()->addMinutes(2) : now()->addMinutes(10);
+                \Illuminate\Support\Facades\Cache::put($cacheKey, $statusCounts, $cacheDuration);
             }
-            
+
             // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
             foreach ($allStatuses as $status) {
                 $statusId = (string)$status['id'];
@@ -2589,21 +2608,38 @@ class AlWaseetController extends Controller
         $statusAmounts = [];
         if (Auth::user()->isAdmin() && !$request->filled('api_status_id')) {
             // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
-            $hasFilters = $request->filled('warehouse_id') || 
-                         $request->filled('confirmed_by') || 
-                         $request->filled('delegate_id') || 
-                         $request->filled('date_from') || 
-                         $request->filled('date_to') || 
-                         $request->filled('time_from') || 
-                         $request->filled('time_to') || 
+            $hasFilters = $request->filled('warehouse_id') ||
+                         $request->filled('confirmed_by') ||
+                         $request->filled('delegate_id') ||
+                         $request->filled('date_from') ||
+                         $request->filled('date_to') ||
+                         $request->filled('time_from') ||
+                         $request->filled('time_to') ||
                          $request->filled('hours_ago');
-            
-            $cacheKey = 'admin_all_status_amounts';
-            
-            // محاولة جلب من Cache أولاً - فقط إذا لم يكن هناك فلاتر
-            $statusAmounts = $hasFilters ? null : \Illuminate\Support\Facades\Cache::get($cacheKey);
-            
-            // إذا لم تكن موجودة في Cache أو كان هناك فلاتر، حسابها مباشرة
+
+            // إنشاء مفتاح Cache فريد بناءً على الفلاتر المطبقة
+            if ($hasFilters) {
+                // إذا كانت هناك فلاتر، استخدم مفتاح فريد
+                $filterParams = [
+                    'warehouse_id' => $request->warehouse_id,
+                    'confirmed_by' => $request->confirmed_by,
+                    'delegate_id' => $request->delegate_id,
+                    'date_from' => $request->date_from,
+                    'date_to' => $request->date_to,
+                    'time_from' => $request->time_from,
+                    'time_to' => $request->time_to,
+                    'hours_ago' => $request->hours_ago,
+                ];
+                $cacheKey = 'admin_status_amounts_' . md5(json_encode($filterParams));
+            } else {
+                // إذا لم تكن هناك فلاتر، استخدم المفتاح الثابت
+                $cacheKey = 'admin_all_status_amounts';
+            }
+
+            // محاولة جلب من Cache أولاً (Job يحدثها كل 5 دقائق للبيانات الكاملة فقط)
+            $statusAmounts = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+            // إذا لم تكن موجودة في Cache، حسابها مباشرة
             if ($statusAmounts === null) {
                 $amounts = [];
 
@@ -2741,11 +2777,12 @@ class AlWaseetController extends Controller
                 }
 
                 $statusAmounts = $amounts;
-                
-                // حفظ في Cache لمدة 10 دقائق
-                \Illuminate\Support\Facades\Cache::put($cacheKey, $statusAmounts, now()->addMinutes(10));
+
+                // حفظ في Cache (2 دقيقة للبيانات المفلترة، 10 دقائق للبيانات الكاملة التي يحدثها Job)
+                $cacheDuration = $hasFilters ? now()->addMinutes(2) : now()->addMinutes(10);
+                \Illuminate\Support\Facades\Cache::put($cacheKey, $statusAmounts, $cacheDuration);
             }
-            
+
             // التأكد من أن جميع الحالات موجودة في statusAmounts (حتى لو كانت 0)
             foreach ($allStatuses as $status) {
                 $statusId = (string)$status['id'];
@@ -3168,7 +3205,7 @@ class AlWaseetController extends Controller
 
         try {
             $shipment = $order->alwaseetShipment;
-            
+
             if (!$shipment || empty($shipment->qr_link)) {
                 return response()->json([
                     'success' => false,
@@ -3191,7 +3228,7 @@ class AlWaseetController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'فشل تحميل PDF: ' . $e->getMessage(),
@@ -3383,7 +3420,7 @@ class AlWaseetController extends Controller
         $statusesMap = [];
         try {
             $dbStatuses = \App\Models\AlWaseetOrderStatus::getActiveStatuses();
-            
+
             // إنشاء mapping بين status_id و status text
             foreach ($dbStatuses as $dbStatus) {
                 $statusesMap[$dbStatus->status_id] = $dbStatus->status_text;

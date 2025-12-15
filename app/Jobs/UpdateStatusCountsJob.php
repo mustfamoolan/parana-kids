@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UpdateStatusCountsJob implements ShouldQueue
@@ -25,10 +26,13 @@ class UpdateStatusCountsJob implements ShouldQueue
         try {
             // حساب statusCounts لكل delegate
             $this->updateDelegateStatusCounts();
-            
+
             // حساب statusCounts للمدير والمجهز (بدون فلاتر)
             $this->updateAdminStatusCounts();
-            
+
+            // حساب statusAmounts للمدير (بدون فلاتر)
+            $this->updateAdminStatusAmounts();
+
             Log::info('UpdateStatusCountsJob: Completed successfully');
         } catch (\Exception $e) {
             Log::error('UpdateStatusCountsJob: Failed', [
@@ -44,7 +48,7 @@ class UpdateStatusCountsJob implements ShouldQueue
     private function updateDelegateStatusCounts(): void
     {
         $delegates = User::where('role', 'delegate')->get();
-        
+
         foreach ($delegates as $delegate) {
             try {
                 // جلب جميع order IDs للمندوب
@@ -55,7 +59,7 @@ class UpdateStatusCountsJob implements ShouldQueue
                     ->toArray();
 
                 $statusCounts = [];
-                
+
                 if (!empty($orderIds)) {
                     // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
                     $statusCountsFromDb = AlWaseetShipment::whereIn('order_id', $orderIds)
@@ -78,13 +82,13 @@ class UpdateStatusCountsJob implements ShouldQueue
                         $statusId = (string)$status->status_id;
                         $statusCounts[$statusId] = 0;
                     }
-                    
+
                     // تحديث العدادات للحالات الموجودة فقط
                     foreach ($statusCountsFromDb as $statusId => $count) {
                         $statusIdStr = (string)$statusId;
                         $statusCounts[$statusIdStr] = (int)$count;
                     }
-                    
+
                     // إضافة أي حالات موجودة في قاعدة البيانات ولكن غير موجودة في allStatuses
                     foreach ($statusCountsFromDb as $statusId => $count) {
                         $statusIdStr = (string)$statusId;
@@ -97,7 +101,7 @@ class UpdateStatusCountsJob implements ShouldQueue
                     $allStatuses = \App\Models\AlWaseetOrderStatus::orderBy('display_order')
                         ->orderBy('status_text')
                         ->get();
-                    
+
                     foreach ($allStatuses as $status) {
                         $statusId = (string)$status->status_id;
                         $statusCounts[$statusId] = 0;
@@ -107,7 +111,7 @@ class UpdateStatusCountsJob implements ShouldQueue
                 // حفظ في Cache لمدة 10 دقائق
                 $cacheKey = 'delegate_all_status_counts_' . $delegate->id;
                 Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
-                
+
             } catch (\Exception $e) {
                 Log::warning('UpdateStatusCountsJob: Failed to update status counts for delegate', [
                     'delegate_id' => $delegate->id,
@@ -130,7 +134,7 @@ class UpdateStatusCountsJob implements ShouldQueue
                 ->toArray();
 
             $statusCounts = [];
-            
+
             if (!empty($orderIds)) {
                 // حساب عدد الطلبات لكل حالة مباشرة من قاعدة البيانات
                 $statusCountsFromDb = AlWaseetShipment::whereIn('order_id', $orderIds)
@@ -153,7 +157,7 @@ class UpdateStatusCountsJob implements ShouldQueue
                     $statusId = (string)$status->status_id;
                     $statusCounts[$statusId] = 0;
                 }
-                
+
                 // تحديث العدادات للحالات الموجودة فقط
                 foreach ($statusCountsFromDb as $statusId => $count) {
                     $statusIdStr = (string)$statusId;
@@ -164,7 +168,7 @@ class UpdateStatusCountsJob implements ShouldQueue
                 $allStatuses = \App\Models\AlWaseetOrderStatus::orderBy('display_order')
                     ->orderBy('status_text')
                     ->get();
-                
+
                 foreach ($allStatuses as $status) {
                     $statusId = (string)$status->status_id;
                     $statusCounts[$statusId] = 0;
@@ -174,9 +178,76 @@ class UpdateStatusCountsJob implements ShouldQueue
             // حفظ في Cache لمدة 10 دقائق
             $cacheKey = 'admin_all_status_counts';
             Cache::put($cacheKey, $statusCounts, now()->addMinutes(10));
-            
+
         } catch (\Exception $e) {
             Log::warning('UpdateStatusCountsJob: Failed to update status counts for admin', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * حساب statusAmounts للمدير (بدون فلاتر)
+     */
+    private function updateAdminStatusAmounts(): void
+    {
+        try {
+            // حساب statusAmounts لجميع الطلبات (بدون فلاتر)
+            $orderIds = Order::where('status', 'confirmed')
+                ->whereHas('alwaseetShipment')
+                ->pluck('id')
+                ->toArray();
+
+            $statusAmounts = [];
+
+            if (!empty($orderIds)) {
+                // حساب المبلغ الكلي لكل حالة (total_amount + delivery_fee_at_confirmation)
+                $statusAmountsFromDb = DB::table('orders')
+                    ->join('alwaseet_shipments', 'orders.id', '=', 'alwaseet_shipments.order_id')
+                    ->whereIn('orders.id', $orderIds)
+                    ->whereNotNull('alwaseet_shipments.status_id')
+                    ->selectRaw('alwaseet_shipments.status_id, SUM(COALESCE(orders.total_amount, 0) + COALESCE(orders.delivery_fee_at_confirmation, 0)) as total_amount')
+                    ->groupBy('alwaseet_shipments.status_id')
+                    ->get()
+                    ->mapWithKeys(function($item) {
+                        return [(string)$item->status_id => (float)$item->total_amount];
+                    })
+                    ->toArray();
+
+                // جلب جميع الحالات من قاعدة البيانات
+                $allStatuses = \App\Models\AlWaseetOrderStatus::orderBy('display_order')
+                    ->orderBy('status_text')
+                    ->get();
+
+                // تهيئة المبالغ لجميع الحالات أولاً بقيمة 0
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status->status_id;
+                    $statusAmounts[$statusId] = 0;
+                }
+
+                // تحديث المبالغ للحالات الموجودة فقط
+                foreach ($statusAmountsFromDb as $statusId => $amount) {
+                    $statusIdStr = (string)$statusId;
+                    $statusAmounts[$statusIdStr] = (float)$amount;
+                }
+            } else {
+                // إرجاع أصفار لجميع الحالات
+                $allStatuses = \App\Models\AlWaseetOrderStatus::orderBy('display_order')
+                    ->orderBy('status_text')
+                    ->get();
+
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status->status_id;
+                    $statusAmounts[$statusId] = 0;
+                }
+            }
+
+            // حفظ في Cache لمدة 10 دقائق
+            $cacheKey = 'admin_all_status_amounts';
+            Cache::put($cacheKey, $statusAmounts, now()->addMinutes(10));
+
+        } catch (\Exception $e) {
+            Log::warning('UpdateStatusCountsJob: Failed to update status amounts for admin', [
                 'error' => $e->getMessage(),
             ]);
         }
