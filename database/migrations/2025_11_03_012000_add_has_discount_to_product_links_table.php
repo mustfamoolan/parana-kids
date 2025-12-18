@@ -12,7 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('product_links', function (Blueprint $table) {
-            $table->boolean('has_discount')->default(false)->after('size_name');
+            // التحقق من وجود العمود قبل إضافته (للسيرفر الفعلي)
+            if (!Schema::hasColumn('product_links', 'has_discount')) {
+                $table->boolean('has_discount')->default(false)->after('size_name');
+            }
         });
     }
 
@@ -22,7 +25,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('product_links', function (Blueprint $table) {
-            $table->dropColumn('has_discount');
+            // التحقق من وجود العمود قبل حذفه
+            if (Schema::hasColumn('product_links', 'has_discount')) {
+                $table->dropColumn('has_discount');
+            }
         });
     }
 };
