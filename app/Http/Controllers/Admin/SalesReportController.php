@@ -105,6 +105,16 @@ class SalesReportController extends Controller
             $statistics['items_count']
         );
 
+        // حساب أرباح المنتجات
+        $productProfitsData = $this->calculateProductProfits(
+            $orders,
+            $orderIds,
+            $request,
+            $dateFrom,
+            $dateTo,
+            $warehouseProfitsData['expense_per_item']
+        );
+
         // حفظ التقرير في قاعدة البيانات
         $this->saveReport($statistics, $chartData, $request, $dateFrom, $dateTo);
 
@@ -116,6 +126,7 @@ class SalesReportController extends Controller
             'statistics',
             'chartData',
             'warehouseProfitsData',
+            'productProfitsData',
             'deliveryFee',
             'profitMargin'
         ));
@@ -539,6 +550,151 @@ class SalesReportController extends Controller
             'warehouses' => $warehouseProfits,
             'expense_per_item' => $expensePerItem,
         ];
+    }
+
+    private function calculateProductProfits($orders, $orderIds, $request, $dateFrom, $dateTo, $expensePerItem)
+    {
+        // جلب جميع المخازن (أو المخزن المحدد)
+        $warehousesQuery = Warehouse::query();
+        if ($request->filled('warehouse_id')) {
+            $warehousesQuery->where('id', $request->warehouse_id);
+        }
+        $warehouses = $warehousesQuery->get();
+
+        $productProfits = [];
+
+        foreach ($warehouses as $warehouse) {
+            // جلب order_items للمخزن
+            $warehouseOrderItems = OrderItem::whereIn('order_id', $orderIds)
+                ->whereHas('product', function($q) use ($warehouse) {
+                    $q->where('warehouse_id', $warehouse->id);
+                })
+                ->with('product')
+                ->get();
+
+            // تجميع order_items حسب المنتج
+            $productsData = [];
+            foreach ($warehouseOrderItems as $item) {
+                if (!$item->product) {
+                    continue;
+                }
+
+                $productId = $item->product_id;
+
+                if (!isset($productsData[$productId])) {
+                    $productsData[$productId] = [
+                        'product_id' => $productId,
+                        'product_name' => $item->product->name,
+                        'product_code' => $item->product->code,
+                        'warehouse_id' => $warehouse->id,
+                        'warehouse_name' => $warehouse->name,
+                        'items_count' => 0,
+                        'profit_without_margin' => 0,
+                        'margin_amount' => 0,
+                    ];
+                }
+
+                // حساب الربح بدون فروقات
+                if ($item->product->purchase_price && $item->product->purchase_price > 0) {
+                    $sellingPrice = $item->unit_price ?? 0;
+                    $purchasePrice = $item->product->purchase_price ?? 0;
+                    $quantity = $item->quantity ?? 0;
+                    $profitPerUnit = $sellingPrice - $purchasePrice;
+                    $productsData[$productId]['profit_without_margin'] += $profitPerUnit * $quantity;
+                }
+
+                $productsData[$productId]['items_count'] += $item->quantity ?? 0;
+            }
+
+            // خصم ربح إرجاع الاستبدال لكل منتج
+            $warehouseExchangeReturnMovements = ProductMovement::where('movement_type', 'return_exchange_bulk')
+                ->where('warehouse_id', $warehouse->id)
+                ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+                ->with('product')
+                ->get();
+
+            foreach ($warehouseExchangeReturnMovements as $movement) {
+                if ($movement->product && $movement->product_id) {
+                    $productId = $movement->product_id;
+
+                    if (isset($productsData[$productId])) {
+                        if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
+                            $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
+                            $productsData[$productId]['profit_without_margin'] -= $profitPerUnit * $movement->quantity;
+                        }
+                    }
+                }
+            }
+
+            // حساب الفروقات لكل منتج
+            $confirmedOrders = $orders->where('status', 'confirmed');
+
+            foreach ($confirmedOrders as $order) {
+                if ($order->status !== 'returned' || $order->is_partial_return) {
+                    $allOrderItems = $order->items;
+                    $warehouseOrderItemsForOrder = $allOrderItems->filter(function($item) use ($warehouse) {
+                        return $item->product && $item->product->warehouse_id == $warehouse->id;
+                    });
+
+                    if ($warehouseOrderItemsForOrder->isEmpty()) {
+                        continue;
+                    }
+
+                    // حساب نسبة المنتجات من هذا المخزن
+                    $totalQuantity = $allOrderItems->sum('quantity');
+                    $warehouseQuantity = $warehouseOrderItemsForOrder->sum('quantity');
+                    $warehouseRatio = $totalQuantity > 0 ? ($warehouseQuantity / $totalQuantity) : 0;
+
+                    // استخدام ربح الفروقات المحفوظ وقت التقييد
+                    $orderProfitMargin = $order->profit_margin_at_confirmation ?? Setting::getProfitMargin();
+                    $totalMarginForWarehouse = $orderProfitMargin * $warehouseRatio;
+
+                    // توزيع الفروقات على المنتجات حسب نسبة الكمية
+                    $warehouseTotalQuantity = $warehouseOrderItemsForOrder->sum('quantity');
+
+                    foreach ($warehouseOrderItemsForOrder as $orderItem) {
+                        if ($orderItem->product && isset($productsData[$orderItem->product_id])) {
+                            $productQuantity = $orderItem->quantity ?? 0;
+                            $productRatio = $warehouseTotalQuantity > 0 ? ($productQuantity / $warehouseTotalQuantity) : 0;
+                            $productsData[$orderItem->product_id]['margin_amount'] += $totalMarginForWarehouse * $productRatio;
+                        }
+                    }
+                }
+            }
+
+            // حساب الربح الصافي لكل منتج
+            foreach ($productsData as $productId => $productData) {
+                $profitWithoutMargin = max(0, $productData['profit_without_margin']);
+                $profitWithMargin = $profitWithoutMargin + $productData['margin_amount'];
+                $productExpenses = $expensePerItem * $productData['items_count'];
+                $netProfit = $profitWithMargin - $productExpenses;
+
+                $productProfits[] = [
+                    'warehouse_id' => $productData['warehouse_id'],
+                    'warehouse_name' => $productData['warehouse_name'],
+                    'product_id' => $productData['product_id'],
+                    'product_name' => $productData['product_name'],
+                    'product_code' => $productData['product_code'],
+                    'items_count' => $productData['items_count'],
+                    'profit_without_margin' => $profitWithoutMargin,
+                    'profit_with_margin' => $profitWithMargin,
+                    'margin_amount' => $productData['margin_amount'],
+                    'expense_per_item' => $expensePerItem,
+                    'product_expenses' => $productExpenses,
+                    'net_profit' => $netProfit,
+                ];
+            }
+        }
+
+        // ترتيب حسب المخزن ثم اسم المنتج
+        usort($productProfits, function($a, $b) {
+            if ($a['warehouse_name'] === $b['warehouse_name']) {
+                return strcmp($a['product_name'], $b['product_name']);
+            }
+            return strcmp($a['warehouse_name'], $b['warehouse_name']);
+        });
+
+        return $productProfits;
     }
 
     private function saveReport($statistics, $chartData, $request, $dateFrom, $dateTo)

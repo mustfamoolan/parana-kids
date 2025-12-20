@@ -257,6 +257,160 @@
             </div>
         @endif
 
+        <!-- جدول أرباح المنتجات -->
+        @if(isset($productProfitsData) && !empty($productProfitsData))
+            <div class="panel mb-6">
+                <h5 class="font-semibold text-lg dark:text-white-light mb-4">أرباح المنتجات لكل مخزن</h5>
+                <div class="table-responsive">
+                    <table class="table-hover">
+                        <thead>
+                            <tr>
+                                <th>المخزن</th>
+                                <th>المنتج</th>
+                                <th class="text-right">كود المنتج</th>
+                                <th class="text-right">ربح المنتج</th>
+                                <th class="text-right">عدد القطع</th>
+                                <th class="text-right">مصروفات كل قطعة</th>
+                                <th class="text-right">مصروفات المنتج</th>
+                                <th class="text-right">الربح الصافي</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php
+                                $currentWarehouse = null;
+                                $warehouseTotalProfit = 0;
+                                $warehouseTotalItems = 0;
+                                $warehouseTotalExpenses = 0;
+                                $warehouseTotalNetProfit = 0;
+                            @endphp
+                            @foreach($productProfitsData as $index => $product)
+                                @if($currentWarehouse !== null && $currentWarehouse !== $product['warehouse_name'])
+                                    <!-- صف الإجمالي للمخزن السابق -->
+                                    <tr class="bg-gray-50 dark:bg-gray-800 font-bold">
+                                        <td colspan="3" class="text-right">
+                                            <span class="text-primary">إجمالي {{ $currentWarehouse }}</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="text-warning">{{ number_format($warehouseTotalProfit, 0, '.', ',') }} دينار</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="badge badge-outline-primary">{{ number_format($warehouseTotalItems, 0, '.', ',') }} قطعة</span>
+                                        </td>
+                                        <td class="text-right">-</td>
+                                        <td class="text-right">
+                                            <span class="text-danger">{{ number_format($warehouseTotalExpenses, 0, '.', ',') }} دينار</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="{{ $warehouseTotalNetProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                                                {{ number_format($warehouseTotalNetProfit, 0, '.', ',') }} دينار
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @php
+                                        $warehouseTotalProfit = 0;
+                                        $warehouseTotalItems = 0;
+                                        $warehouseTotalExpenses = 0;
+                                        $warehouseTotalNetProfit = 0;
+                                    @endphp
+                                @endif
+
+                                <tr>
+                                    <td>
+                                        @if($currentWarehouse !== $product['warehouse_name'])
+                                            <span class="font-semibold text-primary">{{ $product['warehouse_name'] }}</span>
+                                            @php $currentWarehouse = $product['warehouse_name']; @endphp
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="font-medium">{{ $product['product_name'] }}</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ $product['product_code'] }}</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="font-bold text-warning">
+                                            {{ number_format($product['profit_with_margin'], 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="badge badge-outline-primary">
+                                            {{ number_format($product['items_count'], 0, '.', ',') }} قطعة
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="text-sm text-gray-600 dark:text-gray-400">
+                                            {{ number_format($product['expense_per_item'], 2, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="text-sm text-danger">
+                                            {{ number_format($product['product_expenses'], 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="font-bold {{ $product['net_profit'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                            {{ number_format($product['net_profit'], 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                </tr>
+
+                                @php
+                                    $warehouseTotalProfit += $product['profit_with_margin'];
+                                    $warehouseTotalItems += $product['items_count'];
+                                    $warehouseTotalExpenses += $product['product_expenses'];
+                                    $warehouseTotalNetProfit += $product['net_profit'];
+                                @endphp
+
+                                @if($index === count($productProfitsData) - 1)
+                                    <!-- صف الإجمالي للمخزن الأخير -->
+                                    <tr class="bg-gray-50 dark:bg-gray-800 font-bold">
+                                        <td colspan="3" class="text-right">
+                                            <span class="text-primary">إجمالي {{ $currentWarehouse }}</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="text-warning">{{ number_format($warehouseTotalProfit, 0, '.', ',') }} دينار</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="badge badge-outline-primary">{{ number_format($warehouseTotalItems, 0, '.', ',') }} قطعة</span>
+                                        </td>
+                                        <td class="text-right">-</td>
+                                        <td class="text-right">
+                                            <span class="text-danger">{{ number_format($warehouseTotalExpenses, 0, '.', ',') }} دينار</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="{{ $warehouseTotalNetProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                                                {{ number_format($warehouseTotalNetProfit, 0, '.', ',') }} دينار
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endif
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr class="font-bold bg-primary/10">
+                                <td colspan="3">الإجمالي الكلي</td>
+                                <td class="text-right">
+                                    {{ number_format(collect($productProfitsData)->sum('profit_with_margin'), 0, '.', ',') }} دينار
+                                </td>
+                                <td class="text-right">
+                                    {{ number_format(collect($productProfitsData)->sum('items_count'), 0, '.', ',') }} قطعة
+                                </td>
+                                <td class="text-right">-</td>
+                                <td class="text-right">
+                                    {{ number_format(collect($productProfitsData)->sum('product_expenses'), 0, '.', ',') }} دينار
+                                </td>
+                                <td class="text-right">
+                                    <span class="{{ collect($productProfitsData)->sum('net_profit') >= 0 ? 'text-success' : 'text-danger' }}">
+                                        {{ number_format(collect($productProfitsData)->sum('net_profit'), 0, '.', ',') }} دينار
+                                    </span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         <!-- الشارتات -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Line Chart: المبيعات حسب التاريخ -->
