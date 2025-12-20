@@ -661,15 +661,15 @@
                             </div>
                         @endif
 
-                        {{-- زر الحذف - يظهر فقط عند عرض الطلبات (ليس في صفحة الكاردات) - معطل مؤقتا --}}
-                        {{-- @if(!$showStatusCards)
+                        {{-- زر الحذف - يظهر فقط للمدير وللحالتين 1 و 4 --}}
+                        @if(!$showStatusCards && auth()->user()->isAdmin() && ($apiStatusId == '1' || $apiStatusId == '4'))
                             <div class="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
                                 <button
                                     type="button"
                                     class="btn btn-danger btn-sm w-full delete-order-btn"
                                     data-order-id="{{ $order->id }}"
                                     data-order-number="{{ $order->order_number }}"
-                                    title="حذف مؤقت - سيتم إزالة هذا الزر لاحقاً"
+                                    title="حذف الطلب من قاعدة البيانات"
                                 >
                                     <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -677,7 +677,7 @@
                                     حذف من القائمة
                                 </button>
                             </div>
-                        @endif --}}
+                        @endif
 
                     </div>
                 @endforeach

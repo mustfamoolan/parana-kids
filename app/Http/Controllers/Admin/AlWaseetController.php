@@ -2696,22 +2696,57 @@ class AlWaseetController extends Controller
     }
 
     /**
-     * حذف طلب واحد من صفحة track-orders (مؤقت - حذف بسيط فقط)
+     * حذف طلب واحد من صفحة track-orders (فقط للحالتين 1 و 4)
      */
     public function deleteOrder(Request $request, Order $order)
     {
         $this->authorize('delete', $order);
 
-        // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
-        if (!in_array($order->status, ['pending', 'confirmed'])) {
+        // التحقق من أن المستخدم مدير
+        if (!Auth::user()->isAdmin()) {
             return redirect()->back()
-                            ->withErrors(['error' => 'لا يمكن حذف هذا الطلب']);
+                            ->withErrors(['error' => 'غير مصرح لك بحذف الطلبات']);
+        }
+
+        // جلب shipment للتحقق من api_status_id
+        $shipment = $order->alwaseetShipment;
+        if (!$shipment) {
+            $shipment = \App\Models\AlWaseetShipment::where('order_id', $order->id)->first();
+        }
+
+        // جلب api_status_id من API مباشرة (أحدث البيانات)
+        $apiStatusId = null;
+        if ($shipment && isset($shipment->alwaseet_order_id)) {
+            try {
+                $apiOrders = $this->alWaseetService->getOrdersByIds([$shipment->alwaseet_order_id]);
+                // البحث عن الطلب المطلوب في الـ array
+                foreach ($apiOrders as $apiOrder) {
+                    if (isset($apiOrder['id']) && $apiOrder['id'] == $shipment->alwaseet_order_id && isset($apiOrder['status_id'])) {
+                        $apiStatusId = (string)$apiOrder['status_id'];
+                        break;
+                    }
+                }
+            } catch (\Exception $e) {
+                // في حالة فشل API، استخدام البيانات المحفوظة
+                $apiStatusId = $shipment->status_id ? (string)$shipment->status_id : null;
+            }
+        }
+
+        // Fallback: استخدام البيانات المحفوظة
+        if (!$apiStatusId && $shipment && $shipment->status_id) {
+            $apiStatusId = (string)$shipment->status_id;
+        }
+
+        // التحقق من أن الحالة هي 1 أو 4
+        if ($apiStatusId !== '1' && $apiStatusId !== '4') {
+            return redirect()->back()
+                            ->withErrors(['error' => 'يمكن حذف الطلبات فقط في الحالتين: فعال (1) أو تم تسليم إلى الزبون (4)']);
         }
 
         try {
-            // حذف بسيط فقط - بدون إرجاع منتجات أو تغييرات
+            // حذف soft delete
             $order->deleted_by = Auth::id();
-            $order->deletion_reason = 'حذف من صفحة track-orders - طلبات قديمة غير موجودة في API';
+            $order->deletion_reason = 'حذف من صفحة track-orders - الحالة: ' . ($apiStatusId == '1' ? 'فعال' : 'تم تسليم إلى الزبون');
             $order->save();
             $order->delete(); // soft delete
 
