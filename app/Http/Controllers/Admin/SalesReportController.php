@@ -14,6 +14,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -115,6 +116,25 @@ class SalesReportController extends Controller
             $warehouseProfitsData['expense_per_item']
         );
 
+        // حساب الإجماليات الكلية للمنتجات (للعرض في footer)
+        $productProfitsTotals = [
+            'total_profit' => 0,
+            'total_items' => 0,
+            'total_expenses' => 0,
+            'total_net_profit' => 0,
+        ];
+
+        // جلب جميع المنتجات (بدون pagination) لحساب الإجماليات
+        $allProductProfits = $this->calculateProductProfitsAll($orders, $orderIds, $request, $dateFrom, $dateTo, $warehouseProfitsData['expense_per_item']);
+        if (!empty($allProductProfits)) {
+            $productProfitsTotals = [
+                'total_profit' => collect($allProductProfits)->sum('profit_with_margin'),
+                'total_items' => collect($allProductProfits)->sum('items_count'),
+                'total_expenses' => collect($allProductProfits)->sum('product_expenses'),
+                'total_net_profit' => collect($allProductProfits)->sum('net_profit'),
+            ];
+        }
+
         // حفظ التقرير في قاعدة البيانات
         $this->saveReport($statistics, $chartData, $request, $dateFrom, $dateTo);
 
@@ -127,6 +147,7 @@ class SalesReportController extends Controller
             'chartData',
             'warehouseProfitsData',
             'productProfitsData',
+            'productProfitsTotals',
             'deliveryFee',
             'profitMargin'
         ));
@@ -693,6 +714,152 @@ class SalesReportController extends Controller
             }
             return strcmp($a['warehouse_name'], $b['warehouse_name']);
         });
+
+        // Pagination
+        $perPage = 50; // عدد المنتجات في كل صفحة
+        $currentPage = $request->get('product_page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+        $currentItems = array_slice($productProfits, $offset, $perPage);
+
+        $paginatedProducts = new LengthAwarePaginator(
+            $currentItems,
+            count($productProfits),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'pageName' => 'product_page',
+                'query' => $request->except('product_page'),
+            ]
+        );
+
+        return $paginatedProducts;
+    }
+
+    private function calculateProductProfitsAll($orders, $orderIds, $request, $dateFrom, $dateTo, $expensePerItem)
+    {
+        // نفس منطق calculateProductProfits لكن بدون pagination
+        $warehousesQuery = Warehouse::query();
+        if ($request->filled('warehouse_id')) {
+            $warehousesQuery->where('id', $request->warehouse_id);
+        }
+        $warehouses = $warehousesQuery->get();
+
+        $productProfits = [];
+
+        foreach ($warehouses as $warehouse) {
+            $warehouseOrderItems = OrderItem::whereIn('order_id', $orderIds)
+                ->whereHas('product', function($q) use ($warehouse) {
+                    $q->where('warehouse_id', $warehouse->id);
+                })
+                ->with('product')
+                ->get();
+
+            $productsData = [];
+            foreach ($warehouseOrderItems as $item) {
+                if (!$item->product) {
+                    continue;
+                }
+
+                $productId = $item->product_id;
+
+                if (!isset($productsData[$productId])) {
+                    $productsData[$productId] = [
+                        'product_id' => $productId,
+                        'product_name' => $item->product->name,
+                        'product_code' => $item->product->code,
+                        'warehouse_id' => $warehouse->id,
+                        'warehouse_name' => $warehouse->name,
+                        'items_count' => 0,
+                        'profit_without_margin' => 0,
+                        'margin_amount' => 0,
+                    ];
+                }
+
+                if ($item->product->purchase_price && $item->product->purchase_price > 0) {
+                    $sellingPrice = $item->unit_price ?? 0;
+                    $purchasePrice = $item->product->purchase_price ?? 0;
+                    $quantity = $item->quantity ?? 0;
+                    $profitPerUnit = $sellingPrice - $purchasePrice;
+                    $productsData[$productId]['profit_without_margin'] += $profitPerUnit * $quantity;
+                }
+
+                $productsData[$productId]['items_count'] += $item->quantity ?? 0;
+            }
+
+            $warehouseExchangeReturnMovements = ProductMovement::where('movement_type', 'return_exchange_bulk')
+                ->where('warehouse_id', $warehouse->id)
+                ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+                ->with('product')
+                ->get();
+
+            foreach ($warehouseExchangeReturnMovements as $movement) {
+                if ($movement->product && $movement->product_id) {
+                    $productId = $movement->product_id;
+
+                    if (isset($productsData[$productId])) {
+                        if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
+                            $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
+                            $productsData[$productId]['profit_without_margin'] -= $profitPerUnit * $movement->quantity;
+                        }
+                    }
+                }
+            }
+
+            $confirmedOrders = $orders->where('status', 'confirmed');
+
+            foreach ($confirmedOrders as $order) {
+                if ($order->status !== 'returned' || $order->is_partial_return) {
+                    $allOrderItems = $order->items;
+                    $warehouseOrderItemsForOrder = $allOrderItems->filter(function($item) use ($warehouse) {
+                        return $item->product && $item->product->warehouse_id == $warehouse->id;
+                    });
+
+                    if ($warehouseOrderItemsForOrder->isEmpty()) {
+                        continue;
+                    }
+
+                    $totalQuantity = $allOrderItems->sum('quantity');
+                    $warehouseQuantity = $warehouseOrderItemsForOrder->sum('quantity');
+                    $warehouseRatio = $totalQuantity > 0 ? ($warehouseQuantity / $totalQuantity) : 0;
+
+                    $orderProfitMargin = $order->profit_margin_at_confirmation ?? Setting::getProfitMargin();
+                    $totalMarginForWarehouse = $orderProfitMargin * $warehouseRatio;
+
+                    $warehouseTotalQuantity = $warehouseOrderItemsForOrder->sum('quantity');
+
+                    foreach ($warehouseOrderItemsForOrder as $orderItem) {
+                        if ($orderItem->product && isset($productsData[$orderItem->product_id])) {
+                            $productQuantity = $orderItem->quantity ?? 0;
+                            $productRatio = $warehouseTotalQuantity > 0 ? ($productQuantity / $warehouseTotalQuantity) : 0;
+                            $productsData[$orderItem->product_id]['margin_amount'] += $totalMarginForWarehouse * $productRatio;
+                        }
+                    }
+                }
+            }
+
+            foreach ($productsData as $productId => $productData) {
+                $profitWithoutMargin = max(0, $productData['profit_without_margin']);
+                $profitWithMargin = $profitWithoutMargin + $productData['margin_amount'];
+                $productExpenses = $expensePerItem * $productData['items_count'];
+                $netProfit = $profitWithMargin - $productExpenses;
+
+                $productProfits[] = [
+                    'warehouse_id' => $productData['warehouse_id'],
+                    'warehouse_name' => $productData['warehouse_name'],
+                    'product_id' => $productData['product_id'],
+                    'product_name' => $productData['product_name'],
+                    'product_code' => $productData['product_code'],
+                    'items_count' => $productData['items_count'],
+                    'profit_without_margin' => $profitWithoutMargin,
+                    'profit_with_margin' => $profitWithMargin,
+                    'margin_amount' => $productData['margin_amount'],
+                    'expense_per_item' => $expensePerItem,
+                    'product_expenses' => $productExpenses,
+                    'net_profit' => $netProfit,
+                ];
+            }
+        }
 
         return $productProfits;
     }

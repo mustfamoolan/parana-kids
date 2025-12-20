@@ -258,9 +258,12 @@
         @endif
 
         <!-- جدول أرباح المنتجات -->
-        @if(isset($productProfitsData) && !empty($productProfitsData))
+        @if(isset($productProfitsData) && $productProfitsData->count() > 0)
             <div class="panel mb-6">
-                <h5 class="font-semibold text-lg dark:text-white-light mb-4">أرباح المنتجات لكل مخزن</h5>
+                <h5 class="font-semibold text-lg dark:text-white-light mb-4">
+                    أرباح المنتجات لكل مخزن
+                    <span class="text-sm text-gray-500">({{ $productProfitsData->total() }} منتج)</span>
+                </h5>
                 <div class="table-responsive">
                     <table class="table-hover">
                         <thead>
@@ -360,53 +363,58 @@
                                     $warehouseTotalExpenses += $product['product_expenses'];
                                     $warehouseTotalNetProfit += $product['net_profit'];
                                 @endphp
-
-                                @if($index === count($productProfitsData) - 1)
-                                    <!-- صف الإجمالي للمخزن الأخير -->
-                                    <tr class="bg-gray-50 dark:bg-gray-800 font-bold">
-                                        <td colspan="3" class="text-right">
-                                            <span class="text-primary">إجمالي {{ $currentWarehouse }}</span>
-                                        </td>
-                                        <td class="text-right">
-                                            <span class="text-warning">{{ number_format($warehouseTotalProfit, 0, '.', ',') }} دينار</span>
-                                        </td>
-                                        <td class="text-right">
-                                            <span class="badge badge-outline-primary">{{ number_format($warehouseTotalItems, 0, '.', ',') }} قطعة</span>
-                                        </td>
-                                        <td class="text-right">-</td>
-                                        <td class="text-right">
-                                            <span class="text-danger">{{ number_format($warehouseTotalExpenses, 0, '.', ',') }} دينار</span>
-                                        </td>
-                                        <td class="text-right">
-                                            <span class="{{ $warehouseTotalNetProfit >= 0 ? 'text-success' : 'text-danger' }}">
-                                                {{ number_format($warehouseTotalNetProfit, 0, '.', ',') }} دينار
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @endif
                             @endforeach
+
+                            @if($currentWarehouse !== null)
+                                <!-- صف الإجمالي للمخزن الأخير في الصفحة الحالية -->
+                                <tr class="bg-gray-50 dark:bg-gray-800 font-bold">
+                                    <td colspan="3" class="text-right">
+                                        <span class="text-primary">إجمالي {{ $currentWarehouse }} (في هذه الصفحة)</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="text-warning">{{ number_format($warehouseTotalProfit, 0, '.', ',') }} دينار</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="badge badge-outline-primary">{{ number_format($warehouseTotalItems, 0, '.', ',') }} قطعة</span>
+                                    </td>
+                                    <td class="text-right">-</td>
+                                    <td class="text-right">
+                                        <span class="text-danger">{{ number_format($warehouseTotalExpenses, 0, '.', ',') }} دينار</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="{{ $warehouseTotalNetProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                                            {{ number_format($warehouseTotalNetProfit, 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                </tr>
+                            @endif
                         </tbody>
                         <tfoot>
                             <tr class="font-bold bg-primary/10">
-                                <td colspan="3">الإجمالي الكلي</td>
+                                <td colspan="3">الإجمالي الكلي (جميع المنتجات)</td>
                                 <td class="text-right">
-                                    {{ number_format(collect($productProfitsData)->sum('profit_with_margin'), 0, '.', ',') }} دينار
+                                    {{ number_format($productProfitsTotals['total_profit'] ?? 0, 0, '.', ',') }} دينار
                                 </td>
                                 <td class="text-right">
-                                    {{ number_format(collect($productProfitsData)->sum('items_count'), 0, '.', ',') }} قطعة
+                                    {{ number_format($productProfitsTotals['total_items'] ?? 0, 0, '.', ',') }} قطعة
                                 </td>
                                 <td class="text-right">-</td>
                                 <td class="text-right">
-                                    {{ number_format(collect($productProfitsData)->sum('product_expenses'), 0, '.', ',') }} دينار
+                                    {{ number_format($productProfitsTotals['total_expenses'] ?? 0, 0, '.', ',') }} دينار
                                 </td>
                                 <td class="text-right">
-                                    <span class="{{ collect($productProfitsData)->sum('net_profit') >= 0 ? 'text-success' : 'text-danger' }}">
-                                        {{ number_format(collect($productProfitsData)->sum('net_profit'), 0, '.', ',') }} دينار
+                                    <span class="{{ ($productProfitsTotals['total_net_profit'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
+                                        {{ number_format($productProfitsTotals['total_net_profit'] ?? 0, 0, '.', ',') }} دينار
                                     </span>
                                 </td>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="mt-4">
+                    {{ $productProfitsData->links() }}
                 </div>
             </div>
         @endif
