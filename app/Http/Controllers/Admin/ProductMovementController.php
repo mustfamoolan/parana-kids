@@ -238,6 +238,11 @@ class ProductMovementController extends Controller
             }
         }
 
+        // فلتر الإرجاعات فقط
+        if ($request->filled('show_returns_only') && $request->show_returns_only == '1') {
+            $query->whereIn('movement_type', ['return', 'cancel', 'delete', 'return_bulk', 'return_exchange_bulk', 'partial_return']);
+        }
+
         // فلتر حسب المستخدم
         if ($request->filled('user_id')) {
             $query->byUser($request->user_id);
@@ -312,6 +317,135 @@ class ProductMovementController extends Controller
             'manual_movements' => ProductMovement::whereNull('order_id')->count(),
         ];
 
+        // حساب إحصائيات الإرجاعات (عند تفعيل فلتر الإرجاعات فقط)
+        $returnsStats = null;
+        if ($request->filled('show_returns_only') && $request->show_returns_only == '1') {
+            // استخدام نفس query لكن بدون pagination لحساب الإجماليات
+            $returnsQuery = ProductMovement::with(['product', 'order'])
+                ->whereIn('movement_type', ['return', 'cancel', 'delete', 'return_bulk', 'return_exchange_bulk', 'partial_return']);
+
+            // تطبيق نفس الفلاتر
+            if ($request->filled('warehouse_id')) {
+                $returnsQuery->byWarehouse($request->warehouse_id);
+            }
+            if ($request->filled('product_id')) {
+                $returnsQuery->byProduct($request->product_id);
+            }
+            if ($request->filled('size_id')) {
+                $returnsQuery->bySize($request->size_id);
+            }
+            if ($request->filled('product_search')) {
+                $productSearch = $request->product_search;
+                $returnsQuery->whereHas('product', function($q) use ($productSearch) {
+                    $q->where(function($subQ) use ($productSearch) {
+                        $subQ->where('name', 'like', '%' . $productSearch . '%')
+                             ->orWhere('code', 'like', '%' . $productSearch . '%');
+                    });
+                });
+            }
+            if ($request->filled('user_id')) {
+                $returnsQuery->byUser($request->user_id);
+            }
+            if ($request->filled('source_type')) {
+                if ($request->source_type === 'order') {
+                    $returnsQuery->whereNotNull('order_id');
+                } elseif ($request->source_type === 'manual') {
+                    $returnsQuery->whereNull('order_id');
+                }
+            }
+            if ($request->filled('date_from')) {
+                $returnsQuery->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $returnsQuery->whereDate('created_at', '<=', $request->date_to);
+            }
+            if ($request->filled('time_from')) {
+                $dateFrom = $request->date_from ?? ($request->date_to ?? now()->format('Y-m-d'));
+                $returnsQuery->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+            }
+            if ($request->filled('time_to')) {
+                $dateTo = $request->date_to ?? ($request->date_from ?? now()->format('Y-m-d'));
+                $returnsQuery->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+            }
+            if (auth()->user()->isSupplier()) {
+                $warehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
+                $returnsQuery->whereIn('warehouse_id', $warehouseIds);
+            }
+
+            $returnsMovements = $returnsQuery->get();
+
+            // حساب عدد القطع المرجعة (استخدام abs لأن quantity قد يكون سالباً)
+            $returnsItemsCount = $returnsMovements->sum(function($movement) {
+                return abs($movement->quantity);
+            });
+
+            // حساب المبلغ الكلي للإرجاعات
+            $returnsTotalAmount = 0;
+
+            // حساب المبلغ من return_exchange_bulk (من ProductMovement مباشرة)
+            foreach ($returnsMovements->where('movement_type', 'return_exchange_bulk') as $movement) {
+                if ($movement->product && $movement->product->selling_price) {
+                    $returnsTotalAmount += abs($movement->quantity) * $movement->product->selling_price;
+                }
+            }
+
+            // حساب المبلغ من الإرجاعات المرتبطة بطلبات (من ReturnItems أولاً - الأكثر دقة)
+            $returnItemIds = $returnsMovements->whereNotNull('order_id')
+                ->whereNotIn('movement_type', ['return_exchange_bulk'])
+                ->pluck('order_id')
+                ->unique();
+
+            $processedMovementIds = [];
+
+            if ($returnItemIds->count() > 0) {
+                // جلب ReturnItems للطلبات المرتبطة
+                $returnItems = \App\Models\ReturnItem::whereIn('order_id', $returnItemIds)
+                    ->with('orderItem')
+                    ->get();
+
+                foreach ($returnItems as $returnItem) {
+                    if ($returnItem->orderItem) {
+                        $returnsTotalAmount += $returnItem->quantity_returned * $returnItem->orderItem->unit_price;
+                        // تسجيل أن هذا الطلب تم معالجته
+                        $processedMovementIds[] = $returnItem->order_id;
+                    }
+                }
+            }
+
+            // حساب المبلغ من الإرجاعات الأخرى التي لم يتم معالجتها من ReturnItems
+            // (cancel, delete, return, return_bulk, partial_return بدون ReturnItem)
+            foreach ($returnsMovements->whereIn('movement_type', ['cancel', 'delete', 'return', 'return_bulk', 'partial_return']) as $movement) {
+                // تخطي إذا كان مرتبط بطلب وتم معالجته من ReturnItems
+                if ($movement->order_id && in_array($movement->order_id, $processedMovementIds)) {
+                    continue;
+                }
+
+                if ($movement->product) {
+                    // محاولة الحصول على السعر من order_item إذا كان مرتبط بطلب
+                    if ($movement->order_id && $movement->order) {
+                        $orderItem = $movement->order->items()
+                            ->where('product_id', $movement->product_id)
+                            ->where('size_id', $movement->size_id)
+                            ->first();
+
+                        if ($orderItem) {
+                            $returnsTotalAmount += abs($movement->quantity) * $orderItem->unit_price;
+                        } elseif ($movement->product->selling_price) {
+                            $returnsTotalAmount += abs($movement->quantity) * $movement->product->selling_price;
+                        }
+                    } elseif ($movement->product->selling_price) {
+                        // إذا لم يكن مرتبط بطلب، نستخدم سعر البيع الحالي
+                        $returnsTotalAmount += abs($movement->quantity) * $movement->product->selling_price;
+                    }
+                }
+            }
+
+            $returnsStats = [
+                'items_count' => $returnsItemsCount,
+                'total_amount' => $returnsTotalAmount,
+            ];
+        }
+
         // تحميل المنتجات حسب المخازن المتاحة
         if (auth()->user()->isSupplier()) {
             $warehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
@@ -332,7 +466,8 @@ class ProductMovementController extends Controller
             'users',
             'movementTypes',
             'sourceTypes',
-            'stats'
+            'stats',
+            'returnsStats'
         ));
     }
 }
