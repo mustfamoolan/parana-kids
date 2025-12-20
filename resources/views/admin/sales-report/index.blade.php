@@ -103,7 +103,7 @@
         </div>
 
         <!-- الكاردات الإحصائية -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
             <!-- المبلغ الكلي -->
             <div class="panel">
                 <div class="flex items-center justify-between">
@@ -163,7 +163,99 @@
                     </div>
                 </div>
             </div>
+
+            <!-- الربح الصافي -->
+            <div class="panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h6 class="text-xs font-semibold dark:text-white-light text-gray-500">الربح الصافي</h6>
+                        <p class="text-xl font-bold text-success">{{ number_format($statistics['profit_after_expenses'], 0, '.', ',') }} دينار</p>
+                    </div>
+                    <div class="p-2 bg-success/10 rounded-lg">
+                        <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- جدول أرباح المخازن -->
+        @if(isset($warehouseProfitsData) && !empty($warehouseProfitsData['warehouses']))
+            <div class="panel mb-6">
+                <h5 class="font-semibold text-lg dark:text-white-light mb-4">أرباح المخازن</h5>
+                <div class="table-responsive">
+                    <table class="table-hover">
+                        <thead>
+                            <tr>
+                                <th>المخزن</th>
+                                <th class="text-right">ربح المخزن</th>
+                                <th class="text-right">عدد القطع</th>
+                                <th class="text-right">مصروفات كل قطعة</th>
+                                <th class="text-right">مصروفات المخزن</th>
+                                <th class="text-right">الربح الصافي</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($warehouseProfitsData['warehouses'] as $warehouse)
+                                <tr>
+                                    <td>
+                                        <span class="font-semibold">{{ $warehouse['warehouse_name'] }}</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="font-bold text-warning">
+                                            {{ number_format($warehouse['profit_with_margin'], 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="badge badge-outline-primary">
+                                            {{ number_format($warehouse['items_count'], 0, '.', ',') }} قطعة
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="text-sm text-gray-600 dark:text-gray-400">
+                                            {{ number_format($warehouse['expense_per_item'], 2, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="text-sm text-danger">
+                                            {{ number_format($warehouse['warehouse_expenses'], 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span class="font-bold {{ $warehouse['net_profit'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                            {{ number_format($warehouse['net_profit'], 0, '.', ',') }} دينار
+                                        </span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr class="font-bold">
+                                <td>الإجمالي</td>
+                                <td class="text-right">
+                                    {{ number_format(collect($warehouseProfitsData['warehouses'])->sum('profit_with_margin'), 0, '.', ',') }} دينار
+                                </td>
+                                <td class="text-right">
+                                    {{ number_format(collect($warehouseProfitsData['warehouses'])->sum('items_count'), 0, '.', ',') }} قطعة
+                                </td>
+                                <td class="text-right">
+                                    {{ number_format($warehouseProfitsData['expense_per_item'], 2, '.', ',') }} دينار
+                                </td>
+                                <td class="text-right">
+                                    {{ number_format(collect($warehouseProfitsData['warehouses'])->sum('warehouse_expenses'), 0, '.', ',') }} دينار
+                                </td>
+                                <td class="text-right">
+                                    <span class="{{ collect($warehouseProfitsData['warehouses'])->sum('net_profit') >= 0 ? 'text-success' : 'text-danger' }}">
+                                        {{ number_format(collect($warehouseProfitsData['warehouses'])->sum('net_profit'), 0, '.', ',') }} دينار
+                                    </span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        @endif
 
         <!-- الشارتات -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
