@@ -1187,4 +1187,72 @@
         </div>
     </div>
     @endif
+
+    <!-- قسم الاستثمارات والأرباح -->
+    @if(auth()->user()->isAdmin())
+    <div class="panel mt-5">
+        <div class="flex items-center justify-between mb-4">
+            <h6 class="text-lg font-semibold">الاستثمارات والأرباح</h6>
+            <a href="{{ route('admin.investments.create', ['product_id' => $product->id, 'back_url' => urlencode(request()->fullUrl())]) }}" class="btn btn-primary btn-sm">
+                <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                إضافة استثمار جديد
+            </a>
+        </div>
+
+        @if($investments->count() > 0)
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="panel">
+                    <div class="text-sm text-gray-500 mb-1">ربح المنتج الإجمالي</div>
+                    <div class="text-xl font-bold text-primary">{{ number_format($totalProductProfit, 2) }} دينار</div>
+                </div>
+                <div class="panel">
+                    <div class="text-sm text-gray-500 mb-1">ربح المستثمرين</div>
+                    <div class="text-xl font-bold text-info">{{ number_format($totalInvestorProfit, 2) }} دينار</div>
+                </div>
+                <div class="panel">
+                    <div class="text-sm text-gray-500 mb-1">ربح المالك</div>
+                    <div class="text-xl font-bold text-success">{{ number_format($ownerProfit, 2) }} دينار</div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table-hover">
+                    <thead>
+                        <tr>
+                            <th>المستثمر</th>
+                            <th>نسبة الربح</th>
+                            <th>ربح المستثمر</th>
+                            <th>مبلغ الاستثمار</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($investments as $investment)
+                            @php
+                                $investorProfit = $productProfits->where('investment_id', $investment->id)->sum('profit_amount');
+                            @endphp
+                            <tr>
+                                <td>{{ $investment->investor->name }}</td>
+                                <td>{{ $investment->profit_percentage }}%</td>
+                                <td>{{ number_format($investorProfit, 2) }} دينار</td>
+                                <td>{{ number_format($investment->investment_amount, 2) }} دينار</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-4">لا توجد استثمارات لهذا المنتج</p>
+                <a href="{{ route('admin.investments.create', ['product_id' => $product->id, 'back_url' => urlencode(request()->fullUrl())]) }}" class="btn btn-primary">
+                    <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    إضافة استثمار جديد
+                </a>
+            </div>
+        @endif
+    </div>
+    @endif
 </x-layout.admin>

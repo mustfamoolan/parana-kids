@@ -29,3 +29,31 @@ if (!function_exists('formatPhoneForWhatsApp')) {
         return $cleanPhone;
     }
 }
+
+if (!function_exists('roundToNearestCurrency')) {
+    /**
+     * تقريب المبلغ لأقرب عملة صحيحة عراقية (مضاعفات 250 دينار)
+     * 
+     * @param float $amount المبلغ المراد تقريبه
+     * @return float المبلغ المقرب
+     */
+    function roundToNearestCurrency(float $amount): float
+    {
+        return round($amount / 250) * 250;
+    }
+}
+
+if (!function_exists('formatCurrency')) {
+    /**
+     * تنسيق المبلغ مع التقريب لأقرب عملة صحيحة عراقية
+     * 
+     * @param float $amount المبلغ المراد تنسيقه
+     * @param int $decimals عدد الأرقام العشرية (افتراضي 0)
+     * @return string المبلغ المنسق
+     */
+    function formatCurrency(float $amount, int $decimals = 0): string
+    {
+        $rounded = roundToNearestCurrency($amount);
+        return number_format($rounded, $decimals) . ' IQD';
+    }
+}

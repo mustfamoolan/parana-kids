@@ -10,6 +10,7 @@ class Expense extends Model
     use HasFactory;
 
     protected $fillable = [
+        'warehouse_id',
         'expense_type',
         'amount',
         'salary_amount',
@@ -41,6 +42,14 @@ class Expense extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Get the warehouse associated with this expense
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
     /**
@@ -98,5 +107,13 @@ class Expense extends Model
     public function scopeByUser($query, $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope to filter by warehouse
+     */
+    public function scopeByWarehouse($query, $warehouseId)
+    {
+        return $query->where('warehouse_id', $warehouseId);
     }
 }

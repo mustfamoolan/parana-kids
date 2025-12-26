@@ -20,10 +20,14 @@ class ProfitRecord extends Model
         'product_value',
         'expected_profit',
         'actual_profit',
+        'gross_profit',
+        'expenses_amount',
+        'items_count',
         'return_amount',
         'total_amount',
         'record_type',
         'status',
+        'investor_profit_distributed',
     ];
 
     protected $casts = [
@@ -32,8 +36,12 @@ class ProfitRecord extends Model
         'product_value' => 'decimal:2',
         'expected_profit' => 'decimal:2',
         'actual_profit' => 'decimal:2',
+        'gross_profit' => 'decimal:2',
+        'expenses_amount' => 'decimal:2',
+        'items_count' => 'integer',
         'return_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'investor_profit_distributed' => 'boolean',
     ];
 
     // العلاقات

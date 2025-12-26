@@ -2734,6 +2734,12 @@ class OrderController extends Controller
                     $totalAmountReduction += $returnItem['quantity'] * $orderItem->unit_price;
                 }
 
+                // معالجة تأثير الإرجاع الجزئي على المستثمرين
+                if (config('features.investor_profits_enabled', true)) {
+                    $returnCalculator = app(\App\Services\InvestorReturnCalculator::class);
+                    $returnCalculator->processPartialReturnForInvestors($order, $validated['return_items']);
+                }
+
                 // تحديث المبلغ الإجمالي للطلب
                 $order->total_amount -= $totalAmountReduction;
                 $order->save();

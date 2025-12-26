@@ -8,10 +8,14 @@ use App\Models\Warehouse;
 use App\Models\ProductImage;
 use App\Models\ProductSize;
 use App\Models\ProductMovement;
+use App\Models\Investment;
+use App\Models\InvestmentTarget;
+use App\Models\InvestmentInvestor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -405,8 +409,85 @@ class ProductController extends Controller
             }
         }
 
+        // خصم تكلفة المنتج من المستثمرين إذا كان المخزن مرتبط بمشروع استثمار
+        if ($product->purchase_price && $product->purchase_price > 0) {
+            $this->deductProductCostFromInvestors($product, $warehouse);
+        }
+
         return redirect()->route('admin.warehouses.products.index', $warehouse)
                         ->with('success', 'تم إنشاء المنتج بنجاح');
+    }
+
+    /**
+     * خصم تكلفة المنتج من المستثمرين
+     */
+    private function deductProductCostFromInvestors(Product $product, Warehouse $warehouse)
+    {
+        // حساب تكلفة المنتج: purchase_price × إجمالي الكمية (جميع المقاسات)
+        $totalQuantity = $product->sizes()->sum('quantity');
+        if ($totalQuantity <= 0 || !$product->purchase_price) {
+            return; // لا يوجد كمية أو سعر شراء
+        }
+
+        $totalCost = $product->purchase_price * $totalQuantity;
+
+        // جلب جميع الاستثمارات النشطة للمخزن
+        $investmentIds = InvestmentTarget::where('target_type', 'warehouse')
+            ->where('target_id', $warehouse->id)
+            ->pluck('investment_id');
+
+        $investments = Investment::whereIn('id', $investmentIds)
+            ->where('status', 'active')
+            ->where(function($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now());
+            })
+            ->where('start_date', '<=', now())
+            ->with('investors.investor.treasury')
+            ->get();
+
+        if ($investments->isEmpty()) {
+            return; // لا توجد استثمارات نشطة
+        }
+
+        DB::transaction(function () use ($investments, $totalCost, $product, $warehouse) {
+            foreach ($investments as $investment) {
+                foreach ($investment->investors as $investmentInvestor) {
+                    $investor = $investmentInvestor->investor;
+                    $treasury = $investor->treasury;
+
+                    if (!$treasury) {
+                        Log::warning("Investor {$investor->id} ({$investor->name}) does not have a treasury. Cannot deduct product cost.");
+                        continue;
+                    }
+
+                    // استخدام cost_percentage المحفوظ مباشرة
+                    $costPercentage = $investmentInvestor->cost_percentage ?? 0;
+                    if ($costPercentage <= 0) {
+                        continue;
+                    }
+
+                    // حساب حصة المستثمر من التكلفة
+                    $investorCost = ($totalCost * $costPercentage) / 100;
+
+                    // خصم التكلفة من رصيد المستثمر (ما عدا المدير)
+                    // السماح بالذهاب للسالب
+                    if (!$investor->is_admin) {
+                        $treasury->withdraw(
+                            $investorCost,
+                            "تكلفة منتج: {$product->name} - مخزن #{$warehouse->id}",
+                            Auth::id()
+                        );
+                    }
+
+                    // تحديث investment_amount للمستثمر
+                    $investmentInvestor->increment('investment_amount', $investorCost);
+                }
+
+                // تحديث total_value للاستثمار
+                $investment->increment('total_value', $totalCost);
+            }
+        });
     }
 
     /**
@@ -428,6 +509,33 @@ class ProductController extends Controller
             $totalPurchasePrice = $product->purchase_price * $totalQuantity;
         }
 
+        // جلب الاستثمارات والأرباح للمنتج (للمدير فقط)
+        $investments = collect();
+        $productProfits = collect();
+        $totalProductProfit = 0;
+        $totalInvestorProfit = 0;
+        $ownerProfit = 0;
+
+        if (auth()->user()->isAdmin()) {
+            $investments = \App\Models\Investment::where('investment_type', 'product')
+                ->where('product_id', $product->id)
+                ->where('status', 'active')
+                ->with('investor')
+                ->get();
+
+            // حساب إجمالي ربح المنتج من الأرباح المسجلة
+            $productProfits = \App\Models\InvestorProfit::where('product_id', $product->id)
+                ->with('investor', 'investment')
+                ->get();
+
+            $totalProductProfit = \App\Models\ProfitRecord::where('product_id', $product->id)
+                ->where('status', 'confirmed')
+                ->sum('actual_profit') ?? 0;
+
+            $totalInvestorProfit = $productProfits->sum('profit_amount') ?? 0;
+            $ownerProfit = $totalProductProfit - $totalInvestorProfit;
+        }
+
         // التحقق من وجود cart نشط للمدير/المجهز
         $activeCart = null;
         $customerData = null;
@@ -445,7 +553,7 @@ class ProductController extends Controller
             }
         }
 
-        return view('admin.products.show', compact('product', 'totalQuantity', 'totalSellingPrice', 'totalPurchasePrice', 'activeCart', 'customerData'));
+        return view('admin.products.show', compact('product', 'totalQuantity', 'totalSellingPrice', 'totalPurchasePrice', 'activeCart', 'customerData', 'investments', 'productProfits', 'totalProductProfit', 'totalInvestorProfit', 'ownerProfit'));
     }
 
     /**
@@ -861,6 +969,25 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => $request->discount_type === 'none' ? 'تم إلغاء التخفيض بنجاح' : 'تم تحديث التخفيض بنجاح',
+        ]);
+    }
+
+    /**
+     * جلب المنتجات من مخزن معين (API)
+     */
+    public function getProductsByWarehouse(Warehouse $warehouse)
+    {
+        $this->authorize('view', $warehouse);
+
+        $products = $warehouse->products()
+            ->where('is_hidden', false)
+            ->select('id', 'name', 'code')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'products' => $products
         ]);
     }
 }

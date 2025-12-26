@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('product_links', function (Blueprint $table) {
-            $table->boolean('has_discount')->default(false)->after('size_name');
+        Schema::table('profit_records', function (Blueprint $table) {
+            $table->boolean('investor_profit_distributed')->default(false)->after('status');
         });
     }
 
@@ -21,9 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('product_links', function (Blueprint $table) {
-            $table->dropColumn('has_discount');
+        Schema::table('profit_records', function (Blueprint $table) {
+            $table->dropColumn('investor_profit_distributed');
         });
     }
 };
-

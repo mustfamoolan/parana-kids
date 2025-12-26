@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\User;
+use App\Models\Warehouse;
+use App\Services\InvestorExpenseCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,7 +28,12 @@ class ExpenseController extends Controller
     public function index(Request $request)
     {
         // بناء query للفلاتر
-        $query = Expense::with(['creator', 'user', 'product']);
+        $query = Expense::with(['creator', 'user', 'product', 'warehouse']);
+
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
 
         // فلتر نوع المصروف
         if ($request->filled('expense_type')) {
@@ -76,6 +83,9 @@ class ExpenseController extends Controller
         // جلب المستخدمين للفلترة (المندوبين والمجهزين)
         $users = User::whereIn('role', ['delegate', 'supplier'])->get();
 
+        // جلب المخازن للفلترة
+        $warehouses = Warehouse::orderBy('name')->get();
+
         return view('admin.expenses.index', compact(
             'expenses',
             'totalExpenses',
@@ -85,7 +95,8 @@ class ExpenseController extends Controller
             'totalPromotion',
             'expensesCount',
             'filteredTotal',
-            'users'
+            'users',
+            'warehouses'
         ));
     }
 
@@ -100,7 +111,10 @@ class ExpenseController extends Controller
         // جلب المنتجات للبحث في الترويج
         $products = \App\Models\Product::select('id', 'name', 'code')->orderBy('name')->get();
 
-        return view('admin.expenses.create', compact('users', 'products'));
+        // جلب المخازن للاختيار
+        $warehouses = Warehouse::orderBy('name')->get();
+
+        return view('admin.expenses.create', compact('users', 'products', 'warehouses'));
     }
 
     /**
@@ -109,6 +123,7 @@ class ExpenseController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'warehouse_id' => 'required|exists:warehouses,id',
             'expense_type' => 'required|in:rent,salary,other,promotion',
             'amount' => 'required|numeric|min:0',
             'salary_amount' => 'nullable|numeric|min:0',
@@ -125,6 +140,7 @@ class ExpenseController extends Controller
         }
 
         $expense = Expense::create([
+            'warehouse_id' => $validated['warehouse_id'],
             'expense_type' => $validated['expense_type'],
             'amount' => $validated['amount'],
             'salary_amount' => $validated['salary_amount'] ?? null,
@@ -135,6 +151,15 @@ class ExpenseController extends Controller
             'notes' => $validated['notes'] ?? null,
             'created_by' => Auth::id(),
         ]);
+
+        // خصم المصروف من خزنة المستثمرين بناءً على حصتهم
+        try {
+            $expenseCalculator = app(InvestorExpenseCalculator::class);
+            $expenseCalculator->deductExpenseFromInvestors($expense);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error deducting expense from investors: ' . $e->getMessage());
+            // لا نوقف العملية إذا فشل خصم المصروف من المستثمرين
+        }
 
         return redirect()->route('admin.expenses.index')
                         ->with('success', 'تم إضافة المصروف بنجاح.');
@@ -151,7 +176,10 @@ class ExpenseController extends Controller
         // جلب المنتجات للبحث في الترويج
         $products = \App\Models\Product::select('id', 'name', 'code')->orderBy('name')->get();
 
-        return view('admin.expenses.edit', compact('expense', 'users', 'products'));
+        // جلب المخازن للاختيار
+        $warehouses = Warehouse::orderBy('name')->get();
+
+        return view('admin.expenses.edit', compact('expense', 'users', 'products', 'warehouses'));
     }
 
     /**
@@ -160,6 +188,7 @@ class ExpenseController extends Controller
     public function update(Request $request, Expense $expense)
     {
         $validated = $request->validate([
+            'warehouse_id' => 'required|exists:warehouses,id',
             'expense_type' => 'required|in:rent,salary,other,promotion',
             'amount' => 'required|numeric|min:0',
             'salary_amount' => 'nullable|numeric|min:0',
@@ -175,7 +204,14 @@ class ExpenseController extends Controller
             return back()->withErrors(['person_name' => 'يجب إدخال اسم الشخص أو اختيار مستخدم للرواتب.'])->withInput();
         }
 
+        // حفظ القيم القديمة
+        $oldAmount = $expense->amount;
+        $oldProductId = $expense->product_id;
+        $oldWarehouseId = $expense->warehouse_id;
+        
+        // تحديث المصروف
         $expense->update([
+            'warehouse_id' => $validated['warehouse_id'],
             'expense_type' => $validated['expense_type'],
             'amount' => $validated['amount'],
             'salary_amount' => $validated['salary_amount'] ?? null,
@@ -186,6 +222,32 @@ class ExpenseController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        // معالجة التغيير في المبلغ والمنتج/المخزن
+        try {
+            $expenseCalculator = app(InvestorExpenseCalculator::class);
+            
+            // التحقق من وجود تغيير في المبلغ أو المنتج/المخزن
+            $amountChanged = ($oldAmount != $validated['amount']);
+            $productChanged = ($oldProductId != $expense->product_id);
+            $warehouseChanged = ($oldWarehouseId != $expense->warehouse_id);
+            
+            // إذا تغير المبلغ أو المنتج/المخزن، يجب إرجاع المبلغ القديم وإعادة خصم المبلغ الجديد
+            if ($amountChanged || $productChanged || $warehouseChanged) {
+                // إرجاع المبلغ القديم (باستخدام القيم القديمة)
+                $oldExpense = clone $expense;
+                $oldExpense->amount = $oldAmount;
+                $oldExpense->product_id = $oldProductId;
+                $oldExpense->warehouse_id = $oldWarehouseId;
+                $expenseCalculator->returnExpenseToInvestors($oldExpense, $oldAmount);
+                
+                // خصم المبلغ الجديد (باستخدام القيم الجديدة)
+                $expenseCalculator->deductExpenseFromInvestors($expense);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error updating expense investors: ' . $e->getMessage());
+            // لا نوقف العملية إذا فشل تحديث المصروف للمستثمرين
+        }
+
         return redirect()->route('admin.expenses.index')
                         ->with('success', 'تم تحديث المصروف بنجاح.');
     }
@@ -195,6 +257,15 @@ class ExpenseController extends Controller
      */
     public function destroy(Expense $expense)
     {
+        // إرجاع المبلغ الكامل للمستثمرين قبل الحذف
+        try {
+            $expenseCalculator = app(InvestorExpenseCalculator::class);
+            $expenseCalculator->returnExpenseToInvestors($expense);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error returning expense to investors: ' . $e->getMessage());
+            // لا نوقف العملية إذا فشل إرجاع المصروف للمستثمرين
+        }
+
         $expense->delete();
 
         return redirect()->route('admin.expenses.index')

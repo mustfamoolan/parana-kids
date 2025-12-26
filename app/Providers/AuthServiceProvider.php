@@ -20,6 +20,9 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\User::class => \App\Policies\UserPolicy::class,
         \App\Models\ProductMovement::class => \App\Policies\ProductMovementPolicy::class,
         \App\Models\PrivateWarehouse::class => \App\Policies\PrivateWarehousePolicy::class,
+        \App\Models\Investor::class => \App\Policies\InvestorPolicy::class,
+        \App\Models\Investment::class => \App\Policies\InvestmentPolicy::class,
+        \App\Models\Treasury::class => \App\Policies\TreasuryPolicy::class,
     ];
 
     /**

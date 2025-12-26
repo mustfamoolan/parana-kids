@@ -1,0 +1,82 @@
+<x-layout.admin>
+    <div>
+        <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h5 class="text-lg font-semibold dark:text-white-light">إضافة مستثمر جديد</h5>
+            <a href="{{ route('admin.investors.index') }}" class="btn btn-outline-secondary">
+                <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                العودة
+            </a>
+        </div>
+
+        <form method="POST" action="{{ route('admin.investors.store') }}" class="space-y-5">
+            @csrf
+
+            <div class="panel">
+                <h6 class="text-lg font-semibold mb-4">المعلومات الأساسية</h6>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium mb-2">الاسم <span class="text-red-500">*</span></label>
+                        <input type="text" id="name" name="name" value="{{ old('name') }}"
+                               class="form-input @error('name') border-red-500 @enderror" required>
+                        @error('name')
+                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="phone" class="block text-sm font-medium mb-2">رقم الهاتف <span class="text-red-500">*</span></label>
+                        <input type="text" id="phone" name="phone" value="{{ old('phone') }}"
+                               class="form-input @error('phone') border-red-500 @enderror" required>
+                        @error('phone')
+                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium mb-2">كلمة المرور <span class="text-red-500">*</span></label>
+                        <input type="password" id="password" name="password"
+                               class="form-input @error('password') border-red-500 @enderror" required>
+                        @error('password')
+                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات الخزنة -->
+            <div class="panel">
+                <h6 class="text-lg font-semibold mb-4">معلومات الخزنة</h6>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="treasury_name" class="block text-sm font-medium mb-2">اسم الخزنة <span class="text-red-500">*</span></label>
+                        <input type="text" id="treasury_name" name="treasury_name" value="{{ old('treasury_name') }}"
+                               class="form-input @error('treasury_name') border-red-500 @enderror" required>
+                        @error('treasury_name')
+                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+
+                    <div>
+                        <label for="notes" class="block text-sm font-medium mb-2">ملاحظات</label>
+                        <textarea id="notes" name="notes" rows="3"
+                                  class="form-textarea @error('notes') border-red-500 @enderror">{{ old('notes') }}</textarea>
+                        @error('notes')
+                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="flex justify-end gap-4">
+                    <a href="{{ route('admin.investors.index') }}" class="btn btn-outline-secondary">إلغاء</a>
+                    <button type="submit" class="btn btn-primary">إضافة المستثمر</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</x-layout.admin>
+

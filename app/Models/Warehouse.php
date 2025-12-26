@@ -66,6 +66,14 @@ class Warehouse extends Model
     }
 
     /**
+     * Get all investments for this warehouse
+     */
+    public function investments()
+    {
+        return $this->hasMany(Investment::class)->where('investment_type', 'warehouse');
+    }
+
+    /**
      * Get all promotions for this warehouse
      */
     public function promotions()

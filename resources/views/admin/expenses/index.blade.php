@@ -117,10 +117,23 @@
         <!-- الفلاتر -->
         <div class="panel mb-5">
             <form method="GET" action="{{ route('admin.expenses.index') }}" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <!-- فلتر المخزن -->
+                    <div>
+                        <label for="warehouse_id" class="block text-sm font-medium mb-2 dark:text-white-light">المخزن</label>
+                        <select name="warehouse_id" id="warehouse_id" class="form-select">
+                            <option value="">كل المخازن</option>
+                            @foreach($warehouses as $warehouse)
+                                <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
+                                    {{ $warehouse->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- فلتر نوع المصروف -->
                     <div>
-                        <label for="expense_type" class="block text-sm font-medium mb-2">نوع المصروف</label>
+                        <label for="expense_type" class="block text-sm font-medium mb-2 dark:text-white-light">نوع المصروف</label>
                         <select name="expense_type" id="expense_type" class="form-select">
                             <option value="">كل الأنواع</option>
                             <option value="rent" {{ request('expense_type') == 'rent' ? 'selected' : '' }}>إيجار</option>
@@ -132,19 +145,19 @@
 
                     <!-- فلتر من تاريخ -->
                     <div>
-                        <label for="date_from" class="block text-sm font-medium mb-2">من تاريخ</label>
+                        <label for="date_from" class="block text-sm font-medium mb-2 dark:text-white-light">من تاريخ</label>
                         <input type="date" name="date_from" id="date_from" class="form-input" value="{{ request('date_from') }}">
                     </div>
 
                     <!-- فلتر إلى تاريخ -->
                     <div>
-                        <label for="date_to" class="block text-sm font-medium mb-2">إلى تاريخ</label>
+                        <label for="date_to" class="block text-sm font-medium mb-2 dark:text-white-light">إلى تاريخ</label>
                         <input type="date" name="date_to" id="date_to" class="form-input" value="{{ request('date_to') }}">
                     </div>
 
                     <!-- فلتر اسم الشخص -->
                     <div>
-                        <label for="person_name" class="block text-sm font-medium mb-2">اسم الشخص</label>
+                        <label for="person_name" class="block text-sm font-medium mb-2 dark:text-white-light">اسم الشخص</label>
                         <input type="text" name="person_name" id="person_name" class="form-input" placeholder="ابحث بالاسم..." value="{{ request('person_name') }}">
                     </div>
                 </div>
@@ -156,7 +169,7 @@
                         </svg>
                         بحث
                     </button>
-                    @if(request()->hasAny(['expense_type', 'date_from', 'date_to', 'person_name']))
+                    @if(request()->hasAny(['warehouse_id', 'expense_type', 'date_from', 'date_to', 'person_name']))
                         <a href="{{ route('admin.expenses.index') }}" class="btn btn-outline-secondary">
                             <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -219,6 +232,16 @@
                                 <p class="text-sm text-gray-500">{{ $expense->expense_date->format('H:i') }}</p>
                             </div>
                         </div>
+
+                        <!-- المخزن -->
+                        @if($expense->warehouse)
+                            <div class="mb-4">
+                                <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">المخزن</span>
+                                    <p class="font-medium dark:text-white-light">{{ $expense->warehouse->name }}</p>
+                                </div>
+                            </div>
+                        @endif
 
                         <!-- الراتب (للرواتب فقط) -->
                         @if($expense->expense_type == 'salary' && $expense->salary_amount)

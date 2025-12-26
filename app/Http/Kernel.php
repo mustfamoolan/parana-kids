@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'delegate' => \App\Http\Middleware\DelegateMiddleware::class,
         'check.cart.expiration' => \App\Http\Middleware\CheckCartExpiration::class,
         'auth.pwa' => \App\Http\Middleware\AuthenticatePwaToken::class,
+        'investor.auth' => \App\Http\Middleware\InvestorAuth::class,
     ];
 }

@@ -89,6 +89,14 @@ class Product extends Model
     }
 
     /**
+     * Get all investments for this product
+     */
+    public function investments()
+    {
+        return $this->hasMany(Investment::class)->where('investment_type', 'product');
+    }
+
+    /**
      * Get the effective price (considering active promotions)
      * الأولوية: تخفيض المنتج الواحد > تخفيض المخزن العام
      */

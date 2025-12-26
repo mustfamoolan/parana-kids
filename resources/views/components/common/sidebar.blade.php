@@ -98,6 +98,31 @@
                 </li>
 
                 <li class="menu nav-item">
+                    <a href="{{ route('admin.projects.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5"
+                                    d="M12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C22 4.92893 22 7.28595 22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22Z"
+                                    fill="currentColor" />
+                                <path
+                                    d="M12 8C13.1046 8 14 7.10457 14 6C14 4.89543 13.1046 4 12 4C10.8954 4 10 4.89543 10 6C10 7.10457 10.8954 8 12 8Z"
+                                    fill="currentColor" />
+                                <path
+                                    d="M8 12C8 10.8954 8.89543 10 10 10H14C15.1046 10 16 10.8954 16 12C16 13.1046 15.1046 14 14 14H10C8.89543 14 8 13.1046 8 12Z"
+                                    fill="currentColor" />
+                                <path
+                                    d="M6 18C6 16.8954 6.89543 16 8 16H16C17.1046 16 18 16.8954 18 18C18 19.1046 17.1046 20 16 20H8C6.89543 20 6 19.1046 6 18Z"
+                                    fill="currentColor" />
+                            </svg>
+                            <span
+                                class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">المشاريع والمستثمرين</span>
+                        </div>
+                    </a>
+                </li>
+
+
+                <li class="menu nav-item">
                     <a href="{{ route('admin.reports') }}" class="nav-link group">
                         <div class="flex items-center">
                             <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"

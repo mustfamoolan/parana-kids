@@ -294,9 +294,10 @@ class SalesReportController extends Controller
         $totalProfitWithMargin = $totalProfitWithoutMargin + $totalMarginAmount;
 
         // حساب إجمالي المصروفات حسب نطاق التاريخ
+        // ملاحظة: هذا للإحصائيات العامة فقط، المصروفات الفعلية تُحسب في calculateWarehouseProfits و calculateProductProfits
         $totalExpenses = Expense::byDateRange($dateFrom, $dateTo)->sum('amount');
 
-        // حساب الأرباح بعد خصم المصروفات
+        // حساب الأرباح بعد خصم المصروفات (تقديري للإحصائيات العامة)
         $profitAfterExpenses = $totalProfitWithMargin - $totalExpenses;
 
         // عدد الطلبات
@@ -477,8 +478,29 @@ class SalesReportController extends Controller
         }
         $warehouses = $warehousesQuery->get();
 
-        // حساب مصروفات كل قطعة (إجمالي المصروفات / إجمالي القطع)
-        $expensePerItem = $totalItemsCount > 0 ? ($totalExpenses / $totalItemsCount) : 0;
+        // جلب جميع المصروفات في الفترة وتصنيفها
+        $allExpenses = Expense::byDateRange($dateFrom, $dateTo)->get();
+        $warehouseExpensesMap = []; // [warehouse_id => total]
+        $generalExpenses = 0;
+        
+        foreach ($allExpenses as $expense) {
+            if ($expense->product_id) {
+                // مصروف مرتبط بمنتج - سيتم حسابه في calculateProductProfits
+                continue;
+            } elseif ($expense->warehouse_id) {
+                // مصروف مرتبط بمخزن
+                if (!isset($warehouseExpensesMap[$expense->warehouse_id])) {
+                    $warehouseExpensesMap[$expense->warehouse_id] = 0;
+                }
+                $warehouseExpensesMap[$expense->warehouse_id] += $expense->amount;
+            } else {
+                // مصروف عام
+                $generalExpenses += $expense->amount;
+            }
+        }
+
+        // حساب مصروفات كل قطعة للمصروفات العامة
+        $generalExpensePerItem = $totalItemsCount > 0 ? ($generalExpenses / $totalItemsCount) : 0;
 
         $warehouseProfits = [];
 
@@ -492,6 +514,13 @@ class SalesReportController extends Controller
 
             // حساب عدد القطع المباعة من هذا المخزن
             $warehouseItemsCount = $warehouseOrderItems->sum('quantity');
+            
+            // حساب عدد القطع من هذا المخزن في الفترة (للمصروفات المرتبطة بالمخزن)
+            $warehouseItemsInPeriod = OrderItem::whereIn('order_id', $orderIds)
+                ->whereHas('product', function($q) use ($warehouse) {
+                    $q->where('warehouse_id', $warehouse->id);
+                })
+                ->sum('quantity');
 
             // حساب ربح المخزن بدون فروقات
             $warehouseProfitWithoutMargin = 0;
@@ -548,8 +577,15 @@ class SalesReportController extends Controller
             // ربح المخزن مع الفروقات
             $warehouseProfitWithMargin = $warehouseProfitWithoutMargin + $warehouseMarginAmount;
 
-            // حساب مصروفات المخزن (مصروفات كل قطعة × عدد القطع)
-            $warehouseExpenses = $expensePerItem * $warehouseItemsCount;
+            // حساب مصروفات المخزن
+            $warehouseSpecificExpenses = $warehouseExpensesMap[$warehouse->id] ?? 0;
+            $warehouseExpensePerItem = $warehouseItemsInPeriod > 0 ? ($warehouseSpecificExpenses / $warehouseItemsInPeriod) : 0;
+            $warehouseExpensesFromSpecific = $warehouseExpensePerItem * $warehouseItemsCount;
+            $warehouseExpensesFromGeneral = $generalExpensePerItem * $warehouseItemsCount;
+            $warehouseExpenses = $warehouseExpensesFromSpecific + $warehouseExpensesFromGeneral;
+            
+            // حساب expense_per_item للمخزن (للعرض)
+            $warehouseExpensePerItemDisplay = $warehouseItemsCount > 0 ? ($warehouseExpenses / $warehouseItemsCount) : 0;
 
             // الربح الصافي للمخزن
             $warehouseNetProfit = $warehouseProfitWithMargin - $warehouseExpenses;
@@ -561,7 +597,7 @@ class SalesReportController extends Controller
                 'profit_with_margin' => $warehouseProfitWithMargin,
                 'margin_amount' => $warehouseMarginAmount,
                 'items_count' => $warehouseItemsCount,
-                'expense_per_item' => $expensePerItem,
+                'expense_per_item' => $warehouseExpensePerItemDisplay,
                 'warehouse_expenses' => $warehouseExpenses,
                 'net_profit' => $warehouseNetProfit,
             ];
@@ -569,7 +605,7 @@ class SalesReportController extends Controller
 
         return [
             'warehouses' => $warehouseProfits,
-            'expense_per_item' => $expensePerItem,
+            'expense_per_item' => $generalExpensePerItem, // للمصروفات العامة فقط
         ];
     }
 
@@ -581,6 +617,35 @@ class SalesReportController extends Controller
             $warehousesQuery->where('id', $request->warehouse_id);
         }
         $warehouses = $warehousesQuery->get();
+
+        // جلب جميع المصروفات في الفترة وتصنيفها
+        $allExpenses = Expense::byDateRange($dateFrom, $dateTo)->get();
+        $productExpensesMap = []; // [product_id => total]
+        $warehouseExpensesMap = []; // [warehouse_id => total]
+        $generalExpenses = 0;
+        
+        foreach ($allExpenses as $expense) {
+            if ($expense->product_id) {
+                // مصروف مرتبط بمنتج
+                if (!isset($productExpensesMap[$expense->product_id])) {
+                    $productExpensesMap[$expense->product_id] = 0;
+                }
+                $productExpensesMap[$expense->product_id] += $expense->amount;
+            } elseif ($expense->warehouse_id) {
+                // مصروف مرتبط بمخزن
+                if (!isset($warehouseExpensesMap[$expense->warehouse_id])) {
+                    $warehouseExpensesMap[$expense->warehouse_id] = 0;
+                }
+                $warehouseExpensesMap[$expense->warehouse_id] += $expense->amount;
+            } else {
+                // مصروف عام
+                $generalExpenses += $expense->amount;
+            }
+        }
+        
+        // حساب إجمالي القطع المباعة في الفترة (للمصروفات العامة)
+        $totalItemsInPeriod = OrderItem::whereIn('order_id', $orderIds)->sum('quantity');
+        $generalExpensePerItem = $totalItemsInPeriod > 0 ? ($generalExpenses / $totalItemsInPeriod) : 0;
 
         $productProfits = [];
 
@@ -687,8 +752,35 @@ class SalesReportController extends Controller
             foreach ($productsData as $productId => $productData) {
                 $profitWithoutMargin = max(0, $productData['profit_without_margin']);
                 $profitWithMargin = $profitWithoutMargin + $productData['margin_amount'];
-                $productExpenses = $expensePerItem * $productData['items_count'];
-                $netProfit = $profitWithMargin - $productExpenses;
+                
+                // حساب مصروفات المنتج
+                $productSpecificExpenses = $productExpensesMap[$productId] ?? 0; // مصروفات مرتبطة بالمنتج مباشرة
+                
+                // حساب جزء من مصروفات المخزن
+                $warehouseSpecificExpenses = 0;
+                if (isset($warehouseExpensesMap[$productData['warehouse_id']])) {
+                    // حساب عدد القطع من هذا المخزن في الفترة
+                    $warehouseItemsInPeriod = OrderItem::whereIn('order_id', $orderIds)
+                        ->whereHas('product', function($q) use ($productData) {
+                            $q->where('warehouse_id', $productData['warehouse_id']);
+                        })
+                        ->sum('quantity');
+                    
+                    if ($warehouseItemsInPeriod > 0) {
+                        $warehouseExpensePerItem = $warehouseExpensesMap[$productData['warehouse_id']] / $warehouseItemsInPeriod;
+                        $warehouseSpecificExpenses = $warehouseExpensePerItem * $productData['items_count'];
+                    }
+                }
+                
+                // جزء من المصروفات العامة
+                $generalExpensesForProduct = $generalExpensePerItem * $productData['items_count'];
+                
+                $totalProductExpenses = $productSpecificExpenses + $warehouseSpecificExpenses + $generalExpensesForProduct;
+                
+                // حساب expense_per_item للمنتج (للعرض)
+                $productExpensePerItem = $productData['items_count'] > 0 ? ($totalProductExpenses / $productData['items_count']) : 0;
+                
+                $netProfit = $profitWithMargin - $totalProductExpenses;
 
                 $productProfits[] = [
                     'warehouse_id' => $productData['warehouse_id'],
@@ -700,8 +792,8 @@ class SalesReportController extends Controller
                     'profit_without_margin' => $profitWithoutMargin,
                     'profit_with_margin' => $profitWithMargin,
                     'margin_amount' => $productData['margin_amount'],
-                    'expense_per_item' => $expensePerItem,
-                    'product_expenses' => $productExpenses,
+                    'expense_per_item' => $productExpensePerItem,
+                    'product_expenses' => $totalProductExpenses,
                     'net_profit' => $netProfit,
                 ];
             }
@@ -744,6 +836,35 @@ class SalesReportController extends Controller
             $warehousesQuery->where('id', $request->warehouse_id);
         }
         $warehouses = $warehousesQuery->get();
+
+        // جلب جميع المصروفات في الفترة وتصنيفها
+        $allExpenses = Expense::byDateRange($dateFrom, $dateTo)->get();
+        $productExpensesMap = []; // [product_id => total]
+        $warehouseExpensesMap = []; // [warehouse_id => total]
+        $generalExpenses = 0;
+        
+        foreach ($allExpenses as $expense) {
+            if ($expense->product_id) {
+                // مصروف مرتبط بمنتج
+                if (!isset($productExpensesMap[$expense->product_id])) {
+                    $productExpensesMap[$expense->product_id] = 0;
+                }
+                $productExpensesMap[$expense->product_id] += $expense->amount;
+            } elseif ($expense->warehouse_id) {
+                // مصروف مرتبط بمخزن
+                if (!isset($warehouseExpensesMap[$expense->warehouse_id])) {
+                    $warehouseExpensesMap[$expense->warehouse_id] = 0;
+                }
+                $warehouseExpensesMap[$expense->warehouse_id] += $expense->amount;
+            } else {
+                // مصروف عام
+                $generalExpenses += $expense->amount;
+            }
+        }
+        
+        // حساب إجمالي القطع المباعة في الفترة (للمصروفات العامة)
+        $totalItemsInPeriod = OrderItem::whereIn('order_id', $orderIds)->sum('quantity');
+        $generalExpensePerItem = $totalItemsInPeriod > 0 ? ($generalExpenses / $totalItemsInPeriod) : 0;
 
         $productProfits = [];
 
@@ -841,8 +962,35 @@ class SalesReportController extends Controller
             foreach ($productsData as $productId => $productData) {
                 $profitWithoutMargin = max(0, $productData['profit_without_margin']);
                 $profitWithMargin = $profitWithoutMargin + $productData['margin_amount'];
-                $productExpenses = $expensePerItem * $productData['items_count'];
-                $netProfit = $profitWithMargin - $productExpenses;
+                
+                // حساب مصروفات المنتج
+                $productSpecificExpenses = $productExpensesMap[$productId] ?? 0; // مصروفات مرتبطة بالمنتج مباشرة
+                
+                // حساب جزء من مصروفات المخزن
+                $warehouseSpecificExpenses = 0;
+                if (isset($warehouseExpensesMap[$productData['warehouse_id']])) {
+                    // حساب عدد القطع من هذا المخزن في الفترة
+                    $warehouseItemsInPeriod = OrderItem::whereIn('order_id', $orderIds)
+                        ->whereHas('product', function($q) use ($productData) {
+                            $q->where('warehouse_id', $productData['warehouse_id']);
+                        })
+                        ->sum('quantity');
+                    
+                    if ($warehouseItemsInPeriod > 0) {
+                        $warehouseExpensePerItem = $warehouseExpensesMap[$productData['warehouse_id']] / $warehouseItemsInPeriod;
+                        $warehouseSpecificExpenses = $warehouseExpensePerItem * $productData['items_count'];
+                    }
+                }
+                
+                // جزء من المصروفات العامة
+                $generalExpensesForProduct = $generalExpensePerItem * $productData['items_count'];
+                
+                $totalProductExpenses = $productSpecificExpenses + $warehouseSpecificExpenses + $generalExpensesForProduct;
+                
+                // حساب expense_per_item للمنتج (للعرض)
+                $productExpensePerItem = $productData['items_count'] > 0 ? ($totalProductExpenses / $productData['items_count']) : 0;
+                
+                $netProfit = $profitWithMargin - $totalProductExpenses;
 
                 $productProfits[] = [
                     'warehouse_id' => $productData['warehouse_id'],
@@ -854,8 +1002,8 @@ class SalesReportController extends Controller
                     'profit_without_margin' => $profitWithoutMargin,
                     'profit_with_margin' => $profitWithMargin,
                     'margin_amount' => $productData['margin_amount'],
-                    'expense_per_item' => $expensePerItem,
-                    'product_expenses' => $productExpenses,
+                    'expense_per_item' => $productExpensePerItem,
+                    'product_expenses' => $totalProductExpenses,
                     'net_profit' => $netProfit,
                 ];
             }

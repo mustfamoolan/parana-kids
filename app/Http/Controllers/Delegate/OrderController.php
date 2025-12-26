@@ -272,10 +272,10 @@ class OrderController extends Controller
                 ->lockForUpdate() // قفل السلة لمنع التكرار
                 ->firstOrFail();
 
-            // التأكد من أن السلة تخص المندوب الحالي
-            if ($cart->delegate_id !== auth()->id()) {
-                abort(403);
-            }
+        // التأكد من أن السلة تخص المندوب الحالي
+        if ($cart->delegate_id !== auth()->id()) {
+            abort(403);
+        }
 
             // التحقق مرة أخرى من أن السلة لا تزال نشطة (حماية إضافية)
             if ($cart->status !== 'active') {
@@ -887,10 +887,10 @@ class OrderController extends Controller
                 ->lockForUpdate() // قفل السلة لمنع التكرار
                 ->firstOrFail();
 
-            // التأكد من أن السلة تخص المندوب الحالي
-            if ($cart->delegate_id !== auth()->id()) {
-                abort(403);
-            }
+        // التأكد من أن السلة تخص المندوب الحالي
+        if ($cart->delegate_id !== auth()->id()) {
+            abort(403);
+        }
 
             // التحقق مرة أخرى من أن السلة لا تزال نشطة
             if ($cart->status !== 'active') {

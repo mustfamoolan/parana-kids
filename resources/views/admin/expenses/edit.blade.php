@@ -17,6 +17,29 @@
             @method('PUT')
 
             <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <!-- اختيار المخزن -->
+                <div>
+                    <label for="warehouse_id" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                        المخزن <span class="text-danger">*</span>
+                    </label>
+                    <select
+                        id="warehouse_id"
+                        name="warehouse_id"
+                        class="form-select @error('warehouse_id') border-danger @enderror"
+                        required
+                    >
+                        <option value="">اختر المخزن</option>
+                        @foreach($warehouses as $warehouse)
+                            <option value="{{ $warehouse->id }}" {{ old('warehouse_id', $expense->warehouse_id) == $warehouse->id ? 'selected' : '' }}>
+                                {{ $warehouse->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('warehouse_id')
+                        <div class="mt-1 text-danger">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <!-- نوع المصروف -->
                 <div>
                     <label for="expense_type" class="mb-3 block text-sm font-medium text-black dark:text-white">

@@ -51,6 +51,21 @@ Route::prefix('shop')->group(function () {
     Route::get('/api/products/{product}', [ShopController::class, 'getProductData'])->name('shop.api.products.data');
 });
 
+// Investor Authentication Routes
+Route::prefix('investor')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\Auth\InvestorLoginController::class, 'showLoginForm'])->middleware('guest')->name('investor.login');
+    Route::post('/login', [\App\Http\Controllers\Auth\InvestorLoginController::class, 'login'])->middleware('guest');
+    Route::post('/logout', [\App\Http\Controllers\Auth\InvestorLoginController::class, 'logout'])->name('investor.logout');
+
+    // Protected investor routes
+    Route::middleware(['investor.auth'])->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\Investor\InvestorController::class, 'dashboard'])->name('investor.dashboard');
+        Route::get('/investments', [\App\Http\Controllers\Investor\InvestorController::class, 'investments'])->name('investor.investments');
+        Route::get('/transactions', [\App\Http\Controllers\Investor\InvestorController::class, 'transactions'])->name('investor.transactions');
+        Route::get('/profile', [\App\Http\Controllers\Investor\InvestorController::class, 'profile'])->name('investor.profile');
+    });
+});
+
 // Admin/Supplier Authentication Routes
 Route::prefix('admin')->group(function () {
     Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->middleware('guest')->name('admin.login');
@@ -240,9 +255,65 @@ Route::prefix('admin')->group(function () {
         // View supplier invoices (Admin only)
         Route::get('users/{userId}/invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'viewSupplierInvoices'])->name('admin.users.invoices');
 
+        // Investor routes (Admin only)
+        Route::resource('investors', \App\Http\Controllers\Admin\InvestorController::class)->names([
+            'index' => 'admin.investors.index',
+            'create' => 'admin.investors.create',
+            'store' => 'admin.investors.store',
+            'show' => 'admin.investors.show',
+            'edit' => 'admin.investors.edit',
+            'update' => 'admin.investors.update',
+            'destroy' => 'admin.investors.destroy',
+        ]);
+        Route::post('investors/{investor}/deposit-profits', [\App\Http\Controllers\Admin\InvestorController::class, 'depositProfits'])->name('admin.investors.deposit-profits');
+        Route::post('investors/{investor}/reset-accounts', [\App\Http\Controllers\Admin\InvestorController::class, 'resetAccounts'])->name('admin.investors.reset-accounts');
+
+        // Investment routes (Admin only)
+        Route::resource('investments', \App\Http\Controllers\Admin\InvestmentController::class)->names([
+            'index' => 'admin.investments.index',
+            'create' => 'admin.investments.create',
+            'store' => 'admin.investments.store',
+            'show' => 'admin.investments.show',
+            'edit' => 'admin.investments.edit',
+            'update' => 'admin.investments.update',
+            'destroy' => 'admin.investments.destroy',
+        ]);
+        Route::get('investments/{investment}/add-investors', [\App\Http\Controllers\Admin\InvestmentController::class, 'addInvestors'])->name('admin.investments.add-investors');
+        Route::post('investments/{investment}/store-investors', [\App\Http\Controllers\Admin\InvestmentController::class, 'storeInvestors'])->name('admin.investments.store-investors');
+
+        // Treasury routes (Admin only)
+        Route::resource('treasuries', \App\Http\Controllers\Admin\TreasuryController::class)->names([
+            'index' => 'admin.treasuries.index',
+            'create' => 'admin.treasuries.create',
+            'store' => 'admin.treasuries.store',
+            'show' => 'admin.treasuries.show',
+            'edit' => 'admin.treasuries.edit',
+            'update' => 'admin.treasuries.update',
+            'destroy' => 'admin.treasuries.destroy',
+        ]);
+        Route::post('treasuries/{treasury}/deposit', [\App\Http\Controllers\Admin\TreasuryController::class, 'deposit'])->name('admin.treasuries.deposit');
+        Route::post('treasuries/{treasury}/withdraw', [\App\Http\Controllers\Admin\TreasuryController::class, 'withdraw'])->name('admin.treasuries.withdraw');
+        Route::post('treasuries/{treasury}/reset-balance', [\App\Http\Controllers\Admin\TreasuryController::class, 'resetBalance'])->name('admin.treasuries.reset-balance');
+
+        // Partner routes (Admin only - Placeholder)
+        Route::get('partners', [\App\Http\Controllers\Admin\PartnerController::class, 'index'])->name('admin.partners.index');
+
+        // Project routes (Admin only)
+        Route::get('projects', [\App\Http\Controllers\Admin\ProjectController::class, 'index'])->name('admin.projects.index');
+        Route::get('projects/create', [\App\Http\Controllers\Admin\ProjectController::class, 'create'])->name('admin.projects.create');
+        Route::post('projects', [\App\Http\Controllers\Admin\ProjectController::class, 'store'])->name('admin.projects.store');
+        Route::get('projects/{project}', [\App\Http\Controllers\Admin\ProjectController::class, 'show'])->name('admin.projects.show');
+        Route::get('projects/{project}/edit', [\App\Http\Controllers\Admin\ProjectController::class, 'edit'])->name('admin.projects.edit');
+        Route::put('projects/{project}', [\App\Http\Controllers\Admin\ProjectController::class, 'update'])->name('admin.projects.update');
+        Route::post('projects/{project}/transfer-profit', [\App\Http\Controllers\Admin\ProjectController::class, 'transferProfit'])->name('admin.projects.transfer-profit');
+        Route::delete('projects/{project}', [\App\Http\Controllers\Admin\ProjectController::class, 'destroy'])->name('admin.projects.destroy');
+        Route::post('projects/calculate-value', [\App\Http\Controllers\Admin\ProjectController::class, 'calculateInvestmentValue'])->name('admin.projects.calculate-value');
+        Route::get('investors/{investor}/treasury-balance', [\App\Http\Controllers\Admin\ProjectController::class, 'getTreasuryBalance'])->name('admin.investors.treasury-balance');
+
         // Product routes
         Route::get('products', [AdminProductController::class, 'allProducts'])->name('admin.products.index');
         Route::get('api/products/{product}', [AdminProductController::class, 'getProductData'])->name('admin.api.products.data');
+        Route::get('api/warehouses/{warehouse}/products', [AdminProductController::class, 'getProductsByWarehouse'])->name('admin.api.warehouses.products');
         Route::resource('warehouses.products', AdminProductController::class)->names([
             'index' => 'admin.warehouses.products.index',
             'create' => 'admin.warehouses.products.create',

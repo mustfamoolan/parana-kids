@@ -245,7 +245,34 @@ class WarehouseController extends Controller
         $productsHidden = $warehouse->products()->where('is_hidden', true)->count();
         $productsNotHidden = $allProductsCount - $productsHidden;
 
-        return view('admin.warehouses.show', compact('warehouse', 'products', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden'));
+        // جلب الاستثمارات والأرباح للمخزن (للمدير فقط)
+        $investments = collect();
+        $warehouseProfits = collect();
+        $totalWarehouseProfit = 0;
+        $totalInvestorProfit = 0;
+        $ownerProfit = 0;
+
+        if (auth()->user()->isAdmin()) {
+            $investments = \App\Models\Investment::where('investment_type', 'warehouse')
+                ->where('warehouse_id', $warehouse->id)
+                ->where('status', 'active')
+                ->with('investor')
+                ->get();
+
+            // حساب إجمالي ربح المخزن من الأرباح المسجلة
+            $warehouseProfits = \App\Models\InvestorProfit::where('warehouse_id', $warehouse->id)
+                ->with('investor', 'investment')
+                ->get();
+
+            $totalWarehouseProfit = \App\Models\ProfitRecord::where('warehouse_id', $warehouse->id)
+                ->where('status', 'confirmed')
+                ->sum('actual_profit') ?? 0;
+
+            $totalInvestorProfit = $warehouseProfits->sum('profit_amount') ?? 0;
+            $ownerProfit = $totalWarehouseProfit - $totalInvestorProfit;
+        }
+
+        return view('admin.warehouses.show', compact('warehouse', 'products', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden', 'investments', 'warehouseProfits', 'totalWarehouseProfit', 'totalInvestorProfit', 'ownerProfit'));
     }
 
     /**

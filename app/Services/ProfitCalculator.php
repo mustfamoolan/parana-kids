@@ -6,6 +6,9 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Warehouse;
 use App\Models\ProfitRecord;
+use App\Models\Treasury;
+use App\Models\Expense;
+use App\Models\OrderItem;
 use Illuminate\Support\Facades\DB;
 
 class ProfitCalculator
@@ -55,6 +58,33 @@ class ProfitCalculator
     }
 
     /**
+     * حساب الربح المتوقع للمخزن
+     * يحسب: (effective_price - purchase_price) × quantity لكل منتج
+     */
+    public function calculateWarehouseExpectedProfit(Warehouse $warehouse): float
+    {
+        $expectedProfit = 0;
+
+        foreach ($warehouse->products as $product) {
+            if (!$product->purchase_price) {
+                continue;
+            }
+
+            $totalQuantity = $product->sizes()->sum('quantity');
+            if ($totalQuantity <= 0) {
+                continue;
+            }
+
+            // استخدام effective_price (يأخذ في الاعتبار التخفيضات)
+            $effectivePrice = $product->effective_price;
+            $productExpectedProfit = ($effectivePrice - $product->purchase_price) * $totalQuantity;
+            $expectedProfit += $productExpectedProfit;
+        }
+
+        return $expectedProfit;
+    }
+
+    /**
      * تسجيل ربح الطلب عند التقييد
      */
     public function recordOrderProfit(Order $order): void
@@ -66,12 +96,63 @@ class ProfitCalculator
             $orderProfit = $this->calculateOrderProfit($order);
             $orderTotalAmount = $order->total_amount;
 
-            // إنشاء سجل ربح للطلب
+            // حساب إجمالي عدد القطع المباعة في الطلب
+            $totalItemsCount = $order->items->sum('quantity');
+
+            // حساب المصروفات من نطاق تاريخي (شهر الطلب)
+            $orderDate = $order->created_at ?? now();
+            $dateFrom = $orderDate->copy()->startOfMonth()->toDateString();
+            $dateTo = $orderDate->copy()->endOfMonth()->toDateString();
+            
+            // جلب جميع المصروفات في الفترة
+            $allExpenses = Expense::byDateRange($dateFrom, $dateTo)->get();
+            
+            // تصنيف المصروفات
+            $productExpenses = []; // مصروفات مرتبطة بمنتجات معينة [product_id => total]
+            $warehouseExpenses = []; // مصروفات مرتبطة بمخازن معينة [warehouse_id => total]
+            $generalExpenses = 0; // مصروفات عامة (بدون warehouse_id و product_id)
+            
+            foreach ($allExpenses as $expense) {
+                if ($expense->product_id) {
+                    // مصروف مرتبط بمنتج معين
+                    if (!isset($productExpenses[$expense->product_id])) {
+                        $productExpenses[$expense->product_id] = 0;
+                    }
+                    $productExpenses[$expense->product_id] += $expense->amount;
+                } elseif ($expense->warehouse_id) {
+                    // مصروف مرتبط بمخزن معين
+                    if (!isset($warehouseExpenses[$expense->warehouse_id])) {
+                        $warehouseExpenses[$expense->warehouse_id] = 0;
+                    }
+                    $warehouseExpenses[$expense->warehouse_id] += $expense->amount;
+                } else {
+                    // مصروف عام
+                    $generalExpenses += $expense->amount;
+                }
+            }
+            
+            // حساب إجمالي القطع المباعة في الفترة (للمصروفات العامة)
+            $totalItemsInPeriod = OrderItem::whereHas('order', function($q) use ($dateFrom, $dateTo) {
+                $q->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+                  ->where('status', 'confirmed');
+            })->sum('quantity');
+
+            // حساب مصروفات كل قطعة للمصروفات العامة
+            $generalExpensePerItem = $totalItemsInPeriod > 0 ? ($generalExpenses / $totalItemsInPeriod) : 0;
+
+            // حساب مصروفات الطلب (المصروفات العامة فقط)
+            $orderExpenses = $generalExpensePerItem * $totalItemsCount;
+            $grossProfit = $orderProfit; // الربح الإجمالي قبل خصم المصروفات
+            $netProfit = max(0, $orderProfit - $orderExpenses); // الربح الصافي بعد خصم المصروفات
+            
             ProfitRecord::create([
                 'order_id' => $order->id,
                 'delegate_id' => $order->delegate_id,
                 'record_date' => now()->toDateString(),
-                'actual_profit' => $orderProfit,
+                'gross_profit' => $grossProfit,
+                'actual_profit' => $netProfit,
+                'expenses_amount' => $orderExpenses,
+                'items_count' => $totalItemsCount,
                 'total_amount' => $orderTotalAmount,
                 'record_type' => 'order',
                 'status' => 'confirmed',
@@ -103,10 +184,12 @@ class ProfitCalculator
                         'warehouse_id' => $warehouseId,
                         'actual_profit' => 0,
                         'total_amount' => 0,
+                        'items_count' => 0,
                     ];
                 }
                 $productsData[$productId]['actual_profit'] += $itemProfit;
                 $productsData[$productId]['total_amount'] += $item->subtotal;
+                $productsData[$productId]['items_count'] += $item->quantity;
 
                 // تجميع بيانات المخزن
                 if ($warehouseId && !isset($warehousesData[$warehouseId])) {
@@ -114,11 +197,13 @@ class ProfitCalculator
                         'warehouse_id' => $warehouseId,
                         'actual_profit' => 0,
                         'total_amount' => 0,
+                        'items_count' => 0,
                     ];
                 }
                 if ($warehouseId) {
                     $warehousesData[$warehouseId]['actual_profit'] += $itemProfit;
                     $warehousesData[$warehouseId]['total_amount'] += $item->subtotal;
+                    $warehousesData[$warehouseId]['items_count'] += $item->quantity;
                 }
             }
 
@@ -127,6 +212,31 @@ class ProfitCalculator
                 $product = Product::find($data['product_id']);
                 if ($product) {
                     $productValue = $this->calculateProductValue($product);
+                    
+                    // حساب مصروفات المنتج
+                    $productSpecificExpenses = $productExpenses[$data['product_id']] ?? 0; // مصروفات مرتبطة بالمنتج مباشرة
+                    $warehouseSpecificExpenses = 0; // جزء من مصروفات المخزن
+                    if ($data['warehouse_id'] && isset($warehouseExpenses[$data['warehouse_id']])) {
+                        // حساب عدد القطع من هذا المخزن في الفترة
+                        $warehouseItemsInPeriod = OrderItem::whereHas('order', function($q) use ($dateFrom, $dateTo) {
+                            $q->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+                              ->where('status', 'confirmed');
+                        })->whereHas('product', function($q) use ($data) {
+                            $q->where('warehouse_id', $data['warehouse_id']);
+                        })->sum('quantity');
+                        
+                        if ($warehouseItemsInPeriod > 0) {
+                            // توزيع مصروفات المخزن على القطع
+                            $warehouseExpensePerItem = $warehouseExpenses[$data['warehouse_id']] / $warehouseItemsInPeriod;
+                            $warehouseSpecificExpenses = $warehouseExpensePerItem * $data['items_count'];
+                        }
+                    }
+                    $generalExpensesForProduct = $generalExpensePerItem * $data['items_count']; // جزء من المصروفات العامة
+                    
+                    $totalProductExpenses = $productSpecificExpenses + $warehouseSpecificExpenses + $generalExpensesForProduct;
+                    
+                    $grossProfit = $data['actual_profit']; // الربح الإجمالي قبل خصم المصروفات
+                    $netProfit = max(0, $data['actual_profit'] - $totalProductExpenses); // الربح الصافي بعد خصم المصروفات
 
                     ProfitRecord::create([
                         'product_id' => $data['product_id'],
@@ -135,7 +245,10 @@ class ProfitCalculator
                         'delegate_id' => $order->delegate_id,
                         'record_date' => now()->toDateString(),
                         'product_value' => $productValue,
-                        'actual_profit' => $data['actual_profit'],
+                        'gross_profit' => $grossProfit,
+                        'actual_profit' => $netProfit,
+                        'expenses_amount' => $totalProductExpenses,
+                        'items_count' => $data['items_count'],
                         'total_amount' => $data['total_amount'],
                         'record_type' => 'product',
                         'status' => 'confirmed',
@@ -148,6 +261,29 @@ class ProfitCalculator
                 $warehouse = Warehouse::find($data['warehouse_id']);
                 if ($warehouse) {
                     $warehouseValue = $this->calculateWarehouseValue($warehouse);
+                    
+                    // حساب مصروفات المخزن
+                    $warehouseSpecificExpenses = $warehouseExpenses[$data['warehouse_id']] ?? 0; // مصروفات مرتبطة بالمخزن مباشرة
+                    
+                    // حساب عدد القطع من هذا المخزن في الفترة
+                    $warehouseItemsInPeriod = OrderItem::whereHas('order', function($q) use ($dateFrom, $dateTo) {
+                        $q->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+                          ->where('status', 'confirmed');
+                    })->whereHas('product', function($q) use ($data) {
+                        $q->where('warehouse_id', $data['warehouse_id']);
+                    })->sum('quantity');
+                    
+                    // توزيع مصروفات المخزن على القطع
+                    $warehouseExpensePerItem = $warehouseItemsInPeriod > 0 ? ($warehouseSpecificExpenses / $warehouseItemsInPeriod) : 0;
+                    $warehouseExpensesForOrder = $warehouseExpensePerItem * $data['items_count'];
+                    
+                    // جزء من المصروفات العامة
+                    $generalExpensesForWarehouse = $generalExpensePerItem * $data['items_count'];
+                    
+                    $totalWarehouseExpenses = $warehouseExpensesForOrder + $generalExpensesForWarehouse;
+                    
+                    $grossProfit = $data['actual_profit']; // الربح الإجمالي قبل خصم المصروفات
+                    $netProfit = max(0, $data['actual_profit'] - $totalWarehouseExpenses); // الربح الصافي بعد خصم المصروفات
 
                     ProfitRecord::create([
                         'warehouse_id' => $data['warehouse_id'],
@@ -155,12 +291,39 @@ class ProfitCalculator
                         'delegate_id' => $order->delegate_id,
                         'record_date' => now()->toDateString(),
                         'warehouse_value' => $warehouseValue,
-                        'actual_profit' => $data['actual_profit'],
+                        'gross_profit' => $grossProfit,
+                        'actual_profit' => $netProfit,
+                        'expenses_amount' => $totalWarehouseExpenses,
+                        'items_count' => $data['items_count'],
                         'total_amount' => $data['total_amount'],
                         'record_type' => 'warehouse',
                         'status' => 'confirmed',
                     ]);
                 }
+            }
+
+            // توزيع الأرباح على المستثمرين
+            $totalInvestorProfit = 0;
+            if (config('features.investor_profits_enabled', true)) {
+                $investorCalculator = app(InvestorProfitCalculator::class);
+                $totalInvestorProfit = $investorCalculator->distributeOrderProfits($order);
+            }
+
+            // حساب ربح المدير (الربح الإجمالي - ربح المستثمرين)
+            // ملاحظة: ربح المدير من المشاريع يتم إيداعه في الخزنة الفرعية من InvestorProfitCalculator
+            // هنا نودع فقط الربح من الاستثمارات غير المرتبطة بمشروع
+            $adminProfit = $orderProfit - $totalInvestorProfit;
+            
+            // إيداع ربح المدير في الخزنة الرئيسية (للأرباح غير المرتبطة بمشروع)
+            if ($adminProfit > 0) {
+                $treasury = Treasury::getDefault();
+                $treasury->deposit(
+                    $adminProfit,
+                    'order',
+                    $order->id,
+                    "ربح الطلب #{$order->order_number}",
+                    auth()->id()
+                );
             }
         });
     }

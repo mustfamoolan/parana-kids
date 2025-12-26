@@ -46,4 +46,12 @@ class PrivateWarehouse extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    /**
+     * Get all investments for this private warehouse
+     */
+    public function investments()
+    {
+        return $this->hasMany(Investment::class, 'private_warehouse_id')->where('investment_type', 'private_warehouse');
+    }
 }
