@@ -207,6 +207,24 @@
                     @endif
                 </p>
             </a>
+
+            <!-- المشاريع والمستثمرين -->
+            <a href="{{ route('admin.projects.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-primary mb-2">المشاريع والمستثمرين</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    @if($projectsCount > 0 || $investorsCount > 0)
+                        <span class="badge bg-primary">{{ $projectsCount }}</span> مشروع 
+                        <span class="badge bg-info">{{ $investorsCount }}</span> مستثمر
+                    @else
+                        إدارة المشاريع والمستثمرين
+                    @endif
+                </p>
+            </a>
             @endif
 
             <!-- 5. كشف حركة المواد -->

@@ -97,6 +97,7 @@
                     </a>
                 </li>
 
+                @if(auth()->user()->isAdmin())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.projects.index') }}" class="nav-link group">
                         <div class="flex items-center">
@@ -120,6 +121,7 @@
                         </div>
                     </a>
                 </li>
+                @endif
 
 
                 <li class="menu nav-item">

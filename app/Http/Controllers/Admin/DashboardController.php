@@ -46,7 +46,15 @@ class DashboardController extends Controller
         
         $printUploadOrdersCount = $printUploadOrdersQuery->count();
 
-        return view('admin.dashboard', compact('unreadMessagesCount', 'printUploadOrdersCount'));
+        // إحصائيات المشاريع والمستثمرين (للمدير فقط)
+        $projectsCount = 0;
+        $investorsCount = 0;
+        if (Auth::user()->isAdmin()) {
+            $projectsCount = Project::count();
+            $investorsCount = Investor::count();
+        }
+
+        return view('admin.dashboard', compact('unreadMessagesCount', 'printUploadOrdersCount', 'projectsCount', 'investorsCount'));
     }
 
     /**
