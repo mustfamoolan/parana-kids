@@ -265,19 +265,45 @@ class OrderController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $cart = Cart::findOrFail($request->cart_id);
+        // استخدام lockForUpdate() لمنع التكرار عند الطلبات المتزامنة
+        $cart = DB::transaction(function() use ($request) {
+            $cart = Cart::where('id', $request->cart_id)
+                ->where('status', 'active') // فقط السلات النشطة
+                ->lockForUpdate() // قفل السلة لمنع التكرار
+                ->firstOrFail();
 
-        // التأكد من أن السلة تخص المندوب الحالي
-        if ($cart->delegate_id !== auth()->id()) {
-            abort(403);
-        }
+            // التأكد من أن السلة تخص المندوب الحالي
+            if ($cart->delegate_id !== auth()->id()) {
+                abort(403);
+            }
+
+            // التحقق مرة أخرى من أن السلة لا تزال نشطة (حماية إضافية)
+            if ($cart->status !== 'active') {
+                throw new \Exception('هذه السلة تم استخدامها بالفعل');
+            }
+
+            // تحميل العلاقات بعد القفل
+            $cart->load('items.product', 'items.size');
+
+            return $cart;
+        });
 
         // التأكد من أن السلة تحتوي على منتجات
         if ($cart->items->count() === 0) {
             return back()->withErrors(['cart' => 'لا يمكن إتمام الطلب من سلة فارغة']);
         }
 
+        // التحقق من عدم وجود طلب موجود بالفعل من هذه السلة
+        $existingOrder = Order::where('cart_id', $cart->id)->first();
+        if ($existingOrder) {
+            return redirect()->route('delegate.orders.show', $existingOrder)
+                ->with('info', 'تم إنشاء هذا الطلب مسبقاً');
+        }
+
         $order = DB::transaction(function() use ($cart, $request) {
+            // تحديث حالة السلة أولاً لمنع التكرار
+            $cart->update(['status' => 'completed']);
+
             // إنشاء الطلب
             $order = Order::create([
                 'cart_id' => $cart->id,
@@ -311,9 +337,6 @@ class OrderController extends Controller
                 // حذف الحجز
                 $cartItem->stockReservation()->delete();
             }
-
-            // تحديث حالة السلة
-            $cart->update(['status' => 'completed']);
 
             return $order;
         });
@@ -857,12 +880,28 @@ class OrderController extends Controller
                            ->with('error', 'لا يوجد طلب نشط');
         }
 
-        $cart = Cart::with('items.product', 'items.size')->findOrFail($cartId);
+        // استخدام lockForUpdate() لمنع التكرار
+        $cart = DB::transaction(function() use ($cartId) {
+            $cart = Cart::where('id', $cartId)
+                ->where('status', 'active') // فقط السلات النشطة
+                ->lockForUpdate() // قفل السلة لمنع التكرار
+                ->firstOrFail();
 
-        // التأكد من أن السلة تخص المندوب الحالي
-        if ($cart->delegate_id !== auth()->id()) {
-            abort(403);
-        }
+            // التأكد من أن السلة تخص المندوب الحالي
+            if ($cart->delegate_id !== auth()->id()) {
+                abort(403);
+            }
+
+            // التحقق مرة أخرى من أن السلة لا تزال نشطة
+            if ($cart->status !== 'active') {
+                throw new \Exception('هذه السلة تم استخدامها بالفعل');
+            }
+
+            // تحميل العلاقات بعد القفل
+            $cart->load('items.product', 'items.size');
+
+            return $cart;
+        });
 
         if ($cart->items->count() === 0) {
             return back()->withErrors(['cart' => 'أضف منتجات أولاً']);
@@ -874,8 +913,19 @@ class OrderController extends Controller
                            ->with('error', 'بيانات الزبون غير موجودة. يرجى إنشاء طلب جديد');
         }
 
+        // التحقق من عدم وجود طلب موجود بالفعل من هذه السلة
+        $existingOrder = Order::where('cart_id', $cart->id)->first();
+        if ($existingOrder) {
+            session()->forget('current_cart_id');
+            return redirect()->route('delegate.orders.show', $existingOrder)
+                ->with('info', 'تم إنشاء هذا الطلب مسبقاً');
+        }
+
         // إنشاء الطلب
         $order = DB::transaction(function() use ($cart) {
+            // تحديث حالة السلة أولاً لمنع التكرار
+            $cart->update(['status' => 'completed']);
+
             $order = Order::create([
                 'cart_id' => $cart->id,
                 'delegate_id' => $cart->delegate_id,
@@ -924,9 +974,6 @@ class OrderController extends Controller
                     $cartItem->stockReservation->delete();
                 }
             }
-
-            // تحديث حالة السلة
-            $cart->update(['status' => 'completed']);
 
             return $order;
         });
