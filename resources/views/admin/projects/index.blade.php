@@ -67,12 +67,6 @@
                                     <span class="text-xs text-gray-500 dark:text-gray-400">عدد الاستثمارات:</span>
                                     <div class="font-semibold">{{ $project->investments()->count() }}</div>
                                 </div>
-                                @if($project->treasury)
-                                    <div>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">رصيد الخزنة الفرعية:</span>
-                                        <div class="text-lg font-bold text-success">{{ number_format($project->treasury->current_balance, 2) }} IQD</div>
-                                    </div>
-                                @endif
                                 <div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">الحالة:</span>
                                     <div>
