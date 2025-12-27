@@ -336,10 +336,10 @@ class InvestorProfitCalculator
                 // تحديث إجمالي ربح المستثمر
                 $investor->increment('total_profit', $investorProfit);
 
-                // إيداع الكلفة المسترجعة والربح في خزنة المستثمر
+                // إيداع الكلفة المسترجعة فقط في خزنة المستثمر (الربح يبقى معلقاً حتى يتم إيداعه يدوياً)
                 $treasury = $investor->treasury;
                 if ($treasury) {
-                    // إيداع الكلفة المسترجعة
+                    // إيداع الكلفة المسترجعة فقط (تذهب مباشرة للرصيد الحالي)
                     if ($costReturned > 0) {
                         $product = \App\Models\Product::find($productId);
                         $productName = $product ? $product->name : "منتج #{$productId}";
@@ -352,16 +352,8 @@ class InvestorProfitCalculator
                         );
                     }
                     
-                    // إيداع الربح المعلق في خزنة المستثمر كحركة
-                    if ($investorProfit > 0) {
-                        $treasury->deposit(
-                            $investorProfit,
-                            'profit',
-                            $profitRecord->id,
-                            "ربح معلق من طلب #" . ($order->order_number ?? $orderId) . " - منتج #{$productId}",
-                            auth()->id() ?? 1
-                        );
-                    }
+                    // الربح يُسجل فقط في InvestorProfit كـ 'pending' بدون إيداع في الخزنة
+                    // سيتم إيداعه لاحقاً عند استخدام depositProfits() من قبل المدير
                 } else {
                     Log::warning("Investor {$investor->id} ({$investor->name}) does not have a treasury. Cannot deposit cost.");
                 }
@@ -369,13 +361,21 @@ class InvestorProfitCalculator
 
             // حساب وإيداع ربح المدير وكلفته من هذا الاستثمار في الخزنة الفرعية
             if ($investment->project && $investment->project->treasury) {
-                $adminPercentage = $investment->admin_profit_percentage ?? 0;
+                // حساب نسبة المدير: أولاً من InvestmentInvestor إذا كان موجوداً، وإلا من admin_profit_percentage
+                $adminInvestorPercentage = $investment->investors()
+                    ->whereHas('investor', function($q) {
+                        $q->where('is_admin', true);
+                    })
+                    ->sum('profit_percentage');
                 
-                // إيداع ربح المدير
+                $adminPercentage = $adminInvestorPercentage > 0 
+                    ? $adminInvestorPercentage 
+                    : ($investment->admin_profit_percentage ?? 0);
+                
+                // إيداع ربح المدير (بدون تقريب لضمان الدقة 100%)
                 if ($adminPercentage > 0) {
                     $adminProfit = ($profitAmount * $adminPercentage) / 100;
-                    // تقريب ربح المدير لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $adminProfit = $this->roundToNearestCurrency($adminProfit);
+                    // لا نستخدم roundToNearestCurrency لربح المدير لضمان الدقة 100%
                     if ($adminProfit > 0) {
                         $investment->project->treasury->deposit(
                             $adminProfit,
@@ -461,10 +461,10 @@ class InvestorProfitCalculator
                     // تحديث إجمالي ربح المستثمر
                     $investor->increment('total_profit', $investorProfit);
 
-                    // إيداع الكلفة المسترجعة والربح في خزنة المستثمر
+                    // إيداع الكلفة المسترجعة فقط في خزنة المستثمر (الربح يبقى معلقاً حتى يتم إيداعه يدوياً)
                     $treasury = $investor->treasury;
                     if ($treasury) {
-                        // إيداع الكلفة المسترجعة
+                        // إيداع الكلفة المسترجعة فقط (تذهب مباشرة للرصيد الحالي)
                         if ($costReturned > 0) {
                             $product = \App\Models\Product::find($productId);
                             $productName = $product ? $product->name : "منتج #{$productId}";
@@ -477,16 +477,8 @@ class InvestorProfitCalculator
                             );
                         }
                         
-                        // إيداع الربح المعلق في خزنة المستثمر كحركة
-                        if ($investorProfit > 0) {
-                            $treasury->deposit(
-                                $investorProfit,
-                                'profit',
-                                $profitRecord->id,
-                                "ربح معلق من طلب #" . ($order->order_number ?? $orderId) . " - منتج #{$productId}",
-                                auth()->id() ?? 1
-                            );
-                        }
+                        // الربح يُسجل فقط في InvestorProfit كـ 'pending' بدون إيداع في الخزنة
+                        // سيتم إيداعه لاحقاً عند استخدام depositProfits() من قبل المدير
                     } else {
                         Log::warning("Investor {$investor->id} ({$investor->name}) does not have a treasury. Cannot deposit cost.");
                     }
@@ -581,10 +573,10 @@ class InvestorProfitCalculator
                 // تحديث إجمالي ربح المستثمر
                 $investor->increment('total_profit', $investorProfit);
 
-                // إيداع الكلفة المسترجعة والربح في خزنة المستثمر
+                // إيداع الكلفة المسترجعة فقط في خزنة المستثمر (الربح يبقى معلقاً حتى يتم إيداعه يدوياً)
                 $treasury = $investor->treasury;
                 if ($treasury) {
-                    // إيداع الكلفة المسترجعة
+                    // إيداع الكلفة المسترجعة فقط (تذهب مباشرة للرصيد الحالي)
                     if ($costReturned > 0) {
                         $warehouse = \App\Models\Warehouse::find($warehouseId);
                         $warehouseName = $warehouse ? $warehouse->name : "مخزن #{$warehouseId}";
@@ -597,16 +589,8 @@ class InvestorProfitCalculator
                         );
                     }
                     
-                    // إيداع الربح المعلق في خزنة المستثمر كحركة
-                    if ($investorProfit > 0) {
-                        $treasury->deposit(
-                            $investorProfit,
-                            'profit',
-                            $profitRecord->id,
-                            "ربح معلق من طلب #" . ($order->order_number ?? $orderId) . " - مخزن #{$warehouseId}",
-                            auth()->id() ?? 1
-                        );
-                    }
+                    // الربح يُسجل فقط في InvestorProfit كـ 'pending' بدون إيداع في الخزنة
+                    // سيتم إيداعه لاحقاً عند استخدام depositProfits() من قبل المدير
                 } else {
                     Log::warning("Investor {$investor->id} ({$investor->name}) does not have a treasury. Cannot deposit cost.");
                 }
@@ -614,13 +598,21 @@ class InvestorProfitCalculator
 
             // حساب وإيداع ربح المدير وكلفته من هذا الاستثمار في الخزنة الفرعية
             if ($investment->project && $investment->project->treasury) {
-                $adminPercentage = $investment->admin_profit_percentage ?? 0;
+                // حساب نسبة المدير: أولاً من InvestmentInvestor إذا كان موجوداً، وإلا من admin_profit_percentage
+                $adminInvestorPercentage = $investment->investors()
+                    ->whereHas('investor', function($q) {
+                        $q->where('is_admin', true);
+                    })
+                    ->sum('profit_percentage');
                 
-                // إيداع ربح المدير
+                $adminPercentage = $adminInvestorPercentage > 0 
+                    ? $adminInvestorPercentage 
+                    : ($investment->admin_profit_percentage ?? 0);
+                
+                // إيداع ربح المدير (بدون تقريب لضمان الدقة 100%)
                 if ($adminPercentage > 0) {
                     $adminProfit = ($profitAmount * $adminPercentage) / 100;
-                    // تقريب ربح المدير لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $adminProfit = $this->roundToNearestCurrency($adminProfit);
+                    // لا نستخدم roundToNearestCurrency لربح المدير لضمان الدقة 100%
                     if ($adminProfit > 0) {
                         $investment->project->treasury->deposit(
                             $adminProfit,
@@ -720,16 +712,8 @@ class InvestorProfitCalculator
                             );
                         }
                         
-                        // إيداع الربح المعلق في خزنة المستثمر كحركة
-                        if ($investorProfit > 0) {
-                            $treasury->deposit(
-                                $investorProfit,
-                                'profit',
-                                $profitRecord->id,
-                                "ربح معلق من طلب #" . ($order->order_number ?? $orderId) . " - مخزن #{$warehouseId}",
-                                auth()->id() ?? 1
-                            );
-                        }
+                        // الربح يُسجل فقط في InvestorProfit كـ 'pending' بدون إيداع في الخزنة
+                        // سيتم إيداعه لاحقاً عند استخدام depositProfits() من قبل المدير
                     } else {
                         Log::warning("Investor {$investor->id} ({$investor->name}) does not have a treasury. Cannot deposit cost.");
                     }

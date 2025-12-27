@@ -170,8 +170,21 @@
                         $totalInvestmentAmount += ($costPercentage / 100) * $investment->total_value;
                     }
                     
-                    $totalInvestorPercentage = $investment->investors()->sum('profit_percentage');
-                    $adminPercentage = $investment->admin_profit_percentage ?? 0;
+                    // حساب نسبة المستثمرين فقط (استبعاد المدير)
+                    $totalInvestorPercentage = $investment->investors()
+                        ->whereHas('investor', function($q) {
+                            $q->where('is_admin', false);
+                        })
+                        ->sum('profit_percentage');
+                    
+                    // حساب نسبة المدير من InvestmentInvestor إذا كان موجودًا، وإلا استخدام admin_profit_percentage
+                    $adminInvestorPercentage = $investment->investors()
+                        ->whereHas('investor', function($q) {
+                            $q->where('is_admin', true);
+                        })
+                        ->sum('profit_percentage');
+                    
+                    $adminPercentage = $adminInvestorPercentage > 0 ? $adminInvestorPercentage : ($investment->admin_profit_percentage ?? 0);
                     $remainingPercentage = 100 - ($adminPercentage + $totalInvestorPercentage);
                 @endphp
                 

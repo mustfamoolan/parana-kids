@@ -13,6 +13,8 @@ use App\Models\SalesReport;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Models\Investment;
+use App\Models\InvestmentTarget;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class SalesReportController extends Controller
 {
+    // Cache للبيانات الثابتة
+    private $investmentCache = [];
+    private $adminPercentageCache = [];
+
     public function index(Request $request)
 {
         // التأكد من أن المستخدم مدير فقط
@@ -267,7 +273,7 @@ class SalesReportController extends Controller
         // الأرباح = (سعر البيع - سعر الشراء) × الكمية لكل منتج
         // ملاحظة: quantity في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
         // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
-        $totalProfitWithoutMargin = 0;
+        $totalProfitWithoutMargin = 0; // ربح المدير فقط
         foreach ($orderItems as $item) {
             // التأكد من وجود المنتج وسعر الشراء
             if ($item->product && $item->product->purchase_price && $item->product->purchase_price > 0) {
@@ -283,12 +289,38 @@ class SalesReportController extends Controller
 
                 // حساب ربح المنتج الكلي = ربح القطعة × الكمية المتبقية
                 $itemProfit = $profitPerUnit * $quantity;
-                $totalProfitWithoutMargin += $itemProfit;
+                
+                // التحقق: هل المنتج/المخزن له استثمار نشط؟
+                $hasInvestors = $this->checkProductHasActiveInvestors($item->product);
+                
+                if ($hasInvestors) {
+                    // حساب نسبة ربح المدير فقط
+                    $adminProfitPercentage = $this->getAdminProfitPercentage($item->product);
+                    $totalProfitWithoutMargin += $itemProfit * ($adminProfitPercentage / 100);
+                } else {
+                    // لا يوجد مستثمرين -> كل الربح للمدير
+                    $totalProfitWithoutMargin += $itemProfit;
+                }
             }
         }
 
-        // خصم الربح من إرجاع الاستبدال
-        $totalProfitWithoutMargin = max(0, $totalProfitWithoutMargin - $exchangeReturnProfit);
+        // خصم الربح من إرجاع الاستبدال (نحسب نسبة المدير فقط)
+        $exchangeReturnProfitAdmin = 0;
+        foreach ($exchangeReturnMovements as $movement) {
+            if ($movement->product && $movement->product->purchase_price && $movement->product->purchase_price > 0) {
+                $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
+                $movementProfit = $profitPerUnit * $movement->quantity;
+                
+                $hasInvestors = $this->checkProductHasActiveInvestors($movement->product);
+                if ($hasInvestors) {
+                    $adminProfitPercentage = $this->getAdminProfitPercentage($movement->product);
+                    $exchangeReturnProfitAdmin += $movementProfit * ($adminProfitPercentage / 100);
+                } else {
+                    $exchangeReturnProfitAdmin += $movementProfit;
+                }
+            }
+        }
+        $totalProfitWithoutMargin = max(0, $totalProfitWithoutMargin - $exchangeReturnProfitAdmin);
 
         // حساب الأرباح مع الفروقات
         $totalProfitWithMargin = $totalProfitWithoutMargin + $totalMarginAmount;
@@ -360,11 +392,11 @@ class SalesReportController extends Controller
 
                 $salesByDate[$date] += $orderAmount;
 
-                // حساب الربح - فقط للمنتجات من المخزن المحدد
+                // حساب الربح - فقط للمنتجات من المخزن المحدد (ربح المدير فقط)
                 // الأرباح = (سعر البيع - سعر الشراء) × الكمية لكل منتج
                 // ملاحظة: quantity في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
                 // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
-                $orderProfit = 0;
+                $orderProfit = 0; // ربح المدير فقط
                 foreach ($orderItems as $item) {
                     // التأكد من وجود المنتج وسعر الشراء
                     if ($item->product && $item->product->purchase_price && $item->product->purchase_price > 0) {
@@ -380,7 +412,18 @@ class SalesReportController extends Controller
 
                         // حساب ربح المنتج الكلي = ربح القطعة × الكمية المتبقية
                         $itemProfit = $profitPerUnit * $quantity;
-                        $orderProfit += $itemProfit;
+                        
+                        // التحقق: هل المنتج/المخزن له استثمار نشط؟
+                        $hasInvestors = $this->checkProductHasActiveInvestors($item->product);
+                        
+                        if ($hasInvestors) {
+                            // حساب نسبة ربح المدير فقط
+                            $adminProfitPercentage = $this->getAdminProfitPercentage($item->product);
+                            $orderProfit += $itemProfit * ($adminProfitPercentage / 100);
+                        } else {
+                            // لا يوجد مستثمرين -> كل الربح للمدير
+                            $orderProfit += $itemProfit;
+                        }
                     }
                 }
 
@@ -432,10 +475,19 @@ class SalesReportController extends Controller
                     $salesByDate[$date] = max(0, $salesByDate[$date] - $amount);
                 }
 
-                // خصم الربح
+                // خصم الربح (نسبة المدير فقط)
                 if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
                     $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
-                    $profit = $profitPerUnit * $movement->quantity;
+                    $movementProfit = $profitPerUnit * $movement->quantity;
+                    
+                    // حساب نسبة المدير
+                    $hasInvestors = $this->checkProductHasActiveInvestors($movement->product);
+                    if ($hasInvestors) {
+                        $adminProfitPercentage = $this->getAdminProfitPercentage($movement->product);
+                        $profit = $movementProfit * ($adminProfitPercentage / 100);
+                    } else {
+                        $profit = $movementProfit; // كل الربح للمدير
+                    }
 
                     if (isset($profitsByDate[$date])) {
                         $profitsByDate[$date] = max(0, $profitsByDate[$date] - $profit);
@@ -522,7 +574,7 @@ class SalesReportController extends Controller
                 })
                 ->sum('quantity');
 
-            // حساب ربح المخزن بدون فروقات
+            // حساب ربح المخزن بدون فروقات (ربح المدير فقط)
             $warehouseProfitWithoutMargin = 0;
             foreach ($warehouseOrderItems as $item) {
                 if ($item->product && $item->product->purchase_price && $item->product->purchase_price > 0) {
@@ -530,11 +582,23 @@ class SalesReportController extends Controller
                     $purchasePrice = $item->product->purchase_price ?? 0;
                     $quantity = $item->quantity ?? 0;
                     $profitPerUnit = $sellingPrice - $purchasePrice;
-                    $warehouseProfitWithoutMargin += $profitPerUnit * $quantity;
+                    $itemProfit = $profitPerUnit * $quantity;
+                    
+                    // التحقق: هل المنتج/المخزن له استثمار نشط؟
+                    $hasInvestors = $this->checkProductHasActiveInvestors($item->product);
+                    
+                    if ($hasInvestors) {
+                        // حساب نسبة ربح المدير فقط
+                        $adminProfitPercentage = $this->getAdminProfitPercentage($item->product);
+                        $warehouseProfitWithoutMargin += $itemProfit * ($adminProfitPercentage / 100);
+                    } else {
+                        // لا يوجد مستثمرين -> كل الربح للمدير
+                        $warehouseProfitWithoutMargin += $itemProfit;
+                    }
                 }
             }
 
-            // خصم ربح إرجاع الاستبدال من هذا المخزن
+            // خصم ربح إرجاع الاستبدال من هذا المخزن (نسبة المدير فقط)
             $warehouseExchangeReturnProfit = 0;
             $warehouseExchangeReturnMovements = ProductMovement::where('movement_type', 'return_exchange_bulk')
                 ->where('warehouse_id', $warehouse->id)
@@ -545,7 +609,16 @@ class SalesReportController extends Controller
             foreach ($warehouseExchangeReturnMovements as $movement) {
                 if ($movement->product && $movement->product->purchase_price && $movement->product->purchase_price > 0) {
                     $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
-                    $warehouseExchangeReturnProfit += $profitPerUnit * $movement->quantity;
+                    $movementProfit = $profitPerUnit * $movement->quantity;
+                    
+                    // حساب نسبة المدير
+                    $hasInvestors = $this->checkProductHasActiveInvestors($movement->product);
+                    if ($hasInvestors) {
+                        $adminProfitPercentage = $this->getAdminProfitPercentage($movement->product);
+                        $warehouseExchangeReturnProfit += $movementProfit * ($adminProfitPercentage / 100);
+                    } else {
+                        $warehouseExchangeReturnProfit += $movementProfit;
+                    }
                 }
             }
 
@@ -650,12 +723,14 @@ class SalesReportController extends Controller
         $productProfits = [];
 
         foreach ($warehouses as $warehouse) {
-            // جلب order_items للمخزن
-            $warehouseOrderItems = OrderItem::whereIn('order_id', $orderIds)
-                ->whereHas('product', function($q) use ($warehouse) {
-                    $q->where('warehouse_id', $warehouse->id);
-                })
-                ->with('product')
+            // جلب order_items للمخزن (تحسين الأداء باستخدام join بدلاً من whereHas)
+            $warehouseOrderItems = OrderItem::select('order_items.*')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->whereIn('order_items.order_id', $orderIds)
+                ->where('products.warehouse_id', $warehouse->id)
+                ->with(['product' => function($q) {
+                    $q->select('id', 'name', 'code', 'warehouse_id', 'purchase_price', 'selling_price');
+                }])
                 ->get();
 
             // تجميع order_items حسب المنتج
@@ -680,19 +755,31 @@ class SalesReportController extends Controller
                     ];
                 }
 
-                // حساب الربح بدون فروقات
+                // حساب الربح بدون فروقات (ربح المدير فقط)
                 if ($item->product->purchase_price && $item->product->purchase_price > 0) {
                     $sellingPrice = $item->unit_price ?? 0;
                     $purchasePrice = $item->product->purchase_price ?? 0;
                     $quantity = $item->quantity ?? 0;
                     $profitPerUnit = $sellingPrice - $purchasePrice;
-                    $productsData[$productId]['profit_without_margin'] += $profitPerUnit * $quantity;
+                    $itemProfit = $profitPerUnit * $quantity;
+                    
+                    // التحقق: هل المنتج/المخزن له استثمار نشط؟
+                    $hasInvestors = $this->checkProductHasActiveInvestors($item->product);
+                    
+                    if ($hasInvestors) {
+                        // حساب نسبة ربح المدير فقط
+                        $adminProfitPercentage = $this->getAdminProfitPercentage($item->product);
+                        $productsData[$productId]['profit_without_margin'] += $itemProfit * ($adminProfitPercentage / 100);
+                    } else {
+                        // لا يوجد مستثمرين -> كل الربح للمدير
+                        $productsData[$productId]['profit_without_margin'] += $itemProfit;
+                    }
                 }
 
                 $productsData[$productId]['items_count'] += $item->quantity ?? 0;
             }
 
-            // خصم ربح إرجاع الاستبدال لكل منتج
+            // خصم ربح إرجاع الاستبدال لكل منتج (نسبة المدير فقط)
             $warehouseExchangeReturnMovements = ProductMovement::where('movement_type', 'return_exchange_bulk')
                 ->where('warehouse_id', $warehouse->id)
                 ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
@@ -706,7 +793,16 @@ class SalesReportController extends Controller
                     if (isset($productsData[$productId])) {
                         if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
                             $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
-                            $productsData[$productId]['profit_without_margin'] -= $profitPerUnit * $movement->quantity;
+                            $movementProfit = $profitPerUnit * $movement->quantity;
+                            
+                            // حساب نسبة المدير
+                            $hasInvestors = $this->checkProductHasActiveInvestors($movement->product);
+                            if ($hasInvestors) {
+                                $adminProfitPercentage = $this->getAdminProfitPercentage($movement->product);
+                                $productsData[$productId]['profit_without_margin'] -= $movementProfit * ($adminProfitPercentage / 100);
+                            } else {
+                                $productsData[$productId]['profit_without_margin'] -= $movementProfit;
+                            }
                         }
                     }
                 }
@@ -869,11 +965,14 @@ class SalesReportController extends Controller
         $productProfits = [];
 
         foreach ($warehouses as $warehouse) {
-            $warehouseOrderItems = OrderItem::whereIn('order_id', $orderIds)
-                ->whereHas('product', function($q) use ($warehouse) {
-                    $q->where('warehouse_id', $warehouse->id);
-                })
-                ->with('product')
+            // تحسين الأداء باستخدام join بدلاً من whereHas
+            $warehouseOrderItems = OrderItem::select('order_items.*')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->whereIn('order_items.order_id', $orderIds)
+                ->where('products.warehouse_id', $warehouse->id)
+                ->with(['product' => function($q) {
+                    $q->select('id', 'name', 'code', 'warehouse_id', 'purchase_price', 'selling_price');
+                }])
                 ->get();
 
             $productsData = [];
@@ -902,7 +1001,19 @@ class SalesReportController extends Controller
                     $purchasePrice = $item->product->purchase_price ?? 0;
                     $quantity = $item->quantity ?? 0;
                     $profitPerUnit = $sellingPrice - $purchasePrice;
-                    $productsData[$productId]['profit_without_margin'] += $profitPerUnit * $quantity;
+                    $itemProfit = $profitPerUnit * $quantity;
+                    
+                    // التحقق: هل المنتج/المخزن له استثمار نشط؟
+                    $hasInvestors = $this->checkProductHasActiveInvestors($item->product);
+                    
+                    if ($hasInvestors) {
+                        // حساب نسبة ربح المدير فقط
+                        $adminProfitPercentage = $this->getAdminProfitPercentage($item->product);
+                        $productsData[$productId]['profit_without_margin'] += $itemProfit * ($adminProfitPercentage / 100);
+                    } else {
+                        // لا يوجد مستثمرين -> كل الربح للمدير
+                        $productsData[$productId]['profit_without_margin'] += $itemProfit;
+                    }
                 }
 
                 $productsData[$productId]['items_count'] += $item->quantity ?? 0;
@@ -921,7 +1032,16 @@ class SalesReportController extends Controller
                     if (isset($productsData[$productId])) {
                         if ($movement->product->purchase_price && $movement->product->purchase_price > 0) {
                             $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
-                            $productsData[$productId]['profit_without_margin'] -= $profitPerUnit * $movement->quantity;
+                            $movementProfit = $profitPerUnit * $movement->quantity;
+                            
+                            // حساب نسبة المدير
+                            $hasInvestors = $this->checkProductHasActiveInvestors($movement->product);
+                            if ($hasInvestors) {
+                                $adminProfitPercentage = $this->getAdminProfitPercentage($movement->product);
+                                $productsData[$productId]['profit_without_margin'] -= $movementProfit * ($adminProfitPercentage / 100);
+                            } else {
+                                $productsData[$productId]['profit_without_margin'] -= $movementProfit;
+                            }
                         }
                     }
                 }
@@ -1086,5 +1206,104 @@ class SalesReportController extends Controller
             \Log::error('Error searching products: ' . $e->getMessage());
             return response()->json(['error' => 'حدث خطأ في البحث'], 500);
         }
+    }
+
+    /**
+     * التحقق من وجود مستثمرين نشطين للمنتج/المخزن
+     */
+    private function checkProductHasActiveInvestors(Product $product): bool
+    {
+        $cacheKey = "warehouse_{$product->warehouse_id}";
+        
+        if (isset($this->investmentCache[$cacheKey])) {
+            return $this->investmentCache[$cacheKey];
+        }
+        
+        // البحث في البنية الجديدة (Projects)
+        $hasNewInvestors = InvestmentTarget::where('target_type', 'warehouse')
+            ->where('target_id', $product->warehouse_id)
+            ->whereHas('investment', function($q) {
+                $q->where('status', 'active')
+                  ->where('start_date', '<=', now())
+                  ->where(function($q2) {
+                      $q2->whereNull('end_date')
+                         ->orWhere('end_date', '>=', now());
+                  })
+                  ->whereHas('investors'); // التأكد من وجود مستثمرين
+            })
+            ->exists();
+        
+        // البحث في البنية القديمة
+        $hasOldInvestors = Investment::where('warehouse_id', $product->warehouse_id)
+            ->where('status', 'active')
+            ->whereNotNull('investor_id')
+            ->where('start_date', '<=', now())
+            ->where(function($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now());
+            })
+            ->exists();
+        
+        $result = $hasNewInvestors || $hasOldInvestors;
+        $this->investmentCache[$cacheKey] = $result;
+        
+        return $result;
+    }
+
+    /**
+     * حساب نسبة ربح المدير للمنتج/المخزن
+     */
+    private function getAdminProfitPercentage(Product $product): float
+    {
+        $cacheKey = "warehouse_{$product->warehouse_id}_admin";
+        
+        if (isset($this->adminPercentageCache[$cacheKey])) {
+            return $this->adminPercentageCache[$cacheKey];
+        }
+        
+        // من البنية الجديدة
+        $investment = Investment::whereHas('targets', function($q) use ($product) {
+            $q->where('target_type', 'warehouse')
+              ->where('target_id', $product->warehouse_id);
+        })
+        ->where('status', 'active')
+        ->where('start_date', '<=', now())
+        ->where(function($q) {
+            $q->whereNull('end_date')
+              ->orWhere('end_date', '>=', now());
+        })
+        ->first();
+        
+        if ($investment) {
+            // جمع نسبة المدير من InvestmentInvestor إذا كان موجوداً
+            $adminInvestorPercentage = $investment->investors()
+                ->whereHas('investor', function($q) {
+                    $q->where('is_admin', true);
+                })
+                ->sum('profit_percentage');
+            
+            $result = $adminInvestorPercentage > 0 
+                ? $adminInvestorPercentage 
+                : ($investment->admin_profit_percentage ?? 0);
+            
+            $this->adminPercentageCache[$cacheKey] = $result;
+            return $result;
+        }
+        
+        // من البنية القديمة
+        $oldInvestment = Investment::where('warehouse_id', $product->warehouse_id)
+            ->where('status', 'active')
+            ->whereNotNull('investor_id')
+            ->where('start_date', '<=', now())
+            ->where(function($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now());
+            })
+            ->first();
+        
+        $result = $oldInvestment ? ($oldInvestment->admin_profit_percentage ?? 0) : 100;
+        $this->adminPercentageCache[$cacheKey] = $result;
+        
+        return $result;
     }
 }
