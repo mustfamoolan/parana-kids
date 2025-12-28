@@ -896,7 +896,8 @@ class SalesReportController extends Controller
             return strcmp($a['warehouse_name'], $b['warehouse_name']);
         });
 
-        // حساب الإجماليات من البيانات المجمعة (بدون جلب كل المنتجات)
+        // حساب الإجماليات من البيانات المجمعة (يتم حسابها من $productProfits)
+        // ملاحظة: هذا يتطلب حساب كل المنتجات، لكن يتم عرض 25 فقط
         $productProfitsTotals = [
             'total_profit' => collect($productProfits)->sum('profit_with_margin'),
             'total_items' => collect($productProfits)->sum('items_count'),
@@ -904,8 +905,8 @@ class SalesReportController extends Controller
             'total_net_profit' => collect($productProfits)->sum('net_profit'),
         ];
 
-        // Pagination
-        $perPage = 50; // عدد المنتجات في كل صفحة
+        // Pagination - تقليل عدد المنتجات المعروضة لتحسين الأداء
+        $perPage = 25; // تقليل من 50 إلى 25 لتحسين الأداء
         $currentPage = $request->get('product_page', 1);
         $offset = ($currentPage - 1) * $perPage;
         $currentItems = array_slice($productProfits, $offset, $perPage);
