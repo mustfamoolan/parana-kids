@@ -99,17 +99,21 @@ class Treasury extends Model
     }
 
     /**
-     * Get the default treasury (first one or create if not exists)
+     * Get the default treasury (first one that is not linked to an investor, or create if not exists)
      */
     public static function getDefault(): self
     {
-        $treasury = self::first();
+        // جلب أول خزنة ليست مرتبطة بمستثمر
+        $treasury = self::whereNull('investor_id')
+            ->orderBy('id', 'asc')
+            ->first();
         
         if (!$treasury) {
             $treasury = self::create([
                 'name' => 'الخزنة الرئيسية',
                 'initial_capital' => 0,
                 'current_balance' => 0,
+                'investor_id' => null, // التأكد من أنها ليست مرتبطة بمستثمر
                 'created_by' => auth()->id() ?? 1,
             ]);
         }

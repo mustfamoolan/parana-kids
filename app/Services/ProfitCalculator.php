@@ -309,22 +309,9 @@ class ProfitCalculator
                 $totalInvestorProfit = $investorCalculator->distributeOrderProfits($order);
             }
 
-            // حساب ربح المدير (الربح الإجمالي - ربح المستثمرين)
-            // ملاحظة: ربح المدير من المشاريع يتم إيداعه في الخزنة الفرعية من InvestorProfitCalculator
-            // هنا نودع فقط الربح من الاستثمارات غير المرتبطة بمشروع
-            $adminProfit = $orderProfit - $totalInvestorProfit;
-            
-            // إيداع ربح المدير في الخزنة الرئيسية (للأرباح غير المرتبطة بمشروع)
-            if ($adminProfit > 0) {
-                $treasury = Treasury::getDefault();
-                $treasury->deposit(
-                    $adminProfit,
-                    'order',
-                    $order->id,
-                    "ربح الطلب #{$order->order_number}",
-                    auth()->id()
-                );
-            }
+            // ملاحظة: ربح المدير من الاستثمارات يُسجل في InvestorProfit (مثل باقي المستثمرين)
+            // أرباح الطلبات العادية (بدون استثمار) تظهر في كشف المبيعات بدون حاجة لإيداع في خزنة
+            // لا حاجة لإيداع أرباح الطلبات في خزنة على الإطلاق
         });
     }
 
