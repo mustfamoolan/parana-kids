@@ -228,31 +228,49 @@ class InvestorProfitCalculator
             $project = $data['project'];
             $saleAmount = $data['amount'];
             
-            if ($saleAmount > 0 && $project->treasury) {
-                // التحقق من عدم تسجيل هذا المبلغ مسبقاً
-                $existingSale = $project->treasury->transactions()
-                    ->where('reference_type', 'order')
-                    ->where('reference_id', $order->id)
-                    ->where('description', 'like', "%بيع طلب #{$order->order_number}%")
-                    ->first();
+            if (!$project || !$project->treasury || $saleAmount <= 0) {
+                continue;
+            }
+            
+            // فحص إضافي: التأكد أن المشروع لديه استثمارات نشطة فعلاً
+            $hasActiveInvestments = Investment::where('project_id', $projectId)
+                ->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where(function($q) {
+                    $q->whereNull('end_date')
+                      ->orWhere('end_date', '>=', now());
+                })
+                ->whereHas('investors')
+                ->exists();
+            
+            if (!$hasActiveInvestments) {
+                // لا توجد استثمارات نشطة، لا نسجل شيء
+                continue;
+            }
+            
+            // التحقق من عدم تسجيل هذا المبلغ مسبقاً
+            $existingSale = $project->treasury->transactions()
+                ->where('reference_type', 'order')
+                ->where('reference_id', $order->id)
+                ->where('description', 'like', "%بيع طلب #{$order->order_number}%")
+                ->first();
+            
+            if (!$existingSale) {
+                $project->treasury->deposit(
+                    $saleAmount,
+                    'order',
+                    $order->id,
+                    "بيع طلب #{$order->order_number}",
+                    auth()->id() ?? 1
+                );
                 
-                if (!$existingSale) {
-                    $project->treasury->deposit(
-                        $saleAmount,
-                        'order',
-                        $order->id,
-                        "بيع طلب #{$order->order_number}",
-                        auth()->id() ?? 1
-                    );
-                    
-                    Log::info("Recorded sale amount for project", [
-                        'project_id' => $project->id,
-                        'project_name' => $project->name ?? 'N/A',
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'sale_amount' => $saleAmount
-                    ]);
-                }
+                Log::info("Recorded sale amount for project", [
+                    'project_id' => $project->id,
+                    'project_name' => $project->name ?? 'N/A',
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'sale_amount' => $saleAmount
+                ]);
             }
         }
     }
