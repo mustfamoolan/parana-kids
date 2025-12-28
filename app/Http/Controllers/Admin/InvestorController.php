@@ -98,9 +98,6 @@ class InvestorController extends Controller
             'investments.product',
             'investments.warehouse',
             'investments.privateWarehouse',
-            'profits.order',
-            'profits.product',
-            'profits.warehouse',
             'transactions.createdBy'
         ]);
 
@@ -398,6 +395,9 @@ class InvestorController extends Controller
             $netProfitFromRecords = $profitRecords->sum('actual_profit');
             $netProfitFromInvestor = \App\Models\InvestorProfit::where('investor_id', $investor->id)
                 ->where('product_id', $productId)
+                ->when(!empty($allInvestmentIds), function($q) use ($allInvestmentIds) {
+                    return $q->whereIn('investment_id', $allInvestmentIds);
+                })
                 ->sum('profit_amount');
             
             // استخدام الربح الصافي من ProfitRecord إذا كان متاحاً، وإلا من InvestorProfit
