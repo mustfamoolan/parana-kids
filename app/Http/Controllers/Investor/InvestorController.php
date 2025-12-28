@@ -40,8 +40,27 @@ class InvestorController extends Controller
         // جلب خزنة المستثمر
         $treasury = $investor->treasury;
 
-        // بناء query للأرباح مع فلتر التاريخ
+        // جلب جميع الاستثمارات المرتبطة بهذا المستثمر (لفلترة الأرباح)
+        $investmentInvestorIds = \App\Models\InvestmentInvestor::where('investor_id', $investor->id)
+            ->pluck('investment_id')
+            ->toArray();
+        
+        $oldInvestmentIds = \App\Models\Investment::where('investor_id', $investor->id)
+            ->whereNull('project_id')
+            ->pluck('id')
+            ->toArray();
+        
+        $allInvestmentIds = array_unique(array_merge($investmentInvestorIds, $oldInvestmentIds));
+
+        // بناء query للأرباح مع فلتر التاريخ والاستثمارات
         $profitQuery = \App\Models\InvestorProfit::where('investor_id', $investor->id);
+        
+        // فلترة الأرباح حسب الاستثمارات الفعلية فقط
+        if (!empty($allInvestmentIds)) {
+            $profitQuery->whereIn('investment_id', $allInvestmentIds);
+        } else {
+            $profitQuery->whereRaw('1 = 0');
+        }
 
         // فلتر التاريخ
         if ($request->filled('date_from') || $request->filled('date_to')) {
