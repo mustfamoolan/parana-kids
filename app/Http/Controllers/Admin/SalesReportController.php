@@ -35,7 +35,11 @@ class SalesReportController extends Controller
 
         // جلب البيانات للفلاتر
         $warehouses = Warehouse::all();
-        $products = Product::all();
+        // جلب المنتج المحدد فقط إذا كان موجوداً في الطلب (بدلاً من جلب كل المنتجات)
+        $selectedProduct = null;
+        if ($request->filled('product_id')) {
+            $selectedProduct = Product::find($request->product_id);
+        }
         $delegates = User::where('role', 'delegate')->get();
         $suppliers = User::whereIn('role', ['admin', 'supplier'])->get();
 
@@ -130,7 +134,7 @@ class SalesReportController extends Controller
 
         return view('admin.sales-report.index', compact(
             'warehouses',
-            'products',
+            'selectedProduct',
             'delegates',
             'suppliers',
             'statistics',
@@ -764,10 +768,15 @@ class SalesReportController extends Controller
             }
 
             // خصم ربح إرجاع الاستبدال لكل منتج (نسبة المدير فقط)
+            // تحسين: جلب فقط المنتجات الموجودة في productsData
+            $productIdsInData = array_keys($productsData);
             $warehouseExchangeReturnMovements = ProductMovement::where('movement_type', 'return_exchange_bulk')
                 ->where('warehouse_id', $warehouse->id)
+                ->whereIn('product_id', $productIdsInData)
                 ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
-                ->with('product')
+                ->with(['product' => function($q) {
+                    $q->select('id', 'name', 'purchase_price', 'selling_price');
+                }])
                 ->get();
 
             foreach ($warehouseExchangeReturnMovements as $movement) {

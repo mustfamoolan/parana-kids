@@ -67,7 +67,7 @@
                                 class="form-input"
                                 placeholder="ابحث بكود المنتج أو اسم المنتج..."
                                 autocomplete="off"
-                                value="@if(request('product_id'))@php $selectedProduct = $products->firstWhere('id', request('product_id')); @endphp{{ $selectedProduct ? $selectedProduct->name . ' (' . $selectedProduct->code . ')' : '' }}@endif"
+                                value="@if($selectedProduct){{ $selectedProduct->name . ' (' . $selectedProduct->code . ')' }}@endif"
                             >
                             <input type="hidden" name="product_id" id="product_id" value="{{ request('product_id') }}">
                             <div id="product_results" class="absolute z-10 w-full mt-1 bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
