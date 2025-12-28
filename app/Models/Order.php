@@ -161,6 +161,11 @@ class Order extends Model
         return $this->hasMany(ProfitRecord::class);
     }
 
+    public function investorProfits()
+    {
+        return $this->hasMany(InvestorProfit::class);
+    }
+
     public function alwaseetShipment()
     {
         return $this->hasOne(AlWaseetShipment::class, 'order_id');

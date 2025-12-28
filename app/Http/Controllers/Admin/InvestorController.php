@@ -164,6 +164,26 @@ class InvestorController extends Controller
         if ($investorTreasury && $treasuryTransactionQuery) {
             $investorTreasury->load('transactions');
             
+            // فلترة المعاملات المرتبطة بالطلبات لتظهر فقط تلك المرتبطة بالاستثمارات الفعلية
+            $treasuryTransactionQuery->where(function($q) use ($investor, $allInvestmentIds) {
+                // المعاملات غير المرتبطة بـ cost_return (يدوية، سحب، إيداع أرباح، إلخ) تظهر دائماً
+                $q->where('reference_type', '!=', 'cost_return')
+                  // أو معاملات cost_return المرتبطة بطلبات لها investor_profits مرتبطة بالاستثمارات الفعلية
+                  ->orWhere(function($q2) use ($investor, $allInvestmentIds) {
+                      $q2->where('reference_type', 'cost_return')
+                          ->whereHas('order', function($q3) use ($investor, $allInvestmentIds) {
+                              $q3->whereHas('investorProfits', function($q4) use ($investor, $allInvestmentIds) {
+                                  $q4->where('investor_id', $investor->id);
+                                  if (!empty($allInvestmentIds)) {
+                                      $q4->whereIn('investment_id', $allInvestmentIds);
+                                  } else {
+                                      $q4->whereRaw('1 = 0');
+                                  }
+                              });
+                          });
+                  });
+            });
+            
             // فلتر نوع الحركة
             if ($request->filled('transaction_type')) {
                 $treasuryTransactionQuery->where('transaction_type', $request->transaction_type);
