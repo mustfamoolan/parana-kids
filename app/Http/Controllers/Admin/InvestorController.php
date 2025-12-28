@@ -164,26 +164,10 @@ class InvestorController extends Controller
         if ($investorTreasury && $treasuryTransactionQuery) {
             $investorTreasury->load('transactions');
             
-            // فلترة المعاملات: إظهار جميع المعاملات ما عدا cost_return غير المرتبطة بالاستثمارات
-            $treasuryTransactionQuery->where(function($q) use ($investor, $allInvestmentIds) {
-                // المعاملات التي ليست cost_return تظهر دائماً (profit, manual, expense, null)
-                $q->whereNull('reference_type')
-                  ->orWhereIn('reference_type', ['profit', 'manual', 'expense'])
-                  // أو معاملات cost_return المفلترة حسب الاستثمارات الفعلية
-                  ->orWhere(function($q2) use ($investor, $allInvestmentIds) {
-                      $q2->where('reference_type', 'cost_return')
-                          ->whereHas('order', function($q3) use ($investor, $allInvestmentIds) {
-                              $q3->whereHas('investorProfits', function($q4) use ($investor, $allInvestmentIds) {
-                                  $q4->where('investor_id', $investor->id);
-                                  if (!empty($allInvestmentIds)) {
-                                      $q4->whereIn('investment_id', $allInvestmentIds);
-                                  } else {
-                                      $q4->whereRaw('1 = 0');
-                                  }
-                              });
-                          });
-                  });
-            });
+            // ملاحظة: تم إزالة الفلترة المعقدة لأن جميع المعاملات في الخزنة صحيحة
+            // - معاملات cost_return من InvestorProfitCalculator مرتبطة بالاستثمارات الفعلية
+            // - معاملات profit, manual, expense صحيحة
+            // - لم تعد هناك معاملات order تُودع في خزنة المستثمر (تم إصلاحها في ProfitCalculator)
             
             // فلتر نوع الحركة
             if ($request->filled('transaction_type')) {
