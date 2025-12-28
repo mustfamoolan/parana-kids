@@ -167,24 +167,22 @@ class InvestorController extends Controller
             // فلترة المعاملات: إظهار جميع المعاملات ما عدا cost_return غير المرتبطة بالاستثمارات
             $treasuryTransactionQuery->where(function($q) use ($investor, $allInvestmentIds) {
                 // المعاملات التي ليست cost_return تظهر دائماً (profit, manual, expense, null)
-                $q->where(function($subQ) {
-                    $subQ->whereNull('reference_type')
-                         ->orWhereIn('reference_type', ['profit', 'manual', 'expense']);
-                })
-                // أو معاملات cost_return المفلترة حسب الاستثمارات الفعلية
-                ->orWhere(function($q2) use ($investor, $allInvestmentIds) {
-                    $q2->where('reference_type', 'cost_return')
-                        ->whereHas('order', function($q3) use ($investor, $allInvestmentIds) {
-                            $q3->whereHas('investorProfits', function($q4) use ($investor, $allInvestmentIds) {
-                                $q4->where('investor_id', $investor->id);
-                                if (!empty($allInvestmentIds)) {
-                                    $q4->whereIn('investment_id', $allInvestmentIds);
-                                } else {
-                                    $q4->whereRaw('1 = 0');
-                                }
-                            });
-                        });
-                });
+                $q->whereNull('reference_type')
+                  ->orWhereIn('reference_type', ['profit', 'manual', 'expense'])
+                  // أو معاملات cost_return المفلترة حسب الاستثمارات الفعلية
+                  ->orWhere(function($q2) use ($investor, $allInvestmentIds) {
+                      $q2->where('reference_type', 'cost_return')
+                          ->whereHas('order', function($q3) use ($investor, $allInvestmentIds) {
+                              $q3->whereHas('investorProfits', function($q4) use ($investor, $allInvestmentIds) {
+                                  $q4->where('investor_id', $investor->id);
+                                  if (!empty($allInvestmentIds)) {
+                                      $q4->whereIn('investment_id', $allInvestmentIds);
+                                  } else {
+                                      $q4->whereRaw('1 = 0');
+                                  }
+                              });
+                          });
+                  });
             });
             
             // فلتر نوع الحركة
