@@ -104,8 +104,28 @@ class InvestorController extends Controller
             'transactions.createdBy'
         ]);
 
-        // بناء query لفلترة الأرباح حسب تاريخ تقييد الطلب
+        // جلب جميع الاستثمارات المرتبطة بهذا المستثمر (البنية الجديدة والقديمة)
+        $investmentInvestorIds = \App\Models\InvestmentInvestor::where('investor_id', $investor->id)
+            ->pluck('investment_id')
+            ->toArray();
+        
+        $oldInvestmentIds = \App\Models\Investment::where('investor_id', $investor->id)
+            ->whereNull('project_id')
+            ->pluck('id')
+            ->toArray();
+        
+        $allInvestmentIds = array_unique(array_merge($investmentInvestorIds, $oldInvestmentIds));
+
+        // بناء query لفلترة الأرباح حسب الاستثمارات الفعلية فقط
         $profitQuery = \App\Models\InvestorProfit::where('investor_id', $investor->id);
+        
+        // إذا كان لدى المستثمر استثمارات، قم بفلترة الأرباح حسبها فقط
+        if (!empty($allInvestmentIds)) {
+            $profitQuery->whereIn('investment_id', $allInvestmentIds);
+        } else {
+            // إذا لم يكن لدى المستثمر أي استثمارات، لا تظهر أي أرباح
+            $profitQuery->whereRaw('1 = 0');
+        }
 
         // فلتر التاريخ حسب تاريخ تقييد الطلب
         if ($request->filled('date_from') || $request->filled('date_to')) {

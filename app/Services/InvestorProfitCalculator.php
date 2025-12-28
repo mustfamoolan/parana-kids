@@ -15,16 +15,6 @@ use Illuminate\Support\Facades\Log;
 class InvestorProfitCalculator
 {
     /**
-     * تقريب المبلغ لأقرب عملة صحيحة عراقية (مضاعفات 250 دينار)
-     * @param float $amount المبلغ المراد تقريبه
-     * @return float المبلغ المقرب
-     */
-    private function roundToNearestCurrency(float $amount): float
-    {
-        return round($amount / 250) * 250;
-    }
-
-    /**
      * توزيع أرباح الطلب على جميع المستثمرين
      * @return float مجموع ربح المستثمرين
      */
@@ -308,8 +298,6 @@ class InvestorProfitCalculator
             foreach ($investment->investors as $investmentInvestor) {
                 $investor = $investmentInvestor->investor;
                 $investorProfit = ($profitAmount * $investmentInvestor->profit_percentage) / 100;
-                // تقريب الربح لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                $investorProfit = $this->roundToNearestCurrency($investorProfit);
                 $totalDistributed += $investorProfit;
 
                 // استخدام cost_percentage المحفوظ مباشرة
@@ -317,8 +305,6 @@ class InvestorProfitCalculator
                 
                 // حساب الكلفة المسترجعة: cost_percentage من التكلفة الإجمالية المباعة
                 $costReturned = ($totalCostSold * $costPercentage) / 100;
-                // تقريب الكلفة المسترجعة لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                $costReturned = $this->roundToNearestCurrency($costReturned);
 
                 $profitRecord = InvestorProfit::create([
                     'investor_id' => $investmentInvestor->investor_id,
@@ -390,8 +376,6 @@ class InvestorProfitCalculator
                 // إيداع كلفة المدير المسترجعة
                 if ($adminCostPercentage > 0) {
                     $adminCostReturned = ($totalCostSold * $adminCostPercentage) / 100;
-                    // تقريب كلفة المدير لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $adminCostReturned = $this->roundToNearestCurrency($adminCostReturned);
                     if ($adminCostReturned > 0) {
                         $investment->project->treasury->deposit(
                             $adminCostReturned,
@@ -428,8 +412,6 @@ class InvestorProfitCalculator
                 foreach ($oldInvestments as $investment) {
                     $investor = $investment->investor;
                     $investorProfit = ($profitAmount * $investment->profit_percentage) / 100;
-                    // تقريب الربح لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $investorProfit = $this->roundToNearestCurrency($investorProfit);
                     $totalDistributed += $investorProfit;
 
                     // حساب cost_percentage من investment_amount و total_value (للبنية القديمة)
@@ -440,10 +422,6 @@ class InvestorProfitCalculator
                     
                     // حساب الكلفة المسترجعة
                     $costReturned = ($totalCostSold * $costPercentage) / 100;
-                    // تقريب الكلفة المسترجعة لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $costReturned = $this->roundToNearestCurrency($costReturned);
-                    // تقريب الكلفة المسترجعة لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $costReturned = $this->roundToNearestCurrency($costReturned);
 
                     $profitRecord = InvestorProfit::create([
                         'investor_id' => $investment->investor_id,
@@ -545,8 +523,6 @@ class InvestorProfitCalculator
             foreach ($investment->investors as $investmentInvestor) {
                 $investor = $investmentInvestor->investor;
                 $investorProfit = ($profitAmount * $investmentInvestor->profit_percentage) / 100;
-                // تقريب الربح لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                $investorProfit = $this->roundToNearestCurrency($investorProfit);
                 $totalDistributed += $investorProfit;
 
                 // استخدام cost_percentage المحفوظ مباشرة
@@ -554,8 +530,6 @@ class InvestorProfitCalculator
                 
                 // حساب الكلفة المسترجعة: cost_percentage من التكلفة الإجمالية المباعة
                 $costReturned = ($totalCostSold * $costPercentage) / 100;
-                // تقريب الكلفة المسترجعة لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                $costReturned = $this->roundToNearestCurrency($costReturned);
 
                 $profitRecord = InvestorProfit::create([
                     'investor_id' => $investmentInvestor->investor_id,
@@ -627,8 +601,6 @@ class InvestorProfitCalculator
                 // إيداع كلفة المدير المسترجعة
                 if ($adminCostPercentage > 0) {
                     $adminCostReturned = ($totalCostSold * $adminCostPercentage) / 100;
-                    // تقريب كلفة المدير لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $adminCostReturned = $this->roundToNearestCurrency($adminCostReturned);
                     if ($adminCostReturned > 0) {
                         $investment->project->treasury->deposit(
                             $adminCostReturned,
@@ -665,8 +637,6 @@ class InvestorProfitCalculator
                 foreach ($oldInvestments as $investment) {
                     $investor = $investment->investor;
                     $investorProfit = ($profitAmount * $investment->profit_percentage) / 100;
-                    // تقريب الربح لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $investorProfit = $this->roundToNearestCurrency($investorProfit);
                     $totalDistributed += $investorProfit;
 
                     // حساب cost_percentage من investment_amount و total_value (للبنية القديمة)
@@ -677,8 +647,6 @@ class InvestorProfitCalculator
                     
                     // حساب الكلفة المسترجعة
                     $costReturned = ($totalCostSold * $costPercentage) / 100;
-                    // تقريب الكلفة المسترجعة لأقرب عملة صحيحة عراقية (مضاعفات 250)
-                    $costReturned = $this->roundToNearestCurrency($costReturned);
 
                     $profitRecord = InvestorProfit::create([
                         'investor_id' => $investment->investor_id,
@@ -774,8 +742,6 @@ class InvestorProfitCalculator
         foreach ($investments as $investment) {
             $investor = $investment->investor;
             $investorProfit = ($profitAmount * $investment->profit_percentage) / 100;
-            // تقريب الربح لأقرب عملة صحيحة عراقية (مضاعفات 250)
-            $investorProfit = $this->roundToNearestCurrency($investorProfit);
 
             // حساب cost_percentage من investment_amount و total_value (للبنية القديمة)
             $costPercentage = 0;
@@ -785,8 +751,6 @@ class InvestorProfitCalculator
             
             // حساب الكلفة المسترجعة
             $costReturned = ($totalCostSold * $costPercentage) / 100;
-            // تقريب الكلفة المسترجعة لأقرب عملة صحيحة عراقية (مضاعفات 250)
-            $costReturned = $this->roundToNearestCurrency($costReturned);
 
             InvestorProfit::create([
                 'investor_id' => $investment->investor_id,
