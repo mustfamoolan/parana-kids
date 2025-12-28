@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateAuthController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +25,12 @@ Route::prefix('delegate/auth')->group(function () {
         Route::post('/logout', [MobileDelegateAuthController::class, 'logout']);
         Route::put('/profile', [MobileDelegateAuthController::class, 'updateProfile']);
     });
+});
+
+// APIs المنتجات للمندوب (تحتاج token)
+Route::prefix('delegate/products')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [MobileDelegateProductController::class, 'index']);
+    Route::get('/{id}', [MobileDelegateProductController::class, 'show']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)
