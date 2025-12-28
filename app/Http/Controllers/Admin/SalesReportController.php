@@ -257,11 +257,14 @@ class SalesReportController extends Controller
             }
         }
 
-        // حساب الأرباح بدون فروقات
+        // حساب الأرباح بدون فروقات - فصل بين أرباح الاستثمار والطلبات العادية
         // الأرباح = (سعر البيع - سعر الشراء) × الكمية لكل منتج
         // ملاحظة: quantity في order_items يتم تحديثه تلقائياً بعد الإرجاع الجزئي
         // لذلك نستخدم القيم المتبقية مباشرة دون خصم الإرجاع مرة أخرى
-        $totalProfitWithoutMargin = 0; // ربح المدير فقط
+        $adminProfitFromInvestments = 0; // ربح المدير من الاستثمار فقط (صافي بعد التوزيع)
+        $regularOrdersProfit = 0; // ربح الطلبات العادية (من مخازن بدون استثمار)
+        $totalProfitWithoutMargin = 0; // إجمالي ربح المدير (مجموع الاثنين)
+        
         foreach ($orderItems as $item) {
             // التأكد من وجود المنتج وسعر الشراء
             if ($item->product && $item->product->purchase_price && $item->product->purchase_price > 0) {
@@ -282,18 +285,22 @@ class SalesReportController extends Controller
                 $hasInvestors = $this->checkProductHasActiveInvestors($item->product);
                 
                 if ($hasInvestors) {
-                    // حساب نسبة ربح المدير فقط
+                    // ربح المدير من الاستثمار (صافي بعد التوزيع على المستثمرين)
                     $adminProfitPercentage = $this->getAdminProfitPercentage($item->product);
-                    $totalProfitWithoutMargin += $itemProfit * ($adminProfitPercentage / 100);
+                    $adminShareFromItem = $itemProfit * ($adminProfitPercentage / 100);
+                    $adminProfitFromInvestments += $adminShareFromItem;
+                    $totalProfitWithoutMargin += $adminShareFromItem;
                 } else {
-                    // لا يوجد مستثمرين -> كل الربح للمدير
+                    // ربح الطلبات العادية (من مخازن بدون استثمار)
+                    $regularOrdersProfit += $itemProfit;
                     $totalProfitWithoutMargin += $itemProfit;
                 }
             }
         }
 
-        // خصم الربح من إرجاع الاستبدال (نحسب نسبة المدير فقط)
-        $exchangeReturnProfitAdmin = 0;
+        // خصم الربح من إرجاع الاستبدال (نحسب نسبة المدير فقط) - فصل بين النوعين
+        $exchangeReturnProfitFromInvestments = 0;
+        $exchangeReturnProfitFromRegular = 0;
         foreach ($exchangeReturnMovements as $movement) {
             if ($movement->product && $movement->product->purchase_price && $movement->product->purchase_price > 0) {
                 $profitPerUnit = $movement->product->selling_price - $movement->product->purchase_price;
@@ -302,13 +309,17 @@ class SalesReportController extends Controller
                 $hasInvestors = $this->checkProductHasActiveInvestors($movement->product);
                 if ($hasInvestors) {
                     $adminProfitPercentage = $this->getAdminProfitPercentage($movement->product);
-                    $exchangeReturnProfitAdmin += $movementProfit * ($adminProfitPercentage / 100);
+                    $exchangeReturnProfitFromInvestments += $movementProfit * ($adminProfitPercentage / 100);
                 } else {
-                    $exchangeReturnProfitAdmin += $movementProfit;
+                    $exchangeReturnProfitFromRegular += $movementProfit;
                 }
             }
         }
-        $totalProfitWithoutMargin = max(0, $totalProfitWithoutMargin - $exchangeReturnProfitAdmin);
+        
+        // خصم الأرباح من الإرجاع
+        $adminProfitFromInvestments = max(0, $adminProfitFromInvestments - $exchangeReturnProfitFromInvestments);
+        $regularOrdersProfit = max(0, $regularOrdersProfit - $exchangeReturnProfitFromRegular);
+        $totalProfitWithoutMargin = $adminProfitFromInvestments + $regularOrdersProfit;
 
         // حساب الأرباح مع الفروقات
         $totalProfitWithMargin = $totalProfitWithoutMargin + $totalMarginAmount;
@@ -340,6 +351,10 @@ class SalesReportController extends Controller
             'items_count' => max(0, $itemsCount),
             'return_amount' => $returnAmount,
             'exchange_return_amount' => $exchangeReturnAmount,
+            // أرباح منفصلة: الاستثمار والطلبات العادية
+            'admin_investment_profit' => $adminProfitFromInvestments,
+            'regular_orders_profit' => $regularOrdersProfit,
+            'total_admin_profit' => $totalProfitWithoutMargin, // نفس total_profit_without_margin ولكن معروف بوضوح
         ];
     }
 

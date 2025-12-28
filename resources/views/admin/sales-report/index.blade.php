@@ -180,6 +180,57 @@
             </div>
         </div>
 
+        <!-- كاردات الأرباح المنفصلة -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- ربح المدير من الاستثمار (صافي) -->
+            <div class="panel">
+                <div class="flex items-center justify-between mb-5">
+                    <h5 class="font-semibold text-lg dark:text-white-light">ربح المدير من الاستثمار (صافي)</h5>
+                    <div class="p-2 bg-success/10 rounded-lg">
+                        <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold text-success mb-2">
+                    {{ number_format($statistics['admin_investment_profit'] ?? 0, 0, '.', ',') }} دينار
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">بعد خصم المصاريف والتوزيع على المستثمرين</p>
+            </div>
+
+            <!-- ربح الطلبات العادية -->
+            <div class="panel">
+                <div class="flex items-center justify-between mb-5">
+                    <h5 class="font-semibold text-lg dark:text-white-light">ربح الطلبات العادية</h5>
+                    <div class="p-2 bg-primary/10 rounded-lg">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold text-primary mb-2">
+                    {{ number_format($statistics['regular_orders_profit'] ?? 0, 0, '.', ',') }} دينار
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">من المخازن بدون استثمار</p>
+            </div>
+
+            <!-- إجمالي ربح المدير -->
+            <div class="panel">
+                <div class="flex items-center justify-between mb-5">
+                    <h5 class="font-semibold text-lg dark:text-white-light">إجمالي ربح المدير</h5>
+                    <div class="p-2 bg-info/10 rounded-lg">
+                        <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold text-info mb-2">
+                    {{ number_format($statistics['total_admin_profit'] ?? $statistics['total_profit_without_margin'] ?? 0, 0, '.', ',') }} دينار
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">مجموع أرباح الاستثمار والطلبات العادية</p>
+            </div>
+        </div>
+
         <!-- جدول أرباح المخازن -->
         @if(isset($warehouseProfitsData) && !empty($warehouseProfitsData['warehouses']))
             <div class="panel mb-6">

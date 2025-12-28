@@ -263,6 +263,11 @@ class InvestorProfitCalculator
      */
     public function distributeProductProfit($productId, $profitAmount, $orderId, $profitRecordId, Order $order = null): float
     {
+        // التحقق من وجود استثمارات نشطة لهذا المنتج قبل أي عملية
+        if (!$this->checkHasActiveInvestment('product', $productId)) {
+            return 0; // لا توجد استثمارات نشطة، لا نوزع أي شيء
+        }
+        
         // جلب جميع الاستثمارات النشطة لهذا المنتج
         $investments = Investment::where('investment_type', 'product')
             ->where('product_id', $productId)
@@ -500,6 +505,11 @@ class InvestorProfitCalculator
      */
     public function distributeWarehouseProfit($warehouseId, $profitAmount, $orderId, $profitRecordId, Order $order = null): float
     {
+        // التحقق من وجود استثمارات نشطة لهذا المخزن قبل أي عملية
+        if (!$this->checkHasActiveInvestment('warehouse', $warehouseId)) {
+            return 0; // لا توجد استثمارات نشطة، لا نوزع أي شيء
+        }
+        
         $totalDistributed = 0;
 
         // جلب Order إذا لم يتم تمريره
