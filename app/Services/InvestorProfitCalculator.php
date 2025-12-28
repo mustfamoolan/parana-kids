@@ -196,8 +196,6 @@ class InvestorProfitCalculator
 
         // توزيع الأرباح من الاستثمارات الجديدة
         foreach ($newInvestments as $investment) {
-            $investment->load('project.treasury');
-            
             // حساب مجموع cost_percentage للمستثمرين من الحقل المحفوظ
             $totalInvestorCostPercentage = 0;
             foreach ($investment->investors as $investmentInvestor) {
@@ -258,49 +256,8 @@ class InvestorProfitCalculator
                 }
             }
 
-            // حساب وإيداع ربح المدير وكلفته من هذا الاستثمار في الخزنة الفرعية
-            if ($investment->project && $investment->project->treasury) {
-                // حساب نسبة المدير: أولاً من InvestmentInvestor إذا كان موجوداً، وإلا من admin_profit_percentage
-                $adminInvestorPercentage = $investment->investors()
-                    ->whereHas('investor', function($q) {
-                        $q->where('is_admin', true);
-                    })
-                    ->sum('profit_percentage');
-                
-                $adminPercentage = $adminInvestorPercentage > 0 
-                    ? $adminInvestorPercentage 
-                    : ($investment->admin_profit_percentage ?? 0);
-                
-                // إيداع ربح المدير (بدون تقريب لضمان الدقة 100%)
-                if ($adminPercentage > 0) {
-                    $adminProfit = ($profitAmount * $adminPercentage) / 100;
-                    // لا نستخدم roundToNearestCurrency لربح المدير لضمان الدقة 100%
-                    if ($adminProfit > 0) {
-                        $investment->project->treasury->deposit(
-                            $adminProfit,
-                            'order',
-                            $orderId,
-                            "ربح المدير من استثمار #{$investment->id} - منتج #{$productId}",
-                            auth()->id()
-                        );
-                    }
-                }
-                
-                // إيداع كلفة المدير المسترجعة
-                if ($adminCostPercentage > 0) {
-                    $adminCostReturned = ($totalCostSold * $adminCostPercentage) / 100;
-                    if ($adminCostReturned > 0) {
-                        $investment->project->treasury->deposit(
-                            $adminCostReturned,
-                            'order',
-                            $orderId,
-                            "إرجاع كلفة المدير من استثمار #{$investment->id} - منتج #{$productId}",
-                            auth()->id()
-                        );
-                    }
-                }
-                
-            }
+            // ملاحظة: المدير يعامل مثل باقي المستثمرين تماماً
+            // أرباحه وكلفته تُسجل في InvestorProfit وخزنته الخاصة، وليس في خزنة المشروع
         }
 
         // البحث عن الاستثمارات القديمة (backward compatibility)
@@ -426,8 +383,6 @@ class InvestorProfitCalculator
 
         // توزيع الأرباح من الاستثمارات الجديدة
         foreach ($newInvestments as $investment) {
-            $investment->load('project.treasury');
-            
             // حساب مجموع cost_percentage للمستثمرين من الحقل المحفوظ
             $totalInvestorCostPercentage = 0;
             foreach ($investment->investors as $investmentInvestor) {
@@ -488,49 +443,8 @@ class InvestorProfitCalculator
                 }
             }
 
-            // حساب وإيداع ربح المدير وكلفته من هذا الاستثمار في الخزنة الفرعية
-            if ($investment->project && $investment->project->treasury) {
-                // حساب نسبة المدير: أولاً من InvestmentInvestor إذا كان موجوداً، وإلا من admin_profit_percentage
-                $adminInvestorPercentage = $investment->investors()
-                    ->whereHas('investor', function($q) {
-                        $q->where('is_admin', true);
-                    })
-                    ->sum('profit_percentage');
-                
-                $adminPercentage = $adminInvestorPercentage > 0 
-                    ? $adminInvestorPercentage 
-                    : ($investment->admin_profit_percentage ?? 0);
-                
-                // إيداع ربح المدير (بدون تقريب لضمان الدقة 100%)
-                if ($adminPercentage > 0) {
-                    $adminProfit = ($profitAmount * $adminPercentage) / 100;
-                    // لا نستخدم roundToNearestCurrency لربح المدير لضمان الدقة 100%
-                    if ($adminProfit > 0) {
-                        $investment->project->treasury->deposit(
-                            $adminProfit,
-                            'order',
-                            $orderId,
-                            "ربح المدير من استثمار #{$investment->id} - مخزن #{$warehouseId}",
-                            auth()->id()
-                        );
-                    }
-                }
-                
-                // إيداع كلفة المدير المسترجعة
-                if ($adminCostPercentage > 0) {
-                    $adminCostReturned = ($totalCostSold * $adminCostPercentage) / 100;
-                    if ($adminCostReturned > 0) {
-                        $investment->project->treasury->deposit(
-                            $adminCostReturned,
-                            'order',
-                            $orderId,
-                            "إرجاع كلفة المدير من استثمار #{$investment->id} - مخزن #{$warehouseId}",
-                            auth()->id()
-                        );
-                    }
-                }
-                
-            }
+            // ملاحظة: المدير يعامل مثل باقي المستثمرين تماماً
+            // أرباحه وكلفته تُسجل في InvestorProfit وخزنته الخاصة، وليس في خزنة المشروع
         }
 
         // البحث عن الاستثمارات القديمة (backward compatibility)
