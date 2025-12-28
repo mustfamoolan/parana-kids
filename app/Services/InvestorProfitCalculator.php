@@ -155,11 +155,22 @@ class InvestorProfitCalculator
             $warehouseId = $item->product->warehouse_id;
             
             // جمع جميع المشاريع المرتبطة بهذا المنتج/المخزن (unique لتجنب التكرار)
+            // فقط الاستثمارات النشطة التي لها مستثمرين
             $relatedProjectIds = collect();
             
-            // البحث عن المشاريع المرتبطة بالمنتج
+            // البحث عن المشاريع المرتبطة بالمنتج - فقط الاستثمارات النشطة
             $productInvestmentIds = InvestmentTarget::where('target_type', 'product')
                 ->where('target_id', $productId)
+                ->whereHas('investment', function($q) {
+                    $q->where('status', 'active')
+                      ->where('start_date', '<=', now())
+                      ->where(function($q2) {
+                          $q2->whereNull('end_date')
+                             ->orWhere('end_date', '>=', now());
+                      })
+                      ->whereNotNull('project_id')
+                      ->whereHas('investors'); // التأكد من وجود مستثمرين
+                })
                 ->pluck('investment_id');
                 
             $productProjectIds = Investment::whereIn('id', $productInvestmentIds)
@@ -168,9 +179,19 @@ class InvestorProfitCalculator
                 
             $relatedProjectIds = $relatedProjectIds->merge($productProjectIds);
             
-            // البحث عن المشاريع المرتبطة بالمخزن
+            // البحث عن المشاريع المرتبطة بالمخزن - فقط الاستثمارات النشطة
             $warehouseInvestmentIds = InvestmentTarget::where('target_type', 'warehouse')
                 ->where('target_id', $warehouseId)
+                ->whereHas('investment', function($q) {
+                    $q->where('status', 'active')
+                      ->where('start_date', '<=', now())
+                      ->where(function($q2) {
+                          $q2->whereNull('end_date')
+                             ->orWhere('end_date', '>=', now());
+                      })
+                      ->whereNotNull('project_id')
+                      ->whereHas('investors'); // التأكد من وجود مستثمرين
+                })
                 ->pluck('investment_id');
                 
             $warehouseProjectIds = Investment::whereIn('id', $warehouseInvestmentIds)
