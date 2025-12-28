@@ -42,26 +42,32 @@ class InvestorProfitCalculator
                     $itemProfit = 0;
                 }
 
-                // تجميع بيانات المنتج
-                if (!isset($productsData[$productId])) {
-                    $productsData[$productId] = [
-                        'product_id' => $productId,
-                        'profit' => 0,
-                        'profit_record_id' => null,
-                    ];
+                // تجميع بيانات المنتج - فقط إذا كان له استثمار نشط
+                $hasProductInvestment = $this->checkHasActiveInvestment('product', $productId);
+                if ($hasProductInvestment) {
+                    if (!isset($productsData[$productId])) {
+                        $productsData[$productId] = [
+                            'product_id' => $productId,
+                            'profit' => 0,
+                            'profit_record_id' => null,
+                        ];
+                    }
+                    $productsData[$productId]['profit'] += $itemProfit;
                 }
-                $productsData[$productId]['profit'] += $itemProfit;
 
-                // تجميع بيانات المخزن
-                if ($warehouseId && !isset($warehousesData[$warehouseId])) {
-                    $warehousesData[$warehouseId] = [
-                        'warehouse_id' => $warehouseId,
-                        'profit' => 0,
-                        'profit_record_id' => null,
-                    ];
-                }
+                // تجميع بيانات المخزن - فقط إذا كان له استثمار نشط
                 if ($warehouseId) {
-                    $warehousesData[$warehouseId]['profit'] += $itemProfit;
+                    $hasWarehouseInvestment = $this->checkHasActiveInvestment('warehouse', $warehouseId);
+                    if ($hasWarehouseInvestment) {
+                        if (!isset($warehousesData[$warehouseId])) {
+                            $warehousesData[$warehouseId] = [
+                                'warehouse_id' => $warehouseId,
+                                'profit' => 0,
+                                'profit_record_id' => null,
+                            ];
+                        }
+                        $warehousesData[$warehouseId]['profit'] += $itemProfit;
+                    }
                 }
             }
 
@@ -808,6 +814,48 @@ class InvestorProfitCalculator
                 Log::warning("Investor {$investor->id} ({$investor->name}) does not have a treasury. Cannot deposit cost.");
             }
         }
+    }
+
+    /**
+     * التحقق من وجود استثمار نشط للمنتج/المخزن
+     */
+    private function checkHasActiveInvestment(string $targetType, int $targetId): bool
+    {
+        // البحث في البنية الجديدة
+        $hasNewInvestment = InvestmentTarget::where('target_type', $targetType)
+            ->where('target_id', $targetId)
+            ->whereHas('investment', function($q) {
+                $q->where('status', 'active')
+                  ->where('start_date', '<=', now())
+                  ->where(function($q2) {
+                      $q2->whereNull('end_date')
+                         ->orWhere('end_date', '>=', now());
+                  })
+                  ->whereHas('investors'); // التأكد من وجود مستثمرين
+            })
+            ->exists();
+        
+        if ($hasNewInvestment) {
+            return true;
+        }
+        
+        // البحث في البنية القديمة
+        $query = Investment::where('investment_type', $targetType)
+            ->where('status', 'active')
+            ->whereNotNull('investor_id')
+            ->where('start_date', '<=', now())
+            ->where(function($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now());
+            });
+        
+        if ($targetType === 'product') {
+            $query->where('product_id', $targetId);
+        } elseif ($targetType === 'warehouse') {
+            $query->where('warehouse_id', $targetId);
+        }
+        
+        return $query->exists();
     }
 }
 
