@@ -113,7 +113,7 @@ class SalesReportController extends Controller
         );
 
         // حساب أرباح المنتجات
-        $productProfitsData = $this->calculateProductProfits(
+        $productProfitsResult = $this->calculateProductProfits(
             $orders,
             $orderIds,
             $request,
@@ -121,25 +121,9 @@ class SalesReportController extends Controller
             $dateTo,
             $warehouseProfitsData['expense_per_item']
         );
-
-        // حساب الإجماليات الكلية للمنتجات (للعرض في footer)
-        $productProfitsTotals = [
-            'total_profit' => 0,
-            'total_items' => 0,
-            'total_expenses' => 0,
-            'total_net_profit' => 0,
-        ];
-
-        // جلب جميع المنتجات (بدون pagination) لحساب الإجماليات
-        $allProductProfits = $this->calculateProductProfitsAll($orders, $orderIds, $request, $dateFrom, $dateTo, $warehouseProfitsData['expense_per_item']);
-        if (!empty($allProductProfits)) {
-            $productProfitsTotals = [
-                'total_profit' => collect($allProductProfits)->sum('profit_with_margin'),
-                'total_items' => collect($allProductProfits)->sum('items_count'),
-                'total_expenses' => collect($allProductProfits)->sum('product_expenses'),
-                'total_net_profit' => collect($allProductProfits)->sum('net_profit'),
-            ];
-        }
+        
+        $productProfitsData = $productProfitsResult['paginated'];
+        $productProfitsTotals = $productProfitsResult['totals'];
 
         // حفظ التقرير في قاعدة البيانات
         $this->saveReport($statistics, $chartData, $request, $dateFrom, $dateTo);
@@ -903,6 +887,14 @@ class SalesReportController extends Controller
             return strcmp($a['warehouse_name'], $b['warehouse_name']);
         });
 
+        // حساب الإجماليات من البيانات المجمعة (بدون جلب كل المنتجات)
+        $productProfitsTotals = [
+            'total_profit' => collect($productProfits)->sum('profit_with_margin'),
+            'total_items' => collect($productProfits)->sum('items_count'),
+            'total_expenses' => collect($productProfits)->sum('product_expenses'),
+            'total_net_profit' => collect($productProfits)->sum('net_profit'),
+        ];
+
         // Pagination
         $perPage = 50; // عدد المنتجات في كل صفحة
         $currentPage = $request->get('product_page', 1);
@@ -921,7 +913,10 @@ class SalesReportController extends Controller
             ]
         );
 
-        return $paginatedProducts;
+        return [
+            'paginated' => $paginatedProducts,
+            'totals' => $productProfitsTotals,
+        ];
     }
 
     private function calculateProductProfitsAll($orders, $orderIds, $request, $dateFrom, $dateTo, $expensePerItem)
