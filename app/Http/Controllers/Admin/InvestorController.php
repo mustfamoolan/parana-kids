@@ -588,10 +588,29 @@ public function resetAccounts(Request $request, Investor $investor)
         $amount = $validated['amount'];
         $notes = $validated['notes'] ?? null;
 
-        // حساب إجمالي الأرباح المعلقة
-        $pendingAmount = \App\Models\InvestorProfit::where('investor_id', $investor->id)
-            ->where('status', 'pending')
-            ->sum('profit_amount');
+        // جلب جميع الاستثمارات المرتبطة بهذا المستثمر (لفلترة الأرباح)
+        $investmentInvestorIds = \App\Models\InvestmentInvestor::where('investor_id', $investor->id)
+            ->pluck('investment_id')
+            ->toArray();
+        
+        $oldInvestmentIds = \App\Models\Investment::where('investor_id', $investor->id)
+            ->whereNull('project_id')
+            ->pluck('id')
+            ->toArray();
+        
+        $allInvestmentIds = array_unique(array_merge($investmentInvestorIds, $oldInvestmentIds));
+
+        // حساب إجمالي الأرباح المعلقة - مع الفلترة حسب الاستثمارات
+        $pendingQuery = \App\Models\InvestorProfit::where('investor_id', $investor->id)
+            ->where('status', 'pending');
+        
+        if (!empty($allInvestmentIds)) {
+            $pendingQuery->whereIn('investment_id', $allInvestmentIds);
+        } else {
+            $pendingQuery->whereRaw('1 = 0');
+        }
+        
+        $pendingAmount = $pendingQuery->sum('profit_amount');
 
         if ($amount > $pendingAmount) {
             return back()->withErrors(['amount' => 'المبلغ يتجاوز الأرباح المعلقة (' . formatCurrency($pendingAmount) . ')']);
@@ -615,11 +634,19 @@ public function resetAccounts(Request $request, Investor $investor)
 
                 // تحديث حالة InvestorProfit من pending إلى paid
                 // توزيع المبلغ على الأرباح المعلقة حسب التاريخ (الأقدم أولاً)
-                $pendingProfits = \App\Models\InvestorProfit::where('investor_id', $investor->id)
+                // مع الفلترة حسب الاستثمارات الفعلية
+                $pendingProfitsQuery = \App\Models\InvestorProfit::where('investor_id', $investor->id)
                     ->where('status', 'pending')
                     ->orderBy('profit_date', 'asc')
-                    ->orderBy('id', 'asc')
-                    ->get();
+                    ->orderBy('id', 'asc');
+                
+                if (!empty($allInvestmentIds)) {
+                    $pendingProfitsQuery->whereIn('investment_id', $allInvestmentIds);
+                } else {
+                    $pendingProfitsQuery->whereRaw('1 = 0');
+                }
+                
+                $pendingProfits = $pendingProfitsQuery->get();
 
                 $remainingAmount = $amount;
                 foreach ($pendingProfits as $profit) {
