@@ -5,6 +5,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateAuthController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateOrderController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateCartController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateChatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,6 +57,20 @@ Route::prefix('delegate/carts')->middleware('auth.pwa')->group(function () {
     Route::post('/items', [MobileDelegateCartController::class, 'addItems']);
     Route::put('/items/{id}', [MobileDelegateCartController::class, 'updateItem']);
     Route::delete('/items/{id}', [MobileDelegateCartController::class, 'removeItem']);
+});
+
+// APIs الرسائل للمندوب (تحتاج token)
+Route::prefix('delegate/chat')->middleware('auth.pwa')->group(function () {
+    Route::get('/conversations', [MobileDelegateChatController::class, 'getConversations']);
+    Route::post('/conversation', [MobileDelegateChatController::class, 'getOrCreateConversation']);
+    Route::get('/messages', [MobileDelegateChatController::class, 'getMessages']);
+    Route::post('/send', [MobileDelegateChatController::class, 'sendMessage']);
+    Route::post('/send-to-user', [MobileDelegateChatController::class, 'sendMessageToUser']);
+    Route::post('/mark-read', [MobileDelegateChatController::class, 'markAsRead']);
+    Route::get('/search-order', [MobileDelegateChatController::class, 'searchOrder']);
+    Route::post('/send-order', [MobileDelegateChatController::class, 'sendOrderMessage']);
+    Route::get('/search-product', [MobileDelegateChatController::class, 'searchProduct']);
+    Route::post('/send-product', [MobileDelegateChatController::class, 'sendProductMessage']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)

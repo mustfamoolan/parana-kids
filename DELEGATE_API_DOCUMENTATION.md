@@ -3330,6 +3330,1026 @@ async function createOrder() {
 
 ---
 
+## نظام الرسائل (Chat)
+
+### نظرة عامة
+نظام الرسائل يسمح للمندوب بالتواصل مع المستخدمين الآخرين (المجهزين، المديرين، المندوبين الآخرين) عبر محادثات مباشرة أو مجموعات. يدعم النظام إرسال رسائل نصية، صور، طلبات، ومنتجات.
+
+### أنواع الرسائل
+1. **نص (text)**: رسالة نصية عادية
+2. **صورة (image)**: رسالة تحتوي على صورة
+3. **طلب (order)**: رسالة تحتوي على تفاصيل طلب
+4. **منتج (product)**: رسالة تحتوي على تفاصيل منتج
+
+### أنواع المحادثات
+1. **مباشرة (direct)**: محادثة بين مستخدمين اثنين
+2. **مجموعة (group)**: محادثة بين عدة مستخدمين (للمدير فقط)
+
+---
+
+## 1. جلب قائمة المحادثات (Get Conversations)
+
+### Endpoint
+```
+GET /api/mobile/delegate/chat/conversations
+```
+
+### الوصف
+جلب قائمة جميع المحادثات للمندوب مع آخر رسالة وعدد الرسائل غير المقروءة.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "conversations": [
+      {
+        "id": 1,
+        "type": "direct",
+        "userId": 2,
+        "name": "أحمد محمد",
+        "code": "DEL001",
+        "path": "https://your-domain.com/storage/profiles/2.jpg",
+        "preview": "آخر رسالة في المحادثة",
+        "time": "10:30 AM",
+        "active": true,
+        "unread_count": 2
+      },
+      {
+        "id": 2,
+        "type": "group",
+        "userId": null,
+        "name": "مجموعة المندوبين",
+        "code": null,
+        "path": "group-icon.svg",
+        "preview": "آخر رسالة في المجموعة",
+        "time": "09:15 AM",
+        "active": true,
+        "unread_count": 0,
+        "participants_count": 5
+      }
+    ]
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/chat/conversations" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 2. جلب أو إنشاء محادثة (Get or Create Conversation)
+
+### Endpoint
+```
+POST /api/mobile/delegate/chat/conversation
+```
+
+### الوصف
+جلب محادثة موجودة مع مستخدم أو إنشاء محادثة جديدة إذا لم تكن موجودة.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "user_id": "integer (required) - معرف المستخدم"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "conversation_id": 1,
+    "other_user": {
+      "id": 2,
+      "name": "أحمد محمد",
+      "path": "https://your-domain.com/storage/profiles/2.jpg"
+    }
+  }
+}
+```
+
+### Response Error (403 Forbidden) - مستخدم غير متاح
+```json
+{
+  "success": false,
+  "message": "لا يمكنك المراسلة مع هذا المستخدم",
+  "error_code": "USER_NOT_AVAILABLE"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/conversation" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 2
+  }'
+```
+
+---
+
+## 3. جلب الرسائل (Get Messages)
+
+### Endpoint
+```
+GET /api/mobile/delegate/chat/messages
+```
+
+### الوصف
+جلب جميع رسائل محادثة معينة. يتم تحديث `last_read_at` تلقائياً وحذف إشعارات SweetAlert.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Query Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `conversation_id` | integer | Yes | معرف المحادثة |
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      {
+        "id": 1,
+        "fromUserId": 1,
+        "toUserId": 2,
+        "text": "مرحباً، كيف الحال؟",
+        "type": "text",
+        "time": "10:30 AM",
+        "created_at": "2025-01-15T10:30:00+00:00",
+        "image_url": null,
+        "order": null,
+        "product": null
+      },
+      {
+        "id": 2,
+        "fromUserId": 2,
+        "toUserId": 1,
+        "text": "",
+        "type": "image",
+        "time": "10:31 AM",
+        "created_at": "2025-01-15T10:31:00+00:00",
+        "image_url": "https://your-domain.com/storage/messages/abc123.jpg",
+        "order": null,
+        "product": null
+      },
+      {
+        "id": 3,
+        "fromUserId": 1,
+        "toUserId": 2,
+        "text": "طلب: ORD-20250115-0001",
+        "type": "order",
+        "time": "10:32 AM",
+        "created_at": "2025-01-15T10:32:00+00:00",
+        "image_url": null,
+        "order": {
+          "id": 1,
+          "order_number": "ORD-20250115-0001",
+          "customer_name": "محمد أحمد",
+          "customer_phone": "07701234567",
+          "customer_social_link": "https://facebook.com/...",
+          "total_amount": 150.00,
+          "status": "pending",
+          "delegate_name": "أحمد محمد",
+          "created_at": "2025-01-15 10:30"
+        },
+        "product": null
+      },
+      {
+        "id": 4,
+        "fromUserId": 1,
+        "toUserId": 2,
+        "text": "منتج: قميص أطفال",
+        "type": "product",
+        "time": "10:33 AM",
+        "created_at": "2025-01-15T10:33:00+00:00",
+        "image_url": null,
+        "order": null,
+        "product": {
+          "id": 1,
+          "name": "قميص أطفال",
+          "code": "SHIRT001",
+          "selling_price": 50.00,
+          "gender_type": "unisex",
+          "warehouse_name": "مخزن بغداد",
+          "image_url": "https://your-domain.com/storage/products/1_primary.jpg",
+          "sizes": [
+            {
+              "id": 1,
+              "size_name": "S",
+              "quantity": 10,
+              "available_quantity": 8
+            },
+            {
+              "id": 2,
+              "size_name": "M",
+              "quantity": 15,
+              "available_quantity": 12
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/chat/messages?conversation_id=1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 4. إرسال رسالة (Send Message)
+
+### Endpoint
+```
+POST /api/mobile/delegate/chat/send
+```
+
+### الوصف
+إرسال رسالة نصية أو صورة في محادثة موجودة.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون المستخدم مشاركاً في المحادثة
+- يجب أن تحتوي الرسالة على نص أو صورة على الأقل
+- يتم إرسال SweetAlert للمستلم تلقائياً
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: multipart/form-data (للصور) أو application/json (للنص)
+```
+
+### Request Body (رسالة نصية)
+```json
+{
+  "conversation_id": "integer (required)",
+  "message": "string (nullable, max:5000)"
+}
+```
+
+### Request Body (رسالة مع صورة)
+- `conversation_id` (required, integer)
+- `message` (optional, string, max:5000)
+- `image` (file, max:5MB, types: jpeg,jpg,png,gif,webp)
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": {
+    "id": 1,
+    "fromUserId": 1,
+    "text": "مرحباً، كيف الحال؟",
+    "type": "text",
+    "time": "10:30 AM",
+    "created_at": "2025-01-15T10:30:00+00:00",
+    "image_url": null
+  }
+}
+```
+
+### Response Success (200 OK) - رسالة مع صورة
+```json
+{
+  "success": true,
+  "message": {
+    "id": 2,
+    "fromUserId": 1,
+    "text": "صورة المنتج",
+    "type": "image",
+    "time": "10:31 AM",
+    "created_at": "2025-01-15T10:31:00+00:00",
+    "image_url": "https://your-domain.com/storage/messages/abc123.jpg"
+  }
+}
+```
+
+### Response Error (400 Bad Request) - رسالة فارغة
+```json
+{
+  "success": false,
+  "message": "يجب إدخال رسالة أو رفع صورة",
+  "error_code": "EMPTY_MESSAGE"
+}
+```
+
+### مثال على الاستخدام - رسالة نصية
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/send" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": 1,
+    "message": "مرحباً، كيف الحال؟"
+  }'
+```
+
+### مثال على الاستخدام - رسالة مع صورة
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/send" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -F "conversation_id=1" \
+  -F "message=صورة المنتج" \
+  -F "image=@/path/to/image.jpg"
+```
+
+---
+
+## 5. إرسال رسالة لمستخدم (Send Message to User)
+
+### Endpoint
+```
+POST /api/mobile/delegate/chat/send-to-user
+```
+
+### الوصف
+إرسال رسالة لمستخدم معين. يتم إنشاء محادثة تلقائياً إذا لم تكن موجودة.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: multipart/form-data (للصور) أو application/json (للنص)
+```
+
+### Request Body
+```json
+{
+  "user_id": "integer (required)",
+  "message": "string (nullable, max:5000)",
+  "image": "file (optional, max:5MB)"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": {
+    "id": 1,
+    "fromUserId": 1,
+    "text": "مرحباً",
+    "type": "text",
+    "time": "10:30 AM",
+    "created_at": "2025-01-15T10:30:00+00:00",
+    "image_url": null
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/send-to-user" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 2,
+    "message": "مرحباً، أريد التحدث معك"
+  }'
+```
+
+---
+
+## 6. تحديد الرسائل كمقروءة (Mark as Read)
+
+### Endpoint
+```
+POST /api/mobile/delegate/chat/mark-read
+```
+
+### الوصف
+تحديد جميع رسائل محادثة معينة كمقروءة. يتم تحديث `last_read_at` تلقائياً.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "conversation_id": "integer (required)"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/mark-read" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": 1
+  }'
+```
+
+---
+
+## 7. البحث عن طلب (Search Order)
+
+### Endpoint
+```
+GET /api/mobile/delegate/chat/search-order
+```
+
+### الوصف
+البحث عن طلبات بناءً على رقم الطلب، رقم الهاتف، الرابط، أو كود الوسيط.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Query Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | نص البحث (min:3) |
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "orders": [
+      {
+        "id": 1,
+        "order_number": "ORD-20250115-0001",
+        "customer_name": "محمد أحمد",
+        "customer_phone": "07701234567",
+        "customer_social_link": "https://facebook.com/...",
+        "total_amount": 150.00,
+        "status": "pending",
+        "delegate_name": "أحمد محمد",
+        "created_at": "2025-01-15 10:30"
+      }
+    ]
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/chat/search-order?query=ORD-20250115" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 8. إرسال رسالة تحتوي على طلب (Send Order Message)
+
+### Endpoint
+```
+POST /api/mobile/delegate/chat/send-order
+```
+
+### الوصف
+إرسال رسالة تحتوي على تفاصيل طلب في محادثة.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "conversation_id": "integer (required)",
+  "order_id": "integer (required)"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": {
+    "id": 1,
+    "fromUserId": 1,
+    "text": "طلب: ORD-20250115-0001",
+    "type": "order",
+    "time": "10:30 AM",
+    "created_at": "2025-01-15T10:30:00+00:00",
+    "order": {
+      "id": 1,
+      "order_number": "ORD-20250115-0001",
+      "customer_name": "محمد أحمد",
+      "customer_phone": "07701234567",
+      "customer_social_link": "https://facebook.com/...",
+      "total_amount": 150.00,
+      "status": "pending",
+      "delegate_name": "أحمد محمد",
+      "created_at": "2025-01-15 10:30"
+    }
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/send-order" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": 1,
+    "order_id": 1
+  }'
+```
+
+---
+
+## 9. البحث عن منتج (Search Product)
+
+### Endpoint
+```
+GET /api/mobile/delegate/chat/search-product
+```
+
+### الوصف
+البحث عن منتجات بناءً على اسم المنتج أو الكود.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Query Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | نص البحث (min:2) |
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "products": [
+      {
+        "id": 1,
+        "name": "قميص أطفال",
+        "code": "SHIRT001",
+        "selling_price": 50.00,
+        "gender_type": "unisex",
+        "warehouse_name": "مخزن بغداد",
+        "image_url": "https://your-domain.com/storage/products/1_primary.jpg",
+        "sizes": [
+          {
+            "id": 1,
+            "size_name": "S",
+            "quantity": 10,
+            "available_quantity": 8
+          },
+          {
+            "id": 2,
+            "size_name": "M",
+            "quantity": 15,
+            "available_quantity": 12
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/chat/search-product?query=قميص" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 10. إرسال رسالة تحتوي على منتج (Send Product Message)
+
+### Endpoint
+```
+POST /api/mobile/delegate/chat/send-product
+```
+
+### الوصف
+إرسال رسالة تحتوي على تفاصيل منتج في محادثة.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "conversation_id": "integer (required)",
+  "product_id": "integer (required)"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": {
+    "id": 1,
+    "fromUserId": 1,
+    "text": "منتج: قميص أطفال",
+    "type": "product",
+    "time": "10:30 AM",
+    "created_at": "2025-01-15T10:30:00+00:00",
+    "product": {
+      "id": 1,
+      "name": "قميص أطفال",
+      "code": "SHIRT001",
+      "selling_price": 50.00,
+      "gender_type": "unisex",
+      "warehouse_name": "مخزن بغداد",
+      "image_url": "https://your-domain.com/storage/products/1_primary.jpg",
+      "sizes": [
+        {
+          "id": 1,
+          "size_name": "S",
+          "quantity": 10,
+          "available_quantity": 8
+        },
+        {
+          "id": 2,
+          "size_name": "M",
+          "quantity": 15,
+          "available_quantity": 12
+        }
+      ]
+    }
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/send-product" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": 1,
+    "product_id": 1
+  }'
+```
+
+---
+
+## أمثلة على الاستخدام - الرسائل
+
+### مثال 1: إنشاء محادثة وإرسال رسالة
+
+```bash
+# 1. إنشاء محادثة
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/conversation" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 2
+  }'
+
+# 2. إرسال رسالة
+curl -X POST "https://your-domain.com/api/mobile/delegate/chat/send" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": 1,
+    "message": "مرحباً، أريد التحدث معك"
+  }'
+```
+
+### مثال 2: استخدام JavaScript (Fetch API)
+
+```javascript
+class DelegateChatService {
+  constructor(token) {
+    this.token = token;
+    this.baseUrl = 'https://your-domain.com/api/mobile';
+  }
+
+  // جلب المحادثات
+  async getConversations() {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/conversations`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل جلب المحادثات');
+    }
+
+    return data.data.conversations;
+  }
+
+  // إنشاء محادثة
+  async getOrCreateConversation(userId) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/conversation`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ user_id: userId })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إنشاء المحادثة');
+    }
+
+    return data.data;
+  }
+
+  // جلب الرسائل
+  async getMessages(conversationId) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/messages?conversation_id=${conversationId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل جلب الرسائل');
+    }
+
+    return data.data.messages;
+  }
+
+  // إرسال رسالة نصية
+  async sendMessage(conversationId, message) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/send`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        message: message
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إرسال الرسالة');
+    }
+
+    return data.message;
+  }
+
+  // إرسال رسالة مع صورة
+  async sendImageMessage(conversationId, message, imageFile) {
+    const formData = new FormData();
+    formData.append('conversation_id', conversationId);
+    if (message) {
+      formData.append('message', message);
+    }
+    formData.append('image', imageFile);
+
+    const response = await fetch(`${this.baseUrl}/delegate/chat/send`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      },
+      body: formData
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إرسال الصورة');
+    }
+
+    return data.message;
+  }
+
+  // البحث عن طلب
+  async searchOrder(query) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/search-order?query=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل البحث عن الطلب');
+    }
+
+    return data.data.orders;
+  }
+
+  // إرسال طلب
+  async sendOrder(conversationId, orderId) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/send-order`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        order_id: orderId
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إرسال الطلب');
+    }
+
+    return data.message;
+  }
+
+  // البحث عن منتج
+  async searchProduct(query) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/search-product?query=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل البحث عن المنتج');
+    }
+
+    return data.data.products;
+  }
+
+  // إرسال منتج
+  async sendProduct(conversationId, productId) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/send-product`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        product_id: productId
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إرسال المنتج');
+    }
+
+    return data.message;
+  }
+
+  // تحديد كمقروءة
+  async markAsRead(conversationId) {
+    const response = await fetch(`${this.baseUrl}/delegate/chat/mark-read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل تحديد الرسائل كمقروءة');
+    }
+
+    return data;
+  }
+}
+
+// استخدام الأمثلة
+const chatService = new DelegateChatService(localStorage.getItem('token'));
+
+// جلب المحادثات
+const conversations = await chatService.getConversations();
+console.log('المحادثات:', conversations);
+
+// إنشاء محادثة جديدة
+const conversation = await chatService.getOrCreateConversation(2);
+console.log('المحادثة:', conversation);
+
+// جلب الرسائل
+const messages = await chatService.getMessages(conversation.conversation_id);
+console.log('الرسائل:', messages);
+
+// إرسال رسالة نصية
+const sentMessage = await chatService.sendMessage(conversation.conversation_id, 'مرحباً');
+console.log('تم إرسال الرسالة:', sentMessage);
+
+// إرسال صورة
+const imageInput = document.querySelector('input[type="file"]');
+if (imageInput.files[0]) {
+  const imageMessage = await chatService.sendImageMessage(
+    conversation.conversation_id,
+    'صورة المنتج',
+    imageInput.files[0]
+  );
+  console.log('تم إرسال الصورة:', imageMessage);
+}
+
+// البحث عن طلب وإرساله
+const orders = await chatService.searchOrder('ORD-20250115');
+if (orders.length > 0) {
+  const orderMessage = await chatService.sendOrder(conversation.conversation_id, orders[0].id);
+  console.log('تم إرسال الطلب:', orderMessage);
+}
+
+// البحث عن منتج وإرساله
+const products = await chatService.searchProduct('قميص');
+if (products.length > 0) {
+  const productMessage = await chatService.sendProduct(conversation.conversation_id, products[0].id);
+  console.log('تم إرسال المنتج:', productMessage);
+}
+```
+
+### ملاحظات مهمة
+
+1. **تحديث last_read_at**: عند جلب الرسائل، يتم تحديث `last_read_at` تلقائياً وحذف إشعارات SweetAlert
+2. **إرسال إشعارات**: عند إرسال رسالة، يتم إرسال SweetAlert للمستلم تلقائياً
+3. **رفع الصور**: يتم حفظ الصور في `storage/app/public/messages/` بحد أقصى 5MB
+4. **أنواع الرسائل**: text, image, order, product
+5. **أنواع المحادثات**: direct (مباشرة) أو group (مجموعة)
+6. **Unread Count**: يتم حساب الرسائل غير المقروءة بناءً على `last_read_at`
+7. **المستخدمين المتاحين**: يمكن للمندوب المراسلة مع جميع المستخدمين (لا توجد قيود)
+
+---
+
 ## ملخص جميع المسارات المتاحة
 
 ### Authentication APIs
@@ -3357,4 +4377,16 @@ async function createOrder() {
 - `POST /api/mobile/delegate/carts/items` - إضافة منتجات للسلة
 - `PUT /api/mobile/delegate/carts/items/{id}` - تحديث كمية منتج في السلة
 - `DELETE /api/mobile/delegate/carts/items/{id}` - حذف منتج من السلة
+
+### Chat APIs
+- `GET /api/mobile/delegate/chat/conversations` - جلب قائمة المحادثات
+- `POST /api/mobile/delegate/chat/conversation` - جلب أو إنشاء محادثة
+- `GET /api/mobile/delegate/chat/messages` - جلب رسائل محادثة
+- `POST /api/mobile/delegate/chat/send` - إرسال رسالة نصية أو صورة
+- `POST /api/mobile/delegate/chat/send-to-user` - إرسال رسالة لمستخدم
+- `POST /api/mobile/delegate/chat/mark-read` - تحديد الرسائل كمقروءة
+- `GET /api/mobile/delegate/chat/search-order` - البحث عن طلب
+- `POST /api/mobile/delegate/chat/send-order` - إرسال رسالة تحتوي على طلب
+- `GET /api/mobile/delegate/chat/search-product` - البحث عن منتج
+- `POST /api/mobile/delegate/chat/send-product` - إرسال رسالة تحتوي على منتج
 
