@@ -68,18 +68,28 @@ class FirebaseCloudMessagingService
                 ->toArray();
 
             if (empty($tokens)) {
-                Log::info('FirebaseCloudMessagingService: No tokens found for user', [
+                Log::warning('FirebaseCloudMessagingService: No tokens found for user', [
                     'user_id' => $userId,
                     'app_type' => $appType,
+                    'total_tokens' => FcmToken::where('user_id', $userId)->count(),
+                    'active_tokens' => FcmToken::where('user_id', $userId)->where('is_active', true)->count(),
                 ]);
                 return false;
             }
+
+            Log::info('FirebaseCloudMessagingService: Sending notification to user', [
+                'user_id' => $userId,
+                'tokens_count' => count($tokens),
+                'title' => $title,
+                'body' => $body,
+            ]);
 
             return $this->sendToTokens($tokens, $title, $body, $data);
         } catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send to user', [
                 'user_id' => $userId,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
@@ -185,7 +195,14 @@ class FirebaseCloudMessagingService
                         ->withAndroidConfig($androidConfig)
                         ->withApnsConfig($apnsConfig);
 
-                    $this->messaging->send($message);
+                    $result = $this->messaging->send($message);
+                    
+                    Log::info('FirebaseCloudMessagingService: Notification sent successfully', [
+                        'token' => substr($token, 0, 20) . '...',
+                        'message_id' => $result,
+                        'title' => $title,
+                    ]);
+                    
                     $successCount++;
 
                 } catch (InvalidArgument $e) {
@@ -331,6 +348,78 @@ class FirebaseCloudMessagingService
             ]);
             return false;
         }
+    }
+
+    /**
+     * Test sending notification to a specific token
+     * Useful for debugging and testing
+     */
+    public function testNotification($token, $title = 'Test Notification', $body = 'This is a test notification')
+    {
+        if (!$this->messaging) {
+            Log::warning('FirebaseCloudMessagingService: Messaging not initialized');
+            return [
+                'success' => false,
+                'message' => 'Firebase messaging not initialized',
+            ];
+        }
+
+        try {
+            $data = [
+                'type' => 'test',
+                'screen' => 'home',
+            ];
+
+            $result = $this->sendToTokens([$token], $title, $body, $data);
+
+            if ($result > 0) {
+                return [
+                    'success' => true,
+                    'message' => 'Test notification sent successfully',
+                    'tokens_sent' => $result,
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to send test notification',
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error('FirebaseCloudMessagingService: Test notification failed', [
+                'token' => substr($token, 0, 20) . '...',
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Get user's FCM tokens for debugging
+     */
+    public function getUserTokens($userId, $appType = 'delegate_mobile')
+    {
+        $tokens = FcmToken::where('user_id', $userId)
+            ->ofAppType($appType)
+            ->get();
+
+        return [
+            'user_id' => $userId,
+            'total_tokens' => $tokens->count(),
+            'active_tokens' => $tokens->where('is_active', true)->count(),
+            'tokens' => $tokens->map(function($token) {
+                return [
+                    'id' => $token->id,
+                    'device_type' => $token->device_type,
+                    'is_active' => $token->is_active,
+                    'token_preview' => substr($token->token, 0, 20) . '...',
+                    'created_at' => $token->created_at,
+                ];
+            }),
+        ];
     }
 }
 

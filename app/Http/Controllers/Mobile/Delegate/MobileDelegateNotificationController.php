@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mobile\Delegate;
 use App\Http\Controllers\Controller;
 use App\Models\FcmToken;
 use App\Models\Notification;
+use App\Services\FirebaseCloudMessagingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -378,6 +379,110 @@ class MobileDelegateNotificationController extends Controller
                 'success' => false,
                 'message' => 'حدث خطأ أثناء إلغاء تسجيل الجهاز: ' . $e->getMessage(),
                 'error_code' => 'TOKEN_UNREGISTRATION_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * اختبار إرسال إشعار مباشر
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function testNotification(Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            
+            // جلب token من المستخدم
+            $token = FcmToken::where('user_id', $user->id)
+                ->where('app_type', 'delegate_mobile')
+                ->where('is_active', true)
+                ->first();
+
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يوجد FCM token مسجل. يرجى تسجيل token أولاً.',
+                    'error_code' => 'NO_TOKEN_FOUND',
+                ], 404);
+            }
+
+            $title = $request->input('title', 'إشعار تجريبي');
+            $body = $request->input('body', 'هذا إشعار تجريبي لاختبار Push Notifications');
+
+            $result = $fcmService->testNotification($token->token, $title, $body);
+
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'data' => [
+                    'token_id' => $token->id,
+                    'token_preview' => substr($token->token, 0, 30) . '...',
+                    'device_type' => $token->device_type,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateNotificationController: Error testing notification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء اختبار الإشعار: ' . $e->getMessage(),
+                'error_code' => 'TEST_NOTIFICATION_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * جلب معلومات FCM tokens للمستخدم (للتشخيص)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getTokensInfo()
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            $tokensInfo = $fcmService->getUserTokens($user->id, 'delegate_mobile');
+
+            return response()->json([
+                'success' => true,
+                'data' => $tokensInfo,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateNotificationController: Error getting tokens info', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب معلومات Tokens: ' . $e->getMessage(),
+                'error_code' => 'GET_TOKENS_INFO_ERROR',
             ], 500);
         }
     }

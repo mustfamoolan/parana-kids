@@ -4833,6 +4833,100 @@ async function unregisterToken(token) {
 }
 ```
 
+### 7. اختبار إرسال إشعار مباشر (للتشخيص)
+
+اختبار إرسال إشعار مباشر للتأكد من أن Push Notifications تعمل بشكل صحيح.
+
+**Endpoint:** `POST /api/mobile/delegate/notifications/test`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+Content-Type: application/json
+```
+
+**Request Body (Optional):**
+```json
+{
+  "title": "إشعار تجريبي",
+  "body": "هذا إشعار تجريبي لاختبار Push Notifications"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "Test notification sent successfully",
+  "data": {
+    "token_id": 1,
+    "token_preview": "cXJzX2Fic2RlZmdoaWprbG1u...",
+    "device_type": "android"
+  }
+}
+```
+
+**Response (No Token):**
+```json
+{
+  "success": false,
+  "message": "لا يوجد FCM token مسجل. يرجى تسجيل token أولاً.",
+  "error_code": "NO_TOKEN_FOUND"
+}
+```
+
+**ملاحظات:**
+- يستخدم هذا API لاختبار Push Notifications مباشرة
+- يجب أن يكون لديك FCM token مسجل قبل استخدامه
+- إذا لم يصل الإشعار، تحقق من:
+  1. هل token مسجل بشكل صحيح؟
+  2. هل التطبيق لديه permissions للإشعارات؟
+  3. هل Firebase configured بشكل صحيح في التطبيق؟
+
+### 8. جلب معلومات FCM Tokens (للتشخيص)
+
+جلب معلومات FCM tokens المسجلة للمستخدم (مفيد للتشخيص).
+
+**Endpoint:** `GET /api/mobile/delegate/notifications/tokens-info`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": 5,
+    "total_tokens": 2,
+    "active_tokens": 1,
+    "tokens": [
+      {
+        "id": 1,
+        "device_type": "android",
+        "is_active": true,
+        "token_preview": "cXJzX2Fic2RlZmdoaWprbG1u...",
+        "created_at": "2025-01-15T10:30:00Z"
+      },
+      {
+        "id": 2,
+        "device_type": "ios",
+        "is_active": false,
+        "token_preview": "bXl0b2tlbmlzbm90YWN0aXZl...",
+        "created_at": "2025-01-14T08:20:00Z"
+      }
+    ]
+  }
+}
+```
+
+**ملاحظات:**
+- يستخدم هذا API للتشخيص ومعرفة حالة tokens
+- إذا كان `active_tokens` = 0، يجب تسجيل token جديد
+- إذا كان token `is_active` = false، قد يكون token منتهي الصلاحية
+
 ### ملاحظات مهمة
 
 1. **تسجيل Token**: يجب تسجيل FCM token فوراً بعد تسجيل الدخول الناجح
@@ -4843,6 +4937,8 @@ async function unregisterToken(token) {
 6. **الأمان**: جميع endpoints محمية بـ `auth.pwa` middleware
 7. **التخزين**: يتم حفظ جميع الإشعارات في قاعدة البيانات، حتى لو لم يتم استقبال push notification
 8. **التكامل مع Telegram**: يعمل نظام FCM بجانب نظام Telegram الموجود (لا يحل محله)
+9. **التشخيص**: استخدم `/test` و `/tokens-info` للتشخيص إذا لم تصل الإشعارات
+10. **Logs**: تحقق من Laravel logs (`storage/logs/laravel.log`) لمعرفة تفاصيل إرسال الإشعارات
 
 ---
 
@@ -5279,22 +5375,85 @@ class MyApp extends StatelessWidget {
 
 ### 6. Troubleshooting
 
+#### المشكلة: الإشعارات تظهر في صفحة الإشعارات لكن لا تأتي كـ Push Notifications
+
+**الأعراض:**
+- الإشعارات تُحفظ في قاعدة البيانات وتظهر في صفحة الإشعارات
+- لكن لا تصل كـ Push Notifications خارج التطبيق
+
+**الحلول:**
+
+1. **تحقق من تسجيل FCM Token:**
+   ```bash
+   # استخدم API للتشخيص
+   GET /api/mobile/delegate/notifications/tokens-info
+   ```
+   - إذا كان `active_tokens` = 0، يجب تسجيل token جديد
+   - تأكد من أن token مسجل بشكل صحيح من التطبيق
+
+2. **اختبر إرسال إشعار مباشر:**
+   ```bash
+   POST /api/mobile/delegate/notifications/test
+   ```
+   - إذا لم يصل الإشعار، المشكلة في:
+     - Token غير صحيح أو منتهي الصلاحية
+     - Firebase غير configured بشكل صحيح في التطبيق
+     - Permissions غير ممنوحة في التطبيق
+
+3. **تحقق من Laravel Logs:**
+   ```bash
+   tail -f storage/logs/laravel.log | grep FirebaseCloudMessagingService
+   ```
+   - ابحث عن أخطاء في إرسال الإشعارات
+   - تحقق من رسائل "No tokens found" أو "Invalid token"
+
+4. **تحقق من Firebase Configuration:**
+   - تأكد من أن `google-services.json` (Android) أو `GoogleService-Info.plist` (iOS) موجود وصحيح
+   - تأكد من أن Firebase project ID صحيح
+   - تحقق من أن Service Account JSON صحيح
+
+5. **تحقق من Flutter App:**
+   - تأكد من أن Firebase initialized بشكل صحيح
+   - تأكد من طلب permissions للإشعارات
+   - تأكد من أن Background Handler مسجل
+   - تحقق من أن Notification Channel موجود في Android
+
+6. **تحقق من Device Settings:**
+   - تأكد من أن الإشعارات مفعلة للتطبيق
+   - تأكد من أن Battery Optimization معطل للتطبيق
+   - تأكد من أن Do Not Disturb mode غير مفعل
+
 #### المشكلة: الإشعارات لا تظهر في Terminated State
 **الحل:**
 - تأكد من أن `content-available: 1` موجود في ApnsConfig
 - تأكد من تفعيل Background Modes في iOS
 - تأكد من أن `priority: high` موجود في AndroidConfig
+- تأكد من أن Background Handler مسجل في Flutter
 
 #### المشكلة: لا يوجد صوت
 **الحل:**
 - تأكد من أن `sound: 'default'` موجود في Notification
 - تأكد من أن `playSound: true` في NotificationChannel
 - تأكد من أن الجهاز ليس في وضع الصامت
+- تأكد من أن `default_sound: true` في AndroidConfig
 
 #### المشكلة: الإشعارات لا تعمل في Battery Saver Mode
 **الحل:**
 - أضف `priority: 'high'` في AndroidConfig
 - اطلب من المستخدم إضافة التطبيق إلى whitelist في Battery Optimization
+- تأكد من أن `visibility: 'public'` موجود في AndroidConfig
+
+#### المشكلة: Token غير صالح (Invalid Token)
+**الحل:**
+- Token قد يكون منتهي الصلاحية - سجل token جديد
+- Token قد يكون من تطبيق مختلف - تأكد من استخدام نفس Firebase project
+- Token قد يكون من device مختلف - سجل token جديد من الجهاز الصحيح
+
+#### المشكلة: Firebase Messaging not initialized
+**الحل:**
+- تحقق من أن Service Account JSON موجود في المسار الصحيح
+- تحقق من أن Firebase project ID صحيح في `.env`
+- تحقق من permissions الملفات
 
 ### 7. ملاحظات مهمة
 
@@ -5354,4 +5513,6 @@ class MyApp extends StatelessWidget {
 - `POST /api/mobile/delegate/notifications/{id}/mark-read` - تحديد إشعار كمقروء
 - `POST /api/mobile/delegate/notifications/mark-all-read` - تحديد جميع الإشعارات كمقروءة
 - `DELETE /api/mobile/delegate/notifications/unregister-token` - إلغاء تسجيل FCM token
+- `POST /api/mobile/delegate/notifications/test` - اختبار إرسال إشعار مباشر (للتشخيص)
+- `GET /api/mobile/delegate/notifications/tokens-info` - جلب معلومات FCM tokens (للتشخيص)
 

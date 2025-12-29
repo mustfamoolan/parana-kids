@@ -82,6 +82,8 @@ Route::prefix('delegate/notifications')->middleware('auth.pwa')->group(function 
     Route::post('/{id}/mark-read', [MobileDelegateNotificationController::class, 'markAsRead']);
     Route::post('/mark-all-read', [MobileDelegateNotificationController::class, 'markAllAsRead']);
     Route::delete('/unregister-token', [MobileDelegateNotificationController::class, 'unregisterToken']);
+    Route::post('/test', [MobileDelegateNotificationController::class, 'testNotification']);
+    Route::get('/tokens-info', [MobileDelegateNotificationController::class, 'getTokensInfo']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)
