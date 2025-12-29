@@ -4350,6 +4350,502 @@ if (products.length > 0) {
 
 ---
 
+## Notifications API - نظام الإشعارات
+
+نظام إشعارات Firebase Cloud Messaging (FCM) للمندوبين. يتيح النظام للمندوبين استقبال إشعارات فورية على أجهزتهم المحمولة عند حدوث أحداث مهمة مثل إنشاء طلبات جديدة، تغيير حالة الشحنة، أو استلام رسائل.
+
+### نظرة عامة
+
+- **نوع الإشعارات**: Push Notifications عبر Firebase Cloud Messaging
+- **التخزين**: يتم حفظ جميع الإشعارات في جدول `notifications` في قاعدة البيانات
+- **التكامل**: يعمل النظام بجانب نظام Telegram الموجود (لا يحل محله)
+- **الأنواع المدعومة**: طلبات (order_created, order_confirmed, order_deleted)، رسائل (message)، تغيير حالة الشحنة (shipment_status_changed)
+
+### 1. تسجيل FCM Token
+
+تسجيل FCM token للجهاز لاستقبال الإشعارات.
+
+**Endpoint:** `POST /api/mobile/delegate/notifications/register-token`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "token": "fcm_token_string_from_firebase",
+  "device_type": "android",  // android, ios, web
+  "device_info": {
+    "model": "Samsung Galaxy S21",
+    "os_version": "14",
+    "app_version": "1.0.0"
+  }
+}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "تم تسجيل الجهاز بنجاح"
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "خطأ في التحقق من البيانات",
+  "errors": {
+    "token": ["حقل token مطلوب"]
+  },
+  "error_code": "VALIDATION_ERROR"
+}
+```
+
+**ملاحظات:**
+- يجب استدعاء هذا API عند تسجيل الدخول أو عند تحديث FCM token
+- إذا كان token موجوداً، سيتم تحديثه بدلاً من إنشاء واحد جديد
+- يتم تعطيل tokens القديمة تلقائياً عند اكتشاف أنها غير صالحة
+
+### 2. جلب قائمة الإشعارات
+
+جلب قائمة الإشعارات للمندوب مع إمكانية التصفية والترقيم.
+
+**Endpoint:** `GET /api/mobile/delegate/notifications`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Query Parameters:**
+- `page` (optional): رقم الصفحة (افتراضي: 1)
+- `per_page` (optional): عدد الإشعارات في الصفحة (افتراضي: 20)
+- `type` (optional): نوع الإشعار (order_created, message, shipment_status_changed, etc.)
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "id": 1,
+        "type": "order_created",
+        "title": "طلب جديد",
+        "message": "تم إنشاء طلب جديد: ORD-20250115-001",
+        "data": {
+          "order_id": 123,
+          "order_number": "ORD-20250115-001",
+          "screen": "order_details"
+        },
+        "is_read": false,
+        "read_at": null,
+        "created_at": "2025-01-15T10:30:00Z"
+      },
+      {
+        "id": 2,
+        "type": "message",
+        "title": "رسالة جديدة",
+        "message": "رسالة من أحمد: مرحباً، هل المنتج متوفر؟",
+        "data": {
+          "conversation_id": 45,
+          "sender_id": 2,
+          "screen": "chat"
+        },
+        "is_read": true,
+        "read_at": "2025-01-15T10:35:00Z",
+        "created_at": "2025-01-15T10:32:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "last_page": 3,
+      "per_page": 20,
+      "total": 45
+    }
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "حدث خطأ أثناء جلب الإشعارات",
+  "error_code": "FETCH_NOTIFICATIONS_ERROR"
+}
+```
+
+**ملاحظات:**
+- يتم ترتيب الإشعارات حسب تاريخ الإنشاء (الأحدث أولاً)
+- يتم استبعاد الإشعارات المنتهية الصلاحية تلقائياً
+- يمكن تصفية الإشعارات حسب النوع باستخدام `type` parameter
+
+### 3. جلب عدد الإشعارات غير المقروءة
+
+جلب عدد الإشعارات غير المقروءة للمندوب.
+
+**Endpoint:** `GET /api/mobile/delegate/notifications/unread-count`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "unread_count": 5
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "حدث خطأ أثناء جلب عدد الإشعارات",
+  "error_code": "FETCH_UNREAD_COUNT_ERROR"
+}
+```
+
+**ملاحظات:**
+- يمكن استدعاء هذا API بشكل دوري لتحديث badge العداد في التطبيق
+- يتم حساب الإشعارات غير المقروءة فقط (حيث `read_at` = null)
+
+### 4. تحديد إشعار كمقروء
+
+تحديد إشعار معين كمقروء.
+
+**Endpoint:** `POST /api/mobile/delegate/notifications/{id}/mark-read`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "تم تحديد الإشعار كمقروء"
+}
+```
+
+**Response (Error - Not Found):**
+```json
+{
+  "success": false,
+  "message": "الإشعار غير موجود",
+  "error_code": "NOTIFICATION_NOT_FOUND"
+}
+```
+
+**Response (Error - Already Read):**
+```json
+{
+  "success": true,
+  "message": "الإشعار مقروء بالفعل"
+}
+```
+
+**ملاحظات:**
+- يمكن استدعاء هذا API عند فتح الإشعار في التطبيق
+- إذا كان الإشعار مقروءاً بالفعل، سيتم إرجاع رسالة تأكيد
+
+### 5. تحديد جميع الإشعارات كمقروءة
+
+تحديد جميع الإشعارات غير المقروءة كمقروءة دفعة واحدة.
+
+**Endpoint:** `POST /api/mobile/delegate/notifications/mark-all-read`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "تم تحديد 15 إشعار كمقروء",
+  "data": {
+    "updated_count": 15
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "حدث خطأ أثناء تحديد جميع الإشعارات كمقروءة",
+  "error_code": "MARK_ALL_READ_ERROR"
+}
+```
+
+**ملاحظات:**
+- يمكن استدعاء هذا API من زر "قراءة الكل" في التطبيق
+- يتم تحديث `read_at` لجميع الإشعارات غير المقروءة
+
+### 6. إلغاء تسجيل FCM Token
+
+إلغاء تسجيل FCM token (يستخدم عند تسجيل الخروج).
+
+**Endpoint:** `DELETE /api/mobile/delegate/notifications/unregister-token`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "token": "fcm_token_string"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "تم إلغاء تسجيل الجهاز"
+}
+```
+
+**Response (Error - Not Found):**
+```json
+{
+  "success": false,
+  "message": "Token غير موجود",
+  "error_code": "TOKEN_NOT_FOUND"
+}
+```
+
+**ملاحظات:**
+- يجب استدعاء هذا API عند تسجيل الخروج
+- بعد إلغاء التسجيل، لن يتم إرسال إشعارات لهذا الجهاز
+
+---
+
+### أنواع الإشعارات
+
+#### 1. order_created - طلب جديد
+
+يتم إرسال هذا الإشعار عند إنشاء طلب جديد من قبل المندوب.
+
+**Data Structure:**
+```json
+{
+  "type": "order_created",
+  "order_id": 123,
+  "order_number": "ORD-20250115-001",
+  "screen": "order_details"
+}
+```
+
+**ملاحظات:**
+- يتم إرسال الإشعار للمندوب الذي أنشأ الطلب
+- عند الضغط على الإشعار، يجب فتح صفحة تفاصيل الطلب
+
+#### 2. order_confirmed - تم تقييد الطلب
+
+يتم إرسال هذا الإشعار عند تقييد الطلب (confirmation).
+
+**Data Structure:**
+```json
+{
+  "type": "order_confirmed",
+  "order_id": 123,
+  "order_number": "ORD-20250115-001",
+  "screen": "order_details"
+}
+```
+
+**ملاحظات:**
+- يتم إرسال الإشعار للمندوب الذي أنشأ الطلب
+- يشير إلى أن الطلب تم تأكيده وتقييده
+
+#### 3. order_deleted - تم حذف الطلب
+
+يتم إرسال هذا الإشعار عند حذف طلب.
+
+**Data Structure:**
+```json
+{
+  "type": "order_deleted",
+  "order_id": 123,
+  "order_number": "ORD-20250115-001",
+  "screen": "order_details"
+}
+```
+
+**ملاحظات:**
+- يتم إرسال الإشعار للمندوب الذي أنشأ الطلب
+- يشير إلى أن الطلب تم حذفه (soft delete)
+
+#### 4. message - رسالة جديدة
+
+يتم إرسال هذا الإشعار عند استلام رسالة جديدة في المحادثة.
+
+**Data Structure:**
+```json
+{
+  "type": "message",
+  "conversation_id": 45,
+  "sender_id": 2,
+  "screen": "chat"
+}
+```
+
+**ملاحظات:**
+- يتم إرسال الإشعار للمستلم فقط
+- عند الضغط على الإشعار، يجب فتح المحادثة
+
+#### 5. shipment_status_changed - تغيير حالة الشحنة
+
+يتم إرسال هذا الإشعار عند تغيير حالة شحنة الطلب.
+
+**Data Structure:**
+```json
+{
+  "type": "shipment_status_changed",
+  "order_id": 123,
+  "order_number": "ORD-20250115-001",
+  "shipment_id": 78,
+  "old_status": "pending",
+  "new_status": "in_transit",
+  "screen": "order_details"
+}
+```
+
+**ملاحظات:**
+- يتم إرسال الإشعار للمندوب الذي أنشأ الطلب
+- يشير إلى تغيير حالة الشحنة في نظام Al Waseet
+
+---
+
+### مثال على استخدام API في JavaScript/Flutter
+
+```javascript
+// تسجيل FCM Token
+async function registerFCMToken(token, deviceType = 'android') {
+  const response = await fetch('https://api.example.com/api/mobile/delegate/notifications/register-token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      token: token,
+      device_type: deviceType,
+      device_info: {
+        model: 'Samsung Galaxy S21',
+        os_version: '14',
+        app_version: '1.0.0'
+      }
+    })
+  });
+  
+  const data = await response.json();
+  console.log('Token registered:', data);
+}
+
+// جلب الإشعارات
+async function getNotifications(page = 1, type = null) {
+  let url = `https://api.example.com/api/mobile/delegate/notifications?page=${page}&per_page=20`;
+  if (type) {
+    url += `&type=${type}`;
+  }
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`
+    }
+  });
+  
+  const data = await response.json();
+  return data.data.notifications;
+}
+
+// جلب عدد الإشعارات غير المقروءة
+async function getUnreadCount() {
+  const response = await fetch('https://api.example.com/api/mobile/delegate/notifications/unread-count', {
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`
+    }
+  });
+  
+  const data = await response.json();
+  return data.data.unread_count;
+}
+
+// تحديد إشعار كمقروء
+async function markAsRead(notificationId) {
+  const response = await fetch(`https://api.example.com/api/mobile/delegate/notifications/${notificationId}/mark-read`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`
+    }
+  });
+  
+  const data = await response.json();
+  console.log('Marked as read:', data);
+}
+
+// تحديد جميع الإشعارات كمقروءة
+async function markAllAsRead() {
+  const response = await fetch('https://api.example.com/api/mobile/delegate/notifications/mark-all-read', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`
+    }
+  });
+  
+  const data = await response.json();
+  console.log('Marked all as read:', data);
+}
+
+// إلغاء تسجيل Token
+async function unregisterToken(token) {
+  const response = await fetch('https://api.example.com/api/mobile/delegate/notifications/unregister-token', {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      token: token
+    })
+  });
+  
+  const data = await response.json();
+  console.log('Token unregistered:', data);
+}
+```
+
+### ملاحظات مهمة
+
+1. **تسجيل Token**: يجب تسجيل FCM token فوراً بعد تسجيل الدخول الناجح
+2. **إلغاء التسجيل**: يجب إلغاء تسجيل token عند تسجيل الخروج
+3. **معالجة الإشعارات**: عند استقبال push notification، يجب فتح التطبيق والانتقال للشاشة المناسبة حسب `data.screen`
+4. **تحديث العداد**: يجب تحديث عداد الإشعارات غير المقروءة بشكل دوري
+5. **التكامل مع Firebase**: يجب تكوين Firebase في التطبيق باستخدام VAPID keys من `firebase-credentials-base64.txt`
+6. **الأمان**: جميع endpoints محمية بـ `auth.pwa` middleware
+7. **التخزين**: يتم حفظ جميع الإشعارات في قاعدة البيانات، حتى لو لم يتم استقبال push notification
+8. **التكامل مع Telegram**: يعمل نظام FCM بجانب نظام Telegram الموجود (لا يحل محله)
+
+---
+
 ## ملخص جميع المسارات المتاحة
 
 ### Authentication APIs
@@ -4389,4 +4885,12 @@ if (products.length > 0) {
 - `POST /api/mobile/delegate/chat/send-order` - إرسال رسالة تحتوي على طلب
 - `GET /api/mobile/delegate/chat/search-product` - البحث عن منتج
 - `POST /api/mobile/delegate/chat/send-product` - إرسال رسالة تحتوي على منتج
+
+### Notifications APIs
+- `POST /api/mobile/delegate/notifications/register-token` - تسجيل FCM token
+- `GET /api/mobile/delegate/notifications` - جلب قائمة الإشعارات
+- `GET /api/mobile/delegate/notifications/unread-count` - عدد الإشعارات غير المقروءة
+- `POST /api/mobile/delegate/notifications/{id}/mark-read` - تحديد إشعار كمقروء
+- `POST /api/mobile/delegate/notifications/mark-all-read` - تحديد جميع الإشعارات كمقروءة
+- `DELETE /api/mobile/delegate/notifications/unregister-token` - إلغاء تسجيل FCM token
 

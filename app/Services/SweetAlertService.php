@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SweetAlert;
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Log;
 
 class SweetAlertService
@@ -182,6 +183,24 @@ class SweetAlertService
         // إرسال SweetAlert
         $this->createForUsers($recipientIds, 'order_created', $title, $message, 'success', $data);
 
+        // حفظ إشعار في جدول notifications
+        foreach ($recipientIds as $recipientId) {
+            try {
+                Notification::create([
+                    'user_id' => $recipientId,
+                    'type' => 'order_created',
+                    'title' => $title,
+                    'message' => $message,
+                    'data' => $data,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SweetAlertService: Failed to create notification record', [
+                    'user_id' => $recipientId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         // إرسال إشعارات تليجرام للمستخدمين المربوطين
         try {
             $telegramService = app(TelegramService::class);
@@ -196,6 +215,23 @@ class SweetAlertService
             }
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send Telegram notifications', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // إرسال إشعارات Firebase للمندوبين فقط
+        try {
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            $delegates = User::whereIn('id', $recipientIds)
+                ->where('role', 'delegate')
+                ->get();
+
+            foreach ($delegates as $delegate) {
+                $fcmService->sendOrderNotification($order, 'order_created');
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send FCM notifications', [
                 'order_id' => $order->id,
                 'error' => $e->getMessage(),
             ]);
@@ -246,6 +282,24 @@ class SweetAlertService
         // إرسال SweetAlert
         $this->createForUsers($recipientIds, 'order_confirmed', $title, $message, 'success', $data);
 
+        // حفظ إشعار في جدول notifications
+        foreach ($recipientIds as $recipientId) {
+            try {
+                Notification::create([
+                    'user_id' => $recipientId,
+                    'type' => 'order_confirmed',
+                    'title' => $title,
+                    'message' => $message,
+                    'data' => $data,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SweetAlertService: Failed to create notification record', [
+                    'user_id' => $recipientId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         // إرسال إشعارات تليجرام للمستخدمين المربوطين
         try {
             $telegramService = app(TelegramService::class);
@@ -260,6 +314,23 @@ class SweetAlertService
             }
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send Telegram notifications for order confirmed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // إرسال إشعارات Firebase للمندوبين فقط
+        try {
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            $delegates = User::whereIn('id', $recipientIds)
+                ->where('role', 'delegate')
+                ->get();
+
+            foreach ($delegates as $delegate) {
+                $fcmService->sendOrderNotification($order, 'order_confirmed');
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send FCM notifications for order confirmed', [
                 'order_id' => $order->id,
                 'error' => $e->getMessage(),
             ]);
@@ -327,6 +398,24 @@ class SweetAlertService
         // إرسال SweetAlert
         $this->createForUsers($recipientIds, 'order_deleted', $title, $message, 'warning', $data);
 
+        // حفظ إشعار في جدول notifications
+        foreach ($recipientIds as $recipientId) {
+            try {
+                Notification::create([
+                    'user_id' => $recipientId,
+                    'type' => 'order_deleted',
+                    'title' => $title,
+                    'message' => $message,
+                    'data' => $data,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SweetAlertService: Failed to create notification record', [
+                    'user_id' => $recipientId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         // إرسال إشعارات تليجرام للمستخدمين المربوطين
         try {
             $telegramService = app(TelegramService::class);
@@ -341,6 +430,23 @@ class SweetAlertService
             }
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send Telegram notifications for order deleted', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // إرسال إشعارات Firebase للمندوبين فقط
+        try {
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            $delegates = User::whereIn('id', $recipientIds)
+                ->where('role', 'delegate')
+                ->get();
+
+            foreach ($delegates as $delegate) {
+                $fcmService->sendOrderNotification($order, 'order_deleted');
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send FCM notifications for order deleted', [
                 'order_id' => $order->id,
                 'error' => $e->getMessage(),
             ]);
@@ -365,7 +471,38 @@ class SweetAlertService
             'sender_id' => $senderId,
         ];
 
+        // إرسال SweetAlert
         $this->create($recipientId, 'message', $title, $message, 'info', $data);
+
+        // حفظ إشعار في جدول notifications
+        try {
+            Notification::create([
+                'user_id' => $recipientId,
+                'type' => 'message',
+                'title' => $title,
+                'message' => $message,
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to create notification record for message', [
+                'user_id' => $recipientId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // إرسال إشعار Firebase للمستلم إذا كان مندوب
+        try {
+            $recipient = User::find($recipientId);
+            if ($recipient && $recipient->isDelegate()) {
+                $fcmService = app(FirebaseCloudMessagingService::class);
+                $fcmService->sendMessageNotification($conversationId, $senderId, $recipientId, $messageText);
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send FCM notification for message', [
+                'recipient_id' => $recipientId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

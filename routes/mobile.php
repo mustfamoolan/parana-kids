@@ -6,6 +6,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateOrderController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateCartController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateChatController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateNotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -71,6 +72,16 @@ Route::prefix('delegate/chat')->middleware('auth.pwa')->group(function () {
     Route::post('/send-order', [MobileDelegateChatController::class, 'sendOrderMessage']);
     Route::get('/search-product', [MobileDelegateChatController::class, 'searchProduct']);
     Route::post('/send-product', [MobileDelegateChatController::class, 'sendProductMessage']);
+});
+
+// APIs الإشعارات للمندوب (تحتاج token)
+Route::prefix('delegate/notifications')->middleware('auth.pwa')->group(function () {
+    Route::post('/register-token', [MobileDelegateNotificationController::class, 'registerToken']);
+    Route::get('/', [MobileDelegateNotificationController::class, 'index']);
+    Route::get('/unread-count', [MobileDelegateNotificationController::class, 'getUnreadCount']);
+    Route::post('/{id}/mark-read', [MobileDelegateNotificationController::class, 'markAsRead']);
+    Route::post('/mark-all-read', [MobileDelegateNotificationController::class, 'markAllAsRead']);
+    Route::delete('/unregister-token', [MobileDelegateNotificationController::class, 'unregisterToken']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)

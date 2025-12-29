@@ -4,9 +4,11 @@ namespace App\Listeners;
 
 use App\Events\AlWaseetShipmentStatusChanged;
 use App\Models\AlWaseetNotification;
+use App\Models\Notification;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\TelegramService;
+use App\Services\FirebaseCloudMessagingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
@@ -54,6 +56,9 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
 
             // إرسال إشعارات التليجرام
             $this->sendTelegramNotifications($event);
+
+            // إرسال إشعارات Firebase للمندوبين
+            $this->sendFirebaseNotifications($event);
         } catch (\Exception $e) {
             Log::error('AlWaseet: Failed to create notification', [
                 'shipment_id' => $event->shipment->id,
@@ -161,6 +166,80 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 'shipment_id' => $event->shipment->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Send Firebase notifications to delegates
+     */
+    protected function sendFirebaseNotifications(AlWaseetShipmentStatusChanged $event): void
+    {
+        try {
+            $shipment = $event->shipment;
+            $order = $shipment->order;
+
+            if (!$order || !$order->delegate_id) {
+                return;
+            }
+
+            $delegate = User::find($order->delegate_id);
+            if (!$delegate || !$delegate->isDelegate()) {
+                return;
+            }
+
+            // التحقق من أن المندوب لديه صلاحية على نفس المخزن
+            $warehouseIds = $order->items()
+                ->with('product')
+                ->get()
+                ->pluck('product.warehouse_id')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            if (!empty($warehouseIds)) {
+                $hasAccess = $delegate->warehouses()
+                    ->whereIn('warehouses.id', $warehouseIds)
+                    ->exists();
+                if (!$hasAccess) {
+                    return;
+                }
+            }
+
+            // حفظ إشعار في جدول notifications
+            try {
+                Notification::create([
+                    'user_id' => $order->delegate_id,
+                    'type' => 'shipment_status_changed',
+                    'title' => 'تغيير حالة الشحنة',
+                    'message' => "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$event->oldStatusId}' إلى '{$event->newStatusId}'",
+                    'data' => [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'shipment_id' => $shipment->id,
+                        'old_status' => $event->oldStatusId,
+                        'new_status' => $event->newStatusId,
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                Log::error('AlWaseet: Failed to create notification record', [
+                    'delegate_id' => $order->delegate_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // إرسال إشعار Firebase
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            $fcmService->sendShipmentNotification($shipment, $order, $event->oldStatusId, $event->newStatusId);
+
+            Log::info('AlWaseet: Firebase notification sent', [
+                'shipment_id' => $shipment->id,
+                'delegate_id' => $order->delegate_id,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AlWaseet: Failed to send Firebase notification', [
+                'shipment_id' => $event->shipment->id,
+                'error' => $e->getMessage(),
             ]);
         }
     }
