@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Exception\Messaging\InvalidArgument;
 
 class FirebaseCloudMessagingService
@@ -141,12 +143,47 @@ class FirebaseCloudMessagingService
                 try {
                     $notification = FirebaseNotification::create($title, $body);
                     
+                    // Android Configuration - High Priority with Sound
+                    $androidConfig = AndroidConfig::fromArray([
+                        'priority' => 'high',
+                        'notification' => [
+                            'sound' => 'default',
+                            'channel_id' => 'high_importance_channel',
+                            'priority' => 'high',
+                            'default_sound' => true,
+                            'default_vibrate_timings' => true,
+                            'visibility' => 'public',
+                        ],
+                    ]);
+
+                    // iOS Configuration - High Priority with Sound
+                    $apnsConfig = ApnsConfig::fromArray([
+                        'headers' => [
+                            'apns-priority' => '10', // High priority
+                            'apns-push-type' => 'alert',
+                        ],
+                        'payload' => [
+                            'aps' => [
+                                'alert' => [
+                                    'title' => $title,
+                                    'body' => $body,
+                                ],
+                                'sound' => 'default',
+                                'badge' => 1,
+                                'content-available' => 1, // Wake app in background
+                            ],
+                        ],
+                    ]);
+                    
                     $message = CloudMessage::withTarget('token', $token)
                         ->withNotification($notification)
                         ->withData(array_merge([
                             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             'sound' => 'default',
-                        ], $data));
+                            'priority' => 'high',
+                        ], $data))
+                        ->withAndroidConfig($androidConfig)
+                        ->withApnsConfig($apnsConfig);
 
                     $this->messaging->send($message);
                     $successCount++;

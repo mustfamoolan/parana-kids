@@ -4846,6 +4846,467 @@ async function unregisterToken(token) {
 
 ---
 
+## Flutter App Configuration - تكوين تطبيق Flutter
+
+هذا القسم يشرح كيفية تكوين تطبيق Flutter لاستقبال إشعارات Firebase مع صوت حتى لو كان التطبيق مغلقاً تماماً.
+
+### 1. إضافة Dependencies
+
+أضف الحزم التالية في `pubspec.yaml`:
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.24.0
+  firebase_messaging: ^14.7.0
+  flutter_local_notifications: ^16.3.0
+```
+
+ثم قم بتشغيل:
+```bash
+flutter pub get
+```
+
+### 2. تكوين Android
+
+#### A. إضافة Permissions في AndroidManifest.xml
+
+افتح `android/app/src/main/AndroidManifest.xml` وأضف:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permissions للإشعارات -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    
+    <application
+        android:label="Parana Kids Delegate"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        
+        <!-- Firebase Messaging Service -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        
+        <!-- Default Notification Channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
+    </application>
+</manifest>
+```
+
+#### B. إضافة google-services.json
+
+1. احصل على `google-services.json` من Firebase Console
+2. ضعه في `android/app/`
+3. تأكد من وجود `google-services` plugin في `android/build.gradle`:
+
+```gradle
+buildscript {
+    dependencies {
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+```
+
+4. أضف في `android/app/build.gradle`:
+
+```gradle
+apply plugin: 'com.google.gms.google-services'
+```
+
+### 3. تكوين iOS
+
+#### A. إضافة GoogleService-Info.plist
+
+1. احصل على `GoogleService-Info.plist` من Firebase Console
+2. ضعه في `ios/Runner/`
+3. أضفه في Xcode: Runner > Add Files to "Runner" > اختر GoogleService-Info.plist
+
+#### B. تفعيل Push Notifications Capability
+
+1. افتح `ios/Runner.xcworkspace` في Xcode
+2. اختر Runner target
+3. اذهب إلى Signing & Capabilities
+4. أضف "Push Notifications"
+5. أضف "Background Modes" واختر "Remote notifications"
+
+#### C. تحديث AppDelegate.swift
+
+افتح `ios/Runner/AppDelegate.swift` وأضف:
+
+```swift
+import UIKit
+import Flutter
+import FirebaseCore
+import FirebaseMessaging
+
+@UIApplicationMain
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    FirebaseApp.configure()
+    
+    if #available(iOS 10.0, *) {
+      UNUserNotificationCenter.current().delegate = self
+      let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
+      UNUserNotificationCenter.current().requestAuthorization(
+        options: authOptions,
+        completionHandler: { _, _ in }
+      )
+    } else {
+      let settings: UIUserNotificationSettings =
+        UIUserNotificationSettings(types: [.alert, .badge, .sound], categories: nil)
+      application.registerUserNotificationSettings(settings)
+    }
+    
+    application.registerForRemoteNotifications()
+    
+    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+  
+  override func application(_ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    Messaging.messaging().apnsToken = deviceToken
+  }
+}
+```
+
+### 4. كود Flutter - Main Implementation
+
+#### A. إنشاء Notification Service
+
+أنشئ ملف `lib/services/notification_service.dart`:
+
+```dart
+import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
+
+class NotificationService {
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications = 
+      FlutterLocalNotificationsPlugin();
+
+  // Notification Channel للـ Android
+  static const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'high_importance_channel', // يجب أن يطابق channel_id في Backend
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
+    importance: Importance.high,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
+  );
+
+  bool _initialized = false;
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    
+    // طلب permissions
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('User granted permission');
+    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+      print('User granted provisional permission');
+    } else {
+      print('User declined or has not accepted permission');
+      return;
+    }
+
+    // تكوين Local Notifications للـ Android
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      ),
+    );
+
+    await _localNotifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
+
+    // إنشاء notification channel للـ Android
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // Background Message Handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Foreground Message Handler
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // Message Opened App Handler (عند الضغط على الإشعار والتطبيق مغلق)
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+
+    // الحصول على token الأولي
+    String? token = await _firebaseMessaging.getToken();
+    if (token != null) {
+      print('FCM Token: $token');
+      // أرسل token للـ Backend
+      await _registerTokenToBackend(token);
+    }
+
+    // تحديث token عند تغييره
+    _firebaseMessaging.onTokenRefresh.listen((newToken) {
+      print('FCM Token refreshed: $newToken');
+      _registerTokenToBackend(newToken);
+    });
+
+    _initialized = true;
+  }
+
+  // معالجة الإشعارات في Foreground
+  Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    print('Received foreground message: ${message.messageId}');
+    
+    RemoteNotification? notification = message.notification;
+    Map<String, dynamic> data = message.data;
+
+    if (notification != null) {
+      // عرض local notification حتى في Foreground
+      await _localNotifications.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: data.toString(),
+      );
+    }
+  }
+
+  // معالجة الإشعارات عند فتح التطبيق من إشعار
+  void _handleMessageOpenedApp(RemoteMessage message) {
+    print('Message opened app: ${message.messageId}');
+    _navigateToScreen(message.data);
+  }
+
+  // معالجة الضغط على الإشعار
+  void _onNotificationTapped(NotificationResponse response) {
+    if (response.payload != null) {
+      // Parse payload and navigate
+      print('Notification tapped: ${response.payload}');
+    }
+  }
+
+  // Navigation حسب نوع الإشعار
+  void _navigateToScreen(Map<String, dynamic> data) {
+    String? screen = data['screen'];
+    String? type = data['type'];
+
+    if (screen == 'order_details' && data['order_id'] != null) {
+      // Navigate to order details
+      // Navigator.pushNamed(context, '/order/${data['order_id']}');
+    } else if (screen == 'chat' && data['conversation_id'] != null) {
+      // Navigate to chat
+      // Navigator.pushNamed(context, '/chat/${data['conversation_id']}');
+    }
+  }
+
+  // تسجيل token في Backend
+  Future<void> _registerTokenToBackend(String token) async {
+    try {
+      // استبدل BASE_URL بـ API URL الخاص بك
+      final response = await http.post(
+        Uri.parse('https://api.example.com/api/mobile/delegate/notifications/register-token'),
+        headers: {
+          'Authorization': 'Bearer $yourPwaToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'token': token,
+          'device_type': defaultTargetPlatform == TargetPlatform.android 
+              ? 'android' 
+              : 'ios',
+          'device_info': {
+            'model': await _getDeviceModel(),
+            'os_version': await _getOsVersion(),
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('Token registered successfully');
+      } else {
+        print('Failed to register token: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error registering token: $e');
+    }
+  }
+
+  Future<String> _getDeviceModel() async {
+    // استخدام package مثل device_info_plus
+    return 'Unknown';
+  }
+
+  Future<String> _getOsVersion() async {
+    // استخدام package مثل device_info_plus
+    return 'Unknown';
+  }
+
+  // إلغاء تسجيل token عند logout
+  Future<void> unregisterToken(String token) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('https://api.example.com/api/mobile/delegate/notifications/unregister-token'),
+        headers: {
+          'Authorization': 'Bearer $yourPwaToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'token': token}),
+      );
+
+      if (response.statusCode == 200) {
+        print('Token unregistered successfully');
+      }
+    } catch (e) {
+      print('Error unregistering token: $e');
+    }
+  }
+}
+
+// Background Message Handler (يجب أن يكون top-level function)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('Handling background message: ${message.messageId}');
+  
+  // يمكنك إضافة منطق إضافي هنا
+  // مثل حفظ الإشعار في قاعدة بيانات محلية
+}
+```
+
+#### B. استخدام NotificationService في main.dart
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // تهيئة Firebase
+  await Firebase.initializeApp();
+  
+  // تهيئة Notification Service
+  await NotificationService().initialize();
+  
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Parana Kids Delegate',
+      home: HomeScreen(),
+    );
+  }
+}
+```
+
+### 5. اختبار الإشعارات
+
+#### A. Foreground Test
+- افتح التطبيق
+- أرسل إشعار من Backend
+- يجب أن يظهر الإشعار مع صوت
+
+#### B. Background Test
+- افتح التطبيق ثم اضغط زر Home
+- أرسل إشعار من Backend
+- يجب أن يظهر الإشعار مع صوت
+
+#### C. Terminated Test
+- أغلق التطبيق تماماً (swipe away)
+- أرسل إشعار من Backend
+- يجب أن يظهر الإشعار مع صوت
+
+### 6. Troubleshooting
+
+#### المشكلة: الإشعارات لا تظهر في Terminated State
+**الحل:**
+- تأكد من أن `content-available: 1` موجود في ApnsConfig
+- تأكد من تفعيل Background Modes في iOS
+- تأكد من أن `priority: high` موجود في AndroidConfig
+
+#### المشكلة: لا يوجد صوت
+**الحل:**
+- تأكد من أن `sound: 'default'` موجود في Notification
+- تأكد من أن `playSound: true` في NotificationChannel
+- تأكد من أن الجهاز ليس في وضع الصامت
+
+#### المشكلة: الإشعارات لا تعمل في Battery Saver Mode
+**الحل:**
+- أضف `priority: 'high'` في AndroidConfig
+- اطلب من المستخدم إضافة التطبيق إلى whitelist في Battery Optimization
+
+### 7. ملاحظات مهمة
+
+1. **Channel ID**: يجب أن يطابق `high_importance_channel` في Backend و Flutter
+2. **Permissions**: تأكد من طلب جميع الصلاحيات المطلوبة
+3. **Token Registration**: سجل token فوراً بعد تسجيل الدخول
+4. **Token Unregistration**: ألغِ تسجيل token عند تسجيل الخروج
+5. **Testing**: اختبر في جميع الحالات (Foreground, Background, Terminated)
+6. **Sound Files**: يمكنك استخدام أصوات مخصصة بدلاً من `default`
+
+---
+
 ## ملخص جميع المسارات المتاحة
 
 ### Authentication APIs
