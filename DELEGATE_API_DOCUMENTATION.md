@@ -1440,6 +1440,670 @@ curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
 
 ---
 
+## كيفية تعديل الطلب - دليل شامل
+
+### كيف تعمل عملية التعديل
+
+عند تحديث طلب، يعمل النظام بالطريقة التالية:
+
+1. **إرجاع المنتجات القديمة للمخزن**: يتم إرجاع جميع المنتجات الموجودة في الطلب الحالي إلى المخزن (زيادة الكمية المتوفرة)
+
+2. **حذف جميع العناصر القديمة**: يتم حذف جميع عناصر الطلب الحالية من قاعدة البيانات
+
+3. **إضافة العناصر الجديدة**: يتم إضافة جميع العناصر المرسلة في الـ request كعناصر جديدة للطلب
+
+4. **خصم المنتجات الجديدة من المخزن**: يتم خصم الكميات المطلوبة من المخزن للمنتجات الجديدة
+
+**ملاحظات مهمة:**
+- يجب أن تكون جميع الكميات المطلوبة متوفرة في المخزن قبل التعديل
+- إذا كانت كمية أي منتج غير متوفرة، سيفشل التعديل بالكامل ويتم إرجاع جميع المنتجات للمخزن
+- يمكنك حذف منتج ببساطة بعدم تضمينه في `items` array
+- يمكنك إضافة منتج جديد بإضافته في `items` array
+- يمكنك تغيير كمية منتج موجود بتغيير قيمة `quantity`
+- يمكنك تغيير قياس منتج موجود بتغيير قيمة `size_id`
+
+### أمثلة عملية
+
+#### مثال 1: حذف منتج من الطلب
+
+**الحالة الأولية:**
+الطلب يحتوي على:
+- منتج 1 (product_id: 1, size_id: 1, quantity: 2)
+- منتج 2 (product_id: 2, size_id: 3, quantity: 1)
+- منتج 3 (product_id: 3, size_id: 5, quantity: 3)
+
+**الهدف:** حذف منتج 2 من الطلب
+
+**Request:**
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": null,
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 1,
+        "quantity": 2
+      },
+      {
+        "product_id": 3,
+        "size_id": 5,
+        "quantity": 3
+      }
+    ]
+  }'
+```
+
+**النتيجة:** تم حذف منتج 2 من الطلب، وتم إرجاعه للمخزن تلقائياً.
+
+---
+
+#### مثال 2: إضافة منتج جديد للطلب
+
+**الحالة الأولية:**
+الطلب يحتوي على:
+- منتج 1 (product_id: 1, size_id: 1, quantity: 2)
+
+**الهدف:** إضافة منتج جديد (product_id: 5, size_id: 10, quantity: 1)
+
+**Request:**
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": null,
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 1,
+        "quantity": 2
+      },
+      {
+        "product_id": 5,
+        "size_id": 10,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+**النتيجة:** تم إضافة المنتج الجديد للطلب، وتم خصمه من المخزن تلقائياً.
+
+---
+
+#### مثال 3: تغيير كمية منتج موجود
+
+**الحالة الأولية:**
+الطلب يحتوي على:
+- منتج 1 (product_id: 1, size_id: 1, quantity: 2)
+- منتج 2 (product_id: 2, size_id: 3, quantity: 1)
+
+**الهدف:** زيادة كمية منتج 1 من 2 إلى 5
+
+**Request:**
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": null,
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 1,
+        "quantity": 5
+      },
+      {
+        "product_id": 2,
+        "size_id": 3,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+**النتيجة:** تم تغيير كمية منتج 1 من 2 إلى 5. تم إرجاع الكمية القديمة (2) للمخزن وخصم الكمية الجديدة (5) من المخزن.
+
+**ملاحظة:** تأكد من أن الكمية الجديدة (5) متوفرة في المخزن قبل التعديل.
+
+---
+
+#### مثال 4: تغيير قياس منتج موجود
+
+**الحالة الأولية:**
+الطلب يحتوي على:
+- منتج 1 (product_id: 1, size_id: 1, quantity: 2) - القياس: S
+- منتج 2 (product_id: 2, size_id: 3, quantity: 1) - القياس: M
+
+**الهدف:** تغيير قياس منتج 1 من S (size_id: 1) إلى M (size_id: 2)
+
+**Request:**
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": null,
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 2,
+        "quantity": 2
+      },
+      {
+        "product_id": 2,
+        "size_id": 3,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+**النتيجة:** تم تغيير قياس منتج 1 من S إلى M. تم إرجاع الكمية القديمة (2) من القياس S للمخزن وخصم الكمية الجديدة (2) من القياس M.
+
+**ملاحظة:** تأكد من أن القياس الجديد (M) متوفر بالكمية المطلوبة في المخزن.
+
+---
+
+#### مثال 5: تعديل معلومات الزبون فقط
+
+**الحالة الأولية:**
+الطلب يحتوي على:
+- منتج 1 (product_id: 1, size_id: 1, quantity: 2)
+- منتج 2 (product_id: 2, size_id: 3, quantity: 1)
+
+**الهدف:** تغيير رقم هاتف العميل فقط دون تغيير المنتجات
+
+**Request:**
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07709999999",
+    "customer_phone2": "07708888888",
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات محدثة",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 1,
+        "quantity": 2
+      },
+      {
+        "product_id": 2,
+        "size_id": 3,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+**النتيجة:** تم تحديث معلومات الزبون فقط. المنتجات لم تتغير (تم إرجاعها وإعادة خصمها من المخزن، لكن الكميات نفسها).
+
+---
+
+#### مثال 6: سيناريو متعدد (حذف + إضافة + تعديل)
+
+**الحالة الأولية:**
+الطلب يحتوي على:
+- منتج 1 (product_id: 1, size_id: 1, quantity: 2)
+- منتج 2 (product_id: 2, size_id: 3, quantity: 1)
+- منتج 3 (product_id: 3, size_id: 5, quantity: 3)
+
+**الهدف:**
+- حذف منتج 2
+- زيادة كمية منتج 1 من 2 إلى 4
+- تغيير قياس منتج 3 من size_id: 5 إلى size_id: 6
+- إضافة منتج جديد (product_id: 7, size_id: 10, quantity: 1)
+
+**Request:**
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": null,
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات محدثة",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 1,
+        "quantity": 4
+      },
+      {
+        "product_id": 3,
+        "size_id": 6,
+        "quantity": 3
+      },
+      {
+        "product_id": 7,
+        "size_id": 10,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+**النتيجة:**
+- تم حذف منتج 2 وإرجاعه للمخزن
+- تم زيادة كمية منتج 1 من 2 إلى 4 (إرجاع 2 وخصم 4)
+- تم تغيير قياس منتج 3 (إرجاع من size_id: 5 وخصم من size_id: 6)
+- تم إضافة منتج 7 الجديد وخصمه من المخزن
+
+---
+
+#### مثال 7: استخدام JavaScript (Fetch API)
+
+```javascript
+/**
+ * تحديث طلب مع دعم جميع العمليات
+ * @param {number} orderId - معرف الطلب
+ * @param {Object} orderData - بيانات الطلب المحدثة
+ * @returns {Promise<Object>} - بيانات الطلب المحدث
+ */
+async function updateOrder(orderId, orderData) {
+  const token = localStorage.getItem('token');
+  
+  const response = await fetch(`https://your-domain.com/api/mobile/delegate/orders/${orderId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(orderData)
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.message || 'فشل تحديث الطلب');
+  }
+  
+  return data.data.order;
+}
+
+// مثال: حذف منتج من الطلب
+async function removeProductFromOrder(orderId, productIdToRemove) {
+  // جلب الطلب الحالي
+  const currentOrder = await getOrder(orderId);
+  
+  // تصفية المنتجات (إزالة المنتج المطلوب)
+  const updatedItems = currentOrder.items.filter(
+    item => item.product_id !== productIdToRemove
+  );
+  
+  // تحديث الطلب
+  const orderData = {
+    customer_name: currentOrder.customer_name,
+    customer_phone: currentOrder.customer_phone,
+    customer_phone2: currentOrder.customer_phone2,
+    customer_address: currentOrder.customer_address,
+    customer_social_link: currentOrder.customer_social_link,
+    notes: currentOrder.notes,
+    items: updatedItems.map(item => ({
+      product_id: item.product_id,
+      size_id: item.size_id,
+      quantity: item.quantity
+    }))
+  };
+  
+  return await updateOrder(orderId, orderData);
+}
+
+// مثال: إضافة منتج جديد للطلب
+async function addProductToOrder(orderId, productId, sizeId, quantity) {
+  // جلب الطلب الحالي
+  const currentOrder = await getOrder(orderId);
+  
+  // إضافة المنتج الجديد
+  const updatedItems = [
+    ...currentOrder.items.map(item => ({
+      product_id: item.product_id,
+      size_id: item.size_id,
+      quantity: item.quantity
+    })),
+    {
+      product_id: productId,
+      size_id: sizeId,
+      quantity: quantity
+    }
+  ];
+  
+  // تحديث الطلب
+  const orderData = {
+    customer_name: currentOrder.customer_name,
+    customer_phone: currentOrder.customer_phone,
+    customer_phone2: currentOrder.customer_phone2,
+    customer_address: currentOrder.customer_address,
+    customer_social_link: currentOrder.customer_social_link,
+    notes: currentOrder.notes,
+    items: updatedItems
+  };
+  
+  return await updateOrder(orderId, orderData);
+}
+
+// مثال: تغيير كمية منتج
+async function updateProductQuantity(orderId, productId, sizeId, newQuantity) {
+  // جلب الطلب الحالي
+  const currentOrder = await getOrder(orderId);
+  
+  // تحديث كمية المنتج
+  const updatedItems = currentOrder.items.map(item => {
+    if (item.product_id === productId && item.size_id === sizeId) {
+      return {
+        product_id: item.product_id,
+        size_id: item.size_id,
+        quantity: newQuantity
+      };
+    }
+    return {
+      product_id: item.product_id,
+      size_id: item.size_id,
+      quantity: item.quantity
+    };
+  });
+  
+  // تحديث الطلب
+  const orderData = {
+    customer_name: currentOrder.customer_name,
+    customer_phone: currentOrder.customer_phone,
+    customer_phone2: currentOrder.customer_phone2,
+    customer_address: currentOrder.customer_address,
+    customer_social_link: currentOrder.customer_social_link,
+    notes: currentOrder.notes,
+    items: updatedItems
+  };
+  
+  return await updateOrder(orderId, orderData);
+}
+
+// مثال: تغيير قياس منتج
+async function changeProductSize(orderId, productId, oldSizeId, newSizeId) {
+  // جلب الطلب الحالي
+  const currentOrder = await getOrder(orderId);
+  
+  // تحديث قياس المنتج
+  const updatedItems = currentOrder.items.map(item => {
+    if (item.product_id === productId && item.size_id === oldSizeId) {
+      return {
+        product_id: item.product_id,
+        size_id: newSizeId,
+        quantity: item.quantity
+      };
+    }
+    return {
+      product_id: item.product_id,
+      size_id: item.size_id,
+      quantity: item.quantity
+    };
+  });
+  
+  // تحديث الطلب
+  const orderData = {
+    customer_name: currentOrder.customer_name,
+    customer_phone: currentOrder.customer_phone,
+    customer_phone2: currentOrder.customer_phone2,
+    customer_address: currentOrder.customer_address,
+    customer_social_link: currentOrder.customer_social_link,
+    notes: currentOrder.notes,
+    items: updatedItems
+  };
+  
+  return await updateOrder(orderId, orderData);
+}
+
+// استخدام الأمثلة
+// removeProductFromOrder(1, 2); // حذف منتج 2 من الطلب 1
+// addProductToOrder(1, 5, 10, 1); // إضافة منتج 5 بقياس 10 وكمية 1 للطلب 1
+// updateProductQuantity(1, 1, 1, 5); // تغيير كمية منتج 1 بقياس 1 إلى 5 في الطلب 1
+// changeProductSize(1, 1, 1, 2); // تغيير قياس منتج 1 من 1 إلى 2 في الطلب 1
+```
+
+---
+
+#### مثال 8: استخدام Flutter/Dart
+
+```dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class OrderUpdateService {
+  final String baseUrl = 'https://your-domain.com/api/mobile';
+  String? token;
+
+  // تحديث الطلب
+  Future<Map<String, dynamic>> updateOrder({
+    required int orderId,
+    required String customerName,
+    required String customerPhone,
+    String? customerPhone2,
+    required String customerAddress,
+    required String customerSocialLink,
+    String? notes,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    if (token == null) {
+      throw Exception('لم يتم تسجيل الدخول');
+    }
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/delegate/orders/$orderId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'customer_name': customerName,
+        'customer_phone': customerPhone,
+        'customer_phone2': customerPhone2,
+        'customer_address': customerAddress,
+        'customer_social_link': customerSocialLink,
+        'notes': notes,
+        'items': items,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        return data['data']['order'];
+      }
+    }
+
+    throw Exception('فشل تحديث الطلب');
+  }
+
+  // حذف منتج من الطلب
+  Future<Map<String, dynamic>> removeProductFromOrder({
+    required int orderId,
+    required int productIdToRemove,
+    required Map<String, dynamic> currentOrder,
+  }) async {
+    final updatedItems = (currentOrder['items'] as List)
+        .where((item) => item['product_id'] != productIdToRemove)
+        .map((item) => {
+          return {
+            'product_id': item['product_id'],
+            'size_id': item['size_id'],
+            'quantity': item['quantity'],
+          };
+        })
+        .toList();
+
+    return await updateOrder(
+      orderId: orderId,
+      customerName: currentOrder['customer_name'],
+      customerPhone: currentOrder['customer_phone'],
+      customerPhone2: currentOrder['customer_phone2'],
+      customerAddress: currentOrder['customer_address'],
+      customerSocialLink: currentOrder['customer_social_link'],
+      notes: currentOrder['notes'],
+      items: updatedItems,
+    );
+  }
+
+  // إضافة منتج جديد للطلب
+  Future<Map<String, dynamic>> addProductToOrder({
+    required int orderId,
+    required int productId,
+    required int sizeId,
+    required int quantity,
+    required Map<String, dynamic> currentOrder,
+  }) async {
+    final updatedItems = [
+      ...(currentOrder['items'] as List).map((item) {
+        return {
+          'product_id': item['product_id'],
+          'size_id': item['size_id'],
+          'quantity': item['quantity'],
+        };
+      }),
+      {
+        'product_id': productId,
+        'size_id': sizeId,
+        'quantity': quantity,
+      },
+    ];
+
+    return await updateOrder(
+      orderId: orderId,
+      customerName: currentOrder['customer_name'],
+      customerPhone: currentOrder['customer_phone'],
+      customerPhone2: currentOrder['customer_phone2'],
+      customerAddress: currentOrder['customer_address'],
+      customerSocialLink: currentOrder['customer_social_link'],
+      notes: currentOrder['notes'],
+      items: updatedItems,
+    );
+  }
+
+  // تغيير كمية منتج
+  Future<Map<String, dynamic>> updateProductQuantity({
+    required int orderId,
+    required int productId,
+    required int sizeId,
+    required int newQuantity,
+    required Map<String, dynamic> currentOrder,
+  }) async {
+    final updatedItems = (currentOrder['items'] as List).map((item) {
+      if (item['product_id'] == productId && item['size_id'] == sizeId) {
+        return {
+          'product_id': item['product_id'],
+          'size_id': item['size_id'],
+          'quantity': newQuantity,
+        };
+      }
+      return {
+        'product_id': item['product_id'],
+        'size_id': item['size_id'],
+        'quantity': item['quantity'],
+      };
+    }).toList();
+
+    return await updateOrder(
+      orderId: orderId,
+      customerName: currentOrder['customer_name'],
+      customerPhone: currentOrder['customer_phone'],
+      customerPhone2: currentOrder['customer_phone2'],
+      customerAddress: currentOrder['customer_address'],
+      customerSocialLink: currentOrder['customer_social_link'],
+      notes: currentOrder['notes'],
+      items: updatedItems,
+    );
+  }
+
+  // تغيير قياس منتج
+  Future<Map<String, dynamic>> changeProductSize({
+    required int orderId,
+    required int productId,
+    required int oldSizeId,
+    required int newSizeId,
+    required Map<String, dynamic> currentOrder,
+  }) async {
+    final updatedItems = (currentOrder['items'] as List).map((item) {
+      if (item['product_id'] == productId && item['size_id'] == oldSizeId) {
+        return {
+          'product_id': item['product_id'],
+          'size_id': newSizeId,
+          'quantity': item['quantity'],
+        };
+      }
+      return {
+        'product_id': item['product_id'],
+        'size_id': item['size_id'],
+        'quantity': item['quantity'],
+      };
+    }).toList();
+
+    return await updateOrder(
+      orderId: orderId,
+      customerName: currentOrder['customer_name'],
+      customerPhone: currentOrder['customer_phone'],
+      customerPhone2: currentOrder['customer_phone2'],
+      customerAddress: currentOrder['customer_address'],
+      customerSocialLink: currentOrder['customer_social_link'],
+      notes: currentOrder['notes'],
+      items: updatedItems,
+    );
+  }
+}
+```
+
+---
+
+### ملاحظات مهمة
+
+1. **التحقق من الكميات المتوفرة**: قبل إرسال طلب التعديل، تأكد من أن جميع الكميات المطلوبة متوفرة في المخزن. يمكنك استخدام API جلب المنتجات للتحقق من الكميات المتوفرة.
+
+2. **Transaction Safety**: جميع العمليات تتم داخل transaction، مما يعني أنه إذا فشل أي جزء من التعديل، سيتم التراجع عن جميع التغييرات تلقائياً.
+
+3. **إعادة الحساب التلقائي**: يتم إعادة حساب المبلغ الإجمالي للطلب تلقائياً بناءً على الأسعار الحالية للمنتجات (بما في ذلك التخفيضات النشطة).
+
+4. **الطلبات المقيدة**: لا يمكن تعديل الطلبات في حالة `confirmed` أو أي حالة أخرى غير `pending`.
+
+5. **الأداء**: عند تعديل طلب كبير، قد تستغرق العملية بعض الوقت لأن النظام يقوم بإرجاع جميع المنتجات القديمة وخصم الجديدة.
+
+---
+
 ## 5. حذف الطلب (Soft Delete)
 
 ### Endpoint
@@ -1942,6 +2606,727 @@ class DelegateOrderApiService {
 | `DELETE_ERROR` | خطأ أثناء حذف الطلب | 500 |
 | `RESTORE_ERROR` | خطأ أثناء استرجاع الطلب | 500 |
 | `INVALID_PHONE` | رقم الهاتف غير صحيح | 422 |
+| `CART_NOT_FOUND` | لا توجد سلة نشطة | 404 |
+| `FORBIDDEN_CART` | ليس لديك صلاحية للوصول إلى هذه السلة | 403 |
+| `CART_NOT_ACTIVE` | السلة غير نشطة | 400 |
+| `EMPTY_CART` | السلة فارغة | 400 |
+| `MISSING_CUSTOMER_DATA` | بيانات الزبون غير موجودة | 400 |
+| `INITIALIZE_ERROR` | خطأ أثناء بدء الطلب | 500 |
+| `ADD_ITEMS_ERROR` | خطأ أثناء إضافة المنتجات | 400 |
+| `UPDATE_ITEM_ERROR` | خطأ أثناء تحديث الكمية | 500 |
+| `REMOVE_ITEM_ERROR` | خطأ أثناء حذف المنتج | 500 |
+| `SUBMIT_ERROR` | خطأ أثناء إرسال الطلب | 500 |
+| `FORBIDDEN_ITEM` | ليس لديك صلاحية للوصول إلى هذا العنصر | 403 |
+
+---
+
+## إنشاء طلب جديد
+
+### نظرة عامة
+إنشاء طلب جديد يتطلب عدة خطوات:
+1. **بدء الطلب**: إنشاء سلة جديدة مع بيانات الزبون
+2. **إضافة المنتجات**: إضافة المنتجات والقياسات للسلة
+3. **إدارة السلة**: عرض، تعديل، أو حذف المنتجات
+4. **إرسال الطلب**: تحويل السلة إلى طلب نهائي
+
+### التدفق الكامل
+
+```
+1. POST /orders/initialize → إنشاء سلة جديدة
+2. POST /carts/items → إضافة منتجات (متكرر)
+3. GET /carts/current → عرض السلة
+4. PUT /carts/items/{id} → تعديل الكميات (اختياري)
+5. DELETE /carts/items/{id} → حذف منتجات (اختياري)
+6. POST /orders/submit → إرسال الطلب
+```
+
+---
+
+## 1. بدء طلب جديد (Initialize Order)
+
+### Endpoint
+```
+POST /api/mobile/delegate/orders/initialize
+```
+
+### الوصف
+إنشاء سلة جديدة (Cart) مع بيانات الزبون. يتم حذف أي سلة نشطة قديمة للمندوب تلقائياً.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يتم حذف أي سلة نشطة قديمة للمندوب تلقائياً
+- يتم تنسيق أرقام الهواتف إلى 11 رقم
+- يتم إنشاء StockReservation عند إضافة المنتجات (ليس هنا)
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "customer_name": "string (required) - اسم العميل",
+  "customer_phone": "string (required) - رقم هاتف العميل (11 رقم)",
+  "customer_phone2": "string|null - رقم هاتف العميل الثاني (11 رقم)",
+  "customer_address": "string (required) - عنوان العميل",
+  "customer_social_link": "string (required) - رابط التواصل الاجتماعي",
+  "notes": "string|null - ملاحظات"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم بدء الطلب بنجاح",
+  "data": {
+    "cart": {
+      "id": 1,
+      "customer_name": "أحمد محمد",
+      "customer_phone": "07701234567",
+      "customer_phone2": null,
+      "customer_address": "بغداد - الكرادة",
+      "customer_social_link": "https://facebook.com/...",
+      "notes": "ملاحظات",
+      "status": "active",
+      "total_amount": 0.00,
+      "items_count": 0,
+      "items": [],
+      "created_at": "2025-01-15T10:30:00+00:00",
+      "expires_at": "2025-01-16T10:30:00+00:00"
+    }
+  }
+}
+```
+
+### Response Error (422 Unprocessable Entity) - رقم هاتف غير صحيح
+```json
+{
+  "success": false,
+  "message": "رقم الهاتف يجب أن يكون بالضبط 11 رقم بعد التنسيق",
+  "error_code": "INVALID_PHONE"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/orders/initialize" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": "07701234568",
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات إضافية"
+  }'
+```
+
+---
+
+## 2. جلب السلة الحالية (Get Current Cart)
+
+### Endpoint
+```
+GET /api/mobile/delegate/carts/current
+```
+
+### الوصف
+جلب السلة الحالية النشطة للمندوب مع جميع المنتجات والتفاصيل.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Query Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `cart_id` | integer | No | معرف السلة (إذا لم يتم تحديده، يتم البحث عن السلة النشطة) |
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "cart": {
+      "id": 1,
+      "customer_name": "أحمد محمد",
+      "customer_phone": "07701234567",
+      "customer_phone2": null,
+      "customer_address": "بغداد - الكرادة",
+      "customer_social_link": "https://facebook.com/...",
+      "notes": "ملاحظات",
+      "status": "active",
+      "total_amount": 150.00,
+      "items_count": 2,
+      "items": [
+        {
+          "id": 1,
+          "product_id": 1,
+          "product_name": "قميص أطفال",
+          "product_code": "SHIRT001",
+          "size_id": 1,
+          "size_name": "S",
+          "quantity": 2,
+          "price": 50.00,
+          "subtotal": 100.00,
+          "product": {
+            "id": 1,
+            "name": "قميص أطفال",
+            "code": "SHIRT001",
+            "primary_image": "https://your-domain.com/storage/products/1_primary.jpg"
+          }
+        },
+        {
+          "id": 2,
+          "product_id": 2,
+          "product_name": "بنطلون أطفال",
+          "product_code": "PANT001",
+          "size_id": 3,
+          "size_name": "M",
+          "quantity": 1,
+          "price": 50.00,
+          "subtotal": 50.00,
+          "product": {
+            "id": 2,
+            "name": "بنطلون أطفال",
+            "code": "PANT001",
+            "primary_image": "https://your-domain.com/storage/products/2_primary.jpg"
+          }
+        }
+      ],
+      "created_at": "2025-01-15T10:30:00+00:00",
+      "expires_at": "2025-01-16T10:30:00+00:00"
+    }
+  }
+}
+```
+
+### Response Error (404 Not Found) - لا توجد سلة
+```json
+{
+  "success": false,
+  "message": "لا توجد سلة نشطة",
+  "error_code": "CART_NOT_FOUND"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/carts/current?cart_id=1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 3. إضافة منتجات للسلة (Add Items to Cart)
+
+### Endpoint
+```
+POST /api/mobile/delegate/carts/items
+```
+
+### الوصف
+إضافة منتجات للسلة. يمكن إضافة عدة قياسات لنفس المنتج في طلب واحد. يتم إنشاء StockReservation تلقائياً.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن تكون السلة نشطة (`status = 'active'`)
+- يجب أن تكون السلة تخص المندوب
+- يتم التحقق من توفر الكميات (available_quantity)
+- إذا كان المنتج موجود في السلة بنفس القياس، يتم تحديث الكمية
+- يتم استخدام `effective_price` للسعر (يشمل التخفيضات النشطة)
+- يتم إنشاء StockReservation لكل منتج (حجز للمخزن)
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "cart_id": "integer (required) - معرف السلة",
+  "product_id": "integer (required) - معرف المنتج",
+  "items": [
+    {
+      "size_id": "integer (required) - معرف القياس",
+      "quantity": "integer (required, min:1) - الكمية"
+    }
+  ]
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم إضافة المنتجات إلى السلة بنجاح",
+  "data": {
+    "cart": {
+      // نفس هيكل Cart من getCurrent
+    }
+  }
+}
+```
+
+### Response Error (400 Bad Request) - كمية غير متوفرة
+```json
+{
+  "success": false,
+  "message": "الكمية المطلوبة غير متوفرة للقياس S. المتوفر: 5",
+  "error_code": "ADD_ITEMS_ERROR"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/carts/items" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cart_id": 1,
+    "product_id": 1,
+    "items": [
+      {
+        "size_id": 1,
+        "quantity": 2
+      },
+      {
+        "size_id": 2,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+---
+
+## 4. تحديث كمية منتج في السلة (Update Cart Item)
+
+### Endpoint
+```
+PUT /api/mobile/delegate/carts/items/{id}
+```
+
+### الوصف
+تحديث كمية منتج موجود في السلة. يتم تحديث StockReservation تلقائياً.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون العنصر يخص المندوب
+- يتم التحقق من توفر الكمية الجديدة
+- حساب available_quantity = size.quantity + current_cart_item.quantity
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "quantity": "integer (required, min:1) - الكمية الجديدة"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم تحديث الكمية بنجاح",
+  "data": {
+    "cart": {
+      // نفس هيكل Cart من getCurrent
+    }
+  }
+}
+```
+
+### Response Error (400 Bad Request) - كمية غير متوفرة
+```json
+{
+  "success": false,
+  "message": "الكمية المطلوبة غير متوفرة. المتوفر: 10",
+  "error_code": "INSUFFICIENT_STOCK"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/carts/items/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 5
+  }'
+```
+
+---
+
+## 5. حذف منتج من السلة (Remove Cart Item)
+
+### Endpoint
+```
+DELETE /api/mobile/delegate/carts/items/{id}
+```
+
+### الوصف
+حذف منتج من السلة. يتم حذف StockReservation تلقائياً (إرجاع للمخزن).
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون العنصر يخص المندوب
+- يتم حذف StockReservation (إرجاع للمخزن)
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم حذف المنتج بنجاح",
+  "data": {
+    "cart": {
+      // نفس هيكل Cart من getCurrent
+    }
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X DELETE "https://your-domain.com/api/mobile/delegate/carts/items/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 6. إرسال الطلب (Submit Order)
+
+### Endpoint
+```
+POST /api/mobile/delegate/orders/submit
+```
+
+### الوصف
+تحويل السلة إلى طلب نهائي. يتم خصم المنتجات من المخزن وحذف StockReservations.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن تكون السلة نشطة (`status = 'active'`)
+- يجب أن تحتوي السلة على منتجات
+- يجب أن تكون بيانات الزبون موجودة
+- يتم استخدام `lockForUpdate()` لمنع التكرار
+- يتم خصم المنتجات من المخزن
+- يتم حذف StockReservations
+- يتم تغيير حالة السلة إلى 'completed'
+- يتم تسجيل حركة المواد (ProductMovement)
+- يتم إرسال Event لإنشاء شحنة في الواسط
+- يتم إرسال إشعار SweetAlert للمجهز/المدير
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "cart_id": "integer (required) - معرف السلة"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم إنشاء الطلب بنجاح! رقم الطلب: ORD-20250115-0001",
+  "data": {
+    "order": {
+      // نفس هيكل Order Details من قسم الطلبات
+    }
+  }
+}
+```
+
+### Response Error (400 Bad Request) - سلة فارغة
+```json
+{
+  "success": false,
+  "message": "أضف منتجات أولاً",
+  "error_code": "EMPTY_CART"
+}
+```
+
+### Response Error (400 Bad Request) - بيانات الزبون مفقودة
+```json
+{
+  "success": false,
+  "message": "بيانات الزبون غير موجودة. يرجى إنشاء طلب جديد",
+  "error_code": "MISSING_CUSTOMER_DATA"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/orders/submit" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cart_id": 1
+  }'
+```
+
+---
+
+## أمثلة على الاستخدام - إنشاء طلب جديد
+
+### مثال 1: إنشاء طلب كامل باستخدام cURL
+
+```bash
+# 1. بدء الطلب
+curl -X POST "https://your-domain.com/api/mobile/delegate/orders/initialize" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات"
+  }'
+
+# 2. إضافة منتج للسلة
+curl -X POST "https://your-domain.com/api/mobile/delegate/carts/items" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cart_id": 1,
+    "product_id": 1,
+    "items": [
+      {
+        "size_id": 1,
+        "quantity": 2
+      }
+    ]
+  }'
+
+# 3. عرض السلة
+curl -X GET "https://your-domain.com/api/mobile/delegate/carts/current?cart_id=1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+
+# 4. إرسال الطلب
+curl -X POST "https://your-domain.com/api/mobile/delegate/orders/submit" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cart_id": 1
+  }'
+```
+
+### مثال 2: استخدام JavaScript (Fetch API)
+
+```javascript
+class DelegateOrderService {
+  constructor(token) {
+    this.token = token;
+    this.baseUrl = 'https://your-domain.com/api/mobile';
+  }
+
+  // بدء طلب جديد
+  async initializeOrder(customerData) {
+    const response = await fetch(`${this.baseUrl}/delegate/orders/initialize`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(customerData)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل بدء الطلب');
+    }
+
+    return data.data.cart;
+  }
+
+  // جلب السلة الحالية
+  async getCurrentCart(cartId = null) {
+    const url = cartId 
+      ? `${this.baseUrl}/delegate/carts/current?cart_id=${cartId}`
+      : `${this.baseUrl}/delegate/carts/current`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل جلب السلة');
+    }
+
+    return data.data.cart;
+  }
+
+  // إضافة منتجات للسلة
+  async addItemsToCart(cartId, productId, items) {
+    const response = await fetch(`${this.baseUrl}/delegate/carts/items`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        cart_id: cartId,
+        product_id: productId,
+        items: items
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إضافة المنتجات');
+    }
+
+    return data.data.cart;
+  }
+
+  // تحديث كمية منتج
+  async updateCartItem(itemId, quantity) {
+    const response = await fetch(`${this.baseUrl}/delegate/carts/items/${itemId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ quantity })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل تحديث الكمية');
+    }
+
+    return data.data.cart;
+  }
+
+  // حذف منتج من السلة
+  async removeCartItem(itemId) {
+    const response = await fetch(`${this.baseUrl}/delegate/carts/items/${itemId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل حذف المنتج');
+    }
+
+    return data.data.cart;
+  }
+
+  // إرسال الطلب
+  async submitOrder(cartId) {
+    const response = await fetch(`${this.baseUrl}/delegate/orders/submit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ cart_id: cartId })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'فشل إرسال الطلب');
+    }
+
+    return data.data.order;
+  }
+}
+
+// استخدام الأمثلة
+const orderService = new DelegateOrderService(localStorage.getItem('token'));
+
+// إنشاء طلب كامل
+async function createOrder() {
+  try {
+    // 1. بدء الطلب
+    const cart = await orderService.initializeOrder({
+      customer_name: 'أحمد محمد',
+      customer_phone: '07701234567',
+      customer_address: 'بغداد - الكرادة',
+      customer_social_link: 'https://facebook.com/...',
+      notes: 'ملاحظات'
+    });
+
+    console.log('تم بدء الطلب:', cart);
+
+    // 2. إضافة منتجات
+    const updatedCart = await orderService.addItemsToCart(cart.id, 1, [
+      { size_id: 1, quantity: 2 },
+      { size_id: 2, quantity: 1 }
+    ]);
+
+    console.log('تم إضافة المنتجات:', updatedCart);
+
+    // 3. إرسال الطلب
+    const order = await orderService.submitOrder(cart.id);
+    console.log('تم إنشاء الطلب:', order);
+  } catch (error) {
+    console.error('خطأ:', error);
+  }
+}
+```
+
+### ملاحظات مهمة
+
+1. **StockReservation**: يتم إنشاء حجز للمنتجات عند الإضافة للسلة، ولا يتم خصمها من المخزن إلا عند إرسال الطلب
+2. **Transaction Safety**: جميع العمليات الحساسة تتم داخل transactions
+3. **Locking**: يتم استخدام `lockForUpdate()` عند إرسال الطلب لمنع التكرار
+4. **Phone Normalization**: يتم تنسيق أرقام الهواتف تلقائياً إلى 11 رقم
+5. **Quantity Validation**: يتم التحقق من الكميات المتوفرة قبل أي عملية
+6. **Cart Expiration**: السلة تنتهي بعد 24 ساعة من الإنشاء
 
 ---
 
@@ -1964,4 +3349,12 @@ class DelegateOrderApiService {
 - `DELETE /api/mobile/delegate/orders/{id}` - حذف طلب (soft delete)
 - `POST /api/mobile/delegate/orders/{id}/restore` - استرجاع طلب محذوف
 - `POST /api/mobile/delegate/orders/{id}/force-delete` - حذف طلب نهائياً (hard delete)
+- `POST /api/mobile/delegate/orders/initialize` - بدء طلب جديد (إنشاء سلة)
+- `POST /api/mobile/delegate/orders/submit` - إرسال الطلب (تحويل سلة إلى طلب)
+
+### Cart APIs
+- `GET /api/mobile/delegate/carts/current` - جلب السلة الحالية
+- `POST /api/mobile/delegate/carts/items` - إضافة منتجات للسلة
+- `PUT /api/mobile/delegate/carts/items/{id}` - تحديث كمية منتج في السلة
+- `DELETE /api/mobile/delegate/carts/items/{id}` - حذف منتج من السلة
 
