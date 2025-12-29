@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateAuthController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,12 @@ Route::prefix('delegate/auth')->group(function () {
 Route::prefix('delegate/products')->middleware('auth.pwa')->group(function () {
     Route::get('/', [MobileDelegateProductController::class, 'index']);
     Route::get('/{id}', [MobileDelegateProductController::class, 'show']);
+});
+
+// APIs الطلبات للمندوب (تحتاج token)
+Route::prefix('delegate/orders')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [MobileDelegateOrderController::class, 'index']);
+    Route::get('/{id}', [MobileDelegateOrderController::class, 'show']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)

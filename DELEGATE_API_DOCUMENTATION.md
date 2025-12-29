@@ -1071,6 +1071,552 @@ class DelegateProductApiService {
 
 ---
 
+---
+
+## 6. جلب قائمة الطلبات (Get Orders List)
+
+### Endpoint
+```
+GET /delegate/orders
+```
+
+### الوصف
+جلب قائمة جميع طلبات المندوب مع إمكانية الفلترة والبحث.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Query Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `status` | string | No | فلتر حسب الحالة: `pending`, `confirmed`, `deleted` |
+| `search` | string | No | بحث في order_number, customer_name, customer_phone, customer_social_link, customer_address, delivery_code, notes, items |
+| `date_from` | string | No | تاريخ البداية (YYYY-MM-DD) |
+| `date_to` | string | No | تاريخ النهاية (YYYY-MM-DD) |
+| `time_from` | string | No | وقت البداية (HH:MM) |
+| `time_to` | string | No | وقت النهاية (HH:MM) |
+| `per_page` | integer | No | عدد الطلبات في الصفحة (افتراضي: 15، حد أقصى: 100) |
+| `page` | integer | No | رقم الصفحة (افتراضي: 1) |
+
+### Request Body
+لا يوجد
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "order_number": "ORD-20250115-0001",
+      "customer_name": "أحمد محمد",
+      "customer_phone": "07701234567",
+      "customer_phone2": null,
+      "customer_address": "بغداد - الكرادة",
+      "customer_social_link": "https://facebook.com/...",
+      "status": "pending",
+      "total_amount": 150.00,
+      "items_count": 3,
+      "delivery_code": null,
+      "created_at": "2025-01-15T10:30:00+00:00",
+      "confirmed_at": null,
+      "deleted_at": null,
+      "deleted_by": null,
+      "deletion_reason": null,
+      "deleted_by_user": null
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 15,
+    "total": 50,
+    "last_page": 4,
+    "has_more": true
+  }
+}
+```
+
+### Response Error (401 Unauthorized)
+```json
+{
+  "success": false,
+  "message": "Token غير صحيح أو منتهي الصلاحية."
+}
+```
+
+### Response Error (403 Forbidden)
+```json
+{
+  "success": false,
+  "message": "غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.",
+  "error_code": "FORBIDDEN"
+}
+```
+
+### ملاحظات
+- عند استخدام `status=deleted` يتم عرض فقط الطلبات المحذوفة
+- عند عدم تحديد `status` يتم عرض جميع الطلبات (النشطة والمحذوفة)
+- البحث يدعم تطبيع أرقام الهواتف تلقائياً
+- ترتيب الطلبات: المحذوفة حسب `deleted_at`، النشطة حسب `created_at`
+
+---
+
+## 7. جلب تفاصيل طلب واحد (Get Single Order)
+
+### Endpoint
+```
+GET /delegate/orders/{id}
+```
+
+### الوصف
+جلب تفاصيل طلب واحد كاملة مع جميع العناصر ومعلومات الشحنة.
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Path Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | integer | Yes | معرف الطلب |
+
+### Request Body
+لا يوجد
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": 1,
+      "order_number": "ORD-20250115-0001",
+      "customer_name": "أحمد محمد",
+      "customer_phone": "07701234567",
+      "customer_phone2": null,
+      "customer_address": "بغداد - الكرادة",
+      "customer_social_link": "https://facebook.com/...",
+      "notes": "ملاحظات إضافية",
+      "status": "pending",
+      "total_amount": 150.00,
+      "delivery_code": null,
+      "items": [
+        {
+          "id": 1,
+          "product_id": 1,
+          "product_name": "قميص أطفال",
+          "product_code": "SHIRT001",
+          "size_id": 1,
+          "size_name": "S",
+          "quantity": 2,
+          "unit_price": 50.00,
+          "subtotal": 100.00,
+          "product": {
+            "id": 1,
+            "name": "قميص أطفال",
+            "code": "SHIRT001",
+            "primary_image": "https://your-domain.com/storage/products/1_primary.jpg"
+          }
+        },
+        {
+          "id": 2,
+          "product_id": 2,
+          "product_name": "بنطلون أطفال",
+          "product_code": "PANT001",
+          "size_id": 3,
+          "size_name": "M",
+          "quantity": 1,
+          "unit_price": 50.00,
+          "subtotal": 50.00,
+          "product": {
+            "id": 2,
+            "name": "بنطلون أطفال",
+            "code": "PANT001",
+            "primary_image": "https://your-domain.com/storage/products/2_primary.jpg"
+          }
+        }
+      ],
+      "alwaseet_shipment": {
+        "id": 1,
+        "alwaseet_order_id": "12345",
+        "client_name": "أحمد محمد",
+        "client_mobile": "07701234567",
+        "client_mobile2": null,
+        "city_id": "1",
+        "city_name": "بغداد",
+        "region_id": "10",
+        "region_name": "الكرادة",
+        "location": "بغداد - الكرادة",
+        "price": 150.00,
+        "delivery_price": 5.00,
+        "package_size": "medium",
+        "type_name": "ملابس",
+        "status_id": "1",
+        "status": "جديد",
+        "items_number": "3",
+        "merchant_notes": null,
+        "issue_notes": null,
+        "replacement": false,
+        "qr_id": null,
+        "qr_link": null,
+        "alwaseet_created_at": "2025-01-15T10:35:00+00:00",
+        "alwaseet_updated_at": "2025-01-15T10:35:00+00:00",
+        "synced_at": "2025-01-15T10:35:00+00:00"
+      },
+      "created_at": "2025-01-15T10:30:00+00:00",
+      "confirmed_at": null,
+      "deleted_at": null,
+      "deleted_by": null,
+      "deletion_reason": null,
+      "deleted_by_user": null
+    }
+  }
+}
+```
+
+### Response Error (401 Unauthorized)
+```json
+{
+  "success": false,
+  "message": "Token غير صحيح أو منتهي الصلاحية."
+}
+```
+
+### Response Error (403 Forbidden)
+```json
+{
+  "success": false,
+  "message": "غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.",
+  "error_code": "FORBIDDEN"
+}
+```
+
+### Response Error - طلب غير موجود (404 Not Found)
+```json
+{
+  "success": false,
+  "message": "الطلب غير موجود",
+  "error_code": "ORDER_NOT_FOUND"
+}
+```
+
+### Response Error - طلب غير مصرح (403 Forbidden)
+```json
+{
+  "success": false,
+  "message": "ليس لديك صلاحية للوصول إلى هذا الطلب",
+  "error_code": "FORBIDDEN_ORDER"
+}
+```
+
+### ملاحظات
+- يمكن جلب الطلبات المحذوفة (soft deleted) أيضاً
+- يتم إرجاع معلومات الشحنة (`alwaseet_shipment`) فقط إذا كانت موجودة
+- كل عنصر في الطلب يحتوي على معلومات المنتج والقياس
+
+---
+
+## هيكل بيانات الطلب (Order Object Structure)
+
+### قائمة الطلبات (Order List Item)
+```json
+{
+  "id": "integer - معرف الطلب",
+  "order_number": "string - رقم الطلب",
+  "customer_name": "string - اسم العميل",
+  "customer_phone": "string - رقم هاتف العميل",
+  "customer_phone2": "string|null - رقم هاتف العميل الثاني",
+  "customer_address": "string - عنوان العميل",
+  "customer_social_link": "string - رابط التواصل الاجتماعي",
+  "status": "string - حالة الطلب: pending, confirmed",
+  "total_amount": "float - المبلغ الإجمالي",
+  "items_count": "integer - عدد العناصر",
+  "delivery_code": "string|null - كود التوصيل",
+  "created_at": "string - تاريخ الإنشاء (ISO 8601)",
+  "confirmed_at": "string|null - تاريخ التقييد (ISO 8601)",
+  "deleted_at": "string|null - تاريخ الحذف (ISO 8601)",
+  "deleted_by": "integer|null - معرف المستخدم الذي حذف الطلب",
+  "deletion_reason": "string|null - سبب الحذف",
+  "deleted_by_user": {
+    "id": "integer - معرف المستخدم",
+    "name": "string - اسم المستخدم"
+  } | null
+}
+```
+
+### تفاصيل الطلب (Order Details)
+```json
+{
+  "id": "integer - معرف الطلب",
+  "order_number": "string - رقم الطلب",
+  "customer_name": "string - اسم العميل",
+  "customer_phone": "string - رقم هاتف العميل",
+  "customer_phone2": "string|null - رقم هاتف العميل الثاني",
+  "customer_address": "string - عنوان العميل",
+  "customer_social_link": "string - رابط التواصل الاجتماعي",
+  "notes": "string|null - ملاحظات",
+  "status": "string - حالة الطلب: pending, confirmed",
+  "total_amount": "float - المبلغ الإجمالي",
+  "delivery_code": "string|null - كود التوصيل",
+  "items": [
+    {
+      "id": "integer - معرف العنصر",
+      "product_id": "integer - معرف المنتج",
+      "product_name": "string - اسم المنتج",
+      "product_code": "string - كود المنتج",
+      "size_id": "integer - معرف القياس",
+      "size_name": "string - اسم القياس",
+      "quantity": "integer - الكمية",
+      "unit_price": "float - سعر الوحدة",
+      "subtotal": "float - المجموع الفرعي",
+      "product": {
+        "id": "integer - معرف المنتج",
+        "name": "string - اسم المنتج",
+        "code": "string - كود المنتج",
+        "primary_image": "string|null - رابط الصورة الرئيسية"
+      }
+    }
+  ],
+  "alwaseet_shipment": {
+    "id": "integer - معرف الشحنة",
+    "alwaseet_order_id": "string - معرف الطلب في الواسط",
+    "client_name": "string - اسم العميل",
+    "client_mobile": "string - رقم هاتف العميل",
+    "client_mobile2": "string|null - رقم هاتف العميل الثاني",
+    "city_id": "string - معرف المدينة",
+    "city_name": "string - اسم المدينة",
+    "region_id": "string - معرف المنطقة",
+    "region_name": "string - اسم المنطقة",
+    "location": "string - العنوان",
+    "price": "float - السعر",
+    "delivery_price": "float - سعر التوصيل",
+    "package_size": "string - حجم الطرد",
+    "type_name": "string - نوع الطرد",
+    "status_id": "string - معرف الحالة",
+    "status": "string - حالة الشحنة",
+    "items_number": "string - عدد العناصر",
+    "merchant_notes": "string|null - ملاحظات التاجر",
+    "issue_notes": "string|null - ملاحظات المشكلة",
+    "replacement": "boolean - هل هو استبدال",
+    "qr_id": "string|null - معرف QR",
+    "qr_link": "string|null - رابط QR",
+    "alwaseet_created_at": "string|null - تاريخ الإنشاء في الواسط (ISO 8601)",
+    "alwaseet_updated_at": "string|null - تاريخ التحديث في الواسط (ISO 8601)",
+    "synced_at": "string|null - تاريخ المزامنة (ISO 8601)"
+  } | null,
+  "created_at": "string - تاريخ الإنشاء (ISO 8601)",
+  "confirmed_at": "string|null - تاريخ التقييد (ISO 8601)",
+  "deleted_at": "string|null - تاريخ الحذف (ISO 8601)",
+  "deleted_by": "integer|null - معرف المستخدم الذي حذف الطلب",
+  "deletion_reason": "string|null - سبب الحذف",
+  "deleted_by_user": {
+    "id": "integer - معرف المستخدم",
+    "name": "string - اسم المستخدم"
+  } | null
+}
+```
+
+---
+
+## أمثلة على الاستخدام - الطلبات
+
+### مثال 1: جلب قائمة الطلبات باستخدام cURL
+
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/orders?status=pending&per_page=20&page=1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+### مثال 2: البحث عن طلب
+
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/orders?search=ORD-20250115-0001" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+### مثال 3: فلترة حسب التاريخ
+
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/orders?date_from=2025-01-01&date_to=2025-01-31" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+### مثال 4: جلب طلب واحد
+
+```bash
+curl -X GET "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+### مثال 5: استخدام JavaScript (Fetch API)
+
+```javascript
+// جلب قائمة الطلبات
+async function getOrders(filters = {}) {
+  const token = localStorage.getItem('token');
+  const queryParams = new URLSearchParams(filters).toString();
+  
+  const response = await fetch(`https://your-domain.com/api/mobile/delegate/orders?${queryParams}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  });
+  
+  const data = await response.json();
+  
+  if (data.success) {
+    return {
+      orders: data.data,
+      pagination: data.pagination
+    };
+  } else {
+    throw new Error(data.message);
+  }
+}
+
+// جلب طلب واحد
+async function getOrder(orderId) {
+  const token = localStorage.getItem('token');
+  
+  const response = await fetch(`https://your-domain.com/api/mobile/delegate/orders/${orderId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  });
+  
+  const data = await response.json();
+  
+  if (data.success) {
+    return data.data.order;
+  } else {
+    throw new Error(data.message);
+  }
+}
+
+// استخدام الأمثلة
+getOrders({ status: 'pending', per_page: 20 })
+  .then(result => {
+    console.log('الطلبات:', result.orders);
+    console.log('معلومات الصفحات:', result.pagination);
+  })
+  .catch(error => console.error('خطأ:', error));
+
+getOrder(1)
+  .then(order => console.log('الطلب:', order))
+  .catch(error => console.error('خطأ:', error));
+```
+
+### مثال 6: استخدام Flutter/Dart
+
+```dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class DelegateOrderApiService {
+  final String baseUrl = 'https://your-domain.com/api/mobile';
+  String? token;
+
+  // جلب قائمة الطلبات
+  Future<Map<String, dynamic>> getOrders({
+    String? status,
+    String? search,
+    String? dateFrom,
+    String? dateTo,
+    String? timeFrom,
+    String? timeTo,
+    int perPage = 15,
+    int page = 1,
+  }) async {
+    if (token == null) {
+      throw Exception('لم يتم تسجيل الدخول');
+    }
+
+    final queryParams = <String, String>{};
+    if (status != null) queryParams['status'] = status;
+    if (search != null) queryParams['search'] = search;
+    if (dateFrom != null) queryParams['date_from'] = dateFrom;
+    if (dateTo != null) queryParams['date_to'] = dateTo;
+    if (timeFrom != null) queryParams['time_from'] = timeFrom;
+    if (timeTo != null) queryParams['time_to'] = timeTo;
+    queryParams['per_page'] = perPage.toString();
+    queryParams['page'] = page.toString();
+
+    final uri = Uri.parse('$baseUrl/delegate/orders').replace(
+      queryParameters: queryParams,
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        return {
+          'orders': data['data'],
+          'pagination': data['pagination'],
+        };
+      }
+    }
+    
+    throw Exception('فشل جلب الطلبات');
+  }
+
+  // جلب طلب واحد
+  Future<Map<String, dynamic>> getOrder(int orderId) async {
+    if (token == null) {
+      throw Exception('لم يتم تسجيل الدخول');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/delegate/orders/$orderId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        return data['data']['order'];
+      }
+    }
+    
+    throw Exception('فشل جلب الطلب');
+  }
+}
+```
+
+---
+
+## أكواد الأخطاء - الطلبات
+
+| Error Code | الوصف | HTTP Status |
+|------------|-------|-------------|
+| `FORBIDDEN` | غير مصرح - المستخدم ليس مندوب | 403 |
+| `FORBIDDEN_ORDER` | ليس لديك صلاحية للوصول إلى هذا الطلب | 403 |
+| `ORDER_NOT_FOUND` | الطلب غير موجود | 404 |
+
+---
+
 ## ملخص جميع المسارات المتاحة
 
 ### Authentication APIs
@@ -1082,4 +1628,8 @@ class DelegateProductApiService {
 ### Products APIs
 - `GET /api/mobile/delegate/products` - قائمة المنتجات
 - `GET /api/mobile/delegate/products/{id}` - منتج واحد
+
+### Orders APIs
+- `GET /api/mobile/delegate/orders` - قائمة الطلبات
+- `GET /api/mobile/delegate/orders/{id}` - تفاصيل طلب واحد
 
