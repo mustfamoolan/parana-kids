@@ -4,8 +4,14 @@ namespace App\Http\Controllers\Mobile\Delegate;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\ProductSize;
+use App\Models\ProductMovement;
+use App\Services\SweetAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MobileDelegateOrderController extends Controller
 {
@@ -512,6 +518,496 @@ class MobileDelegateOrderController extends Controller
                          ->orWhere('size_name', '=', $searchTerm);
             });
         });
+    }
+
+    /**
+     * تحديث الطلب
+     *
+     * @param int $id
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function update($id, Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        // جلب الطلب
+        $order = Order::where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود',
+                'error_code' => 'ORDER_NOT_FOUND',
+            ], 404);
+        }
+
+        // التأكد من أن الطلب يخص المندوب الحالي
+        if ($order->delegate_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                'error_code' => 'FORBIDDEN_ORDER',
+            ], 403);
+        }
+
+        // التحقق من أن الطلب غير مقيد
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكن تعديل الطلبات المقيدة',
+                'error_code' => 'ORDER_CONFIRMED',
+            ], 400);
+        }
+
+        // تنسيق رقم الهاتف
+        $normalizedPhone = $this->normalizePhoneNumber($request->customer_phone);
+        if ($normalizedPhone === null || strlen($normalizedPhone) !== 11) {
+            return response()->json([
+                'success' => false,
+                'message' => 'رقم الهاتف يجب أن يكون بالضبط 11 رقم بعد التنسيق',
+                'error_code' => 'INVALID_PHONE',
+            ], 422);
+        }
+        $request->merge(['customer_phone' => $normalizedPhone]);
+
+        // تنسيق رقم الهاتف الثاني إن وجد
+        if ($request->filled('customer_phone2')) {
+            $normalizedPhone2 = $this->normalizePhoneNumber($request->customer_phone2);
+            if ($normalizedPhone2 !== null && strlen($normalizedPhone2) === 11) {
+                $request->merge(['customer_phone2' => $normalizedPhone2]);
+            } else {
+                $request->merge(['customer_phone2' => null]);
+            }
+        }
+
+        $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|digits:11',
+            'customer_phone2' => 'nullable|string|digits:11',
+            'customer_address' => 'required|string',
+            'customer_social_link' => 'required|string|max:255',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.size_id' => 'required|exists:product_sizes,id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ], [
+            'customer_phone.digits' => 'رقم الهاتف يجب أن يكون بالضبط 11 رقم',
+            'customer_phone2.digits' => 'رقم الهاتف الثاني يجب أن يكون بالضبط 11 رقم',
+        ]);
+
+        try {
+            DB::transaction(function() use ($request, $order, $user) {
+                // تحميل العناصر القديمة
+                $oldItems = $order->items()->get();
+
+                // إرجاع المنتجات القديمة للمخزون
+                foreach ($oldItems as $oldItem) {
+                    if ($oldItem->size) {
+                        $oldItem->size->increment('quantity', $oldItem->quantity);
+                    }
+                }
+
+                // حذف المنتجات القديمة
+                $order->items()->delete();
+
+                // تحديث معلومات الزبون
+                $order->update($request->only([
+                    'customer_name',
+                    'customer_phone',
+                    'customer_phone2',
+                    'customer_address',
+                    'customer_social_link',
+                    'notes',
+                ]));
+
+                // إضافة المنتجات الجديدة
+                $totalAmount = 0;
+                foreach ($request->items as $item) {
+                    $product = Product::findOrFail($item['product_id']);
+                    $size = ProductSize::findOrFail($item['size_id']);
+
+                    // التحقق من توفر الكمية
+                    if ($size->quantity < $item['quantity']) {
+                        throw new \Exception("الكمية المتوفرة من {$product->name} - {$size->size_name} غير كافية. المتوفر: {$size->quantity}");
+                    }
+
+                    // استخدام effective_price (يشمل التخفيضات النشطة)
+                    $unitPrice = $product->effective_price;
+                    $subtotal = $unitPrice * $item['quantity'];
+                    $totalAmount += $subtotal;
+
+                    $order->items()->create([
+                        'product_id' => $item['product_id'],
+                        'size_id' => $item['size_id'],
+                        'product_code' => $product->code,
+                        'product_name' => $product->name,
+                        'size_name' => $size->size_name,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $unitPrice,
+                        'subtotal' => $subtotal,
+                    ]);
+
+                    // خصم من المخزون
+                    $size->decrement('quantity', $item['quantity']);
+                }
+
+                // تحديث المبلغ الإجمالي
+                $order->update(['total_amount' => $totalAmount]);
+            });
+
+            // إعادة تحميل الطلب مع العلاقات
+            $order->refresh();
+            $order->load(['items.product.primaryImage', 'items.size', 'alwaseetShipment']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث الطلب بنجاح',
+                'data' => [
+                    'order' => $this->formatOrderData($order),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateOrderController: Error updating order', [
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث الطلب: ' . $e->getMessage(),
+                'error_code' => 'UPDATE_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * حذف الطلب (soft delete) مع إرجاع المنتجات للمخزن
+     *
+     * @param int $id
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function destroy($id, Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        // جلب الطلب
+        $order = Order::where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود',
+                'error_code' => 'ORDER_NOT_FOUND',
+            ], 404);
+        }
+
+        // التأكد من أن الطلب يخص المندوب الحالي
+        if ($order->delegate_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                'error_code' => 'FORBIDDEN_ORDER',
+            ], 403);
+        }
+
+        // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
+        if (!in_array($order->status, ['pending', 'confirmed'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكن حذف هذا الطلب',
+                'error_code' => 'ORDER_CANNOT_BE_DELETED',
+            ], 400);
+        }
+
+        $request->validate([
+            'deletion_reason' => 'required|string|max:500',
+        ], [
+            'deletion_reason.required' => 'يجب إدخال سبب الحذف',
+        ]);
+
+        try {
+            DB::transaction(function() use ($order, $request, $user) {
+                // تحميل العلاقات المطلوبة
+                $order->load('items.size', 'items.product');
+
+                // إرجاع جميع المنتجات للمخزن
+                foreach ($order->items as $item) {
+                    if ($item->size) {
+                        $item->size->increment('quantity', $item->quantity);
+
+                        // تسجيل حركة الحذف
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'order_id' => $order->id,
+                            'delegate_id' => $user->id,
+                            'movement_type' => 'delete',
+                            'quantity' => $item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "حذف طلب #{$order->order_number}"
+                        ]);
+                    }
+                }
+
+                // تسجيل من قام بالحذف وسبب الحذف
+                $order->deleted_by = $user->id;
+                $order->deletion_reason = $request->deletion_reason;
+                $order->save();
+
+                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
+                try {
+                    $sweetAlertService = app(SweetAlertService::class);
+                    $sweetAlertService->notifyOrderDeleted($order);
+                } catch (\Exception $e) {
+                    Log::error('MobileDelegateOrderController: Error sending SweetAlert for order_deleted', [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                // soft delete للطلب
+                $order->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateOrderController: Error deleting order', [
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage(),
+                'error_code' => 'DELETE_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * استرجاع الطلب مع خصم المنتجات من المخزن
+     *
+     * @param int $id
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function restore($id, Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        // جلب الطلب المحذوف
+        $order = Order::onlyTrashed()->where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود أو غير محذوف',
+                'error_code' => 'ORDER_NOT_FOUND',
+            ], 404);
+        }
+
+        // التأكد من أن الطلب يخص المندوب الحالي
+        if ($order->delegate_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                'error_code' => 'FORBIDDEN_ORDER',
+            ], 403);
+        }
+
+        try {
+            // التحقق من التوفر أولاً
+            $order->load('items.size', 'items.product');
+            $allAvailable = true;
+            $shortages = [];
+
+            foreach ($order->items as $item) {
+                $available = $item->size ? $item->size->quantity : 0;
+                if ($available < $item->quantity) {
+                    $allAvailable = false;
+                    $shortages[] = "{$item->product_name} ({$item->size_name}): المطلوب {$item->quantity}، المتوفر {$available}";
+                }
+            }
+
+            if (!$allAvailable) {
+                $errorMessage = 'لا يمكن استرجاع الطلب - المنتجات التالية غير متوفرة بالكمية المطلوبة: ' . implode(' | ', $shortages);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'error_code' => 'INSUFFICIENT_STOCK',
+                    'shortages' => $shortages,
+                ], 400);
+            }
+
+            DB::transaction(function() use ($order, $user) {
+                // خصم المنتجات من المخزن
+                foreach ($order->items as $item) {
+                    if ($item->size) {
+                        $item->size->decrement('quantity', $item->quantity);
+
+                        // تسجيل حركة الاسترجاع من الحذف
+                        ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'order_id' => $order->id,
+                            'delegate_id' => $user->id,
+                            'movement_type' => 'restore',
+                            'quantity' => -$item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "استرجاع من حذف طلب #{$order->order_number}"
+                        ]);
+                    }
+                }
+
+                // استرجاع الطلب
+                $order->restore();
+                $order->status = 'pending';
+                $order->deleted_by = null;
+                $order->deletion_reason = null;
+                $order->save();
+            });
+
+            // إعادة تحميل الطلب مع العلاقات
+            $order->refresh();
+            $order->load(['items.product.primaryImage', 'items.size', 'alwaseetShipment']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم استرجاع الطلب بنجاح وخصم المنتجات من المخزن',
+                'data' => [
+                    'order' => $this->formatOrderData($order),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateOrderController: Error restoring order', [
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage(),
+                'error_code' => 'RESTORE_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * حذف الطلب نهائياً (hard delete)
+     *
+     * @param int $id
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function forceDelete($id, Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        // جلب الطلب المحذوف
+        $order = Order::onlyTrashed()->where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود أو غير محذوف',
+                'error_code' => 'ORDER_NOT_FOUND',
+            ], 404);
+        }
+
+        // التأكد من أن الطلب يخص المندوب الحالي
+        if ($order->delegate_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                'error_code' => 'FORBIDDEN_ORDER',
+            ], 403);
+        }
+
+        // التأكد من أن الطلب محذوف (soft deleted)
+        if (!$order->trashed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يمكن الحذف النهائي فقط للطلبات المحذوفة',
+                'error_code' => 'ORDER_NOT_DELETED',
+            ], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($order) {
+                // حذف عناصر الطلب نهائياً
+                $order->items()->forceDelete();
+
+                // حذف الطلب نهائياً
+                $order->forceDelete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف الطلب نهائياً',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateOrderController: Error force deleting order', [
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء الحذف النهائي: ' . $e->getMessage(),
+                'error_code' => 'FORCE_DELETE_ERROR',
+            ], 500);
+        }
     }
 }
 

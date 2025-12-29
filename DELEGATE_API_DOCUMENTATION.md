@@ -1321,6 +1321,327 @@ Accept: application/json
 
 ---
 
+## 4. تحديث الطلب
+
+### Endpoint
+```
+PUT /api/mobile/delegate/orders/{id}
+```
+
+### الوصف
+تحديث طلب موجود. يمكن تحديث معلومات الزبون وعناصر الطلب. يجب أن يكون الطلب في حالة `pending` فقط.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون الطلب يخص المندوب (`delegate_id`)
+- يجب أن يكون الطلب في حالة `pending` فقط (غير مقيد)
+- يتم إرجاع المنتجات القديمة للمخزن تلقائياً
+- يتم خصم المنتجات الجديدة من المخزن
+- يتم التحقق من توفر الكميات قبل الخصم
+- يتم استخدام `effective_price` لحساب الأسعار (يشمل التخفيضات النشطة)
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "customer_name": "string (required) - اسم العميل",
+  "customer_phone": "string (required) - رقم هاتف العميل (11 رقم)",
+  "customer_phone2": "string|null - رقم هاتف العميل الثاني (11 رقم)",
+  "customer_address": "string (required) - عنوان العميل",
+  "customer_social_link": "string (required) - رابط التواصل الاجتماعي",
+  "notes": "string|null - ملاحظات",
+  "items": [
+    {
+      "product_id": "integer (required) - معرف المنتج",
+      "size_id": "integer (required) - معرف القياس",
+      "quantity": "integer (required, min:1) - الكمية"
+    }
+  ]
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم تحديث الطلب بنجاح",
+  "data": {
+    "order": {
+      // نفس هيكل Order Details من القسم السابق
+    }
+  }
+}
+```
+
+### Response Error (400 Bad Request) - طلب مقيد
+```json
+{
+  "success": false,
+  "message": "لا يمكن تعديل الطلبات المقيدة",
+  "error_code": "ORDER_CONFIRMED"
+}
+```
+
+### Response Error (400 Bad Request) - كمية غير متوفرة
+```json
+{
+  "success": false,
+  "message": "الكمية المتوفرة من {product_name} - {size_name} غير كافية. المتوفر: {quantity}",
+  "error_code": "UPDATE_ERROR"
+}
+```
+
+### Response Error (422 Unprocessable Entity) - خطأ في التحقق
+```json
+{
+  "success": false,
+  "message": "The given data was invalid.",
+  "errors": {
+    "customer_name": ["The customer name field is required."],
+    "customer_phone": ["The customer phone must be 11 digits."],
+    "items": ["The items field is required."]
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X PUT "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "أحمد محمد",
+    "customer_phone": "07701234567",
+    "customer_phone2": "07701234568",
+    "customer_address": "بغداد - الكرادة",
+    "customer_social_link": "https://facebook.com/...",
+    "notes": "ملاحظات محدثة",
+    "items": [
+      {
+        "product_id": 1,
+        "size_id": 1,
+        "quantity": 3
+      },
+      {
+        "product_id": 2,
+        "size_id": 3,
+        "quantity": 2
+      }
+    ]
+  }'
+```
+
+---
+
+## 5. حذف الطلب (Soft Delete)
+
+### Endpoint
+```
+DELETE /api/mobile/delegate/orders/{id}
+```
+
+### الوصف
+حذف طلب (soft delete) مع إرجاع جميع المنتجات للمخزن. يمكن حذف الطلبات في حالة `pending` أو `confirmed` فقط.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون الطلب يخص المندوب (`delegate_id`)
+- يجب أن يكون الطلب في حالة `pending` أو `confirmed` فقط
+- يتم إرجاع جميع المنتجات للمخزن تلقائياً
+- يتم تسجيل حركة الحذف في `ProductMovement`
+- يتم تسجيل `deleted_by` و `deletion_reason`
+- يتم إرسال إشعار SweetAlert للمجهز/المدير
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "deletion_reason": "string (required, max:500) - سبب الحذف"
+}
+```
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن"
+}
+```
+
+### Response Error (400 Bad Request) - لا يمكن حذف الطلب
+```json
+{
+  "success": false,
+  "message": "لا يمكن حذف هذا الطلب",
+  "error_code": "ORDER_CANNOT_BE_DELETED"
+}
+```
+
+### Response Error (422 Unprocessable Entity) - خطأ في التحقق
+```json
+{
+  "success": false,
+  "message": "The given data was invalid.",
+  "errors": {
+    "deletion_reason": ["يجب إدخال سبب الحذف"]
+  }
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X DELETE "https://your-domain.com/api/mobile/delegate/orders/1" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deletion_reason": "العميل ألغى الطلب"
+  }'
+```
+
+---
+
+## 6. استرجاع الطلب (Restore)
+
+### Endpoint
+```
+POST /api/mobile/delegate/orders/{id}/restore
+```
+
+### الوصف
+استرجاع طلب محذوف (soft deleted) مع خصم المنتجات من المخزن. يجب التحقق من توفر الكميات قبل الاسترجاع.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون الطلب يخص المندوب (`delegate_id`)
+- يجب أن يكون الطلب محذوف (soft deleted)
+- يتم التحقق من توفر الكميات قبل الاسترجاع
+- يتم خصم المنتجات من المخزن
+- يتم تسجيل حركة الاسترجاع في `ProductMovement`
+- يتم استرجاع الطلب ووضع `status = 'pending'`
+- يتم مسح `deleted_by` و `deletion_reason`
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Request Body
+لا يوجد (فارغ)
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم استرجاع الطلب بنجاح وخصم المنتجات من المخزن",
+  "data": {
+    "order": {
+      // نفس هيكل Order Details من القسم السابق
+    }
+  }
+}
+```
+
+### Response Error (400 Bad Request) - كمية غير متوفرة
+```json
+{
+  "success": false,
+  "message": "لا يمكن استرجاع الطلب - المنتجات التالية غير متوفرة بالكمية المطلوبة: {product_name} ({size_name}): المطلوب {quantity}، المتوفر {available} | ...",
+  "error_code": "INSUFFICIENT_STOCK",
+  "shortages": [
+    "{product_name} ({size_name}): المطلوب {quantity}، المتوفر {available}"
+  ]
+}
+```
+
+### Response Error (404 Not Found) - طلب غير موجود أو غير محذوف
+```json
+{
+  "success": false,
+  "message": "الطلب غير موجود أو غير محذوف",
+  "error_code": "ORDER_NOT_FOUND"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/orders/1/restore" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 7. حذف الطلب نهائياً (Force Delete)
+
+### Endpoint
+```
+POST /api/mobile/delegate/orders/{id}/force-delete
+```
+
+### الوصف
+حذف طلب نهائياً من قاعدة البيانات (hard delete). هذه العملية لا يمكن التراجع عنها.
+
+### القواعد والصلاحيات
+- يجب أن يكون المستخدم مندوباً (`isDelegate()`)
+- يجب أن يكون الطلب يخص المندوب (`delegate_id`)
+- يجب أن يكون الطلب محذوف (soft deleted) مسبقاً
+- **تحذير:** هذه العملية لا يمكن التراجع عنها
+
+### Headers
+```
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Request Body
+لا يوجد (فارغ)
+
+### Response Success (200 OK)
+```json
+{
+  "success": true,
+  "message": "تم حذف الطلب نهائياً"
+}
+```
+
+### Response Error (404 Not Found) - طلب غير موجود
+```json
+{
+  "success": false,
+  "message": "الطلب غير موجود",
+  "error_code": "ORDER_NOT_FOUND"
+}
+```
+
+### مثال على الاستخدام
+```bash
+curl -X POST "https://your-domain.com/api/mobile/delegate/orders/1/force-delete" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Accept: application/json"
+```
+
+### ملاحظات
+- هذه العملية حذف نهائي ولا يمكن التراجع عنها
+- يجب استخدامها بحذر
+- المنتجات لا يتم إرجاعها للمخزن لأنها سبق إرجاعها عند الحذف الأول (soft delete)
+
+---
+
 ## هيكل بيانات الطلب (Order Object Structure)
 
 ### قائمة الطلبات (Order List Item)
@@ -1614,6 +1935,13 @@ class DelegateOrderApiService {
 | `FORBIDDEN` | غير مصرح - المستخدم ليس مندوب | 403 |
 | `FORBIDDEN_ORDER` | ليس لديك صلاحية للوصول إلى هذا الطلب | 403 |
 | `ORDER_NOT_FOUND` | الطلب غير موجود | 404 |
+| `ORDER_CONFIRMED` | لا يمكن تعديل الطلبات المقيدة | 400 |
+| `ORDER_CANNOT_BE_DELETED` | لا يمكن حذف هذا الطلب | 400 |
+| `INSUFFICIENT_STOCK` | الكمية غير متوفرة للاسترجاع | 400 |
+| `UPDATE_ERROR` | خطأ أثناء تحديث الطلب | 500 |
+| `DELETE_ERROR` | خطأ أثناء حذف الطلب | 500 |
+| `RESTORE_ERROR` | خطأ أثناء استرجاع الطلب | 500 |
+| `INVALID_PHONE` | رقم الهاتف غير صحيح | 422 |
 
 ---
 
@@ -1632,4 +1960,8 @@ class DelegateOrderApiService {
 ### Orders APIs
 - `GET /api/mobile/delegate/orders` - قائمة الطلبات
 - `GET /api/mobile/delegate/orders/{id}` - تفاصيل طلب واحد
+- `PUT /api/mobile/delegate/orders/{id}` - تحديث طلب
+- `DELETE /api/mobile/delegate/orders/{id}` - حذف طلب (soft delete)
+- `POST /api/mobile/delegate/orders/{id}/restore` - استرجاع طلب محذوف
+- `POST /api/mobile/delegate/orders/{id}/force-delete` - حذف طلب نهائياً (hard delete)
 

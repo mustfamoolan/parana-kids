@@ -38,6 +38,10 @@ Route::prefix('delegate/products')->middleware('auth.pwa')->group(function () {
 Route::prefix('delegate/orders')->middleware('auth.pwa')->group(function () {
     Route::get('/', [MobileDelegateOrderController::class, 'index']);
     Route::get('/{id}', [MobileDelegateOrderController::class, 'show']);
+    Route::put('/{id}', [MobileDelegateOrderController::class, 'update']);
+    Route::delete('/{id}', [MobileDelegateOrderController::class, 'destroy']);
+    Route::post('/{id}/restore', [MobileDelegateOrderController::class, 'restore']);
+    Route::post('/{id}/force-delete', [MobileDelegateOrderController::class, 'forceDelete']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)
