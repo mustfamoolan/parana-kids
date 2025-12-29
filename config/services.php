@@ -32,8 +32,8 @@ return [
     ],
 
     'firebase' => [
-        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json')),
-        'project_id' => env('FIREBASE_PROJECT_ID', 'parana-kids'),
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/paranakids-b743f-firebase-adminsdk-fbsvc-4e1340d3ce.json')),
+        'project_id' => env('FIREBASE_PROJECT_ID', 'paranakids-b743f'),
     ],
 
     'telegram' => [
