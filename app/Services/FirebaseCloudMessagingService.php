@@ -23,29 +23,47 @@ class FirebaseCloudMessagingService
     public function __construct()
     {
         try {
-            $credentialsPath = config('services.firebase.credentials');
             $projectId = config('services.firebase.project_id');
-
-            if (!file_exists($credentialsPath)) {
-                Log::warning('FirebaseCloudMessagingService: Credentials file not found', [
-                    'path' => $credentialsPath,
-                ]);
-                return;
+            
+            // محاولة استخدام Base64 أولاً (الأفضل للـ deployment)
+            $credentialsBase64 = env('FIREBASE_CREDENTIALS_BASE64');
+            
+            if ($credentialsBase64) {
+                // استخدام credentials من Base64
+                $credentialsJson = base64_decode($credentialsBase64);
+                $factory = (new Factory)->withServiceAccount($credentialsJson);
+                
+                Log::info('FirebaseCloudMessagingService: Initialized with Base64 credentials');
+            } else {
+                // استخدام ملف الـ credentials
+                $credentialsPath = config('services.firebase.credentials');
+                
+                if (!file_exists($credentialsPath)) {
+                    Log::warning('FirebaseCloudMessagingService: Credentials file not found and no Base64 provided', [
+                        'path' => $credentialsPath,
+                    ]);
+                    return;
+                }
+                
+                $factory = (new Factory)->withServiceAccount($credentialsPath);
+                
+                Log::info('FirebaseCloudMessagingService: Initialized with credentials file');
             }
 
-            $factory = (new Factory)
-                ->withServiceAccount($credentialsPath)
-                ->withProjectId($projectId);
+            if ($projectId) {
+                $factory = $factory->withProjectId($projectId);
+            }
 
             $this->messaging = $factory->createMessaging();
 
-            // VAPID keys للمندوبين (من firebase-credentials-base64.txt)
+            // VAPID keys للمندوبين
             $this->delegateVapidKey = env('FIREBASE_DELEGATE_VAPID_KEY', 'BH3zykRdN9qD16ZdwHB9A_mNpnVR4iWKbcB049yOLisNUGkKnkeXpEykKK-Za4BMAELHCqGH2qtvscJb6qCQwzg');
             $this->delegateSenderId = env('FIREBASE_DELEGATE_SENDER_ID', '223597554792');
 
         } catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to initialize', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
     }
