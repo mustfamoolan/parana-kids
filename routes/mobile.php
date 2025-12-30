@@ -8,6 +8,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateCartController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateChatController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateNotificationController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductLinkController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateAlWaseetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -94,6 +95,13 @@ Route::prefix('delegate/product-links')->middleware('auth.pwa')->group(function 
     Route::delete('/{id}', [MobileDelegateProductLinkController::class, 'destroy']);
     Route::get('/get-sizes', [MobileDelegateProductLinkController::class, 'getSizes']);
     Route::get('/warehouses', [MobileDelegateProductLinkController::class, 'getWarehouses']);
+});
+
+// APIs تتبع طلبات الوسيط للمندوب (تحتاج token)
+Route::prefix('delegate/alwaseet')->middleware('auth.pwa')->group(function () {
+    Route::get('/status-cards', [MobileDelegateAlWaseetController::class, 'getStatusCards']);
+    Route::get('/orders', [MobileDelegateAlWaseetController::class, 'getOrders']);
+    Route::get('/orders/{id}', [MobileDelegateAlWaseetController::class, 'getOrderDetails']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)

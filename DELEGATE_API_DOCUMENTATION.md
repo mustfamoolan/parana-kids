@@ -5981,3 +5981,407 @@ async function createLinkWithSizes() {
 - `GET /api/mobile/delegate/product-links/get-sizes` - جلب القياسات المتاحة
 - `GET /api/mobile/delegate/product-links/warehouses` - جلب المخازن المتاحة
 
+---
+
+## AlWaseet Track Orders API - تتبع طلبات الوسيط
+
+نظام تتبع طلبات الوسيط (AlWaseet) للمندوبين. يتيح النظام للمندوبين متابعة حالات طلباتهم على نظام الوسيط، عرض الإحصائيات، التفاصيل، والتاريخ (Timeline) لكل طلب. **مهم جداً:** يعرض فقط طلبات المندوب الحالي.
+
+### نظرة عامة
+
+- **الوظيفة**: تتبع طلبات الوسيط للمندوب
+- **البيانات**: من قاعدة البيانات (محدثة من Jobs كل 10 دقائق)
+- **الحالات**: من `AlWaseetOrderStatus` (محدثة من Job كل ساعة)
+- **Timeline**: تاريخ تغيير الحالات من `alwaseet_order_status_history`
+
+### 1. جلب بطاقات الحالات (Status Cards)
+
+جلب إحصائيات حالات طلبات الوسيط للمندوب (عدد الطلبات والمبلغ الإجمالي لكل حالة).
+
+**Endpoint:** `GET /api/mobile/delegate/alwaseet/status-cards`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Query Parameters:**
+- `date_from` (optional): تاريخ البداية (Y-m-d)
+- `date_to` (optional): تاريخ النهاية (Y-m-d)
+- `time_from` (optional): وقت البداية (H:i)
+- `time_to` (optional): وقت النهاية (H:i)
+- `hours_ago` (optional): آخر X ساعة (2, 4, 6, 8... حتى 30)
+- `warehouse_id` (optional): فلتر حسب المخزن
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "status_cards": [
+      {
+        "status_id": "1",
+        "status_text": "جديد",
+        "count": 15,
+        "total_amount": 2500000.00,
+        "color": "info"
+      },
+      {
+        "status_id": "2",
+        "status_text": "قيد المعالجة",
+        "count": 8,
+        "total_amount": 1200000.00,
+        "color": "primary"
+      },
+      {
+        "status_id": "4",
+        "status_text": "تم التسليم",
+        "count": 45,
+        "total_amount": 8750000.00,
+        "color": "success"
+      }
+    ],
+    "total_orders": 68,
+    "total_amount": 12450000.00
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.",
+  "error_code": "FORBIDDEN"
+}
+```
+
+**ملاحظات:**
+- يتم عرض الحالات النشطة فقط (من `AlWaseetOrderStatus`)
+- الحالات مرتبة حسب `display_order`
+- `color` يمكن استخدامه في واجهة المستخدم (info, primary, success, warning, danger, secondary)
+- يتم استخدام Cache (2 دقيقة للفلاتر، 10 دقائق بدون فلاتر)
+
+### 2. جلب قائمة الطلبات
+
+جلب قائمة طلبات الوسيط للمندوب مع فلترة وpagination.
+
+**Endpoint:** `GET /api/mobile/delegate/alwaseet/orders`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Query Parameters:**
+- `status_id` (optional): فلتر حسب حالة الوسيط
+- `search` (optional): البحث في (order_number, customer_name, customer_phone, customer_address, delivery_code, alwaseet_order_id)
+- `date_from`, `date_to` (optional): فلتر التاريخ
+- `time_from`, `time_to` (optional): فلتر الوقت
+- `hours_ago` (optional): آخر X ساعة
+- `warehouse_id` (optional): فلتر حسب المخزن
+- `page` (optional): رقم الصفحة (افتراضي: 1)
+- `per_page` (optional): عدد الطلبات في الصفحة (افتراضي: 20، حد أقصى: 50)
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 123,
+      "order_number": "ORD-20250130-001",
+      "customer_name": "أحمد محمد",
+      "customer_phone": "07901234567",
+      "customer_address": "بغداد - الكرادة",
+      "total_amount": 150000.00,
+      "delivery_fee": 5000.00,
+      "created_at": "2025-01-30T10:00:00Z",
+      "alwaseet_shipment": {
+        "id": 45,
+        "alwaseet_order_id": "12345",
+        "status_id": "2",
+        "status_text": "قيد المعالجة",
+        "city_name": "بغداد",
+        "region_name": "الكرادة",
+        "delivery_price": 5000.00,
+        "qr_link": "https://...",
+        "synced_at": "2025-01-30T10:05:00Z"
+      },
+      "items": [
+        {
+          "id": 456,
+          "product": {
+            "id": 789,
+            "name": "منتج 1",
+            "code": "P001",
+            "primary_image_url": "https://...",
+            "warehouse": {
+              "id": 1,
+              "name": "مخزن الشمال"
+            }
+          },
+          "size_name": "M",
+          "quantity": 2,
+          "unit_price": 75000.00
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 20,
+    "total": 60,
+    "last_page": 3,
+    "has_more": true
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.",
+  "error_code": "FORBIDDEN"
+}
+```
+
+**ملاحظات:**
+- يتم عرض طلبات المندوب الحالي فقط
+- الطلبات مرتبة حسب تاريخ الإنشاء (الأحدث أولاً)
+- يتم عرض فقط الطلبات التي لديها `alwaseetShipment`
+
+### 3. جلب تفاصيل طلب واحد مع Timeline
+
+جلب تفاصيل كاملة لطلب واحد مع Timeline الحالات.
+
+**Endpoint:** `GET /api/mobile/delegate/alwaseet/orders/{id}`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": 123,
+      "order_number": "ORD-20250130-001",
+      "customer_name": "أحمد محمد",
+      "customer_phone": "07901234567",
+      "customer_phone2": null,
+      "customer_address": "بغداد - الكرادة",
+      "customer_social_link": "@ahmadmohammad",
+      "delivery_code": "D123",
+      "notes": "يرجى التوصيل بعد الساعة 2 ظهراً",
+      "total_amount": 150000.00,
+      "delivery_fee": 5000.00,
+      "confirmed_by": {
+        "id": 2,
+        "name": "مجهز 1"
+      },
+      "created_at": "2025-01-30T10:00:00Z",
+      "items": [
+        {
+          "id": 456,
+          "product": {
+            "id": 789,
+            "name": "منتج 1",
+            "code": "P001",
+            "primary_image_url": "https://...",
+            "warehouse": {
+              "id": 1,
+              "name": "مخزن الشمال"
+            }
+          },
+          "size_name": "M",
+          "quantity": 2,
+          "unit_price": 75000.00
+        }
+      ],
+      "alwaseet_shipment": {
+        "id": 45,
+        "alwaseet_order_id": "12345",
+        "status_id": "2",
+        "status_text": "قيد المعالجة",
+        "city_name": "بغداد",
+        "region_name": "الكرادة",
+        "location": "تفاصيل العنوان الدقيق",
+        "price": 155000.00,
+        "delivery_price": 5000.00,
+        "merchant_notes": "ملاحظات التاجر",
+        "issue_notes": null,
+        "qr_link": "https://...",
+        "alwaseet_created_at": "2025-01-30T10:05:00Z",
+        "synced_at": "2025-01-30T10:05:00Z",
+        "status_timeline": [
+          {
+            "status_id": "1",
+            "status_text": "جديد",
+            "changed_at": "2025-01-30T10:05:00Z",
+            "is_current": false,
+            "display_order": 1
+          },
+          {
+            "status_id": "2",
+            "status_text": "قيد المعالجة",
+            "changed_at": "2025-01-30T11:00:00Z",
+            "is_current": true,
+            "display_order": 2
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+**Response (Error - Not Found):**
+```json
+{
+  "success": false,
+  "message": "الطلب غير موجود أو ليس لديك صلاحية للوصول إليه",
+  "error_code": "NOT_FOUND"
+}
+```
+
+**ملاحظات:**
+- Timeline مرتب حسب `changed_at ASC` (من الأقدم للأحدث)
+- `is_current` يشير إلى الحالة الحالية
+- `display_order` يمكن استخدامه لترتيب الحالات في واجهة المستخدم
+
+### مثال على استخدام API في JavaScript/Flutter
+
+```javascript
+// جلب بطاقات الحالات
+async function getStatusCards(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.date_from) params.append('date_from', filters.date_from);
+  if (filters.date_to) params.append('date_to', filters.date_to);
+  if (filters.hours_ago) params.append('hours_ago', filters.hours_ago);
+  if (filters.warehouse_id) params.append('warehouse_id', filters.warehouse_id);
+  
+  const response = await fetch(
+    `https://api.example.com/api/mobile/delegate/alwaseet/status-cards?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// جلب قائمة الطلبات
+async function getAlWaseetOrders(filters = {}, page = 1, perPage = 20) {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    per_page: perPage.toString(),
+  });
+  
+  if (filters.status_id) params.append('status_id', filters.status_id);
+  if (filters.search) params.append('search', filters.search);
+  if (filters.date_from) params.append('date_from', filters.date_from);
+  if (filters.date_to) params.append('date_to', filters.date_to);
+  if (filters.hours_ago) params.append('hours_ago', filters.hours_ago);
+  if (filters.warehouse_id) params.append('warehouse_id', filters.warehouse_id);
+  
+  const response = await fetch(
+    `https://api.example.com/api/mobile/delegate/alwaseet/orders?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// جلب تفاصيل طلب مع Timeline
+async function getAlWaseetOrderDetails(orderId) {
+  const response = await fetch(
+    `https://api.example.com/api/mobile/delegate/alwaseet/orders/${orderId}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// مثال: عرض بطاقات الحالات ثم قائمة الطلبات
+async function loadAlWaseetDashboard() {
+  // 1. جلب بطاقات الحالات
+  const statusCardsResponse = await getStatusCards();
+  if (statusCardsResponse.success) {
+    const statusCards = statusCardsResponse.data.status_cards;
+    // عرض البطاقات في واجهة المستخدم
+    console.log('Status Cards:', statusCards);
+  }
+  
+  // 2. جلب قائمة الطلبات
+  const ordersResponse = await getAlWaseetOrders({}, 1, 20);
+  if (ordersResponse.success) {
+    const orders = ordersResponse.data;
+    const pagination = ordersResponse.pagination;
+    // عرض الطلبات في واجهة المستخدم
+    console.log('Orders:', orders);
+    console.log('Pagination:', pagination);
+  }
+}
+
+// مثال: عرض Timeline لطلب معين
+async function showOrderTimeline(orderId) {
+  const orderResponse = await getAlWaseetOrderDetails(orderId);
+  if (orderResponse.success) {
+    const order = orderResponse.data.order;
+    const timeline = order.alwaseet_shipment?.status_timeline || [];
+    
+    // عرض Timeline في واجهة المستخدم
+    timeline.forEach((status, index) => {
+      console.log(`${index + 1}. ${status.status_text} - ${status.changed_at} ${status.is_current ? '(حالي)' : ''}`);
+    });
+  }
+}
+```
+
+### Error Codes
+
+| Error Code | الوصف |
+|------------|-------|
+| `FORBIDDEN` | المستخدم ليس مندوب أو لا يملك صلاحية |
+| `NOT_FOUND` | الطلب غير موجود أو ليس للمندوب |
+| `NO_SHIPMENT` | الطلب ليس لديه shipment |
+
+### ملاحظات مهمة
+
+1. **الأمان**: جميع الـ endpoints تتحقق من `delegate_id = Auth::id()`
+2. **الأداء**: استخدام Cache وeager loading لتحسين الأداء
+3. **البيانات**: البيانات من قاعدة البيانات (محدثة من Jobs كل 10 دقائق)
+4. **الحالات**: الحالات من `AlWaseetOrderStatus` (محدثة من Job كل ساعة)
+5. **Timeline**: يتم جلب Timeline من `alwaseet_order_status_history`
+
+---
+
+### AlWaseet Track Orders APIs
+- `GET /api/mobile/delegate/alwaseet/status-cards` - جلب بطاقات الحالات
+- `GET /api/mobile/delegate/alwaseet/orders` - جلب قائمة الطلبات
+- `GET /api/mobile/delegate/alwaseet/orders/{id}` - جلب تفاصيل طلب مع Timeline
+
