@@ -32,8 +32,11 @@ class MobileAdminAuthController extends Controller
         $code = $request->code;
         $password = $request->password;
 
-        // Find user by code
-        $user = User::where('code', $code)->first();
+        // Find user by code or phone (for admin who might not have code)
+        $user = User::where(function($query) use ($code) {
+            $query->where('code', $code)
+                  ->orWhere('phone', $code);
+        })->first();
 
         if ($user && Hash::check($password, $user->password)) {
             // Check if user is admin, supplier, or private_supplier
