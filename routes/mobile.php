@@ -9,6 +9,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateChatController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateNotificationController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductLinkController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateAlWaseetController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,8 +105,15 @@ Route::prefix('delegate/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::get('/orders/{id}', [MobileDelegateAlWaseetController::class, 'getOrderDetails']);
 });
 
-// APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)
-// Route::prefix('admin/auth')->group(function () {
-//     Route::post('/login', [MobileAdminAuthController::class, 'login']);
-//     ...
-// });
+// APIs المدير/المجهز (تطبيق موبايل المدير والمجهز)
+Route::prefix('admin/auth')->group(function () {
+    // تسجيل الدخول (عام - بدون مصادقة)
+    Route::post('/login', [MobileAdminAuthController::class, 'login']);
+
+    // المسارات المحمية (تحتاج token)
+    Route::middleware('auth.pwa')->group(function () {
+        Route::get('/me', [MobileAdminAuthController::class, 'me']);
+        Route::post('/logout', [MobileAdminAuthController::class, 'logout']);
+        Route::put('/profile', [MobileAdminAuthController::class, 'updateProfile']);
+    });
+});
