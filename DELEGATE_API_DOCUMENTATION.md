@@ -5466,6 +5466,464 @@ class MyApp extends StatelessWidget {
 
 ---
 
+## Product Links API - نظام روابط المنتجات
+
+نظام إنشاء روابط مخصصة للمنتجات للمندوبين. يتيح النظام للمندوبين إنشاء روابط فريدة لعرض منتجات محددة بناءً على معايير (مخزن، نوع المنتج، القياس، المنتجات المخفضة) ومشاركتها مع العملاء. الروابط تنتهي صلاحيتها بعد ساعتين من الإنشاء.
+
+### نظرة عامة
+
+- **الوظيفة**: إنشاء روابط مخصصة لعرض منتجات محددة
+- **مدة الصلاحية**: ساعتان من تاريخ الإنشاء
+- **الحذف التلقائي**: يتم حذف الروابط المنتهية الصلاحية تلقائياً
+- **المعايير المدعومة**: مخزن، نوع المنتج (ولادي/بناتي/ولادي بناتي/اكسسوار)، القياس، المنتجات المخفضة
+
+### 1. جلب قائمة الروابط
+
+جلب قائمة روابط المندوب مع إمكانية التصفية والترقيم.
+
+**Endpoint:** `GET /api/mobile/delegate/product-links`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Query Parameters:**
+- `page` (optional): رقم الصفحة (افتراضي: 1)
+- `per_page` (optional): عدد الروابط في الصفحة (افتراضي: 20، حد أقصى: 50)
+- `warehouse_id` (optional): فلتر حسب المخزن
+- `gender_type` (optional): فلتر حسب نوع المنتج (boys, girls, boys_girls, accessories)
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "token": "abc123def456ghi789jkl012mno345pq",
+      "full_url": "https://your-domain.com/p/abc123def456ghi789jkl012mno345pq",
+      "warehouse": {
+        "id": 1,
+        "name": "مخزن الشمال"
+      },
+      "gender_type": "boys",
+      "size_name": "M",
+      "has_discount": false,
+      "expires_at": "2025-12-29T19:00:00Z",
+      "remaining_seconds": 7200,
+      "created_at": "2025-12-29T17:00:00Z",
+      "created_by": {
+        "id": 11,
+        "name": "أحمد محمد"
+      }
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 20,
+    "total": 5,
+    "last_page": 1,
+    "has_more": false
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.",
+  "error_code": "FORBIDDEN"
+}
+```
+
+**ملاحظات:**
+- يتم عرض روابط المندوب الحالي فقط
+- يتم ترتيب الروابط حسب تاريخ الإنشاء (الأحدث أولاً)
+- `remaining_seconds` يشير إلى الوقت المتبقي بالثواني قبل الحذف التلقائي
+
+### 2. إنشاء رابط جديد
+
+إنشاء رابط جديد للمنتجات بناءً على المعايير المحددة.
+
+**Endpoint:** `POST /api/mobile/delegate/product-links`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "warehouse_id": 1,              // optional: معرف المخزن (null = كل المخازن)
+  "gender_type": "boys",          // optional: boys, girls, boys_girls, accessories
+  "size_name": "M",               // optional: اسم القياس
+  "has_discount": false           // optional: true = المنتجات المخفضة فقط
+}
+```
+
+**مثال Request:**
+```json
+{
+  "warehouse_id": null,
+  "gender_type": "boys",
+  "size_name": "M",
+  "has_discount": false
+}
+```
+
+**Response (Success - 201 Created):**
+```json
+{
+  "success": true,
+  "message": "تم إنشاء الرابط بنجاح",
+  "data": {
+    "id": 1,
+    "token": "abc123def456ghi789jkl012mno345pq",
+    "full_url": "https://your-domain.com/p/abc123def456ghi789jkl012mno345pq",
+    "warehouse": null,
+    "gender_type": "boys",
+    "size_name": "M",
+    "has_discount": false,
+    "expires_at": "2025-12-29T19:00:00Z",
+    "remaining_seconds": 7200,
+    "created_at": "2025-12-29T17:00:00Z",
+    "created_by": {
+      "id": 11,
+      "name": "أحمد محمد"
+    }
+  }
+}
+```
+
+**Response (Error - Validation):**
+```json
+{
+  "success": false,
+  "message": "خطأ في التحقق من البيانات",
+  "errors": {
+    "warehouse_id": ["المخزن المحدد غير موجود"],
+    "gender_type": ["نوع المنتج غير صحيح"]
+  },
+  "error_code": "VALIDATION_ERROR"
+}
+```
+
+**Response (Error - Forbidden Warehouse):**
+```json
+{
+  "success": false,
+  "message": "ليس لديك صلاحية للوصول إلى هذا المخزن",
+  "error_code": "FORBIDDEN_WAREHOUSE"
+}
+```
+
+**ملاحظات:**
+- جميع الحقول اختيارية (nullable)
+- إذا لم يتم تحديد `warehouse_id`، سيتم عرض المنتجات من جميع المخازن المخصصة للمندوب
+- عند تحديد `gender_type` كـ `boys` أو `girls`، سيتم عرض المنتجات من النوع المحدد بالإضافة إلى `boys_girls`
+- الرابط ينتهي صلاحيته بعد ساعتين من الإنشاء
+
+### 3. حذف رابط
+
+حذف رابط محدد (يجب أن يكون الرابط مملوكاً للمندوب الحالي).
+
+**Endpoint:** `DELETE /api/mobile/delegate/product-links/{id}`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "message": "تم حذف الرابط بنجاح"
+}
+```
+
+**Response (Error - Not Found):**
+```json
+{
+  "success": false,
+  "message": "الرابط غير موجود",
+  "error_code": "NOT_FOUND"
+}
+```
+
+**Response (Error - Forbidden):**
+```json
+{
+  "success": false,
+  "message": "ليس لديك صلاحية لحذف هذا الرابط",
+  "error_code": "FORBIDDEN"
+}
+```
+
+**ملاحظات:**
+- يمكن للمندوب حذف روابطه فقط
+- الحذف هو soft delete (يمكن استرجاعه من قاعدة البيانات)
+
+### 4. جلب القياسات المتاحة
+
+جلب قائمة القياسات المتاحة بناءً على المخزن ونوع المنتج المحدد.
+
+**Endpoint:** `GET /api/mobile/delegate/product-links/get-sizes`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Query Parameters:**
+- `warehouse_id` (optional): معرف المخزن (null = كل المخازن المخصصة للمندوب)
+- `gender_type` (optional): نوع المنتج (boys, girls, boys_girls, accessories)
+
+**مثال Request:**
+```
+GET /api/mobile/delegate/product-links/get-sizes?warehouse_id=1&gender_type=boys
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "sizes": [
+      {
+        "name": "S",
+        "count": 15
+      },
+      {
+        "name": "M",
+        "count": 23
+      },
+      {
+        "name": "L",
+        "count": 8
+      }
+    ]
+  }
+}
+```
+
+**Response (Error - Validation):**
+```json
+{
+  "success": false,
+  "message": "خطأ في التحقق من البيانات",
+  "errors": {
+    "warehouse_id": ["المخزن المحدد غير موجود"]
+  },
+  "error_code": "VALIDATION_ERROR"
+}
+```
+
+**Response (Error - Forbidden Warehouse):**
+```json
+{
+  "success": false,
+  "message": "ليس لديك صلاحية للوصول إلى هذا المخزن",
+  "error_code": "FORBIDDEN_WAREHOUSE"
+}
+```
+
+**ملاحظات:**
+- يتم عرض القياسات للمنتجات التي لديها كمية متاحة فقط (`quantity > 0`)
+- `count` يشير إلى إجمالي الكمية المتاحة لهذا القياس
+- عند تحديد `gender_type` كـ `boys` أو `girls`، سيتم عرض القياسات للمنتجات من النوع المحدد بالإضافة إلى `boys_girls`
+- القياسات مرتبة حسب الاسم (A-Z)
+
+### 5. جلب المخازن المتاحة
+
+جلب قائمة المخازن المخصصة للمندوب.
+
+**Endpoint:** `GET /api/mobile/delegate/product-links/warehouses`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "warehouses": [
+      {
+        "id": 1,
+        "name": "مخزن الشمال"
+      },
+      {
+        "id": 2,
+        "name": "مخزن الجنوب"
+      }
+    ]
+  }
+}
+```
+
+**Response (Error):**
+```json
+{
+  "success": false,
+  "message": "غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.",
+  "error_code": "FORBIDDEN"
+}
+```
+
+**ملاحظات:**
+- يتم عرض المخازن المخصصة للمندوب فقط
+- يمكن استخدام هذه القائمة في واجهة المستخدم لاختيار المخزن عند إنشاء رابط
+
+### مثال على استخدام API في JavaScript/Flutter
+
+```javascript
+// جلب قائمة الروابط
+async function getProductLinks(page = 1, perPage = 20) {
+  const response = await fetch(
+    `https://api.example.com/api/mobile/delegate/product-links?page=${page}&per_page=${perPage}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// إنشاء رابط جديد
+async function createProductLink(warehouseId, genderType, sizeName, hasDiscount) {
+  const response = await fetch(
+    'https://api.example.com/api/mobile/delegate/product-links',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        warehouse_id: warehouseId || null,
+        gender_type: genderType || null,
+        size_name: sizeName || null,
+        has_discount: hasDiscount || false,
+      }),
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// حذف رابط
+async function deleteProductLink(linkId) {
+  const response = await fetch(
+    `https://api.example.com/api/mobile/delegate/product-links/${linkId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// جلب القياسات المتاحة
+async function getAvailableSizes(warehouseId, genderType) {
+  const params = new URLSearchParams();
+  if (warehouseId) params.append('warehouse_id', warehouseId);
+  if (genderType) params.append('gender_type', genderType);
+  
+  const response = await fetch(
+    `https://api.example.com/api/mobile/delegate/product-links/get-sizes?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// جلب المخازن المتاحة
+async function getWarehouses() {
+  const response = await fetch(
+    'https://api.example.com/api/mobile/delegate/product-links/warehouses',
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  return data;
+}
+
+// مثال: إنشاء رابط مع جلب القياسات أولاً
+async function createLinkWithSizes() {
+  // 1. جلب المخازن
+  const warehousesResponse = await getWarehouses();
+  const warehouses = warehousesResponse.data.warehouses;
+  
+  // 2. اختيار مخزن (أو null لكل المخازن)
+  const selectedWarehouseId = warehouses.length > 0 ? warehouses[0].id : null;
+  
+  // 3. جلب القياسات المتاحة
+  const sizesResponse = await getAvailableSizes(selectedWarehouseId, 'boys');
+  const sizes = sizesResponse.data.sizes;
+  
+  // 4. اختيار قياس (أو null لكل القياسات)
+  const selectedSize = sizes.length > 0 ? sizes[0].name : null;
+  
+  // 5. إنشاء الرابط
+  const linkResponse = await createProductLink(
+    selectedWarehouseId,
+    'boys',
+    selectedSize,
+    false
+  );
+  
+  if (linkResponse.success) {
+    console.log('الرابط المُنشأ:', linkResponse.data.full_url);
+    // يمكن نسخ الرابط أو مشاركته مع العملاء
+  }
+  
+  return linkResponse;
+}
+```
+
+### Error Codes
+
+| Error Code | الوصف |
+|------------|-------|
+| `FORBIDDEN` | المستخدم ليس مندوب أو لا يملك صلاحية |
+| `FORBIDDEN_WAREHOUSE` | لا توجد صلاحية للوصول للمخزن المحدد |
+| `NOT_FOUND` | الرابط غير موجود |
+| `VALIDATION_ERROR` | خطأ في التحقق من البيانات المدخلة |
+
+---
+
 ## ملخص جميع المسارات المتاحة
 
 ### Authentication APIs
@@ -5515,4 +5973,11 @@ class MyApp extends StatelessWidget {
 - `DELETE /api/mobile/delegate/notifications/unregister-token` - إلغاء تسجيل FCM token
 - `POST /api/mobile/delegate/notifications/test` - اختبار إرسال إشعار مباشر (للتشخيص)
 - `GET /api/mobile/delegate/notifications/tokens-info` - جلب معلومات FCM tokens (للتشخيص)
+
+### Product Links APIs
+- `GET /api/mobile/delegate/product-links` - جلب قائمة الروابط
+- `POST /api/mobile/delegate/product-links` - إنشاء رابط جديد
+- `DELETE /api/mobile/delegate/product-links/{id}` - حذف رابط
+- `GET /api/mobile/delegate/product-links/get-sizes` - جلب القياسات المتاحة
+- `GET /api/mobile/delegate/product-links/warehouses` - جلب المخازن المتاحة
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateOrderController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateCartController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateChatController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateNotificationController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductLinkController;
 
 /*
 |--------------------------------------------------------------------------
@@ -84,6 +85,15 @@ Route::prefix('delegate/notifications')->middleware('auth.pwa')->group(function 
     Route::delete('/unregister-token', [MobileDelegateNotificationController::class, 'unregisterToken']);
     Route::post('/test', [MobileDelegateNotificationController::class, 'testNotification']);
     Route::get('/tokens-info', [MobileDelegateNotificationController::class, 'getTokensInfo']);
+});
+
+// APIs روابط المنتجات للمندوب (تحتاج token)
+Route::prefix('delegate/product-links')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [MobileDelegateProductLinkController::class, 'index']);
+    Route::post('/', [MobileDelegateProductLinkController::class, 'store']);
+    Route::delete('/{id}', [MobileDelegateProductLinkController::class, 'destroy']);
+    Route::get('/get-sizes', [MobileDelegateProductLinkController::class, 'getSizes']);
+    Route::get('/warehouses', [MobileDelegateProductLinkController::class, 'getWarehouses']);
 });
 
 // APIs المدير/المجهز (لاحقاً - يمكن إضافتها هنا)
