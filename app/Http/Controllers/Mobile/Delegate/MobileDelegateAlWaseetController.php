@@ -33,120 +33,134 @@ class MobileDelegateAlWaseetController extends Controller
             ], 403);
         }
 
-        // إنشاء مفتاح Cache فريد بناءً على الفلاتر
-        $hasFilters = $request->filled('date_from') ||
-                     $request->filled('date_to') ||
-                     $request->filled('time_from') ||
-                     $request->filled('time_to') ||
-                     $request->filled('hours_ago') ||
-                     $request->filled('warehouse_id');
+        try {
+            // إنشاء مفتاح Cache فريد بناءً على الفلاتر
+            $hasFilters = $request->filled('date_from') ||
+                         $request->filled('date_to') ||
+                         $request->filled('time_from') ||
+                         $request->filled('time_to') ||
+                         $request->filled('hours_ago') ||
+                         $request->filled('warehouse_id');
 
-        $filterParams = [
-            'delegate_id' => $user->id,
-            'date_from' => $request->date_from,
-            'date_to' => $request->date_to,
-            'time_from' => $request->time_from,
-            'time_to' => $request->time_to,
-            'hours_ago' => $request->hours_ago,
-            'warehouse_id' => $request->warehouse_id,
-        ];
-        $cacheKey = 'delegate_status_cards_' . md5(json_encode($filterParams));
-        $cacheDuration = $hasFilters ? now()->addMinutes(2) : now()->addMinutes(10);
-
-        $result = Cache::remember($cacheKey, $cacheDuration, function () use ($user, $request) {
-            // جلب جميع الحالات النشطة
-            $allStatuses = AlWaseetOrderStatus::getActiveStatuses();
-
-            // بناء query base - طلبات المندوب فقط مع shipment
-            $baseQuery = Order::where('delegate_id', $user->id)
-                ->whereHas('alwaseetShipment');
-
-            // تطبيق الفلاتر
-            $this->applyFilters($baseQuery, $request);
-
-            // جلب order IDs المطابقة للفلاتر
-            $orderIds = $baseQuery->pluck('id')->toArray();
-
-            // حساب عدد الطلبات لكل حالة
-            $statusCounts = [];
-            $statusAmounts = [];
-
-            // تهيئة جميع الحالات بقيمة 0
-            foreach ($allStatuses as $status) {
-                $statusId = (string)$status->status_id;
-                $statusCounts[$statusId] = 0;
-                $statusAmounts[$statusId] = 0.0;
-            }
-
-            if (!empty($orderIds)) {
-                // حساب عدد الطلبات لكل حالة
-                $countsFromDb = AlWaseetShipment::whereIn('order_id', $orderIds)
-                    ->whereNotNull('status_id')
-                    ->selectRaw('status_id, COUNT(*) as count')
-                    ->groupBy('status_id')
-                    ->get()
-                    ->mapWithKeys(function($item) {
-                        return [(string)$item->status_id => (int)$item->count];
-                    })
-                    ->toArray();
-
-                foreach ($countsFromDb as $statusId => $count) {
-                    $statusCounts[$statusId] = $count;
-                }
-
-                // حساب المبلغ الإجمالي لكل حالة
-                $amountsFromDb = DB::table('orders')
-                    ->join('alwaseet_shipments', 'orders.id', '=', 'alwaseet_shipments.order_id')
-                    ->whereIn('orders.id', $orderIds)
-                    ->whereNotNull('alwaseet_shipments.status_id')
-                    ->selectRaw('alwaseet_shipments.status_id, SUM(COALESCE(orders.total_amount, 0) + COALESCE(orders.delivery_fee_at_confirmation, 0)) as total_amount')
-                    ->groupBy('alwaseet_shipments.status_id')
-                    ->get()
-                    ->mapWithKeys(function($item) {
-                        return [(string)$item->status_id => (float)$item->total_amount];
-                    })
-                    ->toArray();
-
-                foreach ($amountsFromDb as $statusId => $amount) {
-                    $statusAmounts[$statusId] = $amount;
-                }
-            }
-
-            // بناء status cards
-            $statusCards = [];
-            $totalOrders = 0;
-            $totalAmount = 0.0;
-
-            foreach ($allStatuses as $status) {
-                $statusId = (string)$status->status_id;
-                $count = $statusCounts[$statusId] ?? 0;
-                $amount = $statusAmounts[$statusId] ?? 0.0;
-
-                if ($count > 0 || !$hasFilters) { // عرض حتى الحالات الفارغة إذا لم تكن هناك فلاتر
-                    $statusCards[] = [
-                        'status_id' => $statusId,
-                        'status_text' => $status->status_text,
-                        'count' => $count,
-                        'total_amount' => $amount,
-                        'color' => $this->getStatusColor($statusId),
-                    ];
-                }
-
-                $totalOrders += $count;
-                $totalAmount += $amount;
-            }
-
-            return [
-                'status_cards' => $statusCards,
-                'total_orders' => $totalOrders,
-                'total_amount' => $totalAmount,
+            $filterParams = [
+                'delegate_id' => $user->id,
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to,
+                'time_from' => $request->time_from,
+                'time_to' => $request->time_to,
+                'hours_ago' => $request->hours_ago,
+                'warehouse_id' => $request->warehouse_id,
             ];
-        });
+            $cacheKey = 'delegate_status_cards_' . md5(json_encode($filterParams));
+            $cacheDuration = $hasFilters ? now()->addMinutes(2) : now()->addMinutes(10);
 
-        return response()->json([
-            'success' => true,
-            'data' => $result,
-        ]);
+            $result = Cache::remember($cacheKey, $cacheDuration, function () use ($user, $request, $hasFilters) {
+                // جلب جميع الحالات النشطة
+                $allStatuses = AlWaseetOrderStatus::getActiveStatuses();
+
+                // بناء query base - طلبات المندوب فقط مع shipment
+                $baseQuery = Order::where('delegate_id', $user->id)
+                    ->whereHas('alwaseetShipment');
+
+                // تطبيق الفلاتر
+                $this->applyFilters($baseQuery, $request);
+
+                // جلب order IDs المطابقة للفلاتر
+                $orderIds = $baseQuery->pluck('id')->toArray();
+
+                // حساب عدد الطلبات لكل حالة
+                $statusCounts = [];
+                $statusAmounts = [];
+
+                // تهيئة جميع الحالات بقيمة 0
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status->status_id;
+                    $statusCounts[$statusId] = 0;
+                    $statusAmounts[$statusId] = 0.0;
+                }
+
+                if (!empty($orderIds)) {
+                    // حساب عدد الطلبات لكل حالة
+                    $countsFromDb = AlWaseetShipment::whereIn('order_id', $orderIds)
+                        ->whereNotNull('status_id')
+                        ->selectRaw('status_id, COUNT(*) as count')
+                        ->groupBy('status_id')
+                        ->get()
+                        ->mapWithKeys(function($item) {
+                            return [(string)$item->status_id => (int)$item->count];
+                        })
+                        ->toArray();
+
+                    foreach ($countsFromDb as $statusId => $count) {
+                        $statusCounts[$statusId] = $count;
+                    }
+
+                    // حساب المبلغ الإجمالي لكل حالة
+                    $amountsFromDb = DB::table('orders')
+                        ->join('alwaseet_shipments', 'orders.id', '=', 'alwaseet_shipments.order_id')
+                        ->whereIn('orders.id', $orderIds)
+                        ->whereNotNull('alwaseet_shipments.status_id')
+                        ->selectRaw('alwaseet_shipments.status_id, SUM(COALESCE(orders.total_amount, 0) + COALESCE(orders.delivery_fee_at_confirmation, 0)) as total_amount')
+                        ->groupBy('alwaseet_shipments.status_id')
+                        ->get()
+                        ->mapWithKeys(function($item) {
+                            return [(string)$item->status_id => (float)$item->total_amount];
+                        })
+                        ->toArray();
+
+                    foreach ($amountsFromDb as $statusId => $amount) {
+                        $statusAmounts[$statusId] = $amount;
+                    }
+                }
+
+                // بناء status cards
+                $statusCards = [];
+                $totalOrders = 0;
+                $totalAmount = 0.0;
+
+                foreach ($allStatuses as $status) {
+                    $statusId = (string)$status->status_id;
+                    $count = $statusCounts[$statusId] ?? 0;
+                    $amount = $statusAmounts[$statusId] ?? 0.0;
+
+                    if ($count > 0 || !$hasFilters) { // عرض حتى الحالات الفارغة إذا لم تكن هناك فلاتر
+                        $statusCards[] = [
+                            'status_id' => $statusId,
+                            'status_text' => $status->status_text,
+                            'count' => $count,
+                            'total_amount' => $amount,
+                            'color' => $this->getStatusColor($statusId),
+                        ];
+                    }
+
+                    $totalOrders += $count;
+                    $totalAmount += $amount;
+                }
+
+                return [
+                    'status_cards' => $statusCards,
+                    'total_orders' => $totalOrders,
+                    'total_amount' => $totalAmount,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateAlWaseetController: Failed to get status cards', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الإحصائيات',
+                'error_code' => 'STATUS_CARDS_ERROR',
+            ], 500);
+        }
     }
 
     /**
