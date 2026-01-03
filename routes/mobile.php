@@ -10,6 +10,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateNotificationController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductLinkController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateAlWaseetController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAuthController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminAlWaseetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -116,4 +117,11 @@ Route::prefix('admin/auth')->group(function () {
         Route::post('/logout', [MobileAdminAuthController::class, 'logout']);
         Route::put('/profile', [MobileAdminAuthController::class, 'updateProfile']);
     });
+});
+
+// APIs تتبع طلبات الوسيط للمدير والمجهز (تحتاج token)
+Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
+    Route::get('/status-cards', [MobileAdminAlWaseetController::class, 'getStatusCards']);
+    Route::get('/orders', [MobileAdminAlWaseetController::class, 'getOrders']);
+    Route::get('/orders/{id}', [MobileAdminAlWaseetController::class, 'getOrderDetails']);
 });
