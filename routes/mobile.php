@@ -129,6 +129,9 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
 
 // APIs إدارة الطلبات للمدير والمجهز (تحتاج token)
 Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
+    // قوائم الفلاتر
+    Route::get('/filter-options', [MobileAdminOrderController::class, 'getFilterOptions']);
+    
     // قوائم الطلبات
     Route::get('/pending', [MobileAdminOrderController::class, 'getPendingOrders']);
     Route::get('/confirmed', [MobileAdminOrderController::class, 'getConfirmedOrders']);

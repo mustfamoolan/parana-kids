@@ -28,7 +28,101 @@ Accept: application/json
 
 ---
 
-## 1. الطلبات غير المقيدة (Pending Orders)
+## 1. قوائم الفلاتر (Filter Options)
+
+### 1.1. جلب قوائم الفلاتر (المخازن، المجهزين، المندوبين)
+
+**Endpoint:** `GET /api/mobile/admin/orders/filter-options`
+
+**Headers:**
+```
+Authorization: Bearer {pwa_token}
+```
+
+**الوصف:**
+جلب قوائم المخازن والمجهزين والمندوبين لاستخدامها في الفلاتر. هذه القوائم تختلف حسب صلاحيات المستخدم.
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "data": {
+    "warehouses": [
+      {
+        "id": 1,
+        "name": "مخزن الشمال"
+      },
+      {
+        "id": 2,
+        "name": "مخزن الجنوب"
+      }
+    ],
+    "suppliers": [
+      {
+        "id": 2,
+        "name": "مجهز 1",
+        "code": "SUP001",
+        "role": "supplier",
+        "role_text": "مجهز"
+      },
+      {
+        "id": 1,
+        "name": "محمد المدير",
+        "code": null,
+        "role": "admin",
+        "role_text": "مدير"
+      }
+    ],
+    "delegates": [
+      {
+        "id": 5,
+        "name": "مندوب 1",
+        "code": "DEL001",
+        "role": "delegate"
+      },
+      {
+        "id": 6,
+        "name": "مندوب 2",
+        "code": "DEL002",
+        "role": "delegate"
+      }
+    ],
+    "order_creators": [
+      {
+        "id": 1,
+        "name": "محمد المدير",
+        "code": null,
+        "role": "admin",
+        "role_text": "مدير"
+      },
+      {
+        "id": 2,
+        "name": "مجهز 1",
+        "code": "SUP001",
+        "role": "supplier",
+        "role_text": "مجهز"
+      },
+      {
+        "id": 5,
+        "name": "مندوب 1",
+        "code": "DEL001",
+        "role": "delegate",
+        "role_text": "مندوب"
+      }
+    ]
+  }
+}
+```
+
+**ملاحظات:**
+- **المخازن**: للمجهز يعرض فقط المخازن المسموح له بها، للمدير يعرض جميع المخازن
+- **المجهزين**: قائمة المديرين والمجهزين (admin, supplier)
+- **المندوبين**: قائمة المندوبين فقط (delegate)
+- **منشئي الطلبات**: قائمة شاملة (admin, supplier, delegate) - تستخدم في فلتر `delegate_id`
+
+---
+
+## 2. الطلبات غير المقيدة (Pending Orders)
 
 ### 1.1. جلب قائمة الطلبات غير المقيدة
 
@@ -106,7 +200,7 @@ Authorization: Bearer {pwa_token}
 
 ---
 
-## 2. الطلبات المقيدة (Confirmed Orders)
+## 3. الطلبات المقيدة (Confirmed Orders)
 
 ### 2.1. جلب قائمة الطلبات المقيدة
 
@@ -185,7 +279,7 @@ Authorization: Bearer {pwa_token}
 
 ---
 
-## 3. إدارة الطلبات (Management)
+## 4. إدارة الطلبات (Management)
 
 ### 3.1. جلب قائمة موحدة للطلبات
 
@@ -267,7 +361,7 @@ Authorization: Bearer {pwa_token}
 
 ---
 
-## 4. عرض وتعديل الطلب
+## 5. عرض وتعديل الطلب
 
 ### 4.1. جلب تفاصيل طلب واحد
 
@@ -511,7 +605,7 @@ Content-Type: application/json
 
 ---
 
-## 5. تجهيز الطلب
+## 6. تجهيز الطلب
 
 ### 5.1. جلب بيانات تجهيز الطلب
 
@@ -652,7 +746,7 @@ Content-Type: application/json
 
 ---
 
-## 6. المواد المطلوبة (Materials)
+## 7. المواد المطلوبة (Materials)
 
 ### 6.1. جلب قائمة المواد (غير مجمعة)
 
@@ -808,7 +902,7 @@ Authorization: Bearer {pwa_token}
 
 ---
 
-## 7. خيارات الحالات (Status Options)
+## 8. خيارات الحالات (Status Options)
 
 ### 7.1. حالة التدقيق (size_reviewed)
 
@@ -867,7 +961,37 @@ const response = await fetch(
 
 ## أمثلة على الاستخدام
 
-### مثال 1: جلب قائمة الطلبات غير المقيدة
+### مثال 1: جلب قوائم الفلاتر
+
+```javascript
+async function getFilterOptions() {
+  const response = await fetch(
+    'https://api.example.com/api/mobile/admin/orders/filter-options',
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${pwaToken}`,
+        'Accept': 'application/json',
+      },
+    }
+  );
+  
+  const data = await response.json();
+  if (data.success) {
+    const { warehouses, suppliers, delegates, order_creators } = data.data;
+    
+    // استخدام القوائم في واجهة المستخدم
+    console.log('Warehouses:', warehouses);
+    console.log('Suppliers:', suppliers);
+    console.log('Delegates:', delegates);
+    console.log('Order Creators:', order_creators);
+  }
+  
+  return data;
+}
+```
+
+### مثال 2: جلب قائمة الطلبات غير المقيدة
 
 ```javascript
 async function getPendingOrders(filters = {}, page = 1, perPage = 15) {
@@ -898,7 +1022,7 @@ async function getPendingOrders(filters = {}, page = 1, perPage = 15) {
 }
 ```
 
-### مثال 2: جلب تفاصيل طلب
+### مثال 3: جلب تفاصيل طلب
 
 ```javascript
 async function getOrderDetails(orderId) {
@@ -918,7 +1042,7 @@ async function getOrderDetails(orderId) {
 }
 ```
 
-### مثال 3: تعديل طلب
+### مثال 4: تعديل طلب
 
 ```javascript
 async function updateOrder(orderId, orderData) {
@@ -949,7 +1073,7 @@ async function updateOrder(orderId, orderData) {
 }
 ```
 
-### مثال 4: تجهيز وتقييد طلب
+### مثال 5: تجهيز وتقييد طلب
 
 ```javascript
 async function processOrder(orderId, orderData) {
@@ -979,7 +1103,7 @@ async function processOrder(orderId, orderData) {
 }
 ```
 
-### مثال 5: جلب قائمة المواد
+### مثال 6: جلب قائمة المواد
 
 ```javascript
 async function getMaterialsList(status = 'pending', filters = {}) {
@@ -1057,6 +1181,7 @@ async function getMaterialsList(status = 'pending', filters = {}) {
 
 | Method | Endpoint | الوصف |
 |--------|----------|-------|
+| `GET` | `/api/mobile/admin/orders/filter-options` | قوائم الفلاتر (المخازن، المجهزين، المندوبين) |
 | `GET` | `/api/mobile/admin/orders/pending` | قائمة الطلبات غير المقيدة |
 | `GET` | `/api/mobile/admin/orders/confirmed` | قائمة الطلبات المقيدة |
 | `GET` | `/api/mobile/admin/orders` | قائمة موحدة (management) |

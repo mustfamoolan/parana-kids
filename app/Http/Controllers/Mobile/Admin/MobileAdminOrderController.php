@@ -27,6 +27,96 @@ class MobileAdminOrderController extends Controller
     }
 
     /**
+     * جلب قوائم الفلاتر (المخازن، المجهزين، المندوبين)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getFilterOptions()
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مديراً أو مجهزاً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            // جلب قائمة المخازن حسب الصلاحيات
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
+                $warehouses = $user->warehouses;
+            } else {
+                $warehouses = \App\Models\Warehouse::all();
+            }
+
+            // جلب قائمة المجهزين (المديرين والمجهزين) للفلترة
+            $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+
+            // جلب قائمة المندوبين
+            $delegates = \App\Models\User::where('role', 'delegate')->get();
+
+            // جلب قائمة منشئي الطلبات (للفلتر delegate_id - يشمل delegate, admin, supplier)
+            $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])
+                ->orderBy('role')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'warehouses' => $warehouses->map(function($warehouse) {
+                        return [
+                            'id' => $warehouse->id,
+                            'name' => $warehouse->name,
+                        ];
+                    }),
+                    'suppliers' => $suppliers->map(function($supplier) {
+                        return [
+                            'id' => $supplier->id,
+                            'name' => $supplier->name,
+                            'code' => $supplier->code,
+                            'role' => $supplier->role,
+                            'role_text' => $supplier->role === 'admin' ? 'مدير' : 'مجهز',
+                        ];
+                    }),
+                    'delegates' => $delegates->map(function($delegate) {
+                        return [
+                            'id' => $delegate->id,
+                            'name' => $delegate->name,
+                            'code' => $delegate->code,
+                            'role' => $delegate->role,
+                        ];
+                    }),
+                    'order_creators' => $orderCreators->map(function($creator) {
+                        return [
+                            'id' => $creator->id,
+                            'name' => $creator->name,
+                            'code' => $creator->code,
+                            'role' => $creator->role,
+                            'role_text' => $creator->role === 'admin' ? 'مدير' : ($creator->role === 'supplier' ? 'مجهز' : 'مندوب'),
+                        ];
+                    }),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to get filter options', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب قوائم الفلاتر',
+                'error_code' => 'FETCH_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
      * جلب قائمة الطلبات غير المقيدة (Pending)
      *
      * @param Request $request
