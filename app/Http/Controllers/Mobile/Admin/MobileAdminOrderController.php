@@ -778,6 +778,7 @@ class MobileAdminOrderController extends Controller
                                 'size_id' => $newItem['size_id'],
                                 'warehouse_id' => $product->warehouse_id,
                                 'order_id' => $order->id,
+                                'user_id' => $user->id,
                                 'movement_type' => 'order_edit_add',
                                 'quantity' => -$newItem['quantity'],
                                 'balance_after' => $size->refresh()->quantity,
@@ -786,6 +787,7 @@ class MobileAdminOrderController extends Controller
                             ]);
                         }
                     }
+                }
 
                     // حذف العناصر القديمة وإعادة إنشائها
                     $order->items()->delete();
@@ -806,33 +808,298 @@ class MobileAdminOrderController extends Controller
                             'unit_price' => $product->selling_price,
                             'subtotal' => $subtotal,
                             'product_name' => $product->name,
+                            'product_code' => $product->code,
                         ]);
                     }
 
                     // تحديث المبلغ الإجمالي
                     $order->update(['total_amount' => $totalAmount]);
-                }
-            });
+                });
 
-            // إعادة تحميل الطلب
-            $order->refresh();
-            $order->load([
-                'delegate',
-                'items.product.primaryImage',
-                'items.product.warehouse',
-                'items.size',
-                'confirmedBy',
-            ]);
+                // إعادة تحميل الطلب
+                $order->refresh();
+                $order->load([
+                    'delegate',
+                    'items.product.primaryImage',
+                    'items.product.warehouse',
+                    'items.size',
+                    'confirmedBy',
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم تعديل الطلب بنجاح',
+                    'data' => [
+                        'order' => $this->formatOrderDetails($order),
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                Log::error('MobileAdminOrderController: Failed to update order', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'order_id' => $id,
+                    'user_id' => $user->id,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage() ?: 'حدث خطأ أثناء تعديل الطلب',
+                    'error_code' => 'UPDATE_ERROR',
+                ], 500);
+            }
+        }
+
+    /**
+     * جلب قائمة الطلبات المقيدة للإرجاع الجزئي
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPartialReturns(Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مديراً أو مجهزاً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $query = Order::where('status', 'confirmed')
+                // إخفاء الطلبات التي تم إرجاع جميع منتجاتها (لا تحتوي على منتجات قابلة للإرجاع)
+                ->whereHas('items', function($itemsQuery) {
+                    $itemsQuery->where('quantity', '>', 0);
+                });
+
+            // تطبيق فلاتر الصلاحيات
+            $warehouses = $this->getAccessibleWarehouses();
+            if ($warehouses->isNotEmpty()) {
+                $query->whereHas('items.product', function($q) use ($warehouses) {
+                    $q->whereIn('warehouse_id', $warehouses->pluck('id'));
+                });
+            }
+
+            // فلتر المندوب
+            if ($request->filled('delegate_id')) {
+                $query->where('delegate_id', $request->delegate_id);
+            }
+
+            // فلتر المجهز
+            if ($request->filled('confirmed_by')) {
+                $query->where('confirmed_by', $request->confirmed_by);
+            }
+
+            // البحث الذكي (مطابقة تامة)
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('order_number', '=', $searchTerm)
+                      ->orWhere('customer_name', '=', $searchTerm)
+                      ->orWhere('customer_phone', '=', $searchTerm)
+                      ->orWhere('customer_social_link', '=', $searchTerm)
+                      ->orWhere('customer_address', '=', $searchTerm)
+                      ->orWhere('delivery_code', '=', $searchTerm)
+                      ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                          $delegateQuery->where('name', '=', $searchTerm)
+                                        ->orWhere('code', '=', $searchTerm);
+                      })
+                      ->orWhereHas('confirmedBy', function($confirmedQuery) use ($searchTerm) {
+                          $confirmedQuery->where('name', '=', $searchTerm);
+                      });
+                });
+            }
+
+            // فلتر حسب التاريخ
+            if ($request->filled('date_from')) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+
+            if ($request->filled('date_to')) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
+
+            $perPage = $request->input('per_page', 15);
+            $maxPerPage = 50;
+            if ($perPage > $maxPerPage) {
+                $perPage = $maxPerPage;
+            }
+
+            // تحميل العلاقات
+            $query->with(['delegate', 'items.product.primaryImage', 'items.size', 'items.returnItems', 'confirmedBy']);
+
+            $orders = $query->latest('created_at')
+                            ->paginate($perPage)
+                            ->appends($request->except('page'));
+
+            // تنسيق البيانات
+            $formattedOrders = $orders->map(function($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone,
+                    'delivery_code' => $order->delivery_code,
+                    'status' => $order->status,
+                    'total_amount' => (float) $order->total_amount,
+                    'delegate' => $order->delegate ? [
+                        'id' => $order->delegate->id,
+                        'name' => $order->delegate->name,
+                        'code' => $order->delegate->code,
+                    ] : null,
+                    'confirmed_by' => $order->confirmedBy ? [
+                        'id' => $order->confirmedBy->id,
+                        'name' => $order->confirmedBy->name,
+                    ] : null,
+                    'created_at' => $order->created_at->toIso8601String(),
+                    'items_count' => $order->items->count(),
+                    'items_with_remaining' => $order->items->filter(function($item) {
+                        return $item->remaining_quantity > 0;
+                    })->count(),
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم تعديل الطلب بنجاح',
-                'data' => [
-                    'order' => $this->formatOrderDetails($order),
+                'data' => $formattedOrders,
+                'pagination' => [
+                    'current_page' => $orders->currentPage(),
+                    'per_page' => $orders->perPage(),
+                    'total' => $orders->total(),
+                    'last_page' => $orders->lastPage(),
+                    'has_more' => $orders->hasMorePages(),
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('MobileAdminOrderController: Failed to update order', [
+            Log::error('MobileAdminOrderController: Failed to get partial returns', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id,
+                'request' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب قائمة الإرجاعات الجزئية',
+                'error_code' => 'FETCH_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * جلب تفاصيل طلب للإرجاع الجزئي
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPartialReturnOrder($id)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مديراً أو مجهزاً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $order = Order::with([
+                'items.product.primaryImage',
+                'items.size',
+                'items.returnItems',
+                'delegate',
+                'confirmedBy',
+            ])->find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الطلب غير موجود',
+                    'error_code' => 'NOT_FOUND',
+                ], 404);
+            }
+
+            // التحقق من الصلاحيات
+            $warehouses = $this->getAccessibleWarehouses();
+            if ($warehouses->isNotEmpty()) {
+                $hasAccess = $order->items()->whereHas('product', function($q) use ($warehouses) {
+                    $q->whereIn('warehouse_id', $warehouses->pluck('id'));
+                })->exists();
+
+                if (!$hasAccess) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                        'error_code' => 'FORBIDDEN',
+                    ], 403);
+                }
+            }
+
+            if ($order->status !== 'confirmed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن إرجاع منتجات من طلب غير مقيد',
+                    'error_code' => 'INVALID_STATUS',
+                ], 400);
+            }
+
+            // تنسيق البيانات
+            $formattedOrder = $this->formatOrderDetails($order);
+            $formattedOrder['items'] = $order->items->map(function($item) {
+                $returnedQuantity = $item->returnItems->sum('quantity_returned');
+                return [
+                    'id' => $item->id,
+                    'product' => $item->product ? [
+                        'id' => $item->product->id,
+                        'name' => $item->product->name,
+                        'code' => $item->product->code,
+                        'primary_image_url' => $item->product->primaryImage ? $item->product->primaryImage->image_url : null,
+                    ] : [
+                        'id' => null,
+                        'name' => $item->product_name,
+                        'code' => $item->product_code,
+                        'primary_image_url' => null,
+                    ],
+                    'size' => $item->size ? [
+                        'id' => $item->size->id,
+                        'size_name' => $item->size->size_name,
+                    ] : [
+                        'id' => null,
+                        'size_name' => $item->size_name,
+                    ],
+                    'size_id' => $item->size_id,
+                    'size_name' => $item->size_name,
+                    'quantity' => (int) $item->quantity,
+                    'original_quantity' => (int) $item->original_quantity,
+                    'remaining_quantity' => (int) $item->remaining_quantity,
+                    'returned_quantity' => (int) $returnedQuantity,
+                    'unit_price' => (float) $item->unit_price,
+                    'subtotal' => (float) $item->subtotal,
+                    'return_items' => $item->returnItems->map(function($returnItem) {
+                        return [
+                            'id' => $returnItem->id,
+                            'quantity_returned' => (int) $returnItem->quantity_returned,
+                            'return_reason' => $returnItem->return_reason,
+                            'created_at' => $returnItem->created_at->toIso8601String(),
+                        ];
+                    }),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'order' => $formattedOrder,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to get partial return order', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'order_id' => $id,
@@ -841,8 +1108,222 @@ class MobileAdminOrderController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage() ?: 'حدث خطأ أثناء تعديل الطلب',
-                'error_code' => 'UPDATE_ERROR',
+                'message' => 'حدث خطأ أثناء جلب تفاصيل الطلب',
+                'error_code' => 'FETCH_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
+     * معالجة الإرجاع الجزئي
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function processPartialReturn(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مديراً أو مجهزاً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $order = Order::with(['items.product', 'items.size', 'items.returnItems'])->find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الطلب غير موجود',
+                    'error_code' => 'NOT_FOUND',
+                ], 404);
+            }
+
+            // التحقق من الصلاحيات
+            $warehouses = $this->getAccessibleWarehouses();
+            if ($warehouses->isNotEmpty()) {
+                $hasAccess = $order->items()->whereHas('product', function($q) use ($warehouses) {
+                    $q->whereIn('warehouse_id', $warehouses->pluck('id'));
+                })->exists();
+
+                if (!$hasAccess) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                        'error_code' => 'FORBIDDEN',
+                    ], 403);
+                }
+            }
+
+            if ($order->status !== 'confirmed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن إرجاع منتجات من طلب غير مقيد. حالة الطلب: ' . $order->status,
+                    'error_code' => 'INVALID_STATUS',
+                ], 400);
+            }
+
+            $validated = $request->validate([
+                'return_items' => 'required|array|min:1',
+                'return_items.*.order_item_id' => 'required|exists:order_items,id',
+                'return_items.*.product_id' => 'required|exists:products,id',
+                'return_items.*.size_id' => 'nullable',
+                'return_items.*.quantity' => 'required|integer|min:1',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $result = DB::transaction(function() use ($validated, $order, $request, $user) {
+                $totalAmountReduction = 0;
+
+                foreach ($validated['return_items'] as $returnItem) {
+                    $orderItem = OrderItem::find($returnItem['order_item_id']);
+
+                    if (!$orderItem || $orderItem->order_id !== $order->id) {
+                        throw new \Exception("عنصر الطلب غير موجود أو لا ينتمي لهذا الطلب");
+                    }
+
+                    // استخدام size_id من order_item مباشرة
+                    $sizeIdToUse = $orderItem->size_id ?? $returnItem['size_id'] ?? null;
+                    $size = null;
+
+                    // البحث عن القياس
+                    if (!empty($sizeIdToUse) && $sizeIdToUse != 0) {
+                        $size = ProductSize::find($sizeIdToUse);
+                    }
+
+                    if (!$size && $orderItem->size_name) {
+                        $size = ProductSize::where('product_id', $orderItem->product_id)
+                                          ->where('size_name', $orderItem->size_name)
+                                          ->first();
+
+                        if ($size) {
+                            $orderItem->size_id = $size->id;
+                            $orderItem->save();
+                        }
+                    }
+
+                    if (!$size) {
+                        throw new \Exception("القياس غير موجود للمنتج: {$orderItem->product_name}");
+                    }
+
+                    // التحقق من الكمية المتبقية
+                    $remainingQuantity = $orderItem->remaining_quantity;
+                    if ($returnItem['quantity'] > $remainingQuantity) {
+                        throw new \Exception("الكمية المراد إرجاعها ({$returnItem['quantity']}) أكبر من الكمية المتبقية ({$remainingQuantity}) للمنتج: {$orderItem->product_name}");
+                    }
+
+                    // تقليل كمية order_item
+                    $orderItem->quantity -= $returnItem['quantity'];
+                    $orderItem->subtotal = $orderItem->quantity * $orderItem->unit_price;
+                    $orderItem->save();
+
+                    // إرجاع الكمية للمخزن
+                    $size->increment('quantity', $returnItem['quantity']);
+                    $size->refresh();
+
+                    // تسجيل حركة المادة
+                    ProductMovement::record([
+                        'product_id' => $orderItem->product_id,
+                        'size_id' => $size->id,
+                        'warehouse_id' => $orderItem->product->warehouse_id,
+                        'order_id' => $order->id,
+                        'user_id' => $user->id,
+                        'movement_type' => 'partial_return',
+                        'quantity' => $returnItem['quantity'],
+                        'balance_after' => $size->quantity,
+                        'order_status' => $order->status,
+                        'notes' => "إرجاع جزئي من طلب #{$order->order_number} - منتج: {$orderItem->product_name} ({$orderItem->size_name})",
+                    ]);
+
+                    // تسجيل ReturnItem
+                    \App\Models\ReturnItem::create([
+                        'order_id' => $order->id,
+                        'order_item_id' => $returnItem['order_item_id'],
+                        'product_id' => $orderItem->product_id,
+                        'size_id' => $size->id,
+                        'quantity_returned' => $returnItem['quantity'],
+                        'return_reason' => $request->notes ?? 'إرجاع جزئي',
+                    ]);
+
+                    // حساب المبلغ المخصوم
+                    $totalAmountReduction += $returnItem['quantity'] * $orderItem->unit_price;
+                }
+
+                // معالجة تأثير الإرجاع الجزئي على المستثمرين
+                if (config('features.investor_profits_enabled', true)) {
+                    try {
+                        $returnCalculator = app(\App\Services\InvestorReturnCalculator::class);
+                        $returnCalculator->processPartialReturnForInvestors($order, $validated['return_items']);
+                    } catch (\Exception $e) {
+                        Log::warning('InvestorReturnCalculator failed', [
+                            'error' => $e->getMessage(),
+                            'order_id' => $order->id,
+                        ]);
+                    }
+                }
+
+                // تحديث المبلغ الإجمالي للطلب
+                $order->total_amount -= $totalAmountReduction;
+                $order->save();
+
+                // التحقق من أن جميع منتجات الطلب تم إرجاعها
+                $order->refresh();
+                $allItemsReturned = $order->items()->where('quantity', '>', 0)->count() === 0;
+
+                if ($allItemsReturned) {
+                    // حذف الطلب تلقائياً (soft delete) مع السبب
+                    $order->deleted_by = $user->id;
+                    $order->deletion_reason = 'إرجاع الطلب بالكامل';
+                    $order->deleted_at = now();
+                    $order->save();
+                }
+
+                return [
+                    'total_amount_reduction' => $totalAmountReduction,
+                    'all_items_returned' => $allItemsReturned,
+                ];
+            });
+
+            $order->refresh();
+            $formattedOrder = $this->formatOrderDetails($order);
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['all_items_returned'] 
+                    ? 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً'
+                    : 'تم إرجاع المنتجات بنجاح',
+                'data' => [
+                    'order' => $formattedOrder,
+                    'total_amount_reduction' => $result['total_amount_reduction'],
+                    'all_items_returned' => $result['all_items_returned'],
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'خطأ في البيانات المرسلة',
+                'errors' => $e->errors(),
+                'error_code' => 'VALIDATION_ERROR',
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to process partial return', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'request' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء معالجة الإرجاع: ' . $e->getMessage(),
+                'error_code' => 'PROCESS_ERROR',
             ], 500);
         }
     }

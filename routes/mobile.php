@@ -12,6 +12,9 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateAlWaseetController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAuthController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAlWaseetController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminOrderController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminOrderMovementController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminBulkReturnController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminBulkExchangeReturnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -149,4 +152,29 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     // المواد المطلوبة
     Route::get('/materials', [MobileAdminOrderController::class, 'getMaterialsList']);
     Route::get('/materials/grouped', [MobileAdminOrderController::class, 'getMaterialsListGrouped']);
+    
+    // الإرجاعات الجزئية
+    Route::get('/partial-returns', [MobileAdminOrderController::class, 'getPartialReturns']);
+    Route::get('/{id}/partial-return', [MobileAdminOrderController::class, 'getPartialReturnOrder']);
+    Route::post('/{id}/partial-return', [MobileAdminOrderController::class, 'processPartialReturn']);
+});
+
+// APIs حركات الطلبات للمدير والمجهز (تحتاج token)
+Route::prefix('admin/order-movements')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [MobileAdminOrderMovementController::class, 'getOrderMovements']);
+    Route::get('/statistics', [MobileAdminOrderMovementController::class, 'getOrderMovementsStatistics']);
+});
+
+// APIs الإرجاعات الجماعية للمدير والمجهز (تحتاج token)
+Route::prefix('admin/bulk-returns')->middleware('auth.pwa')->group(function () {
+    Route::get('/filter-options', [MobileAdminBulkReturnController::class, 'getFilterOptions']);
+    Route::get('/search-products', [MobileAdminBulkReturnController::class, 'searchProducts']);
+    Route::post('/', [MobileAdminBulkReturnController::class, 'returnProducts']);
+});
+
+// APIs الإرجاعات/الاستبدالات الجماعية للمدير والمجهز (تحتاج token)
+Route::prefix('admin/bulk-exchange-returns')->middleware('auth.pwa')->group(function () {
+    Route::get('/filter-options', [MobileAdminBulkExchangeReturnController::class, 'getFilterOptions']);
+    Route::get('/search-products', [MobileAdminBulkExchangeReturnController::class, 'searchProducts']);
+    Route::post('/', [MobileAdminBulkExchangeReturnController::class, 'returnProducts']);
 });
