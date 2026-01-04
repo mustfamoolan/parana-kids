@@ -1400,6 +1400,30 @@ class MobileAdminOrderController extends Controller
                 $query->where('created_at', '>=', now()->subHours($hoursAgo));
             }
         }
+
+        // فلتر حسب الساعات (hours_filter - للتوافق مع pendingOrders)
+        if ($request->filled('hours_filter')) {
+            $hoursAgo = now()->subHours($request->hours_filter);
+            $query->where('created_at', '>=', $hoursAgo);
+        }
+
+        // فلتر حسب تاريخ التقييد (للطلبات المقيدة - في management)
+        if ($request->filled('confirmed_from')) {
+            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
+        }
+
+        if ($request->filled('confirmed_to')) {
+            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        }
+
+        // فلتر حسب تاريخ الإرجاع (للطلبات المسترجعة - في management)
+        if ($request->filled('returned_from')) {
+            $query->whereDate('returned_at', '>=', $request->returned_from);
+        }
+
+        if ($request->filled('returned_to')) {
+            $query->whereDate('returned_at', '<=', $request->returned_to);
+        }
     }
 
     /**

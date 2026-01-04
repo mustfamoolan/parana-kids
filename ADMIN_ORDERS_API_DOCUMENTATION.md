@@ -51,6 +51,11 @@ Authorization: Bearer {pwa_token}
 - `time_from` (optional): وقت البداية (H:i)
 - `time_to` (optional): وقت النهاية (H:i)
 - `hours_ago` (optional): آخر X ساعة (2, 4, 6, 8... حتى 30)
+- `hours_filter` (optional): آخر X ساعة (بديل لـ hours_ago - للتوافق)
+- `confirmed_from` (optional): تاريخ بداية التقييد (Y-m-d) - للطلبات المقيدة
+- `confirmed_to` (optional): تاريخ نهاية التقييد (Y-m-d) - للطلبات المقيدة
+- `returned_from` (optional): تاريخ بداية الإرجاع (Y-m-d) - للطلبات المسترجعة
+- `returned_to` (optional): تاريخ نهاية الإرجاع (Y-m-d) - للطلبات المسترجعة
 - `page` (optional): رقم الصفحة (افتراضي: 1)
 - `per_page` (optional): عدد الطلبات في الصفحة (افتراضي: 15، حد أقصى: 50)
 
@@ -113,7 +118,21 @@ Authorization: Bearer {pwa_token}
 ```
 
 **Query Parameters:**
-- نفس الفلاتر في الطلبات غير المقيدة
+- `warehouse_id` (optional): فلتر حسب المخزن
+- `confirmed_by` (optional): فلتر حسب المجهز الذي قيد الطلب (user_id)
+- `delegate_id` (optional): فلتر حسب المندوب
+- `size_reviewed` (optional): فلتر حالة التدقيق (not_reviewed, reviewed)
+- `message_confirmed` (optional): فلتر حالة تأكيد الرسالة (not_sent, waiting_response, not_confirmed, confirmed)
+- `search` (optional): بحث شامل في (order_number, customer_name, customer_phone, customer_phone2, customer_address, customer_social_link, delivery_code, delegate name, product name/code)
+- `date_from` (optional): تاريخ البداية (Y-m-d) - يعمل على `confirmed_at`
+- `date_to` (optional): تاريخ النهاية (Y-m-d) - يعمل على `confirmed_at`
+- `time_from` (optional): وقت البداية (H:i) - يعمل على `confirmed_at`
+- `time_to` (optional): وقت النهاية (H:i) - يعمل على `confirmed_at`
+- `hours_ago` (optional): آخر X ساعة (2, 4, 6, 8... حتى 30) - يعمل على `confirmed_at`
+- `confirmed_from` (optional): تاريخ بداية التقييد (Y-m-d)
+- `confirmed_to` (optional): تاريخ نهاية التقييد (Y-m-d)
+- `page` (optional): رقم الصفحة (افتراضي: 1)
+- `per_page` (optional): عدد الطلبات في الصفحة (افتراضي: 15، حد أقصى: 50)
 - **ملاحظة مهمة**: الفلتر يعمل على `confirmed_at` (تاريخ التقييد) وليس `created_at`
 
 **Response (Success):**
