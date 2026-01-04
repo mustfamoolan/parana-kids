@@ -902,7 +902,130 @@ Authorization: Bearer {pwa_token}
 
 ---
 
-## 8. خيارات الحالات (Status Options)
+## 8. فلاتر التاريخ والوقت (Date & Time Filters)
+
+### 8.1. فلاتر التاريخ والوقت للطلبات غير المقيدة (Pending)
+
+الفلاتر التالية تعمل على `created_at` (تاريخ إنشاء الطلب):
+
+| الفلتر | النوع | الوصف | مثال |
+|--------|------|-------|------|
+| `date_from` | date (Y-m-d) | من تاريخ | `2025-01-30` |
+| `date_to` | date (Y-m-d) | إلى تاريخ | `2025-01-31` |
+| `time_from` | time (H:i) | من الساعة | `10:00` |
+| `time_to` | time (H:i) | إلى الساعة | `18:00` |
+| `hours_filter` | integer | آخر X ساعة (2, 4, 6, 8... حتى 30) | `6` (آخر 6 ساعات) |
+| `hours_ago` | integer | آخر X ساعة (بديل لـ hours_filter) | `12` (آخر 12 ساعة) |
+
+**مثال على الاستخدام:**
+```javascript
+// جلب الطلبات غير المقيدة من تاريخ معين
+GET /api/mobile/admin/orders/pending?date_from=2025-01-30&date_to=2025-01-31
+
+// جلب الطلبات غير المقيدة في وقت معين
+GET /api/mobile/admin/orders/pending?date_from=2025-01-30&time_from=10:00&time_to=18:00
+
+// جلب الطلبات غير المقيدة في آخر 6 ساعات
+GET /api/mobile/admin/orders/pending?hours_filter=6
+```
+
+**ملاحظات:**
+- `time_from` و `time_to` يتطلبان `date_from` أو `date_to` (إذا لم يتم تحديدهما، يتم استخدام تاريخ اليوم)
+- `hours_filter` و `hours_ago` يعملان على `created_at` (تاريخ إنشاء الطلب)
+- يمكن دمج جميع الفلاتر معاً
+
+---
+
+### 8.2. فلاتر التاريخ والوقت للطلبات المقيدة (Confirmed)
+
+الفلاتر التالية تعمل على `confirmed_at` (تاريخ التقييد):
+
+| الفلتر | النوع | الوصف | مثال |
+|--------|------|-------|------|
+| `date_from` | date (Y-m-d) | من تاريخ التقييد | `2025-01-30` |
+| `date_to` | date (Y-m-d) | إلى تاريخ التقييد | `2025-01-31` |
+| `time_from` | time (H:i) | من الساعة (تاريخ التقييد) | `10:00` |
+| `time_to` | time (H:i) | إلى الساعة (تاريخ التقييد) | `18:00` |
+| `hours_ago` | integer | آخر X ساعة من التقييد (2, 4, 6, 8... حتى 30) | `6` (آخر 6 ساعات) |
+| `confirmed_from` | date (Y-m-d) | تاريخ بداية التقييد | `2025-01-30` |
+| `confirmed_to` | date (Y-m-d) | تاريخ نهاية التقييد | `2025-01-31` |
+
+**مثال على الاستخدام:**
+```javascript
+// جلب الطلبات المقيدة من تاريخ تقييد معين
+GET /api/mobile/admin/orders/confirmed?date_from=2025-01-30&date_to=2025-01-31
+
+// جلب الطلبات المقيدة في وقت معين من التقييد
+GET /api/mobile/admin/orders/confirmed?date_from=2025-01-30&time_from=10:00&time_to=18:00
+
+// جلب الطلبات المقيدة في آخر 6 ساعات من التقييد
+GET /api/mobile/admin/orders/confirmed?hours_ago=6
+
+// جلب الطلبات المقيدة باستخدام confirmed_from/confirmed_to
+GET /api/mobile/admin/orders/confirmed?confirmed_from=2025-01-30&confirmed_to=2025-01-31
+```
+
+**ملاحظات:**
+- جميع الفلاتر تعمل على `confirmed_at` (تاريخ التقييد) وليس `created_at`
+- `time_from` و `time_to` يتطلبان `date_from` أو `date_to` (إذا لم يتم تحديدهما، يتم استخدام تاريخ اليوم)
+- `confirmed_from` و `confirmed_to` بديلان لـ `date_from` و `date_to` (نفس الوظيفة)
+- يمكن دمج جميع الفلاتر معاً
+
+---
+
+### 8.3. فلاتر التاريخ والوقت للطلبات المسترجعة (في Management)
+
+الفلاتر التالية تعمل على `returned_at` (تاريخ الإرجاع):
+
+| الفلتر | النوع | الوصف | مثال |
+|--------|------|-------|------|
+| `returned_from` | date (Y-m-d) | تاريخ بداية الإرجاع | `2025-01-30` |
+| `returned_to` | date (Y-m-d) | تاريخ نهاية الإرجاع | `2025-01-31` |
+
+**مثال على الاستخدام:**
+```javascript
+// جلب الطلبات المسترجعة من تاريخ معين
+GET /api/mobile/admin/orders?status=returned&returned_from=2025-01-30&returned_to=2025-01-31
+```
+
+**ملاحظات:**
+- هذه الفلاتر تعمل فقط على الطلبات المسترجعة (`status=returned`)
+- تعمل على `returned_at` (تاريخ الإرجاع)
+
+---
+
+### 8.4. ملخص الفلاتر حسب نوع الطلب
+
+| نوع الطلب | الحقل المستخدم | الفلاتر المتاحة |
+|-----------|----------------|-----------------|
+| **غير مقيد (Pending)** | `created_at` | `date_from`, `date_to`, `time_from`, `time_to`, `hours_filter`, `hours_ago` |
+| **مقيد (Confirmed)** | `confirmed_at` | `date_from`, `date_to`, `time_from`, `time_to`, `hours_ago`, `confirmed_from`, `confirmed_to` |
+| **مسترجع (Returned)** | `returned_at` | `returned_from`, `returned_to` |
+
+---
+
+### 8.5. أمثلة متقدمة
+
+```javascript
+// مثال 1: طلبات غير مقيدة من تاريخ معين في وقت معين
+GET /api/mobile/admin/orders/pending?date_from=2025-01-30&date_to=2025-01-31&time_from=09:00&time_to=17:00
+
+// مثال 2: طلبات مقيدة في آخر 12 ساعة
+GET /api/mobile/admin/orders/confirmed?hours_ago=12
+
+// مثال 3: طلبات غير مقيدة مع فلتر المخزن والوقت
+GET /api/mobile/admin/orders/pending?warehouse_id=1&date_from=2025-01-30&hours_filter=6
+
+// مثال 4: طلبات مقيدة مع فلتر المندوب والتاريخ
+GET /api/mobile/admin/orders/confirmed?delegate_id=5&confirmed_from=2025-01-30&confirmed_to=2025-01-31
+
+// مثال 5: طلبات مسترجعة من تاريخ معين
+GET /api/mobile/admin/orders?status=returned&returned_from=2025-01-30&returned_to=2025-01-31
+```
+
+---
+
+## 9. خيارات الحالات (Status Options)
 
 ### 7.1. حالة التدقيق (size_reviewed)
 
