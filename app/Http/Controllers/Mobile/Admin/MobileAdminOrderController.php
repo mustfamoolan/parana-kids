@@ -1465,6 +1465,15 @@ class MobileAdminOrderController extends Controller
                 $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
             }
         }
+
+        // فلتر حسب تاريخ التقييد (confirmed_from/confirmed_to)
+        if ($request->filled('confirmed_from')) {
+            $query->whereDate('confirmed_at', '>=', $request->confirmed_from);
+        }
+
+        if ($request->filled('confirmed_to')) {
+            $query->whereDate('confirmed_at', '<=', $request->confirmed_to);
+        }
     }
 
     /**
