@@ -1525,8 +1525,54 @@ class MobileAdminOrderController extends Controller
      */
     private function applyFiltersForConfirmed($query, Request $request)
     {
-        // تطبيق نفس الفلاتر الأساسية
-        $this->applyFilters($query, $request);
+        // تطبيق الفلاتر الأساسية فقط (بدون فلاتر التاريخ والوقت)
+        // فلتر المخزن
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
+
+        // فلتر المجهز
+        if ($request->filled('confirmed_by')) {
+            $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المندوب
+        if ($request->filled('delegate_id')) {
+            $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // فلتر حالة التدقيق
+        if ($request->filled('size_reviewed')) {
+            $query->where('size_reviewed', $request->size_reviewed);
+        }
+
+        // فلتر حالة تأكيد الرسالة
+        if ($request->filled('message_confirmed')) {
+            $query->where('message_confirmed', $request->message_confirmed);
+        }
+
+        // البحث في الطلبات
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone2', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
+                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
+                      $productQuery->where('name', 'like', "%{$searchTerm}%")
+                                   ->orWhere('code', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
 
         // فلتر حسب التاريخ (على confirmed_at)
         if ($request->filled('date_from')) {
