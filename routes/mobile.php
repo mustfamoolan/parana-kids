@@ -11,6 +11,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductLinkController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateAlWaseetController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAuthController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAlWaseetController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -124,4 +125,25 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::get('/status-cards', [MobileAdminAlWaseetController::class, 'getStatusCards']);
     Route::get('/orders', [MobileAdminAlWaseetController::class, 'getOrders']);
     Route::get('/orders/{id}', [MobileAdminAlWaseetController::class, 'getOrderDetails']);
+});
+
+// APIs إدارة الطلبات للمدير والمجهز (تحتاج token)
+Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
+    // قوائم الطلبات
+    Route::get('/pending', [MobileAdminOrderController::class, 'getPendingOrders']);
+    Route::get('/confirmed', [MobileAdminOrderController::class, 'getConfirmedOrders']);
+    Route::get('/', [MobileAdminOrderController::class, 'getOrders']); // Management (موحد)
+    
+    // تفاصيل وتعديل الطلب
+    Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
+    Route::get('/{id}/edit', [MobileAdminOrderController::class, 'getOrderEditData']);
+    Route::put('/{id}', [MobileAdminOrderController::class, 'updateOrder']);
+    
+    // تجهيز الطلب
+    Route::get('/{id}/process', [MobileAdminOrderController::class, 'getOrderProcessData']);
+    Route::post('/{id}/process', [MobileAdminOrderController::class, 'processOrder']);
+    
+    // المواد المطلوبة
+    Route::get('/materials', [MobileAdminOrderController::class, 'getMaterialsList']);
+    Route::get('/materials/grouped', [MobileAdminOrderController::class, 'getMaterialsListGrouped']);
 });
