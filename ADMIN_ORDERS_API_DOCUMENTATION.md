@@ -43,8 +43,8 @@ Authorization: Bearer {pwa_token}
 - `warehouse_id` (optional): فلتر حسب المخزن
 - `confirmed_by` (optional): فلتر حسب المجهز الذي قيد الطلب (user_id)
 - `delegate_id` (optional): فلتر حسب المندوب
-- `size_reviewed` (optional): فلتر حالة التدقيق (not_reviewed, reviewed, needs_review)
-- `message_confirmed` (optional): فلتر حالة تأكيد الرسالة (not_sent, sent, confirmed)
+- `size_reviewed` (optional): فلتر حالة التدقيق (not_reviewed, reviewed)
+- `message_confirmed` (optional): فلتر حالة تأكيد الرسالة (not_sent, waiting_response, not_confirmed, confirmed)
 - `search` (optional): بحث شامل في (order_number, customer_name, customer_phone, customer_address, delivery_code, delegate name, product name/code)
 - `date_from` (optional): تاريخ البداية (Y-m-d)
 - `date_to` (optional): تاريخ النهاية (Y-m-d)
@@ -786,6 +786,49 @@ Authorization: Bearer {pwa_token}
 - المواد مرتبة حسب كود المنتج (أبجدي)
 - الأحجام مرتبة داخل كل منتج (أبجدي)
 - نفس البيانات لكن مع ترتيب أفضل للتجميع
+
+---
+
+## 7. خيارات الحالات (Status Options)
+
+### 7.1. حالة التدقيق (size_reviewed)
+
+حقل `size_reviewed` يحدد حالة تدقيق القياسات في الطلب.
+
+**القيم الممكنة:**
+- `not_reviewed` (افتراضي): لم يتم التدقيق
+- `reviewed`: تم تدقيق القياس
+
+**الاستخدام:**
+- يمكن استخدامه كفلتر في جميع endpoints الخاصة بالطلبات
+- مثال: `?size_reviewed=reviewed` لعرض فقط الطلبات التي تم تدقيق قياساتها
+
+### 7.2. حالة تأكيد الرسالة (message_confirmed)
+
+حقل `message_confirmed` يحدد حالة تأكيد الرسالة المرسلة للعميل.
+
+**القيم الممكنة:**
+- `not_sent` (افتراضي): لم يرسل الرسالة
+- `waiting_response`: تم إرسال الرسالة وبالانتظار الرد
+- `not_confirmed`: لم يتم تأكيد الرسالة
+- `confirmed`: تم تأكيد الرسالة
+
+**الاستخدام:**
+- يمكن استخدامه كفلتر في جميع endpoints الخاصة بالطلبات
+- مثال: `?message_confirmed=confirmed` لعرض فقط الطلبات التي تم تأكيد رسائلها
+
+**مثال على الاستخدام:**
+```javascript
+// جلب الطلبات التي تم تدقيق قياساتها وتم تأكيد رسائلها
+const response = await fetch(
+  'https://api.example.com/api/mobile/admin/orders/pending?size_reviewed=reviewed&message_confirmed=confirmed',
+  {
+    headers: {
+      'Authorization': `Bearer ${pwaToken}`,
+    },
+  }
+);
+```
 
 ---
 
