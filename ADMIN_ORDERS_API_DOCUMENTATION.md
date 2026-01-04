@@ -45,7 +45,7 @@ Authorization: Bearer {pwa_token}
 - `delegate_id` (optional): فلتر حسب المندوب
 - `size_reviewed` (optional): فلتر حالة التدقيق (not_reviewed, reviewed)
 - `message_confirmed` (optional): فلتر حالة تأكيد الرسالة (not_sent, waiting_response, not_confirmed, confirmed)
-- `search` (optional): بحث شامل في (order_number, customer_name, customer_phone, customer_address, delivery_code, delegate name, product name/code)
+- `search` (optional): بحث شامل في (order_number, customer_name, customer_phone, customer_phone2, customer_address, customer_social_link, delivery_code, delegate name, product name/code)
 - `date_from` (optional): تاريخ البداية (Y-m-d)
 - `date_to` (optional): تاريخ النهاية (Y-m-d)
 - `time_from` (optional): وقت البداية (H:i)

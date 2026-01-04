@@ -1359,6 +1359,7 @@ class MobileAdminOrderController extends Controller
                 $q->where('order_number', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_name', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_phone2', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
                   ->orWhere('customer_address', 'like', "%{$searchTerm}%")
                   ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
