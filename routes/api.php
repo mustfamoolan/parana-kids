@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\MessageApiController;
 use App\Http\Controllers\Api\DelegateProductApiController;
+use App\Http\Controllers\Api\MaterialApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -85,4 +86,8 @@ Route::middleware('auth.pwa')->group(function () {
     // Delegate Products API Routes
     // جلب المنتجات للمندوب
     Route::get('/delegate/products', [DelegateProductApiController::class, 'index']);
+
+    // Materials API (Raw & Grouped)
+    Route::get('/materials/raw', [MaterialApiController::class, 'index']);
+    Route::get('/materials/grouped', [MaterialApiController::class, 'grouped']);
 });
