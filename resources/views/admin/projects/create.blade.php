@@ -4,7 +4,8 @@
             <h5 class="text-lg font-semibold dark:text-white-light">إضافة مشروع جديد</h5>
             <a href="{{ route('admin.projects.index') }}" class="btn btn-outline-secondary">
                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                 </svg>
                 العودة
             </a>
@@ -32,8 +33,10 @@
                 <h6 class="text-lg font-semibold mb-4">معلومات المشروع</h6>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="project_name" class="block text-sm font-medium mb-2">اسم المشروع <span class="text-red-500">*</span></label>
-                        <input type="text" id="project_name" name="project_name" value="{{ old('project_name') }}" class="form-input @error('project_name') border-red-500 @enderror" required>
+                        <label for="project_name" class="block text-sm font-medium mb-2">اسم المشروع <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" id="project_name" name="project_name" value="{{ old('project_name') }}"
+                            class="form-input @error('project_name') border-red-500 @enderror" required>
                         @error('project_name')
                             <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
                         @enderror
@@ -47,21 +50,26 @@
                 <!-- قسم الاستثمار -->
                 <div class="panel mb-5">
                     <h6 class="text-lg font-semibold mb-4">الاستثمار</h6>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label for="investment_type" class="block text-sm font-medium mb-2">نوع الاستثمار <span class="text-red-500">*</span></label>
-                            <select id="investment_type" name="investment[type]" class="form-select" required onchange="onInvestmentTypeChange()">
+                            <label for="investment_type" class="block text-sm font-medium mb-2">نوع الاستثمار <span
+                                    class="text-red-500">*</span></label>
+                            <select id="investment_type" name="investment[type]" class="form-select" required
+                                onchange="onInvestmentTypeChange()">
                                 <option value="warehouse" selected>مخزن</option>
                             </select>
                             <small class="text-gray-500">الاستثمار متاح فقط للمخازن</small>
                         </div>
                         <div id="targets_field">
-                            <label for="investment_targets" class="block text-sm font-medium mb-2">اختر المخزن <span class="text-red-500">*</span></label>
-                            <select id="investment_targets" name="investment[targets][]" class="form-select" multiple size="5" onchange="calculateInvestmentValue()">
+                            <label for="investment_targets" class="block text-sm font-medium mb-2">اختر المخزن <span
+                                    class="text-red-500">*</span></label>
+                            <select id="investment_targets" name="investment[targets][]" class="form-select" multiple
+                                size="5" onchange="calculateInvestmentValue()">
                                 <!-- سيتم ملؤه ديناميكياً -->
                             </select>
-                            <div id="remaining_percentage_info" class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded" style="display: none;">
+                            <div id="remaining_percentage_info" class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded"
+                                style="display: none;">
                                 <div class="text-sm font-medium mb-1">النسبة المتبقية للمخزن:</div>
                                 <div id="remaining_percentage_list" class="text-sm"></div>
                             </div>
@@ -71,8 +79,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-sm font-medium mb-2">القيمة الإجمالية</label>
-                            <input type="number" id="total_value_display" name="investment[total_value]" step="0.01" min="0" class="form-input" value="0" readonly>
-                            <small class="text-gray-500">سيتم تحديثها تلقائياً عند إضافة منتجات للمخزن (يمكن أن تكون 0 للمخزن الفارغ)</small>
+                            <input type="number" id="total_value_display" name="investment[total_value]" step="0.01"
+                                min="0" class="form-input" value="0" readonly>
+                            <small class="text-gray-500">سيتم تحديثها تلقائياً عند إضافة منتجات للمخزن (يمكن أن تكون 0
+                                للمخزن الفارغ)</small>
                         </div>
                     </div>
                 </div>
@@ -82,8 +92,10 @@
                     <div class="flex items-center justify-between mb-4">
                         <h6 class="text-lg font-semibold">المستثمرين</h6>
                         <button type="button" onclick="addInvestorRow()" class="btn btn-primary btn-sm">
-                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            <svg class="w-4 h-4 ltr:mr-1 rtl:ml-1" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                             </svg>
                             إضافة مستثمر
                         </button>
@@ -96,27 +108,34 @@
                     <!-- عرض النسب -->
                     <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- نسب الربح -->
-                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
+                        <div
+                            class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
                             <div class="flex items-center justify-between mb-2">
                                 <div>
-                                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">نسبة الربح المتبقية للمدير:</div>
-                                    <div id="admin_remaining_percentage" class="text-2xl font-bold text-blue-600 dark:text-blue-400">100%</div>
+                                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">نسبة الربح
+                                        المتبقية للمدير:</div>
+                                    <div id="admin_remaining_percentage"
+                                        class="text-2xl font-bold text-blue-600 dark:text-blue-400">100%</div>
                                 </div>
                                 <div class="text-sm text-gray-500">
                                     <div>مجموع نسب المستثمرين: <span id="total_investors_percentage">0%</span></div>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- نسب التكلفة -->
-                        <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+                        <div
+                            class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
                             <div class="flex items-center justify-between mb-2">
                                 <div>
-                                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">نسبة التكلفة المتبقية على المدير:</div>
-                                    <div id="admin_remaining_cost_percentage" class="text-2xl font-bold text-green-600 dark:text-green-400">100%</div>
+                                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">نسبة التكلفة
+                                        المتبقية على المدير:</div>
+                                    <div id="admin_remaining_cost_percentage"
+                                        class="text-2xl font-bold text-green-600 dark:text-green-400">100%</div>
                                 </div>
                                 <div class="text-sm text-gray-500">
-                                    <div>مجموع نسب التكلفة للمستثمرين: <span id="total_investors_cost_percentage">0%</span></div>
+                                    <div>مجموع نسب التكلفة للمستثمرين: <span
+                                            id="total_investors_cost_percentage">0%</span></div>
                                 </div>
                             </div>
                         </div>
@@ -144,24 +163,24 @@
         // عند تغيير نوع الاستثمار (دائماً مخزن الآن)
         function onInvestmentTypeChange() {
             const targetsSelect = document.getElementById('investment_targets');
-            
+
             // ملء قائمة المخازن
-                targetsSelect.innerHTML = '';
-                    warehouses.forEach(warehouse => {
-                        const option = document.createElement('option');
-                        option.value = warehouse.id;
-                        option.textContent = warehouse.name;
-                        targetsSelect.appendChild(option);
-                    });
-            
+            targetsSelect.innerHTML = '';
+            warehouses.forEach(warehouse => {
+                const option = document.createElement('option');
+                option.value = warehouse.id;
+                option.textContent = warehouse.name;
+                targetsSelect.appendChild(option);
+            });
+
             // إعادة تعيين القيم
             totalValue = 0;
             document.getElementById('total_value_display').value = '0';
             calculateRemainingAdminPercentage();
         }
-        
+
         // تهيئة الواجهة عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             onInvestmentTypeChange();
         });
 
@@ -172,10 +191,10 @@
             const totalValueDisplay = document.getElementById('total_value_display');
             const remainingInfo = document.getElementById('remaining_percentage_info');
             const remainingList = document.getElementById('remaining_percentage_list');
-            
+
             const type = typeSelect?.value;
             const selectedTargets = Array.from(targetsSelect?.selectedOptions || []).map(opt => ({ id: parseInt(opt.value) }));
-            
+
             if (!type || selectedTargets.length === 0) {
                 totalValue = 0;
                 if (totalValueDisplay) totalValueDisplay.value = '';
@@ -185,7 +204,7 @@
                 updateInvestmentAmountsFromTotalValue();
                 return;
             }
-            
+
             try {
                 const response = await fetch('{{ route("admin.projects.calculate-value") }}', {
                     method: 'POST',
@@ -198,20 +217,20 @@
                         targets: selectedTargets
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                
+
                 const data = await response.json();
                 totalValue = data.total_value || 0;
-                
+
                 if (totalValueDisplay) {
                     totalValueDisplay.value = totalValue.toFixed(2);
                     // تحديث مبالغ الاستثمار بناءً على القيمة الجديدة
                     updateInvestmentAmountsFromTotalValue();
                 }
-                
+
                 // عرض النسبة المتبقية للمنتج/المخزن
                 if (remainingInfo && remainingList && selectedTargets.length > 0) {
                     remainingInfo.style.display = 'block';
@@ -228,7 +247,7 @@
                 } else if (remainingInfo) {
                     remainingInfo.style.display = 'none';
                 }
-                
+
                 // تحديث نسب التكلفة للمستثمرين (من المبلغ)
                 updateAllCostPercentagesFromAmount();
                 calculateRemainingAdminPercentage();
@@ -244,13 +263,13 @@
         function addInvestorRow() {
             const container = document.getElementById('investorsContainer');
             const index = investorIndex++;
-            
+
             let investorsOptions = '<option value="">-- اختر المستثمر --</option>';
             investors.forEach(investor => {
                 const isAdmin = investor.is_admin ? ' (المدير)' : '';
                 investorsOptions += `<option value="${investor.id}">${investor.name}${isAdmin} (${investor.phone})</option>`;
             });
-            
+
             const investorHtml = `
                 <div class="investor-row panel mb-4" data-investor-index="${index}">
                     <div class="flex items-center justify-between mb-4 pb-4 border-b">
@@ -276,12 +295,14 @@
                             <small class="text-gray-500">يُجلب تلقائياً عند اختيار المستثمر</small>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-2">نسبة التكلفة (%) <span class="text-red-500">*</span></label>
-                            <input type="number" name="investment[investors][${index}][cost_percentage]" step="0.01" min="0" max="100" class="form-input cost-percentage-input" required oninput="calculateRemainingAdminPercentage()" onchange="calculateRemainingAdminPercentage()">
-                            <small class="text-gray-500">نسبة التكلفة من المنتجات التي ستُضاف للمخزن</small>
+                            <label class="block text-sm font-medium mb-2">مبلغ الاستثمار (IQD)</label>
+                            <input type="number" name="investment[investors][${index}][investment_amount]" step="0.01" min="0" class="form-input investment-amount-input" oninput="calculateCostPercentageFromAmount(${index})" onchange="validateInvestmentAmount(${index})">
+                            <small class="text-gray-500">تلقائياً يحدد النسبة</small>
                         </div>
-                        <div style="display: none;">
-                            <input type="hidden" name="investment[investors][${index}][investment_amount]" value="0">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">نسبة التكلفة (%) <span class="text-red-500">*</span></label>
+                            <input type="number" name="investment[investors][${index}][cost_percentage]" step="0.01" min="0" max="100" class="form-input cost-percentage-input" required oninput="calculateInvestmentAmountFromPercentage(${index})">
+                            <small class="text-gray-500">نسبة التكلفة من المنتجات التي ستُضاف للمخزن</small>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-2">نسبة الربح (%) <span class="text-red-500">*</span></label>
@@ -290,7 +311,7 @@
                     </div>
                 </div>
             `;
-            
+
             container.insertAdjacentHTML('beforeend', investorHtml);
             calculateRemainingAdminPercentage();
         }
@@ -321,7 +342,7 @@
                 if (balanceInput) {
                     balanceInput.value = `${data.balance.toFixed(2)} IQD`;
                 }
-                
+
                 // إعادة حساب نسبة التكلفة بعد جلب الرصيد
                 calculateCostPercentageFromAmount(index);
             } catch (error) {
@@ -335,14 +356,14 @@
             const investorSelect = document.querySelector(`.investor-row[data-investor-index="${index}"] .investor-select`);
             const amountInput = document.querySelector(`.investor-row[data-investor-index="${index}"] .investment-amount-input`);
             const balanceInput = document.getElementById(`available_balance_${index}`);
-            
+
             if (!investorSelect || !amountInput || !balanceInput) return;
-            
+
             const investorId = investorSelect.value;
             const amount = parseFloat(amountInput.value) || 0;
             const balanceText = balanceInput.value;
             const balance = parseFloat(balanceText.replace(/[^0-9.]/g, '')) || 0;
-            
+
             // التحقق من الرصيد المتاح
             if (amount > balance) {
                 alert(`مبلغ الاستثمار (${amount.toFixed(2)}) يتجاوز الرصيد المتاح (${balance.toFixed(2)})`);
@@ -350,7 +371,7 @@
                 calculateCostPercentage(index);
                 return;
             }
-            
+
             // التحقق من أن المبلغ لا يتجاوز القيمة الإجمالية (cost_percentage <= 100%)
             if (totalValue > 0 && amount > totalValue) {
                 alert(`مبلغ الاستثمار (${amount.toFixed(2)}) يتجاوز القيمة الإجمالية للاستثمار (${totalValue.toFixed(2)}). الحد الأقصى المسموح: ${totalValue.toFixed(2)} IQD`);
@@ -358,7 +379,7 @@
                 calculateCostPercentage(index);
                 return;
             }
-            
+
             // إعادة حساب نسبة التكلفة بعد التحقق
             calculateCostPercentageFromAmount(index);
         }
@@ -376,19 +397,19 @@
         function calculateCostPercentageFromAmount(investorIndex) {
             const row = document.querySelector(`.investor-row[data-investor-index="${investorIndex}"]`);
             if (!row) return;
-            
+
             const amountInput = row.querySelector('.investment-amount-input');
             const costPercentageInput = row.querySelector('.cost-percentage-input');
-            
+
             // الحصول على القيمة الإجمالية من الحقل
             const totalValueInput = document.getElementById('total_value_display');
             const currentTotalValue = totalValueInput ? (parseFloat(totalValueInput.value) || totalValue) : totalValue;
-            
+
             const amount = parseFloat(amountInput?.value || 0);
-            
+
             if (currentTotalValue > 0 && amount > 0) {
                 let costPercentage = (amount / currentTotalValue) * 100;
-                
+
                 // التأكد من ألا تتجاوز النسبة 100%
                 if (costPercentage > 100) {
                     costPercentage = 100;
@@ -403,7 +424,7 @@
                         amountInput.setCustomValidity('');
                     }
                 }
-                
+
                 // تحديث النسبة فقط إذا لم يكن المستخدم يكتب فيها
                 if (costPercentageInput && document.activeElement !== costPercentageInput) {
                     costPercentageInput.value = costPercentage.toFixed(2);
@@ -423,14 +444,14 @@
         function updateInvestmentAmountsFromTotalValue() {
             const totalValueInput = document.getElementById('total_value_display');
             if (!totalValueInput) return;
-            
+
             // الحصول على القيمة الإجمالية من الحقل
             const newTotalValue = parseFloat(totalValueInput.value) || 0;
             if (newTotalValue <= 0) return;
-            
+
             // تحديث المتغير العام
             totalValue = newTotalValue;
-            
+
             // تحديث جميع صفوف المستثمرين
             const investorRows = document.querySelectorAll('.investor-row');
             investorRows.forEach((row) => {
@@ -438,7 +459,7 @@
                 if (investorIndex) {
                     const costPercentageInput = row.querySelector('.cost-percentage-input');
                     const costPercentage = parseFloat(costPercentageInput?.value || 0);
-                    
+
                     if (costPercentage > 0) {
                         // حساب المبلغ الجديد بناءً على النسبة
                         const newAmount = (newTotalValue * costPercentage) / 100;
@@ -449,7 +470,7 @@
                     }
                 }
             });
-            
+
             // تحديث النسب المتبقية
             calculateRemainingAdminPercentage();
         }
@@ -458,32 +479,32 @@
         function calculateInvestmentAmountFromPercentage(investorIndex) {
             const row = document.querySelector(`.investor-row[data-investor-index="${investorIndex}"]`);
             if (!row) return;
-            
+
             const amountInput = row.querySelector('.investment-amount-input');
             const costPercentageInput = row.querySelector('.cost-percentage-input');
             const investorSelect = row.querySelector('.investor-select');
             const balanceInput = document.getElementById(`available_balance_${investorIndex}`);
-            
+
             // الحصول على القيمة الإجمالية من الحقل
             const totalValueInput = document.getElementById('total_value_display');
             const currentTotalValue = totalValueInput ? (parseFloat(totalValueInput.value) || totalValue) : totalValue;
-            
+
             const costPercentage = parseFloat(costPercentageInput?.value || 0);
-            
+
             if (currentTotalValue > 0 && costPercentage > 0) {
                 // التأكد من ألا تتجاوز النسبة 100%
                 let finalPercentage = Math.min(100, costPercentage);
                 if (finalPercentage !== costPercentage && costPercentageInput) {
                     costPercentageInput.value = finalPercentage.toFixed(2);
                 }
-                
+
                 // حساب المبلغ من النسبة
                 let calculatedAmount = (currentTotalValue * finalPercentage) / 100;
-                
+
                 // التحقق من الرصيد المتاح
                 const balanceText = balanceInput?.value || '';
                 const balance = parseFloat(balanceText.replace(/[^0-9.]/g, '')) || 0;
-                
+
                 // إذا تجاوز المبلغ الرصيد المتاح، قم بتعديله
                 if (calculatedAmount > balance && balance > 0) {
                     calculatedAmount = balance;
@@ -501,7 +522,7 @@
                         amountInput.setCustomValidity('');
                     }
                 }
-                
+
                 // تحديث المبلغ فقط إذا لم يكن المستخدم يكتب فيه
                 if (amountInput && document.activeElement !== amountInput) {
                     amountInput.value = calculatedAmount.toFixed(2);
@@ -521,13 +542,13 @@
         function validateCostPercentage(investorIndex) {
             const row = document.querySelector(`.investor-row[data-investor-index="${investorIndex}"]`);
             if (!row) return;
-            
+
             const costPercentageInput = row.querySelector('.cost-percentage-input');
             const amountInput = row.querySelector('.investment-amount-input');
             const balanceInput = document.getElementById(`available_balance_${investorIndex}`);
-            
+
             const costPercentage = parseFloat(costPercentageInput?.value || 0);
-            
+
             // التحقق من أن النسبة لا تتجاوز 100%
             if (costPercentage > 100) {
                 if (costPercentageInput) {
@@ -536,12 +557,12 @@
                 calculateInvestmentAmountFromPercentage(investorIndex);
                 return;
             }
-            
+
             // التحقق من الرصيد المتاح
             const balanceText = balanceInput?.value || '';
             const balance = parseFloat(balanceText.replace(/[^0-9.]/g, '')) || 0;
             const amount = parseFloat(amountInput?.value || 0);
-            
+
             if (amount > balance && balance > 0) {
                 // إعادة حساب النسبة بناءً على الرصيد المتاح
                 if (totalValue > 0) {
@@ -567,33 +588,33 @@
         function calculateRemainingAdminPercentage() {
             const profitInputs = document.querySelectorAll('.profit-percentage-input');
             const costPercentageInputs = document.querySelectorAll('.cost-percentage-input');
-            
+
             let totalInvestorsPercentage = 0;
             let totalInvestorsCostPercentage = 0;
-            
+
             // حساب مجموع نسب الربح للمستثمرين
             profitInputs.forEach(input => {
                 const value = parseFloat(input.value || 0);
                 totalInvestorsPercentage += value;
             });
-            
+
             // حساب مجموع نسب التكلفة للمستثمرين
             costPercentageInputs.forEach(input => {
                 const value = parseFloat(input.value || 0);
                 totalInvestorsCostPercentage += value;
             });
-            
+
             const adminPercentage = Math.max(0, 100 - totalInvestorsPercentage);
             const adminCostPercentage = Math.max(0, 100 - totalInvestorsCostPercentage);
-            
+
             // تحديث نسب الربح
             document.getElementById('total_investors_percentage').textContent = totalInvestorsPercentage.toFixed(2) + '%';
             document.getElementById('admin_remaining_percentage').textContent = adminPercentage.toFixed(2) + '%';
-            
+
             // تحديث نسب التكلفة
             document.getElementById('total_investors_cost_percentage').textContent = totalInvestorsCostPercentage.toFixed(2) + '%';
             document.getElementById('admin_remaining_cost_percentage').textContent = adminCostPercentage.toFixed(2) + '%';
-            
+
             // تغيير اللون بناءً على النسبة (للربح)
             const adminElement = document.getElementById('admin_remaining_percentage');
             if (adminPercentage < 10) {
@@ -603,7 +624,7 @@
             } else {
                 adminElement.className = 'text-2xl font-bold text-blue-600 dark:text-blue-400';
             }
-            
+
             // تغيير اللون بناءً على النسبة (للتكلفة)
             const adminCostElement = document.getElementById('admin_remaining_cost_percentage');
             if (adminCostPercentage < 10) {
