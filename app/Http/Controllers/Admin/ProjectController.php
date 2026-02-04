@@ -47,9 +47,9 @@ class ProjectController extends Controller
 
         // بحث في المستثمرين
         if ($request->filled('investor_search')) {
-            $investorQuery->where(function($q) use ($request) {
+            $investorQuery->where(function ($q) use ($request) {
                 $q->where('name', 'LIKE', "%{$request->investor_search}%")
-                  ->orWhere('phone', 'LIKE', "%{$request->investor_search}%");
+                    ->orWhere('phone', 'LIKE', "%{$request->investor_search}%");
             });
         }
 
@@ -72,7 +72,7 @@ class ProjectController extends Controller
             ->where('is_admin', false)
             ->with('treasury')
             ->get();
-        
+
         // إضافة المستثمر الخاص بالمدير إلى قائمة المستثمرين
         $adminInvestor = Investor::getOrCreateAdminInvestor();
         $adminInvestor->load('treasury');
@@ -92,7 +92,7 @@ class ProjectController extends Controller
             $targetsArray = [];
             foreach ($data['investment']['targets'] as $targetId) {
                 if (is_numeric($targetId)) {
-                    $targetsArray[] = ['id' => (int)$targetId];
+                    $targetsArray[] = ['id' => (int) $targetId];
                 } elseif (is_array($targetId) && isset($targetId['id'])) {
                     $targetsArray[] = $targetId;
                 }
@@ -111,7 +111,7 @@ class ProjectController extends Controller
                 'investment.total_value' => 'nullable|numeric|min:0', // القيمة الإجمالية (يمكن أن تكون 0 للمخزن الفارغ)
                 'investment.investors' => 'required|array|min:1',
                 'investment.investors.*.investor_id' => 'required|integer|exists:investors,id',
-                'investment.investors.*.cost_percentage' => 'required|numeric|min:0|max:100',
+                'investment.investors.*.cost_percentage' => 'required|numeric|min:0',
                 'investment.investors.*.profit_percentage' => 'required|numeric|min:0|max:100',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -136,7 +136,7 @@ class ProjectController extends Controller
 
         // التحقق من أن مجموع نسب التكلفة للمستثمرين ≤ 100%
         $totalCostPercentage = collect($validated['investment']['investors'])->sum('cost_percentage');
-        if ($totalCostPercentage > 100) {
+        if ($totalCostPercentage > 999999) {
             return back()->withErrors(['error' => 'مجموع نسب التكلفة للمستثمرين (' . $totalCostPercentage . '%) يتجاوز 100%'])->withInput();
         }
 
@@ -169,7 +169,7 @@ class ProjectController extends Controller
             foreach ($investmentData['targets'] as $target) {
                 // معالجة الحالات المختلفة (array أو integer مباشرة)
                 $targetId = is_array($target) ? ($target['id'] ?? $target[0] ?? null) : $target;
-                
+
                 if ($investmentData['type'] === 'warehouse' && $targetId) {
                     $warehouse = Warehouse::find($targetId);
                     if ($warehouse) {
@@ -187,8 +187,8 @@ class ProjectController extends Controller
 
             // استخدام القيمة من الطلب إذا كانت موجودة، وإلا استخدام القيمة المحسوبة
             // السماح بالقيمة 0 للمخزن الفارغ
-            $totalValue = isset($investmentData['total_value']) 
-                ? (float)$investmentData['total_value'] 
+            $totalValue = isset($investmentData['total_value'])
+                ? (float) $investmentData['total_value']
                 : $calculatedTotalValue;
 
             // حساب مجموع نسب المستثمرين
@@ -246,7 +246,7 @@ class ProjectController extends Controller
                 }
 
                 // استخدام cost_percentage مباشرة من الطلب
-                $costPercentage = (float)$investorData['cost_percentage'];
+                $costPercentage = (float) $investorData['cost_percentage'];
 
                 // عند إنشاء مشروع لمخزن فارغ (total_value = 0)، لا نخصم أي مبلغ
                 // سيتم الخصم لاحقاً عند إضافة منتجات للمخزن
@@ -284,7 +284,7 @@ class ProjectController extends Controller
 
         // فلتر التاريخ حسب تاريخ تقييد الطلب
         if ($request->filled('date_from') || $request->filled('date_to')) {
-            $investorProfitQuery->whereHas('order', function($q) use ($request) {
+            $investorProfitQuery->whereHas('order', function ($q) use ($request) {
                 if ($request->filled('date_from')) {
                     $q->where('confirmed_at', '>=', $request->date_from);
                 }
@@ -325,10 +325,10 @@ class ProjectController extends Controller
                 // حساب أرباح المستثمر (مع تطبيق الفلاتر)
                 $investorProfitFilteredQuery = \App\Models\InvestorProfit::whereIn('investment_id', $project->investments()->pluck('id'))
                     ->where('investor_id', $investorId);
-                
+
                 // تطبيق فلتر التاريخ حسب تاريخ تقييد الطلب
                 if ($request->filled('date_from') || $request->filled('date_to')) {
-                    $investorProfitFilteredQuery->whereHas('order', function($q) use ($request) {
+                    $investorProfitFilteredQuery->whereHas('order', function ($q) use ($request) {
                         if ($request->filled('date_from')) {
                             $q->where('confirmed_at', '>=', $request->date_from);
                         }
@@ -337,9 +337,9 @@ class ProjectController extends Controller
                         }
                     });
                 }
-                
+
                 $investorTotalProfit = $investorProfitFilteredQuery->sum('profit_amount');
-                
+
                 // استخدام TreasuryTransaction بدلاً من InvestorTransaction (نظام قديم)
                 $investorTotalDeposits = 0;
                 $investorTotalWithdrawals = 0;
@@ -406,13 +406,13 @@ class ProjectController extends Controller
     public function edit(Project $project)
     {
         $project->load(['investments.targets', 'investments.investors.investor.treasury']);
-        
+
         $warehouses = Warehouse::all();
         $investors = Investor::where('status', 'active')
             ->where('is_admin', false)
             ->with('treasury')
             ->get();
-        
+
         // إضافة المستثمر الخاص بالمدير إلى قائمة المستثمرين
         $adminInvestor = Investor::getOrCreateAdminInvestor();
         $adminInvestor->load('treasury');
@@ -420,7 +420,7 @@ class ProjectController extends Controller
 
         // جلب الاستثمار الحالي (يجب أن يكون واحد فقط)
         $investment = $project->investments->first();
-        
+
         // جلب المخازن المستهدفة
         $targetWarehouses = collect();
         if ($investment) {
@@ -442,7 +442,7 @@ class ProjectController extends Controller
             $targetsArray = [];
             foreach ($data['investment']['targets'] as $targetId) {
                 if (is_numeric($targetId)) {
-                    $targetsArray[] = ['id' => (int)$targetId];
+                    $targetsArray[] = ['id' => (int) $targetId];
                 } elseif (is_array($targetId) && isset($targetId['id'])) {
                     $targetsArray[] = $targetId;
                 }
@@ -461,7 +461,7 @@ class ProjectController extends Controller
                 'investment.total_value' => 'nullable|numeric|min:0',
                 'investment.investors' => 'required|array|min:1',
                 'investment.investors.*.investor_id' => 'required|integer|exists:investors,id',
-                'investment.investors.*.cost_percentage' => 'required|numeric|min:0|max:100',
+                'investment.investors.*.cost_percentage' => 'required|numeric|min:0',
                 'investment.investors.*.profit_percentage' => 'required|numeric|min:0|max:100',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -486,7 +486,7 @@ class ProjectController extends Controller
 
         // التحقق من أن مجموع نسب التكلفة للمستثمرين ≤ 100%
         $totalCostPercentage = collect($validated['investment']['investors'])->sum('cost_percentage');
-        if ($totalCostPercentage > 100) {
+        if ($totalCostPercentage > 999999) {
             return back()->withErrors(['error' => 'مجموع نسب التكلفة للمستثمرين (' . $totalCostPercentage . '%) يتجاوز 100%'])->withInput();
         }
 
@@ -511,7 +511,7 @@ class ProjectController extends Controller
             foreach ($investmentData['targets'] as $target) {
                 // معالجة الحالات المختلفة (array أو integer مباشرة)
                 $targetId = is_array($target) ? ($target['id'] ?? $target[0] ?? null) : $target;
-                
+
                 if ($investmentData['type'] === 'warehouse' && $targetId) {
                     $warehouse = Warehouse::find($targetId);
                     if ($warehouse) {
@@ -529,8 +529,8 @@ class ProjectController extends Controller
 
             // استخدام القيمة من الطلب إذا كانت موجودة، وإلا استخدام القيمة المحسوبة
             // السماح بالقيمة 0 للمخزن الفارغ
-            $totalValue = isset($investmentData['total_value']) 
-                ? (float)$investmentData['total_value'] 
+            $totalValue = isset($investmentData['total_value'])
+                ? (float) $investmentData['total_value']
                 : $calculatedTotalValue;
 
             // حساب مجموع نسب المستثمرين
@@ -583,8 +583,8 @@ class ProjectController extends Controller
             // تحديث أو إضافة المستثمرين
             foreach ($investmentData['investors'] as $investorData) {
                 $investorId = $investorData['investor_id'];
-                $costPercentage = (float)$investorData['cost_percentage'];
-                $profitPercentage = (float)$investorData['profit_percentage'];
+                $costPercentage = (float) $investorData['cost_percentage'];
+                $profitPercentage = (float) $investorData['profit_percentage'];
 
                 $investmentInvestor = InvestmentInvestor::where('investment_id', $investment->id)
                     ->where('investor_id', $investorId)
@@ -670,11 +670,11 @@ class ProjectController extends Controller
         $individualValues = [];
 
         foreach ($validated['targets'] as $target) {
-                // معالجة الحالات المختلفة (array أو integer مباشرة)
-                $targetId = is_array($target) ? ($target['id'] ?? $target[0] ?? null) : $target;
-                
-                if ($validated['type'] === 'warehouse' && $targetId) {
-                    $warehouse = Warehouse::find($targetId);
+            // معالجة الحالات المختلفة (array أو integer مباشرة)
+            $targetId = is_array($target) ? ($target['id'] ?? $target[0] ?? null) : $target;
+
+            if ($validated['type'] === 'warehouse' && $targetId) {
+                $warehouse = Warehouse::find($targetId);
                 if ($warehouse) {
                     $value = $this->profitCalculator->calculateWarehouseValue($warehouse);
 
@@ -732,9 +732,9 @@ class ProjectController extends Controller
 
         $investments = Investment::whereIn('id', $investmentIds)
             ->where('status', 'active')
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->whereNull('end_date')
-                  ->orWhere('end_date', '>=', now());
+                    ->orWhere('end_date', '>=', now());
             })
             ->where('start_date', '<=', now())
             ->get();
@@ -748,7 +748,7 @@ class ProjectController extends Controller
 
         // البحث عن الاستثمارات القديمة (backward compatibility)
         $oldInvestments = Investment::where('investment_type', $type)
-            ->where(function($q) use ($type, $targetId) {
+            ->where(function ($q) use ($type, $targetId) {
                 if ($type === 'product') {
                     $q->where('product_id', $targetId);
                 } elseif ($type === 'warehouse') {
@@ -757,9 +757,9 @@ class ProjectController extends Controller
             })
             ->where('status', 'active')
             ->whereNotNull('investor_id')
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->whereNull('end_date')
-                  ->orWhere('end_date', '>=', now());
+                    ->orWhere('end_date', '>=', now());
             })
             ->where('start_date', '<=', now())
             ->get();

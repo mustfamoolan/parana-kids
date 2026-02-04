@@ -325,12 +325,12 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-2">نسبة التكلفة (%) <span class="text-red-500">*</span></label>
-                            <input type="number" name="investment[investors][${index}][cost_percentage]" step="0.01" min="0" max="100" class="form-input cost-percentage-input" required oninput="calculateInvestmentAmountFromPercentage(${index})">
+                            <input type="number" name="investment[investors][${index}][cost_percentage]" step="0.01" min="0" class="form-input cost-percentage-input" required oninput="calculateInvestmentAmountFromPercentage(${index})">
                             <small class="text-gray-500">نسبة التكلفة من المنتجات التي ستُضاف للمخزن</small>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-2">نسبة الربح (%) <span class="text-red-500">*</span></label>
-                            <input type="number" name="investment[investors][${index}][profit_percentage]" step="0.01" min="0" max="100" class="form-input profit-percentage-input" required oninput="calculateRemainingAdminPercentage()">
+                            <input type="number" name="investment[investors][${index}][profit_percentage]" step="0.01" min="0" class="form-input profit-percentage-input" required oninput="calculateRemainingAdminPercentage()">
                         </div>
                     </div>
                 </div>
@@ -380,14 +380,14 @@
             const investorSelect = document.querySelector(`.investor-row[data-investor-index="${index}"] .investor-select`);
             const amountInput = document.querySelector(`.investor-row[data-investor-index="${index}"] .investment-amount-input`);
             const balanceInput = document.getElementById(`available_balance_${index}`);
-            
+
             if (!investorSelect || !amountInput || !balanceInput) return;
-            
+
             const investorId = investorSelect.value;
             const amount = parseFloat(amountInput.value) || 0;
             const balanceText = balanceInput.value;
             const balance = parseFloat(balanceText.replace(/[^0-9.]/g, '')) || 0;
-            
+
             // التحقق من الرصيد المتاح
             if (amount > balance) {
                 alert(`مبلغ الاستثمار (${amount.toFixed(2)}) يتجاوز الرصيد المتاح (${balance.toFixed(2)})`);
@@ -395,15 +395,9 @@
                 calculateCostPercentageFromAmount(index);
                 return;
             }
-            
-            // التحقق من أن المبلغ لا يتجاوز القيمة الإجمالية (cost_percentage <= 100%)
-            if (totalValue > 0 && amount > totalValue) {
-                alert(`مبلغ الاستثمار (${amount.toFixed(2)}) يتجاوز القيمة الإجمالية للاستثمار (${totalValue.toFixed(2)}). الحد الأقصى المسموح: ${totalValue.toFixed(2)} IQD`);
-                amountInput.value = totalValue.toFixed(2);
-                calculateCostPercentageFromAmount(index);
-                return;
-            }
-            
+
+            // تم إزالة التحقق من تجاوز القيمة الإجمالية بناءً على طلب المستخدم
+
             // إعادة حساب نسبة التكلفة بعد التحقق
             calculateCostPercentageFromAmount(index);
         }
@@ -421,34 +415,23 @@
         function calculateCostPercentageFromAmount(investorIndex) {
             const row = document.querySelector(`.investor-row[data-investor-index="${investorIndex}"]`);
             if (!row) return;
-            
+
             const amountInput = row.querySelector('.investment-amount-input');
             const costPercentageInput = row.querySelector('.cost-percentage-input');
-            
+
             // الحصول على القيمة الإجمالية من الحقل
             const totalValueInput = document.getElementById('total_value_display');
             const currentTotalValue = totalValueInput ? (parseFloat(totalValueInput.value) || totalValue) : totalValue;
-            
+
             const amount = parseFloat(amountInput?.value || 0);
-            
+
             if (currentTotalValue > 0 && amount > 0) {
                 let costPercentage = (amount / currentTotalValue) * 100;
-                
-                // التأكد من ألا تتجاوز النسبة 100%
-                if (costPercentage > 100) {
-                    costPercentage = 100;
-                    // تحديث المبلغ ليتوافق مع 100%
-                    if (amountInput) {
-                        amountInput.value = currentTotalValue.toFixed(2);
-                        amountInput.setCustomValidity('مبلغ الاستثمار يتجاوز القيمة الإجمالية. تم تعديله إلى الحد الأقصى');
-                        amountInput.reportValidity();
-                    }
-                } else {
-                    if (amountInput) {
-                        amountInput.setCustomValidity('');
-                    }
+
+                if (amountInput) {
+                    amountInput.setCustomValidity('');
                 }
-                
+
                 // تحديث النسبة فقط إذا لم يكن المستخدم يكتب فيها
                 if (costPercentageInput && document.activeElement !== costPercentageInput) {
                     costPercentageInput.value = costPercentage.toFixed(2);
@@ -468,14 +451,14 @@
         function updateInvestmentAmountsFromTotalValue() {
             const totalValueInput = document.getElementById('total_value_display');
             if (!totalValueInput) return;
-            
+
             // الحصول على القيمة الإجمالية من الحقل
             const newTotalValue = parseFloat(totalValueInput.value) || 0;
             if (newTotalValue <= 0) return;
-            
+
             // تحديث المتغير العام
             totalValue = newTotalValue;
-            
+
             // تحديث جميع صفوف المستثمرين
             const investorRows = document.querySelectorAll('.investor-row');
             investorRows.forEach((row) => {
@@ -483,7 +466,7 @@
                 if (investorIndex) {
                     const costPercentageInput = row.querySelector('.cost-percentage-input');
                     const costPercentage = parseFloat(costPercentageInput?.value || 0);
-                    
+
                     if (costPercentage > 0) {
                         // حساب المبلغ الجديد بناءً على النسبة
                         const newAmount = (newTotalValue * costPercentage) / 100;
@@ -494,7 +477,7 @@
                     }
                 }
             });
-            
+
             // تحديث النسب المتبقية
             calculateRemainingAdminPercentage();
         }
@@ -503,31 +486,25 @@
         function calculateInvestmentAmountFromPercentage(investorIndex) {
             const row = document.querySelector(`.investor-row[data-investor-index="${investorIndex}"]`);
             if (!row) return;
-            
+
             const amountInput = row.querySelector('.investment-amount-input');
             const costPercentageInput = row.querySelector('.cost-percentage-input');
             const balanceInput = document.getElementById(`available_balance_${investorIndex}`);
-            
+
             // الحصول على القيمة الإجمالية من الحقل
             const totalValueInput = document.getElementById('total_value_display');
             const currentTotalValue = totalValueInput ? (parseFloat(totalValueInput.value) || totalValue) : totalValue;
-            
+
             const costPercentage = parseFloat(costPercentageInput?.value || 0);
-            
+
             if (currentTotalValue > 0 && costPercentage > 0) {
-                // التأكد من ألا تتجاوز النسبة 100%
-                let finalPercentage = Math.min(100, costPercentage);
-                if (finalPercentage !== costPercentage && costPercentageInput) {
-                    costPercentageInput.value = finalPercentage.toFixed(2);
-                }
-                
                 // حساب المبلغ من النسبة
-                let calculatedAmount = (currentTotalValue * finalPercentage) / 100;
-                
+                let calculatedAmount = (currentTotalValue * costPercentage) / 100;
+
                 // التحقق من الرصيد المتاح
                 const balanceText = balanceInput?.value || '';
                 const balance = parseFloat(balanceText.replace(/[^0-9.]/g, '')) || 0;
-                
+
                 // إذا تجاوز المبلغ الرصيد المتاح، قم بتعديله
                 if (calculatedAmount > balance && balance > 0) {
                     calculatedAmount = balance;
@@ -545,7 +522,7 @@
                         amountInput.setCustomValidity('');
                     }
                 }
-                
+
                 // تحديث المبلغ فقط إذا لم يكن المستخدم يكتب فيها
                 if (amountInput && document.activeElement !== amountInput) {
                     amountInput.value = calculatedAmount.toFixed(2);

@@ -301,7 +301,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-2">نسبة التكلفة (%) <span class="text-red-500">*</span></label>
-                            <input type="number" name="investment[investors][${index}][cost_percentage]" step="0.01" min="0" max="100" class="form-input cost-percentage-input" required oninput="calculateInvestmentAmountFromPercentage(${index})">
+                            <input type="number" name="investment[investors][${index}][cost_percentage]" step="0.01" min="0" class="form-input cost-percentage-input" required oninput="calculateInvestmentAmountFromPercentage(${index})">
                             <small class="text-gray-500">نسبة التكلفة من المنتجات التي ستُضاف للمخزن</small>
                         </div>
                         <div>
@@ -368,17 +368,11 @@
             if (amount > balance) {
                 alert(`مبلغ الاستثمار (${amount.toFixed(2)}) يتجاوز الرصيد المتاح (${balance.toFixed(2)})`);
                 amountInput.value = balance.toFixed(2);
-                calculateCostPercentage(index);
+                calculateCostPercentageFromAmount(index);
                 return;
             }
 
-            // التحقق من أن المبلغ لا يتجاوز القيمة الإجمالية (cost_percentage <= 100%)
-            if (totalValue > 0 && amount > totalValue) {
-                alert(`مبلغ الاستثمار (${amount.toFixed(2)}) يتجاوز القيمة الإجمالية للاستثمار (${totalValue.toFixed(2)}). الحد الأقصى المسموح: ${totalValue.toFixed(2)} IQD`);
-                amountInput.value = totalValue.toFixed(2);
-                calculateCostPercentage(index);
-                return;
-            }
+            // تم إزالة التحقق من تجاوز القيمة الإجمالية بناءً على طلب المستخدم
 
             // إعادة حساب نسبة التكلفة بعد التحقق
             calculateCostPercentageFromAmount(index);
@@ -410,19 +404,8 @@
             if (currentTotalValue > 0 && amount > 0) {
                 let costPercentage = (amount / currentTotalValue) * 100;
 
-                // التأكد من ألا تتجاوز النسبة 100%
-                if (costPercentage > 100) {
-                    costPercentage = 100;
-                    // تحديث المبلغ ليتوافق مع 100%
-                    if (amountInput) {
-                        amountInput.value = currentTotalValue.toFixed(2);
-                        amountInput.setCustomValidity('مبلغ الاستثمار يتجاوز القيمة الإجمالية. تم تعديله إلى الحد الأقصى');
-                        amountInput.reportValidity();
-                    }
-                } else {
-                    if (amountInput) {
-                        amountInput.setCustomValidity('');
-                    }
+                if (amountInput) {
+                    amountInput.setCustomValidity('');
                 }
 
                 // تحديث النسبة فقط إذا لم يكن المستخدم يكتب فيها
@@ -492,14 +475,8 @@
             const costPercentage = parseFloat(costPercentageInput?.value || 0);
 
             if (currentTotalValue > 0 && costPercentage > 0) {
-                // التأكد من ألا تتجاوز النسبة 100%
-                let finalPercentage = Math.min(100, costPercentage);
-                if (finalPercentage !== costPercentage && costPercentageInput) {
-                    costPercentageInput.value = finalPercentage.toFixed(2);
-                }
-
                 // حساب المبلغ من النسبة
-                let calculatedAmount = (currentTotalValue * finalPercentage) / 100;
+                let calculatedAmount = (currentTotalValue * costPercentage) / 100;
 
                 // التحقق من الرصيد المتاح
                 const balanceText = balanceInput?.value || '';
