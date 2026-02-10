@@ -132,7 +132,7 @@ class MobileDelegateNotificationController extends Controller
 
             $notifications = $query->paginate($perPage);
 
-            $formattedNotifications = $notifications->map(function($notification) {
+            $formattedNotifications = $notifications->map(function ($notification) {
                 return [
                     'id' => $notification->id,
                     'type' => $notification->type,
@@ -404,7 +404,7 @@ class MobileDelegateNotificationController extends Controller
 
         try {
             $fcmService = app(FirebaseCloudMessagingService::class);
-            
+
             // جلب token من المستخدم
             $token = FcmToken::where('user_id', $user->id)
                 ->where('app_type', 'delegate_mobile')
@@ -431,6 +431,7 @@ class MobileDelegateNotificationController extends Controller
                     'token_id' => $token->id,
                     'token_preview' => substr($token->token, 0, 30) . '...',
                     'device_type' => $token->device_type,
+                    'debug_info' => $result['debug_info'] ?? null,
                 ],
             ]);
         } catch (\Exception $e) {

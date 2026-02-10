@@ -16,9 +16,8 @@ use Kreait\Firebase\Exception\Messaging\InvalidArgument;
 
 class FirebaseCloudMessagingService
 {
-    protected $messaging;
-    protected $delegateVapidKey;
-    protected $delegateSenderId;
+    public $initError = null;
+    public $debugInfo = [];
 
     public function __construct()
     {
@@ -34,11 +33,16 @@ class FirebaseCloudMessagingService
                 $factory = (new Factory)->withServiceAccount($credentialsJson);
                 
                 Log::info('FirebaseCloudMessagingService: Initialized with Base64 credentials');
+                $this->debugInfo['method'] = 'base64';
             } else {
                 // استخدام ملف الـ credentials
                 $credentialsPath = config('services.firebase.credentials');
+                $this->debugInfo['method'] = 'file';
+                $this->debugInfo['path'] = $credentialsPath;
+                $this->debugInfo['file_exists'] = file_exists($credentialsPath);
                 
                 if (!file_exists($credentialsPath)) {
+                    $this->initError = "Credentials file not found at: $credentialsPath";
                     Log::warning('FirebaseCloudMessagingService: Credentials file not found and no Base64 provided', [
                         'path' => $credentialsPath,
                     ]);
@@ -61,12 +65,33 @@ class FirebaseCloudMessagingService
             $this->delegateSenderId = env('FIREBASE_DELEGATE_SENDER_ID', '223597554792');
 
         } catch (\Exception $e) {
+            $this->initError = $e->getMessage();
             Log::error('FirebaseCloudMessagingService: Failed to initialize', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
         }
     }
+
+    // ... (rest of the class) ...
+
+    /**
+     * Test sending notification to a specific token
+     * Useful for debugging and testing
+     */
+    public function testNotification($token, $title = 'Test Notification', $body = 'This is a test notification')
+    {
+        if (!$this->messaging) {
+            Log::warning('FirebaseCloudMessagingService: Messaging not initialized');
+            return [
+                'success' => false,
+                'message' => 'Firebase messaging not initialized: ' . ($this->initError ?? 'Unknown error'),
+                'debug_info' => $this->debugInfo,
+            ];
+        }
+
+        try {
+            // ... (rest of the method)
 
     /**
      * Send notification to a single user
@@ -378,7 +403,8 @@ class FirebaseCloudMessagingService
             Log::warning('FirebaseCloudMessagingService: Messaging not initialized');
             return [
                 'success' => false,
-                'message' => 'Firebase messaging not initialized',
+                'message' => 'Firebase messaging not initialized: ' . ($this->initError ?? 'Unknown error'),
+                'debug_info' => $this->debugInfo,
             ];
         }
 
