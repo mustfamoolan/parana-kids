@@ -27,21 +27,39 @@ class FirebaseCloudMessagingService
     {
         try {
             $projectId = config('services.firebase.project_id');
+            $factory = null;
 
             // محاولة استخدام Base64 أولاً (الأفضل للـ deployment)
             $credentialsBase64 = env('FIREBASE_CREDENTIALS_BASE64');
 
             if ($credentialsBase64) {
-                // استخدام credentials من Base64
-                $credentialsJson = base64_decode($credentialsBase64);
-                $factory = (new Factory)->withServiceAccount($credentialsJson);
+                try {
+                    $this->debugInfo['method_attempt'] = 'base64';
+                    // استخدام credentials من Base64
+                    $credentialsJson = base64_decode($credentialsBase64);
 
-                Log::info('FirebaseCloudMessagingService: Initialized with Base64 credentials');
-                $this->debugInfo['method'] = 'base64';
-            } else {
+                    // التحقق من صحة JSON
+                    if (!json_decode($credentialsJson)) {
+                        throw new \Exception("Invalid JSON in Base64 credentials");
+                    }
+
+                    $factory = (new Factory)->withServiceAccount($credentialsJson);
+
+                    Log::info('FirebaseCloudMessagingService: Initialized with Base64 credentials');
+                    $this->debugInfo['method'] = 'base64';
+                } catch (\Exception $e) {
+                    $this->debugInfo['base64_error'] = $e->getMessage();
+                    Log::warning('FirebaseCloudMessagingService: Failed to use Base64 credentials, falling back to file', [
+                        'error' => $e->getMessage()
+                    ]);
+                    // Fallback to file will happen below since $factory is null
+                }
+            }
+
+            if (!$factory) {
                 // استخدام ملف الـ credentials
                 $credentialsPath = config('services.firebase.credentials');
-                $this->debugInfo['method'] = 'file';
+                $this->debugInfo['method_attempt'] = 'file';
                 $this->debugInfo['path'] = $credentialsPath;
                 $this->debugInfo['file_exists'] = file_exists($credentialsPath);
 
@@ -54,6 +72,7 @@ class FirebaseCloudMessagingService
                 }
 
                 $factory = (new Factory)->withServiceAccount($credentialsPath);
+                $this->debugInfo['method'] = 'file';
 
                 Log::info('FirebaseCloudMessagingService: Initialized with credentials file');
             }
