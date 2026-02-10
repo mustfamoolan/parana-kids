@@ -28,7 +28,12 @@ class MobileDelegateDashboardController extends Controller
         // Construct full image URL if exists
         $floatingBannerImageUrl = null;
         if ($floatingBannerImage && !empty($floatingBannerImage)) {
-            $floatingBannerImageUrl = asset('storage/' . $floatingBannerImage);
+            try {
+                $floatingBannerImageUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($floatingBannerImage);
+            } catch (\Exception $e) {
+                // Fallback to asset() if Storage::url() fails
+                $floatingBannerImageUrl = asset('storage/' . $floatingBannerImage);
+            }
         }
 
         return response()->json([
