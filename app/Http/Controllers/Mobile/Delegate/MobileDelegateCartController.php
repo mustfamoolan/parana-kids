@@ -72,12 +72,12 @@ class MobileDelegateCartController extends Controller
         ]);
 
         try {
-            DB::transaction(function() use ($request, $user) {
+            DB::transaction(function () use ($request, $user) {
                 // حذف أي سلة نشطة قديمة للمندوب (لتجنب التكرار)
                 Cart::where('delegate_id', $user->id)
                     ->where('status', 'active')
                     ->get()
-                    ->each(function($cart) {
+                    ->each(function ($cart) {
                         // إرجاع الحجوزات
                         foreach ($cart->items as $item) {
                             if ($item->stockReservation) {
@@ -240,7 +240,7 @@ class MobileDelegateCartController extends Controller
         $product = Product::findOrFail($request->product_id);
 
         try {
-            DB::transaction(function() use ($cart, $product, $request) {
+            DB::transaction(function () use ($cart, $product, $request) {
                 // معالجة كل عنصر في المصفوفة
                 foreach ($request->items as $item) {
                     $size = ProductSize::findOrFail($item['size_id']);
@@ -375,7 +375,7 @@ class MobileDelegateCartController extends Controller
         }
 
         try {
-            DB::transaction(function() use ($cartItem, $request) {
+            DB::transaction(function () use ($cartItem, $request) {
                 $cartItem->update(['quantity' => $request->quantity]);
 
                 // تحديث الحجز إذا كان موجوداً
@@ -448,7 +448,7 @@ class MobileDelegateCartController extends Controller
         }
 
         try {
-            DB::transaction(function() use ($cartItem) {
+            DB::transaction(function () use ($cartItem) {
                 // حذف الحجز (إرجاع للمخزون)
                 $cartItem->stockReservation()->delete();
 
@@ -506,7 +506,7 @@ class MobileDelegateCartController extends Controller
         ]);
 
         // استخدام lockForUpdate() لمنع التكرار
-        $cart = DB::transaction(function() use ($request, $user) {
+        $cart = DB::transaction(function () use ($request, $user) {
             $cart = Cart::where('id', $request->cart_id)
                 ->where('status', 'active') // فقط السلات النشطة
                 ->lockForUpdate() // قفل السلة لمنع التكرار
@@ -560,7 +560,7 @@ class MobileDelegateCartController extends Controller
 
         try {
             // إنشاء الطلب
-            $order = DB::transaction(function() use ($cart) {
+            $order = DB::transaction(function () use ($cart) {
                 // تحديث حالة السلة أولاً لمنع التكرار
                 $cart->update(['status' => 'completed']);
 
@@ -631,6 +631,17 @@ class MobileDelegateCartController extends Controller
                 ]);
             }
 
+            // إرسال FCM Notification للمندوب (تأكيد استلام الطلب)
+            try {
+                $fcmService = app(\App\Services\FirebaseCloudMessagingService::class);
+                $fcmService->sendOrderNotification($order, 'order_created');
+            } catch (\Exception $e) {
+                Log::error('MobileDelegateCartController: Error sending FCM for order_created', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // إعادة تحميل الطلب مع العلاقات
             $order->refresh();
             $order->load(['items.product.primaryImage', 'items.size', 'alwaseetShipment']);
@@ -671,7 +682,7 @@ class MobileDelegateCartController extends Controller
         }
 
         // تنسيق عناصر السلة
-        $items = $cart->items->map(function($item) {
+        $items = $cart->items->map(function ($item) {
             return [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
@@ -722,7 +733,7 @@ class MobileDelegateCartController extends Controller
         }
 
         // تنسيق عناصر الطلب
-        $items = $order->items->map(function($item) {
+        $items = $order->items->map(function ($item) {
             return [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
