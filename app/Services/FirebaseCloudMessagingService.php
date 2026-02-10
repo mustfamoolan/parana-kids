@@ -63,6 +63,20 @@ class FirebaseCloudMessagingService
                 $this->debugInfo['path'] = $credentialsPath;
                 $this->debugInfo['file_exists'] = file_exists($credentialsPath);
 
+                // إضافة قائمة ملفات التخزين للمساعدة في التصحيح
+                try {
+                    $storagePath = storage_path('app');
+                    $this->debugInfo['storage_app_path'] = $storagePath;
+                    if (is_dir($storagePath)) {
+                        $files = scandir($storagePath);
+                        $this->debugInfo['storage_files'] = array_values(array_filter($files, function ($f) {
+                            return strpos($f, 'firebase') !== false || strpos($f, '.json') !== false;
+                        }));
+                    }
+                } catch (\Exception $e) {
+                    $this->debugInfo['scan_error'] = $e->getMessage();
+                }
+
                 if (!file_exists($credentialsPath)) {
                     $this->initError = "Credentials file not found at: $credentialsPath";
                     Log::warning('FirebaseCloudMessagingService: Credentials file not found and no Base64 provided', [
