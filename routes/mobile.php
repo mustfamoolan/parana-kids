@@ -9,6 +9,7 @@ use App\Http\Controllers\Mobile\Delegate\MobileDelegateChatController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateNotificationController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateProductLinkController;
 use App\Http\Controllers\Mobile\Delegate\MobileDelegateAlWaseetController;
+use App\Http\Controllers\Mobile\Delegate\MobileDelegateDashboardController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAuthController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminAlWaseetController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminOrderController;
@@ -50,7 +51,7 @@ Route::prefix('delegate/orders')->middleware('auth.pwa')->group(function () {
     // مسارات خاصة (يجب أن تكون قبل المسارات العامة)
     Route::post('/initialize', [MobileDelegateCartController::class, 'initialize']);
     Route::post('/submit', [MobileDelegateCartController::class, 'submit']);
-    
+
     // مسارات عامة
     Route::get('/', [MobileDelegateOrderController::class, 'index']);
     Route::get('/{id}', [MobileDelegateOrderController::class, 'show']);
@@ -110,6 +111,11 @@ Route::prefix('delegate/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::get('/orders/{id}', [MobileDelegateAlWaseetController::class, 'getOrderDetails']);
 });
 
+// APIs الداشبورد للمندوب (تحتاج token)
+Route::prefix('delegate/dashboard')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [MobileDelegateDashboardController::class, 'index']);
+});
+
 // APIs المدير/المجهز (تطبيق موبايل المدير والمجهز)
 Route::prefix('admin/auth')->group(function () {
     // تسجيل الدخول (عام - بدون مصادقة)
@@ -134,25 +140,25 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
 Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     // قوائم الفلاتر
     Route::get('/filter-options', [MobileAdminOrderController::class, 'getFilterOptions']);
-    
+
     // قوائم الطلبات
     Route::get('/pending', [MobileAdminOrderController::class, 'getPendingOrders']);
     Route::get('/confirmed', [MobileAdminOrderController::class, 'getConfirmedOrders']);
     Route::get('/', [MobileAdminOrderController::class, 'getOrders']); // Management (موحد)
-    
+
     // تفاصيل وتعديل الطلب
     Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
     Route::get('/{id}/edit', [MobileAdminOrderController::class, 'getOrderEditData']);
     Route::put('/{id}', [MobileAdminOrderController::class, 'updateOrder']);
-    
+
     // تجهيز الطلب
     Route::get('/{id}/process', [MobileAdminOrderController::class, 'getOrderProcessData']);
     Route::post('/{id}/process', [MobileAdminOrderController::class, 'processOrder']);
-    
+
     // المواد المطلوبة
     Route::get('/materials', [MobileAdminOrderController::class, 'getMaterialsList']);
     Route::get('/materials/grouped', [MobileAdminOrderController::class, 'getMaterialsListGrouped']);
-    
+
     // الإرجاعات الجزئية
     Route::get('/partial-returns', [MobileAdminOrderController::class, 'getPartialReturns']);
     Route::get('/{id}/partial-return', [MobileAdminOrderController::class, 'getPartialReturnOrder']);
