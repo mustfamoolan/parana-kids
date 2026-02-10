@@ -23,15 +23,15 @@ class FirebaseCloudMessagingService
     {
         try {
             $projectId = config('services.firebase.project_id');
-            
+
             // محاولة استخدام Base64 أولاً (الأفضل للـ deployment)
             $credentialsBase64 = env('FIREBASE_CREDENTIALS_BASE64');
-            
+
             if ($credentialsBase64) {
                 // استخدام credentials من Base64
                 $credentialsJson = base64_decode($credentialsBase64);
                 $factory = (new Factory)->withServiceAccount($credentialsJson);
-                
+
                 Log::info('FirebaseCloudMessagingService: Initialized with Base64 credentials');
                 $this->debugInfo['method'] = 'base64';
             } else {
@@ -40,7 +40,7 @@ class FirebaseCloudMessagingService
                 $this->debugInfo['method'] = 'file';
                 $this->debugInfo['path'] = $credentialsPath;
                 $this->debugInfo['file_exists'] = file_exists($credentialsPath);
-                
+
                 if (!file_exists($credentialsPath)) {
                     $this->initError = "Credentials file not found at: $credentialsPath";
                     Log::warning('FirebaseCloudMessagingService: Credentials file not found and no Base64 provided', [
@@ -48,9 +48,9 @@ class FirebaseCloudMessagingService
                     ]);
                     return;
                 }
-                
+
                 $factory = (new Factory)->withServiceAccount($credentialsPath);
-                
+
                 Log::info('FirebaseCloudMessagingService: Initialized with credentials file');
             }
 
@@ -73,29 +73,12 @@ class FirebaseCloudMessagingService
         }
     }
 
-    // ... (rest of the class) ...
 
-    /**
-     * Test sending notification to a specific token
-     * Useful for debugging and testing
-     */
-    public function testNotification($token, $title = 'Test Notification', $body = 'This is a test notification')
-    {
-        if (!$this->messaging) {
-            Log::warning('FirebaseCloudMessagingService: Messaging not initialized');
-            return [
-                'success' => false,
-                'message' => 'Firebase messaging not initialized: ' . ($this->initError ?? 'Unknown error'),
-                'debug_info' => $this->debugInfo,
-            ];
-        }
-
-        try {
-            // ... (rest of the method)
 
     /**
      * Send notification to a single user
      */
+
     public function sendToUser($userId, $title, $body, $data = [], $appType = 'delegate_mobile')
     {
         if (!$this->messaging) {
@@ -105,8 +88,8 @@ class FirebaseCloudMessagingService
 
         try {
             $tokens = FcmToken::where('user_id', $userId)
-                ->ofAppType($appType)
-                ->active()
+                ->where('app_type', $appType)
+                ->where('is_active', true)
                 ->pluck('token')
                 ->toArray();
 
@@ -150,8 +133,8 @@ class FirebaseCloudMessagingService
 
         try {
             $tokens = FcmToken::whereIn('user_id', $userIds)
-                ->ofAppType($appType)
-                ->active()
+                ->where('app_type', $appType)
+                ->where('is_active', true)
                 ->pluck('token')
                 ->toArray();
 
@@ -195,7 +178,7 @@ class FirebaseCloudMessagingService
             foreach ($tokens as $token) {
                 try {
                     $notification = FirebaseNotification::create($title, $body);
-                    
+
                     // Android Configuration - High Priority with Sound
                     $androidConfig = AndroidConfig::fromArray([
                         'priority' => 'high',
@@ -227,7 +210,7 @@ class FirebaseCloudMessagingService
                             ],
                         ],
                     ]);
-                    
+
                     $message = CloudMessage::withTarget('token', $token)
                         ->withNotification($notification)
                         ->withData(array_merge([
@@ -239,13 +222,13 @@ class FirebaseCloudMessagingService
                         ->withApnsConfig($apnsConfig);
 
                     $result = $this->messaging->send($message);
-                    
+
                     Log::info('FirebaseCloudMessagingService: Notification sent successfully', [
                         'token' => substr($token, 0, 20) . '...',
                         'message_id' => $result,
                         'title' => $title,
                     ]);
-                    
+
                     $successCount++;
 
                 } catch (InvalidArgument $e) {
@@ -447,14 +430,14 @@ class FirebaseCloudMessagingService
     public function getUserTokens($userId, $appType = 'delegate_mobile')
     {
         $tokens = FcmToken::where('user_id', $userId)
-            ->ofAppType($appType)
+            ->where('app_type', $appType)
             ->get();
 
         return [
             'user_id' => $userId,
             'total_tokens' => $tokens->count(),
             'active_tokens' => $tokens->where('is_active', true)->count(),
-            'tokens' => $tokens->map(function($token) {
+            'tokens' => $tokens->map(function ($token) {
                 return [
                     'id' => $token->id,
                     'device_type' => $token->device_type,
