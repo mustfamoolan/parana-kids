@@ -284,12 +284,14 @@ class FirebaseCloudMessagingService
 
                 } catch (InvalidArgument $e) {
                     // Token غير صالح - تعطيله
+                    $this->debugInfo['last_send_error'] = $e->getMessage();
                     Log::warning('FirebaseCloudMessagingService: Invalid token', [
                         'token' => substr($token, 0, 20) . '...',
                         'error' => $e->getMessage(),
                     ]);
                     $invalidTokens[] = $token;
                 } catch (\Exception $e) {
+                    $this->debugInfo['last_send_error'] = $e->getMessage();
                     Log::error('FirebaseCloudMessagingService: Failed to send to token', [
                         'token' => substr($token, 0, 20) . '...',
                         'error' => $e->getMessage(),
@@ -455,11 +457,13 @@ class FirebaseCloudMessagingService
                     'success' => true,
                     'message' => 'Test notification sent successfully',
                     'tokens_sent' => $result,
+                    'debug_info' => $this->debugInfo,
                 ];
             } else {
                 return [
                     'success' => false,
-                    'message' => 'Failed to send test notification',
+                    'message' => 'Failed to send test notification. Check server logs for details.',
+                    'debug_info' => $this->debugInfo,
                 ];
             }
         } catch (\Exception $e) {
