@@ -65,13 +65,17 @@ class FirebaseCloudMessagingService
 
                 // إضافة قائمة ملفات التخزين للمساعدة في التصحيح
                 try {
+                    // فحص storage/
+                    $rootStorage = storage_path();
+                    if (is_dir($rootStorage)) {
+                        $this->debugInfo['storage_root_files'] = array_values(array_diff(scandir($rootStorage), ['.', '..']));
+                    }
+
+                    // فحص storage/app/
                     $storagePath = storage_path('app');
                     $this->debugInfo['storage_app_path'] = $storagePath;
                     if (is_dir($storagePath)) {
-                        $files = scandir($storagePath);
-                        $this->debugInfo['storage_files'] = array_values(array_filter($files, function ($f) {
-                            return strpos($f, 'firebase') !== false || strpos($f, '.json') !== false;
-                        }));
+                        $this->debugInfo['storage_app_files'] = array_values(array_diff(scandir($storagePath), ['.', '..']));
                     }
                 } catch (\Exception $e) {
                     $this->debugInfo['scan_error'] = $e->getMessage();
