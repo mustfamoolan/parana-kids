@@ -16,6 +16,10 @@ use Kreait\Firebase\Exception\Messaging\InvalidArgument;
 
 class FirebaseCloudMessagingService
 {
+    protected $messaging;
+    protected $delegateVapidKey;
+    protected $delegateSenderId;
+
     public $initError = null;
     public $debugInfo = [];
 
