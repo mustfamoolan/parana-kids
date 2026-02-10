@@ -332,6 +332,7 @@ class FirebaseCloudMessagingService
                 'order_created' => 'طلب جديد',
                 'order_confirmed' => 'تم تقييد الطلب',
                 'order_deleted' => 'تم حذف الطلب',
+                'order_updated' => 'تعديل على الطلب',
             ];
 
             $title = $titles[$type] ?? 'إشعار طلب';

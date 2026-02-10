@@ -77,7 +77,7 @@ class MobileDelegateOrderController extends Controller
             $orders = $query->latest('deleted_at')->paginate($perPage);
 
             // تنسيق البيانات للإرجاع
-            $formattedOrders = $orders->map(function($order) {
+            $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderListItem($order);
             });
 
@@ -110,21 +110,21 @@ class MobileDelegateOrderController extends Controller
                 }
 
                 // فلتر الحالة: نشطة (pending/confirmed) أو محذوفة (soft deleted)
-                $query->where(function($q) use ($searchTerm, $phoneSearchTerm) {
+                $query->where(function ($q) use ($searchTerm, $phoneSearchTerm) {
                     // الطلبات النشطة (pending أو confirmed) - غير محذوفة
-                    $q->where(function($subQ) use ($searchTerm, $phoneSearchTerm) {
+                    $q->where(function ($subQ) use ($searchTerm, $phoneSearchTerm) {
                         $subQ->whereNull('deleted_at')
-                             ->whereIn('status', ['pending', 'confirmed']);
+                            ->whereIn('status', ['pending', 'confirmed']);
 
                         // تطبيق البحث على الطلبات النشطة
                         if ($searchTerm && !empty($searchTerm)) {
                             $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm);
                         }
-                    })->orWhere(function($subQ) use ($searchTerm, $phoneSearchTerm) {
+                    })->orWhere(function ($subQ) use ($searchTerm, $phoneSearchTerm) {
                         // الطلبات المحذوفة التي حذفها المجهز/المدير (soft deleted)
                         $subQ->whereNotNull('deleted_at')
-                             ->whereNotNull('deleted_by')
-                             ->whereNotNull('deletion_reason');
+                            ->whereNotNull('deleted_by')
+                            ->whereNotNull('deletion_reason');
 
                         // تطبيق البحث على الطلبات المحذوفة
                         if ($searchTerm && !empty($searchTerm)) {
@@ -135,48 +135,48 @@ class MobileDelegateOrderController extends Controller
 
                 // تطبيق فلاتر التاريخ
                 if ($request->filled('date_from')) {
-                    $query->where(function($q) use ($request) {
-                        $q->where(function($subQ) use ($request) {
+                    $query->where(function ($q) use ($request) {
+                        $q->where(function ($subQ) use ($request) {
                             $subQ->whereNull('deleted_at')
-                                 ->whereDate('created_at', '>=', $request->date_from);
-                        })->orWhere(function($subQ) use ($request) {
+                                ->whereDate('created_at', '>=', $request->date_from);
+                        })->orWhere(function ($subQ) use ($request) {
                             $subQ->whereNotNull('deleted_at')
-                                 ->whereDate('deleted_at', '>=', $request->date_from);
+                                ->whereDate('deleted_at', '>=', $request->date_from);
                         });
                     });
                 }
                 if ($request->filled('date_to')) {
-                    $query->where(function($q) use ($request) {
-                        $q->where(function($subQ) use ($request) {
+                    $query->where(function ($q) use ($request) {
+                        $q->where(function ($subQ) use ($request) {
                             $subQ->whereNull('deleted_at')
-                                 ->whereDate('created_at', '<=', $request->date_to);
-                        })->orWhere(function($subQ) use ($request) {
+                                ->whereDate('created_at', '<=', $request->date_to);
+                        })->orWhere(function ($subQ) use ($request) {
                             $subQ->whereNotNull('deleted_at')
-                                 ->whereDate('deleted_at', '<=', $request->date_to);
+                                ->whereDate('deleted_at', '<=', $request->date_to);
                         });
                     });
                 }
                 if ($request->filled('time_from')) {
                     $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $query->where(function($q) use ($dateFrom, $request) {
-                        $q->where(function($subQ) use ($dateFrom, $request) {
+                    $query->where(function ($q) use ($dateFrom, $request) {
+                        $q->where(function ($subQ) use ($dateFrom, $request) {
                             $subQ->whereNull('deleted_at')
-                                 ->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-                        })->orWhere(function($subQ) use ($dateFrom, $request) {
+                                ->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                        })->orWhere(function ($subQ) use ($dateFrom, $request) {
                             $subQ->whereNotNull('deleted_at')
-                                 ->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                                ->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
                         });
                     });
                 }
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $query->where(function($q) use ($dateTo, $request) {
-                        $q->where(function($subQ) use ($dateTo, $request) {
+                    $query->where(function ($q) use ($dateTo, $request) {
+                        $q->where(function ($subQ) use ($dateTo, $request) {
                             $subQ->whereNull('deleted_at')
-                                 ->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-                        })->orWhere(function($subQ) use ($dateTo, $request) {
+                                ->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                        })->orWhere(function ($subQ) use ($dateTo, $request) {
                             $subQ->whereNotNull('deleted_at')
-                                 ->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                                ->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
                         });
                     });
                 }
@@ -187,10 +187,10 @@ class MobileDelegateOrderController extends Controller
                 // ترتيب مختلط: للطلبات المحذوفة deleted_at، للباقي created_at
                 $perPage = min($request->input('per_page', 15), 100);
                 $orders = $query->orderByRaw('CASE WHEN deleted_at IS NOT NULL THEN deleted_at ELSE created_at END DESC')
-                               ->paginate($perPage);
+                    ->paginate($perPage);
 
                 // تنسيق البيانات للإرجاع
-                $formattedOrders = $orders->map(function($order) {
+                $formattedOrders = $orders->map(function ($order) {
                     return $this->formatOrderListItem($order);
                 });
 
@@ -248,7 +248,7 @@ class MobileDelegateOrderController extends Controller
             $orders = $query->latest()->paginate($perPage);
 
             // تنسيق البيانات للإرجاع
-            $formattedOrders = $orders->map(function($order) {
+            $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderListItem($order);
             });
 
@@ -287,14 +287,14 @@ class MobileDelegateOrderController extends Controller
 
         // جلب الطلب مع العلاقات (بما في ذلك المحذوفة)
         $order = Order::withTrashed()
-                     ->with([
-                         'items.product.primaryImage',
-                         'items.size',
-                         'alwaseetShipment',
-                         'deletedByUser'
-                     ])
-                     ->where('id', $id)
-                     ->first();
+            ->with([
+                'items.product.primaryImage',
+                'items.size',
+                'alwaseetShipment',
+                'deletedByUser'
+            ])
+            ->where('id', $id)
+            ->first();
 
         if (!$order) {
             return response()->json([
@@ -367,7 +367,7 @@ class MobileDelegateOrderController extends Controller
         }
 
         // تنسيق عناصر الطلب
-        $items = $order->items->map(function($item) {
+        $items = $order->items->map(function ($item) {
             return [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
@@ -494,17 +494,17 @@ class MobileDelegateOrderController extends Controller
     private function applyExactSearch($query, $searchTerm, $phoneSearchTerm = null, $includeDeletedFields = false)
     {
         // البحث في جميع الحقول (مطابقة دقيقة)
-        $query->where(function($q) use ($searchTerm, $phoneSearchTerm, $includeDeletedFields) {
+        $query->where(function ($q) use ($searchTerm, $phoneSearchTerm, $includeDeletedFields) {
             $q->where('order_number', '=', $searchTerm)
-              ->orWhere('customer_name', '=', $searchTerm)
-              ->orWhere('customer_phone', '=', $phoneSearchTerm ?: $searchTerm)
-              ->orWhere('customer_social_link', '=', $searchTerm)
-              ->orWhere('customer_address', '=', $searchTerm)
-              ->orWhere(function($subQ) use ($searchTerm) {
-                  $subQ->whereNotNull('delivery_code')
-                       ->where('delivery_code', $searchTerm);
-              })
-              ->orWhere('notes', '=', $searchTerm);
+                ->orWhere('customer_name', '=', $searchTerm)
+                ->orWhere('customer_phone', '=', $phoneSearchTerm ?: $searchTerm)
+                ->orWhere('customer_social_link', '=', $searchTerm)
+                ->orWhere('customer_address', '=', $searchTerm)
+                ->orWhere(function ($subQ) use ($searchTerm) {
+                    $subQ->whereNotNull('delivery_code')
+                        ->where('delivery_code', $searchTerm);
+                })
+                ->orWhere('notes', '=', $searchTerm);
 
             // إضافة البحث في deletion_reason للطلبات المحذوفة
             if ($includeDeletedFields) {
@@ -512,10 +512,10 @@ class MobileDelegateOrderController extends Controller
             }
 
             // البحث في عناصر الطلب (product_name, product_code, size_name)
-            $q->orWhereHas('items', function($itemQuery) use ($searchTerm) {
+            $q->orWhereHas('items', function ($itemQuery) use ($searchTerm) {
                 $itemQuery->where('product_name', '=', $searchTerm)
-                         ->orWhere('product_code', '=', $searchTerm)
-                         ->orWhere('size_name', '=', $searchTerm);
+                    ->orWhere('product_code', '=', $searchTerm)
+                    ->orWhere('size_name', '=', $searchTerm);
             });
         });
     }
@@ -607,7 +607,7 @@ class MobileDelegateOrderController extends Controller
         ]);
 
         try {
-            DB::transaction(function() use ($request, $order, $user) {
+            DB::transaction(function () use ($request, $order, $user) {
                 // تحميل العناصر القديمة
                 $oldItems = $order->items()->get();
 
@@ -665,6 +665,17 @@ class MobileDelegateOrderController extends Controller
                 // تحديث المبلغ الإجمالي
                 $order->update(['total_amount' => $totalAmount]);
             });
+
+            // إرسال إشعار التعديل
+            try {
+                $sweetAlertService = app(SweetAlertService::class);
+                $sweetAlertService->notifyOrderUpdated($order, $user);
+            } catch (\Exception $e) {
+                Log::error('MobileDelegateOrderController: Error sending SweetAlert for order_updated', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // إعادة تحميل الطلب مع العلاقات
             $order->refresh();
@@ -748,7 +759,7 @@ class MobileDelegateOrderController extends Controller
         ]);
 
         try {
-            DB::transaction(function() use ($order, $request, $user) {
+            DB::transaction(function () use ($order, $request, $user) {
                 // تحميل العلاقات المطلوبة
                 $order->load('items.size', 'items.product');
 
@@ -877,7 +888,7 @@ class MobileDelegateOrderController extends Controller
                 ], 400);
             }
 
-            DB::transaction(function() use ($order, $user) {
+            DB::transaction(function () use ($order, $user) {
                 // خصم المنتجات من المخزن
                 foreach ($order->items as $item) {
                     if ($item->size) {
@@ -906,6 +917,17 @@ class MobileDelegateOrderController extends Controller
                 $order->deletion_reason = null;
                 $order->save();
             });
+
+            // إشعار بالاسترجاع (كأنه طلب جديد)
+            try {
+                $sweetAlertService = app(SweetAlertService::class);
+                $sweetAlertService->notifyOrderCreated($order);
+            } catch (\Exception $e) {
+                Log::error('MobileDelegateOrderController: Error sending SweetAlert for order_restored', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // إعادة تحميل الطلب مع العلاقات
             $order->refresh();

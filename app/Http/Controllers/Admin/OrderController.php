@@ -53,7 +53,7 @@ class OrderController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
@@ -63,31 +63,31 @@ class OrderController extends Controller
             // عرض فقط الطلبات المحذوفة التي حذفها المدير/المجهز (لها deleted_by و deletion_reason)
             // لا نعرض الطلبات المحذوفة من المندوب لأنها حذف نهائي
             $query->onlyTrashed()
-                  ->whereNotNull('deleted_by')
-                  ->whereNotNull('deletion_reason')
-                  ->with(['deletedByUser']);
+                ->whereNotNull('deleted_by')
+                ->whereNotNull('deletion_reason')
+                ->with(['deletedByUser']);
         } elseif ($request->filled('status') && in_array($request->status, ['pending', 'confirmed'])) {
             $query->where('status', $request->status);
         } else {
             // افتراضياً: عرض pending و confirmed مع المحذوفة (الكل)
             // نستخدم withTrashed() ليشمل الطلبات المحذوفة أيضاً
-            $query->withTrashed()->where(function($q) {
+            $query->withTrashed()->where(function ($q) {
                 // الطلبات النشطة (pending أو confirmed) - غير محذوفة
-                $q->where(function($subQ) {
+                $q->where(function ($subQ) {
                     $subQ->whereNull('deleted_at')
-                         ->whereIn('status', ['pending', 'confirmed']);
-                })->orWhere(function($subQ) {
+                        ->whereIn('status', ['pending', 'confirmed']);
+                })->orWhere(function ($subQ) {
                     // الطلبات المحذوفة التي حذفها المدير/المجهز (soft deleted)
                     $subQ->whereNotNull('deleted_at')
-                         ->whereNotNull('deleted_by')
-                         ->whereNotNull('deletion_reason');
+                        ->whereNotNull('deleted_by')
+                        ->whereNotNull('deletion_reason');
                 });
             });
         }
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -115,16 +115,16 @@ class OrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -179,13 +179,13 @@ class OrderController extends Controller
         // ترتيب الطلبات: للطلبات المحذوفة استخدم deleted_at، وإلا استخدم created_at
         if ($request->status === 'deleted') {
             $orders = $query->latest('deleted_at')
-                       ->paginate($perPage)
-                       ->appends($request->except('page'));
+                ->paginate($perPage)
+                ->appends($request->except('page'));
         } else {
             // ترتيب مختلط: للطلبات المحذوفة deleted_at، للباقي created_at
             $orders = $query->orderByRaw('CASE WHEN deleted_at IS NOT NULL THEN deleted_at ELSE created_at END DESC')
-                           ->paginate($perPage)
-                           ->appends($request->except('page'));
+                ->paginate($perPage)
+                ->appends($request->except('page'));
         }
 
         // حساب المبالغ الإجمالية والأرباح للمدير فقط
@@ -201,17 +201,17 @@ class OrderController extends Controller
             }
 
             // دالة مساعدة لتطبيق نفس الفلاتر
-            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+            $applyFilters = function ($query) use ($request, $accessibleWarehouseIdsForTotal) {
                 // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
                 if ($accessibleWarehouseIdsForTotal !== null) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIdsForTotal) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
                     });
                 }
 
                 // فلتر المخزن
                 if ($request->filled('warehouse_id')) {
-                    $query->whereHas('items.product', function($q) use ($request) {
+                    $query->whereHas('items.product', function ($q) use ($request) {
                         $q->where('warehouse_id', $request->warehouse_id);
                     });
                 }
@@ -219,16 +219,16 @@ class OrderController extends Controller
                 // البحث في الطلبات
                 if ($request->filled('search')) {
                     $searchTerm = $request->search;
-                    $query->where(function($q) use ($searchTerm) {
+                    $query->where(function ($q) use ($searchTerm) {
                         $q->where('order_number', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                          });
+                            ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                            ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                            ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                                $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                            });
                     });
                 }
 
@@ -335,14 +335,14 @@ class OrderController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -370,16 +370,16 @@ class OrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -416,8 +416,8 @@ class OrderController extends Controller
 
         // ترتيب الطلبات
         $orders = $query->latest('created_at')
-                   ->paginate($perPage)
-                   ->appends($request->except('page'));
+            ->paginate($perPage)
+            ->appends($request->except('page'));
 
         // حساب المبالغ الإجمالية والأرباح للمدير فقط
         $pendingTotalAmount = 0;
@@ -432,31 +432,31 @@ class OrderController extends Controller
             }
 
             // دالة مساعدة لتطبيق نفس الفلاتر
-            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+            $applyFilters = function ($query) use ($request, $accessibleWarehouseIdsForTotal) {
                 if ($accessibleWarehouseIdsForTotal !== null) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIdsForTotal) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
                     });
                 }
 
                 if ($request->filled('warehouse_id')) {
-                    $query->whereHas('items.product', function($q) use ($request) {
+                    $query->whereHas('items.product', function ($q) use ($request) {
                         $q->where('warehouse_id', $request->warehouse_id);
                     });
                 }
 
                 if ($request->filled('search')) {
                     $searchTerm = $request->search;
-                    $query->where(function($q) use ($searchTerm) {
+                    $query->where(function ($q) use ($searchTerm) {
                         $q->where('order_number', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                          });
+                            ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                            ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                            ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                                $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                            });
                     });
                 }
 
@@ -479,7 +479,7 @@ class OrderController extends Controller
                 }
 
                 if ($request->filled('hours_ago')) {
-                    $hoursAgo = (int)$request->hours_ago;
+                    $hoursAgo = (int) $request->hours_ago;
                     if ($hoursAgo > 0) {
                         $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
                     }
@@ -553,14 +553,14 @@ class OrderController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -578,16 +578,16 @@ class OrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -613,7 +613,7 @@ class OrderController extends Controller
 
         // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة) - تطبيق على تاريخ التقيد
         if ($request->filled('hours_ago')) {
-            $hoursAgo = (int)$request->hours_ago;
+            $hoursAgo = (int) $request->hours_ago;
             if ($hoursAgo > 0) {
                 $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
             }
@@ -626,8 +626,8 @@ class OrderController extends Controller
 
         // ترتيب الطلبات
         $orders = $query->latest('confirmed_at')
-                   ->paginate($perPage)
-                   ->appends($request->except('page'));
+            ->paginate($perPage)
+            ->appends($request->except('page'));
 
         // حساب المبالغ الإجمالية والأرباح للمدير فقط
         $pendingTotalAmount = 0;
@@ -642,31 +642,31 @@ class OrderController extends Controller
             }
 
             // دالة مساعدة لتطبيق نفس الفلاتر
-            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+            $applyFilters = function ($query) use ($request, $accessibleWarehouseIdsForTotal) {
                 if ($accessibleWarehouseIdsForTotal !== null) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIdsForTotal) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
                     });
                 }
 
                 if ($request->filled('warehouse_id')) {
-                    $query->whereHas('items.product', function($q) use ($request) {
+                    $query->whereHas('items.product', function ($q) use ($request) {
                         $q->where('warehouse_id', $request->warehouse_id);
                     });
                 }
 
                 if ($request->filled('search')) {
                     $searchTerm = $request->search;
-                    $query->where(function($q) use ($searchTerm) {
+                    $query->where(function ($q) use ($searchTerm) {
                         $q->where('order_number', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                          });
+                            ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                            ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                            ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                                $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                            });
                     });
                 }
 
@@ -689,7 +689,7 @@ class OrderController extends Controller
                 }
 
                 if ($request->filled('hours_ago')) {
-                    $hoursAgo = (int)$request->hours_ago;
+                    $hoursAgo = (int) $request->hours_ago;
                     if ($hoursAgo > 0) {
                         $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
                     }
@@ -823,7 +823,7 @@ class OrderController extends Controller
         // فلتر الصلاحيات
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
@@ -833,8 +833,8 @@ class OrderController extends Controller
             if ($request->status === 'deleted') {
                 // عرض فقط الطلبات المحذوفة التي حذفها المدير/المجهز
                 $query->onlyTrashed()
-                      ->whereNotNull('deleted_by')
-                      ->whereNotNull('deletion_reason');
+                    ->whereNotNull('deleted_by')
+                    ->whereNotNull('deletion_reason');
             } else {
                 $query->where('status', $request->status);
             }
@@ -844,7 +844,7 @@ class OrderController extends Controller
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -872,20 +872,20 @@ class OrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -917,8 +917,9 @@ class OrderController extends Controller
 
         // فلترة items حسب المخزن والصلاحيات
         foreach ($orders as $order) {
-            $order->items = $order->items->filter(function($item) use ($request) {
-                if (!$item->product) return false;
+            $order->items = $order->items->filter(function ($item) use ($request) {
+                if (!$item->product)
+                    return false;
 
                 // فلتر المخزن: عرض فقط منتجات المخزن المحدد
                 if ($request->filled('warehouse_id')) {
@@ -940,7 +941,7 @@ class OrderController extends Controller
         }
 
         // إزالة الطلبات التي لا تحتوي على items بعد الفلترة
-        $orders = $orders->filter(function($order) {
+        $orders = $orders->filter(function ($order) {
             return $order->items->count() > 0;
         });
 
@@ -960,7 +961,7 @@ class OrderController extends Controller
         // فلتر الصلاحيات
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
@@ -970,8 +971,8 @@ class OrderController extends Controller
             if ($request->status === 'deleted') {
                 // عرض فقط الطلبات المحذوفة التي حذفها المدير/المجهز
                 $query->onlyTrashed()
-                      ->whereNotNull('deleted_by')
-                      ->whereNotNull('deletion_reason');
+                    ->whereNotNull('deleted_by')
+                    ->whereNotNull('deletion_reason');
             } else {
                 $query->where('status', $request->status);
             }
@@ -981,7 +982,7 @@ class OrderController extends Controller
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -1009,20 +1010,20 @@ class OrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -1056,7 +1057,8 @@ class OrderController extends Controller
         $materialsGrouped = [];
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
-                if (!$item->product) continue;
+                if (!$item->product)
+                    continue;
 
                 // فلتر المخزن: عرض فقط منتجات المخزن المحدد
                 if ($request->filled('warehouse_id')) {
@@ -1135,7 +1137,7 @@ class OrderController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
@@ -1174,14 +1176,14 @@ class OrderController extends Controller
         // التحقق من أن الطلب غير مقيد
         if ($order->status !== 'pending') {
             return redirect()->route('admin.orders.show', $order)
-                            ->withErrors(['order' => 'لا يمكن تجهيز الطلبات المقيدة']);
+                ->withErrors(['order' => 'لا يمكن تجهيز الطلبات المقيدة']);
         }
 
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+            $hasAccessibleItem = $order->items()->whereHas('product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
 
@@ -1197,10 +1199,13 @@ class OrderController extends Controller
         // جلب المنتجات المتوفرة للمخازن التي يمكن للمستخدم الوصول إليها
         $warehouses = $this->getAccessibleWarehouses();
         $products = Product::whereIn('warehouse_id', $warehouses->pluck('id'))
-                          ->with(['primaryImage', 'sizes' => function($q) {
-                              $q->where('quantity', '>', 0);
-                          }])
-                          ->get();
+            ->with([
+                'primaryImage',
+                'sizes' => function ($q) {
+                    $q->where('quantity', '>', 0);
+                }
+            ])
+            ->get();
 
         return view('admin.orders.process', compact('order', 'products'));
     }
@@ -1214,7 +1219,7 @@ class OrderController extends Controller
 
         if ($order->status !== 'pending') {
             return redirect()->route('admin.orders.show', $order)
-                            ->withErrors(['order' => 'لا يمكن تجهيز الطلبات المقيدة']);
+                ->withErrors(['order' => 'لا يمكن تجهيز الطلبات المقيدة']);
         }
 
         $request->validate([
@@ -1227,7 +1232,7 @@ class OrderController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        DB::transaction(function() use ($order, $request) {
+        DB::transaction(function () use ($order, $request) {
             // حفظ القيم الحالية من الإعدادات وقت التقييد
             $deliveryFee = \App\Models\Setting::getDeliveryFee();
             $profitMargin = \App\Models\Setting::getProfitMargin();
@@ -1291,7 +1296,7 @@ class OrderController extends Controller
         if ($request->has('redirect_to_materials') && $request->input('redirect_to_materials') == '1') {
             $status = $request->input('status', 'pending');
             return redirect()->route('admin.orders.materials.management', ['status' => $status])
-                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+                ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
         }
 
         $backRoute = $request->input('back_route');
@@ -1303,7 +1308,7 @@ class OrderController extends Controller
                 $params = [];
             }
             return redirect()->route($backRoute, $params)
-                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+                ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
         }
 
         // إذا لم يكن back_route موجوداً، نستخدم back_url القديم (للتوافق مع الصفحات الأخرى)
@@ -1324,11 +1329,11 @@ class OrderController extends Controller
 
         if ($backUrl) {
             return redirect($backUrl)
-                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+                ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
         }
 
         return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
-                        ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
+            ->with('success', 'تم تجهيز وتقييد الطلب بنجاح');
     }
 
     /**
@@ -1380,7 +1385,7 @@ class OrderController extends Controller
                 'name' => $product->name,
                 'code' => $product->code,
                 'image_url' => $product->primaryImage ? $product->primaryImage->image_url : '/assets/images/no-image.png',
-                'sizes' => $product->sizes->map(function($size) {
+                'sizes' => $product->sizes->map(function ($size) {
                     return [
                         'id' => $size->id,
                         'size_name' => $size->size_name,
@@ -1424,7 +1429,7 @@ class OrderController extends Controller
         ]);
 
         try {
-            DB::transaction(function() use ($product, $request) {
+            DB::transaction(function () use ($product, $request) {
                 $productSizeIds = $product->sizes->pluck('id')->toArray();
                 $existingSizes = $product->sizes->keyBy('id');
                 $sizesToKeep = [];
@@ -1521,7 +1526,7 @@ class OrderController extends Controller
                 'message' => 'تم تحديث القياسات بنجاح',
                 'product' => [
                     'id' => $product->id,
-                    'sizes' => $product->sizes->map(function($size) {
+                    'sizes' => $product->sizes->map(function ($size) {
                         return [
                             'id' => $size->id,
                             'size_name' => $size->size_name,
@@ -1572,8 +1577,18 @@ class OrderController extends Controller
             'confirmed_by' => auth()->id(),
         ]);
 
+        // إرسال إشعار التقييد للمندوب
+        try {
+            $this->sweetAlertService->notifyOrderConfirmed($order);
+        } catch (\Exception $e) {
+            \Log::error('OrderController: Error sending SweetAlert for order_confirmed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
-                        ->with('success', 'تم تقييد الطلب بنجاح');
+            ->with('success', 'تم تقييد الطلب بنجاح');
     }
 
 
@@ -1593,7 +1608,7 @@ class OrderController extends Controller
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+            $hasAccessibleItem = $order->items()->whereHas('product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
 
@@ -1654,7 +1669,7 @@ class OrderController extends Controller
         ]);
 
         try {
-            DB::transaction(function() use ($request, $order) {
+            DB::transaction(function () use ($request, $order) {
                 // تحميل العناصر القديمة مع العلاقات
                 $oldItems = $order->items()->with(['size', 'product'])->get();
 
@@ -1680,7 +1695,8 @@ class OrderController extends Controller
 
                     // معالجة العناصر القديمة
                     foreach ($oldItemsMap as $key => $oldItem) {
-                        if (!$oldItem->size) continue;
+                        if (!$oldItem->size)
+                            continue;
 
                         // البحث عن العنصر في الطلب الجديد
                         $foundNewItem = null;
@@ -1861,6 +1877,16 @@ class OrderController extends Controller
                 $order->update(['total_amount' => $totalAmount]);
             });
 
+            // إرسال إشعار التعديل
+            try {
+                $this->sweetAlertService->notifyOrderUpdated($order, Auth::user());
+            } catch (\Exception $e) {
+                \Log::error('OrderController: Error sending SweetAlert for order_updated', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // التحقق من وجود back_route أولاً (الأفضل - يعمل على أي بيئة)
             $backRoute = $request->input('back_route');
             $backParams = $request->input('back_params');
@@ -1871,7 +1897,7 @@ class OrderController extends Controller
                     $params = [];
                 }
                 return redirect()->route($backRoute, $params)
-                            ->with('success', 'تم تحديث الطلب بنجاح');
+                    ->with('success', 'تم تحديث الطلب بنجاح');
             }
 
             // إذا لم يكن back_route موجوداً، نستخدم back_url القديم (للتوافق مع الصفحات الأخرى)
@@ -1887,11 +1913,11 @@ class OrderController extends Controller
 
             if ($backUrl) {
                 return redirect($backUrl)
-                            ->with('success', 'تم تحديث الطلب بنجاح');
+                    ->with('success', 'تم تحديث الطلب بنجاح');
             }
 
             return redirect()->route('admin.orders.management')
-                            ->with('success', 'تم تحديث الطلب بنجاح');
+                ->with('success', 'تم تحديث الطلب بنجاح');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'حدث خطأ أثناء تحديث الطلب: ' . $e->getMessage()])->withInput();
         }
@@ -1907,7 +1933,7 @@ class OrderController extends Controller
         try {
             $orderItem = $order->items()->findOrFail($itemId);
 
-            DB::transaction(function() use ($order, $orderItem) {
+            DB::transaction(function () use ($order, $orderItem) {
                 // إرجاع المنتج للمخزن
                 if ($orderItem->size) {
                     $oldQuantity = $orderItem->size->quantity;
@@ -1982,7 +2008,7 @@ class OrderController extends Controller
         ]);
 
         try {
-            $returnData = collect($request->return_items)->map(function($item) use ($request) {
+            $returnData = collect($request->return_items)->map(function ($item) use ($request) {
                 $item['notes'] = $request->notes;
                 return $item;
             })->toArray();
@@ -1990,7 +2016,7 @@ class OrderController extends Controller
             $order->processReturn($returnData, auth()->id());
 
             return redirect()->route('admin.orders.returned')
-                            ->with('success', 'تم إرجاع المنتجات بنجاح');
+                ->with('success', 'تم إرجاع المنتجات بنجاح');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
@@ -2010,7 +2036,7 @@ class OrderController extends Controller
         $order->load(['items.product.primaryImage', 'items.size']);
 
         // تحضير المنتجات مع الصور بشكل صحيح
-        $products = Product::with(['sizes', 'primaryImage'])->get()->map(function($product) {
+        $products = Product::with(['sizes', 'primaryImage'])->get()->map(function ($product) {
             return [
                 'id' => $product->id,
                 'name' => $product->name,
@@ -2046,7 +2072,7 @@ class OrderController extends Controller
             $order->processExchange($request->exchanges, auth()->id());
 
             return redirect()->route('admin.orders.exchanged')
-                            ->with('success', 'تم استبدال المنتجات بنجاح');
+                ->with('success', 'تم استبدال المنتجات بنجاح');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
@@ -2074,7 +2100,7 @@ class OrderController extends Controller
             $order->cancel($request->cancellation_reason, auth()->id());
 
             return redirect()->route('admin.orders.cancelled')
-                            ->with('success', 'تم إلغاء الطلب بنجاح');
+                ->with('success', 'تم إلغاء الطلب بنجاح');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
@@ -2093,7 +2119,7 @@ class OrderController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
@@ -2101,15 +2127,15 @@ class OrderController extends Controller
         // فلاتر البحث
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('cancellation_reason', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('cancellation_reason', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -2153,8 +2179,8 @@ class OrderController extends Controller
         }
 
         $orders = $query->with(['delegate', 'processedBy', 'items.product.primaryImage'])
-                       ->latest('cancelled_at')
-                       ->paginate(15);
+            ->latest('cancelled_at')
+            ->paginate(15);
 
         return view('admin.orders.cancelled', compact('orders'));
     }
@@ -2176,7 +2202,7 @@ class OrderController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
@@ -2184,14 +2210,14 @@ class OrderController extends Controller
         // فلاتر البحث
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -2235,8 +2261,8 @@ class OrderController extends Controller
         }
 
         $orders = $query->with(['delegate', 'processedBy', 'items.product.primaryImage', 'exchangeItems'])
-                       ->latest('exchanged_at')
-                       ->paginate(15);
+            ->latest('exchanged_at')
+            ->paginate(15);
 
         return view('admin.orders.exchanged', compact('orders'));
     }
@@ -2277,11 +2303,11 @@ class OrderController extends Controller
 
         if ($order->status !== 'confirmed') {
             return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
-                            ->withErrors(['error' => 'لا يمكن استرجاع هذا الطلب']);
+                ->withErrors(['error' => 'لا يمكن استرجاع هذا الطلب']);
         }
 
         try {
-            DB::transaction(function() use ($order) {
+            DB::transaction(function () use ($order) {
                 // تحميل العلاقات المطلوبة
                 $order->load('items.size');
 
@@ -2314,10 +2340,10 @@ class OrderController extends Controller
             });
 
             return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
-                            ->with('success', 'تم استرجاع الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
+                ->with('success', 'تم استرجاع الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
         } catch (\Exception $e) {
             return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
-                            ->withErrors(['error' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'حدث خطأ أثناء استرجاع الطلب: ' . $e->getMessage()]);
         }
     }
 
@@ -2331,7 +2357,7 @@ class OrderController extends Controller
         // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
         if (!in_array($order->status, ['pending', 'confirmed'])) {
             return redirect()->back()
-                            ->withErrors(['error' => 'لا يمكن حذف هذا الطلب']);
+                ->withErrors(['error' => 'لا يمكن حذف هذا الطلب']);
         }
 
         // التحقق من وجود سبب الحذف
@@ -2344,7 +2370,7 @@ class OrderController extends Controller
         ]);
 
         try {
-            DB::transaction(function() use ($order, $request) {
+            DB::transaction(function () use ($order, $request) {
                 // تحميل العلاقات المطلوبة
                 $order->load('items.size');
 
@@ -2385,10 +2411,10 @@ class OrderController extends Controller
             });
 
             return redirect()->route('admin.orders.management', ['status' => 'deleted'])
-                            ->with('success', 'تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
+                ->with('success', 'تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن');
         } catch (\Exception $e) {
             return redirect()->back()
-                            ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage()]);
         }
     }
 
@@ -2402,13 +2428,13 @@ class OrderController extends Controller
         try {
             // جلب الطلب مع soft deleted (لأن Route Model Binding لا يعمل بشكل صحيح مع soft deleted في بعض الحالات)
             // $order قد يكون ID (string) من الـ route
-            $orderId = is_numeric($order) ? (int)$order : ($order instanceof Order ? $order->id : $order);
+            $orderId = is_numeric($order) ? (int) $order : ($order instanceof Order ? $order->id : $order);
             $order = Order::withTrashed()->findOrFail($orderId);
 
             // التأكد من أن الطلب محذوف (soft deleted)
             if (!$order->trashed()) {
                 return redirect()->back()
-                            ->withErrors(['error' => 'يمكن حذف الطلبات المحذوفة فقط نهائياً']);
+                    ->withErrors(['error' => 'يمكن حذف الطلبات المحذوفة فقط نهائياً']);
             }
 
             $this->authorize('forceDelete', $order);
@@ -2423,10 +2449,10 @@ class OrderController extends Controller
             });
 
             return redirect()->route('admin.orders.management', ['status' => 'deleted'])
-                            ->with('success', 'تم حذف الطلب نهائياً بنجاح');
+                ->with('success', 'تم حذف الطلب نهائياً بنجاح');
         } catch (\Exception $e) {
             return redirect()->back()
-                            ->withErrors(['error' => 'حدث خطأ أثناء الحذف النهائي: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'حدث خطأ أثناء الحذف النهائي: ' . $e->getMessage()]);
         }
     }
 
@@ -2487,7 +2513,7 @@ class OrderController extends Controller
     {
         $query = Order::where('status', 'confirmed')
             // إخفاء الطلبات التي تم إرجاع جميع منتجاتها (لا تحتوي على منتجات قابلة للإرجاع)
-            ->whereHas('items', function($itemsQuery) {
+            ->whereHas('items', function ($itemsQuery) {
                 $itemsQuery->where('quantity', '>', 0);
             });
 
@@ -2504,20 +2530,20 @@ class OrderController extends Controller
         // البحث الذكي (مطابقة تامة)
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', '=', $searchTerm)
-                  ->orWhere('customer_name', '=', $searchTerm)
-                  ->orWhere('customer_phone', '=', $searchTerm)
-                  ->orWhere('customer_social_link', '=', $searchTerm)
-                  ->orWhere('customer_address', '=', $searchTerm)
-                  ->orWhere('delivery_code', '=', $searchTerm)
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', '=', $searchTerm)
-                                    ->orWhere('code', '=', $searchTerm);
-                  })
-                  ->orWhereHas('confirmedBy', function($confirmedQuery) use ($searchTerm) {
-                      $confirmedQuery->where('name', '=', $searchTerm);
-                  });
+                    ->orWhere('customer_name', '=', $searchTerm)
+                    ->orWhere('customer_phone', '=', $searchTerm)
+                    ->orWhere('customer_social_link', '=', $searchTerm)
+                    ->orWhere('customer_address', '=', $searchTerm)
+                    ->orWhere('delivery_code', '=', $searchTerm)
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', '=', $searchTerm)
+                            ->orWhere('code', '=', $searchTerm);
+                    })
+                    ->orWhereHas('confirmedBy', function ($confirmedQuery) use ($searchTerm) {
+                        $confirmedQuery->where('name', '=', $searchTerm);
+                    });
             });
         }
 
@@ -2536,8 +2562,8 @@ class OrderController extends Controller
         $query->with(['delegate', 'items.product.primaryImage', 'confirmedBy']);
 
         $orders = $query->latest('created_at')
-                        ->paginate($perPage)
-                        ->appends($request->except('page'));
+            ->paginate($perPage)
+            ->appends($request->except('page'));
 
         // جلب البيانات للفلترة
         $delegates = User::where('role', 'delegate')->orderBy('name')->get();
@@ -2555,7 +2581,7 @@ class OrderController extends Controller
 
         if ($order->status !== 'confirmed') {
             return redirect()->route('admin.orders.partial-returns.index')
-                            ->withErrors(['error' => 'لا يمكن إرجاع منتجات من طلب غير مقيد']);
+                ->withErrors(['error' => 'لا يمكن إرجاع منتجات من طلب غير مقيد']);
         }
 
         $order->load(['items.product.primaryImage', 'items.size', 'items.returnItems']);
@@ -2614,7 +2640,7 @@ class OrderController extends Controller
         }
 
         try {
-            DB::transaction(function() use ($validated, $order, $request) {
+            DB::transaction(function () use ($validated, $order, $request) {
                 $totalAmountReduction = 0;
 
                 foreach ($validated['return_items'] as $index => $returnItem) {
@@ -2645,8 +2671,8 @@ class OrderController extends Controller
                     // 2. إذا لم يتم العثور على القياس وكان size_name موجوداً، ابحث بالاسم
                     if (!$size && $orderItem->size_name) {
                         $size = ProductSize::where('product_id', $orderItem->product_id)
-                                          ->where('size_name', $orderItem->size_name)
-                                          ->first();
+                            ->where('size_name', $orderItem->size_name)
+                            ->first();
 
                         if ($size) {
                             // تحديث order_item بـ size_id الصحيح
@@ -2778,19 +2804,19 @@ class OrderController extends Controller
             if ($returnToTrack) {
                 if ($allItemsReturned && $order->trashed()) {
                     return redirect()->route('admin.alwaseet.track-orders', ['api_status_id' => $returnToTrack])
-                                    ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
+                        ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
                 }
                 return redirect()->route('admin.alwaseet.track-orders', ['api_status_id' => $returnToTrack])
-                                ->with('success', 'تم إرجاع المنتجات بنجاح');
+                    ->with('success', 'تم إرجاع المنتجات بنجاح');
             }
 
             if ($allItemsReturned && $order->trashed()) {
                 return redirect()->route('admin.orders.partial-returns.index')
-                                ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
+                    ->with('success', 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً');
             }
 
             return redirect()->route('admin.orders.partial-returns.index')
-                            ->with('success', 'تم إرجاع المنتجات بنجاح');
+                ->with('success', 'تم إرجاع المنتجات بنجاح');
         } catch (\Exception $e) {
             \Log::error('Partial Return Exception', [
                 'order_id' => $order->id,

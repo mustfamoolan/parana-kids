@@ -159,7 +159,7 @@ class SweetAlertService
 
         // جلب المجهزين (suppliers) الذين لديهم صلاحية على نفس المخزن
         $supplierIds = User::whereIn('role', ['admin', 'supplier'])
-            ->whereHas('warehouses', function($q) use ($warehouseIds) {
+            ->whereHas('warehouses', function ($q) use ($warehouseIds) {
                 $q->whereIn('warehouses.id', $warehouseIds);
             })
             ->pluck('id')
@@ -209,7 +209,7 @@ class SweetAlertService
                 ->get();
 
             foreach ($recipients as $recipient) {
-                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $order) {
+                $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
                     $telegramService->sendOrderNotification($chatId, $order);
                 });
             }
@@ -258,7 +258,7 @@ class SweetAlertService
 
         // جلب المجهزين (suppliers) الذين لديهم صلاحية على نفس المخزن
         $supplierIds = User::whereIn('role', ['admin', 'supplier'])
-            ->whereHas('warehouses', function($q) use ($warehouseIds) {
+            ->whereHas('warehouses', function ($q) use ($warehouseIds) {
                 $q->whereIn('warehouses.id', $warehouseIds);
             })
             ->pluck('id')
@@ -267,6 +267,13 @@ class SweetAlertService
         // إضافة المديرين دائماً
         $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
         $recipientIds = array_unique(array_merge($supplierIds, $adminIds));
+
+        // إضافة المندوب الذي أنشأ الطلب
+        if ($order->delegate_id) {
+            $recipientIds[] = $order->delegate_id;
+        }
+
+        $recipientIds = array_unique($recipientIds);
 
         if (empty($recipientIds)) {
             return;
@@ -308,7 +315,7 @@ class SweetAlertService
                 ->get();
 
             foreach ($recipients as $recipient) {
-                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $order) {
+                $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
                     $telegramService->sendOrderRestrictedNotification($chatId, $order);
                 });
             }
@@ -356,7 +363,7 @@ class SweetAlertService
         // إضافة المجهزين (نفس المخزن)
         if (!empty($warehouseIds)) {
             $supplierIds = User::whereIn('role', ['admin', 'supplier'])
-                ->whereHas('warehouses', function($q) use ($warehouseIds) {
+                ->whereHas('warehouses', function ($q) use ($warehouseIds) {
                     $q->whereIn('warehouses.id', $warehouseIds);
                 })
                 ->pluck('id')
@@ -368,18 +375,9 @@ class SweetAlertService
         $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
         $recipientIds = array_merge($recipientIds, $adminIds);
 
-        // إضافة المندوب (نفس المخزن)
+        // إضافة المندوب (حتى لو لم يكن لديه صلاحية مخزن، يجب إخباره بحذف طلبه)
         if ($order->delegate_id) {
-            $delegate = User::find($order->delegate_id);
-            if ($delegate && !empty($warehouseIds)) {
-                // التحقق من أن المندوب لديه صلاحية على نفس المخزن
-                $hasAccess = $delegate->warehouses()
-                    ->whereIn('warehouses.id', $warehouseIds)
-                    ->exists();
-                if ($hasAccess) {
-                    $recipientIds[] = $order->delegate_id;
-                }
-            }
+            $recipientIds[] = $order->delegate_id;
         }
 
         $recipientIds = array_unique($recipientIds);
@@ -424,7 +422,7 @@ class SweetAlertService
                 ->get();
 
             foreach ($recipients as $recipient) {
-                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $order) {
+                $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
                     $telegramService->sendOrderDeletedNotification($chatId, $order);
                 });
             }
@@ -500,6 +498,95 @@ class SweetAlertService
         } catch (\Exception $e) {
             Log::error('SweetAlertService: Failed to send FCM notification for message', [
                 'recipient_id' => $recipientId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Create alert for order updated
+     * إشعار للمندوب أو المدير/المجهز حسب من قام بالتعديل
+     */
+    public function notifyOrderUpdated(Order $order, User $updatedBy)
+    {
+        $recipientIds = [];
+
+        // إذا قام المندوب بالتعديل، نخطر المديرين والمجهزين
+        if ($updatedBy->isDelegate()) {
+            $warehouseIds = $order->items()
+                ->with('product')
+                ->get()
+                ->pluck('product.warehouse_id')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            if (!empty($warehouseIds)) {
+                $supplierIds = User::whereIn('role', ['admin', 'supplier'])
+                    ->whereHas('warehouses', function ($q) use ($warehouseIds) {
+                        $q->whereIn('warehouses.id', $warehouseIds);
+                    })
+                    ->pluck('id')
+                    ->toArray();
+                $recipientIds = array_merge($recipientIds, $supplierIds);
+            }
+
+            $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+            $recipientIds = array_unique(array_merge($recipientIds, $adminIds));
+        } else {
+            // إذا قام المدير أو المجهز بالتعديل، نخطر المندوب
+            if ($order->delegate_id) {
+                $recipientIds[] = $order->delegate_id;
+            }
+        }
+
+        $recipientIds = array_unique($recipientIds);
+
+        if (empty($recipientIds)) {
+            return;
+        }
+
+        $title = 'تعديل على الطلب';
+        $message = "تم تعديل الطلب من قبل {$updatedBy->name}: {$order->order_number}";
+        $data = [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+        ];
+
+        // إرسال SweetAlert
+        $this->createForUsers($recipientIds, 'order_updated', $title, $message, 'info', $data);
+
+        // حفظ إشعار في جدول notifications
+        foreach ($recipientIds as $recipientId) {
+            try {
+                Notification::create([
+                    'user_id' => $recipientId,
+                    'type' => 'order_updated',
+                    'title' => $title,
+                    'message' => $message,
+                    'data' => $data,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SweetAlertService: Failed to create notification record for order update', [
+                    'user_id' => $recipientId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // إرسال إشعار Firebase للمندوبين في القائمة
+        try {
+            $fcmService = app(FirebaseCloudMessagingService::class);
+            $delegates = User::whereIn('id', $recipientIds)
+                ->where('role', 'delegate')
+                ->get();
+
+            foreach ($delegates as $delegate) {
+                $fcmService->sendOrderNotification($order, 'order_updated');
+            }
+        } catch (\Exception $e) {
+            Log::error('SweetAlertService: Failed to send FCM notifications for order update', [
+                'order_id' => $order->id,
                 'error' => $e->getMessage(),
             ]);
         }
