@@ -44,7 +44,7 @@ class MobileDelegateChatController extends Controller
         $conversations = $user->conversations()
             ->with(['latestMessage.user', 'participants'])
             ->get()
-            ->map(function($conversation) use ($user) {
+            ->map(function ($conversation) use ($user) {
                 $otherParticipant = $conversation->getOtherParticipant($user->id);
                 $unreadCount = $conversation->unreadCount($user->id);
 
@@ -53,9 +53,9 @@ class MobileDelegateChatController extends Controller
                         'id' => $conversation->id,
                         'type' => 'group',
                         'userId' => null,
-                        'name' => $conversation->title,
+                        'name' => $conversation->title ?? 'مجموعة',
                         'code' => null,
-                        'path' => 'group-icon.svg',
+                        'path' => null,
                         'preview' => $conversation->latestMessage ? substr($conversation->latestMessage->message, 0, 50) : '',
                         'time' => $conversation->updated_at->format('g:i A'),
                         'active' => true,
@@ -124,14 +124,14 @@ class MobileDelegateChatController extends Controller
         }
 
         // البحث عن محادثة موجودة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })
-        ->whereHas('participants', function($q) use ($otherUserId) {
-            $q->where('user_id', $otherUserId);
-        })
-        ->where('type', 'direct')
-        ->first();
+            ->whereHas('participants', function ($q) use ($otherUserId) {
+                $q->where('user_id', $otherUserId);
+            })
+            ->where('type', 'direct')
+            ->first();
 
         // إنشاء محادثة جديدة إذا لم تكن موجودة
         if (!$conversation) {
@@ -188,7 +188,7 @@ class MobileDelegateChatController extends Controller
         $conversationId = $request->input('conversation_id');
 
         // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -210,7 +210,7 @@ class MobileDelegateChatController extends Controller
             ->with(['user', 'order.delegate', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
             ->orderBy('created_at', 'asc')
             ->get()
-            ->map(function($message) use ($user, $otherParticipant, $conversation) {
+            ->map(function ($message) use ($user, $otherParticipant, $conversation) {
                 $data = [
                     'id' => $message->id,
                     'fromUserId' => $message->user_id,
@@ -250,7 +250,7 @@ class MobileDelegateChatController extends Controller
                         'gender_type' => $product->gender_type,
                         'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
                         'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                        'sizes' => $product->sizes->map(function($size) {
+                        'sizes' => $product->sizes->map(function ($size) {
                             $reserved = $size->reservations()->sum('quantity_reserved');
                             return [
                                 'id' => $size->id,
@@ -322,7 +322,7 @@ class MobileDelegateChatController extends Controller
 
         try {
             // التحقق من أن المستخدم مشارك في المحادثة
-            $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+            $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
             })->findOrFail($conversationId);
 
@@ -527,7 +527,7 @@ class MobileDelegateChatController extends Controller
 
         $conversationId = $request->input('conversation_id');
 
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -570,30 +570,30 @@ class MobileDelegateChatController extends Controller
         $ordersQuery = Order::query();
 
         // البحث في رقم الطلب، رقم الهاتف، الرابط، أو كود الوسيط
-        $ordersQuery->where(function($q) use ($query) {
+        $ordersQuery->where(function ($q) use ($query) {
             $q->where('order_number', 'like', "%{$query}%")
-              ->orWhere('customer_phone', 'like', "%{$query}%")
-              ->orWhere('customer_social_link', 'like', "%{$query}%")
-              ->orWhere('delivery_code', 'like', "%{$query}%");
+                ->orWhere('customer_phone', 'like', "%{$query}%")
+                ->orWhere('customer_social_link', 'like', "%{$query}%")
+                ->orWhere('delivery_code', 'like', "%{$query}%");
         });
 
         $orders = $ordersQuery->with(['delegate', 'items.product.warehouse'])
-                             ->orderBy('created_at', 'desc')
-                             ->limit(10)
-                             ->get()
-                             ->map(function($order) {
-                                 return [
-                                     'id' => $order->id,
-                                     'order_number' => $order->order_number,
-                                     'customer_name' => $order->customer_name,
-                                     'customer_phone' => $order->customer_phone,
-                                     'customer_social_link' => $order->customer_social_link,
-                                     'total_amount' => (float) $order->total_amount,
-                                     'status' => $order->status,
-                                     'delegate_name' => $order->delegate ? $order->delegate->name : null,
-                                     'created_at' => $order->created_at->format('Y-m-d H:i'),
-                                 ];
-                             });
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone,
+                    'customer_social_link' => $order->customer_social_link,
+                    'total_amount' => (float) $order->total_amount,
+                    'status' => $order->status,
+                    'delegate_name' => $order->delegate ? $order->delegate->name : null,
+                    'created_at' => $order->created_at->format('Y-m-d H:i'),
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -631,7 +631,7 @@ class MobileDelegateChatController extends Controller
         $orderId = $request->input('order_id');
 
         // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -706,36 +706,36 @@ class MobileDelegateChatController extends Controller
         $productsQuery = Product::query();
 
         // البحث في اسم المنتج أو الكود
-        $productsQuery->where(function($q) use ($query) {
+        $productsQuery->where(function ($q) use ($query) {
             $q->where('name', 'like', "%{$query}%")
-              ->orWhere('code', 'like', "%{$query}%");
+                ->orWhere('code', 'like', "%{$query}%");
         });
 
         $products = $productsQuery->with(['primaryImage', 'warehouse', 'sizes.reservations'])
-                                 ->where('is_hidden', false)
-                                 ->orderBy('created_at', 'desc')
-                                 ->limit(10)
-                                 ->get()
-                                 ->map(function($product) {
-                                     return [
-                                         'id' => $product->id,
-                                         'name' => $product->name,
-                                         'code' => $product->code,
-                                         'selling_price' => (float) $product->selling_price,
-                                         'gender_type' => $product->gender_type,
-                                         'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
-                                         'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                                         'sizes' => $product->sizes->map(function($size) {
-                                             $reserved = $size->reservations()->sum('quantity_reserved');
-                                             return [
-                                                 'id' => $size->id,
-                                                 'size_name' => $size->size_name,
-                                                 'quantity' => (int) $size->quantity,
-                                                 'available_quantity' => (int) ($size->quantity - $reserved),
-                                             ];
-                                         }),
-                                     ];
-                                 });
+            ->where('is_hidden', false)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'code' => $product->code,
+                    'selling_price' => (float) $product->selling_price,
+                    'gender_type' => $product->gender_type,
+                    'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
+                    'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
+                    'sizes' => $product->sizes->map(function ($size) {
+                        $reserved = $size->reservations()->sum('quantity_reserved');
+                        return [
+                            'id' => $size->id,
+                            'size_name' => $size->size_name,
+                            'quantity' => (int) $size->quantity,
+                            'available_quantity' => (int) ($size->quantity - $reserved),
+                        ];
+                    }),
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -773,7 +773,7 @@ class MobileDelegateChatController extends Controller
         $productId = $request->input('product_id');
 
         // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -812,7 +812,7 @@ class MobileDelegateChatController extends Controller
                     'gender_type' => $product->gender_type,
                     'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
                     'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                    'sizes' => $product->sizes->map(function($size) {
+                    'sizes' => $product->sizes->map(function ($size) {
                         $reserved = $size->reservations()->sum('quantity_reserved');
                         return [
                             'id' => $size->id,
