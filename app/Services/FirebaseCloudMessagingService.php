@@ -236,7 +236,7 @@ class FirebaseCloudMessagingService
                         'notification' => [
                             'sound' => 'default',
                             'channel_id' => 'high_importance_channel',
-                            'priority' => 'high',
+                            // 'priority' is not part of android.notification in v1 API
                             'default_sound' => true,
                             'default_vibrate_timings' => true,
                             'visibility' => 'public',
