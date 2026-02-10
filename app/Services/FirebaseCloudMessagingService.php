@@ -82,11 +82,21 @@ class FirebaseCloudMessagingService
                 }
 
                 if (!file_exists($credentialsPath)) {
-                    $this->initError = "Credentials file not found at: $credentialsPath";
-                    Log::warning('FirebaseCloudMessagingService: Credentials file not found and no Base64 provided', [
-                        'path' => $credentialsPath,
-                    ]);
-                    return;
+                    // محاولة أخيرة في مجلد public/app كما فعل المستخدم
+                    $publicPath = public_path('app/paranakids-b743f-firebase-adminsdk-fbsvc-4e1340d3ce.json');
+                    $this->debugInfo['public_path_attempt'] = $publicPath;
+                    $this->debugInfo['public_file_exists'] = file_exists($publicPath);
+
+                    if (file_exists($publicPath)) {
+                        $credentialsPath = $publicPath;
+                    } else {
+                        $this->initError = "Credentials file not found at: $credentialsPath or $publicPath";
+                        Log::warning('FirebaseCloudMessagingService: Credentials file not found everywhere', [
+                            'config_path' => $credentialsPath,
+                            'public_path' => $publicPath,
+                        ]);
+                        return;
+                    }
                 }
 
                 $factory = (new Factory)->withServiceAccount($credentialsPath);
