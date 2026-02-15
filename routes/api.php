@@ -87,12 +87,6 @@ Route::middleware('auth.pwa')->group(function () {
     // جلب المنتجات للمندوب
     Route::get('/delegate/products', [DelegateProductApiController::class, 'index']);
 
-    // Admin Orders API
-    Route::prefix('admin')->group(function () {
-        Route::get('/orders', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'index']);
-        Route::get('/orders/filters', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'getFilters']);
-    });
-
     // Materials API (Raw & Grouped)
     Route::get('/materials/raw', [MaterialApiController::class, 'index']);
     Route::get('/materials/grouped', [MaterialApiController::class, 'grouped']);

@@ -144,7 +144,8 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     // قوائم الطلبات
     Route::get('/pending', [MobileAdminOrderController::class, 'getPendingOrders']);
     Route::get('/confirmed', [MobileAdminOrderController::class, 'getConfirmedOrders']);
-    Route::get('/', [MobileAdminOrderController::class, 'getOrders']); // Management (موحد)
+    Route::get('/', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'index']); // New unified API
+    Route::get('/filters', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'getFilters']); // New filters API
 
     // تفاصيل وتعديل الطلب
     Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
