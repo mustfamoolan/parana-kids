@@ -56,6 +56,8 @@ class Order extends Model
         'is_partial_exchange' => 'boolean',
     ];
 
+    protected $appends = ['deleted_by_user'];
+
     protected static function boot()
     {
         parent::boot();
@@ -70,7 +72,7 @@ class Order extends Model
             if ($lastOrder) {
                 // استخراج الرقم الأخير وزيادته
                 preg_match('/ORD-\d{8}-(\d{4})/', $lastOrder->order_number, $matches);
-                $lastNumber = isset($matches[1]) ? (int)$matches[1] : 0;
+                $lastNumber = isset($matches[1]) ? (int) $matches[1] : 0;
                 $newNumber = $lastNumber + 1;
             } else {
                 // أول طلب في هذا اليوم
@@ -192,7 +194,7 @@ class Order extends Model
     // دالة الإلغاء الكلي
     public function cancel($reason, $userId)
     {
-        DB::transaction(function() use ($reason, $userId) {
+        DB::transaction(function () use ($reason, $userId) {
             // إرجاع جميع المنتجات للمخزن
             foreach ($this->items as $item) {
                 if ($item->size) {
@@ -212,7 +214,7 @@ class Order extends Model
     // دالة الإرجاع (كلي أو جزئي)
     public function processReturn($returnData, $userId)
     {
-        DB::transaction(function() use ($returnData, $userId) {
+        DB::transaction(function () use ($returnData, $userId) {
             $isPartialReturn = count($returnData) < $this->items->count();
 
             foreach ($returnData as $returnItem) {
@@ -244,7 +246,7 @@ class Order extends Model
     // دالة الاستبدال (كلي أو جزئي)
     public function processExchange($exchangeData, $userId)
     {
-        DB::transaction(function() use ($exchangeData, $userId) {
+        DB::transaction(function () use ($exchangeData, $userId) {
             $isPartialExchange = count($exchangeData) < $this->items->count();
 
             foreach ($exchangeData as $exchange) {
@@ -314,4 +316,16 @@ class Order extends Model
             'confirmed' => 'badge-outline-success',
         ][$this->message_confirmed] ?? 'badge-outline-secondary';
     }
+
+    public function getDeletedByUserAttribute()
+    {
+        if ($this->deleted_by && $this->deletedByUser) {
+            return [
+                'id' => $this->deletedByUser->id,
+                'name' => $this->deletedByUser->name,
+            ];
+        }
+        return null;
+    }
 }
+
