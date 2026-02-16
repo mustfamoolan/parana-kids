@@ -67,13 +67,13 @@ class MobileAdminOrderController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'warehouses' => $warehouses->map(function($warehouse) {
+                    'warehouses' => $warehouses->map(function ($warehouse) {
                         return [
                             'id' => $warehouse->id,
                             'name' => $warehouse->name,
                         ];
                     }),
-                    'suppliers' => $suppliers->map(function($supplier) {
+                    'suppliers' => $suppliers->map(function ($supplier) {
                         return [
                             'id' => $supplier->id,
                             'name' => $supplier->name,
@@ -82,7 +82,7 @@ class MobileAdminOrderController extends Controller
                             'role_text' => $supplier->role === 'admin' ? 'مدير' : 'مجهز',
                         ];
                     }),
-                    'delegates' => $delegates->map(function($delegate) {
+                    'delegates' => $delegates->map(function ($delegate) {
                         return [
                             'id' => $delegate->id,
                             'name' => $delegate->name,
@@ -90,7 +90,7 @@ class MobileAdminOrderController extends Controller
                             'role' => $delegate->role,
                         ];
                     }),
-                    'order_creators' => $orderCreators->map(function($creator) {
+                    'order_creators' => $orderCreators->map(function ($creator) {
                         return [
                             'id' => $creator->id,
                             'name' => $creator->name,
@@ -143,7 +143,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -173,7 +173,7 @@ class MobileAdminOrderController extends Controller
             }
 
             // تنسيق البيانات
-            $formattedOrders = $orders->map(function($order) {
+            $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderListItem($order);
             });
 
@@ -231,7 +231,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -262,7 +262,7 @@ class MobileAdminOrderController extends Controller
             }
 
             // تنسيق البيانات
-            $formattedOrders = $orders->map(function($order) {
+            $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderListItem($order);
             });
 
@@ -320,7 +320,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -331,9 +331,9 @@ class MobileAdminOrderController extends Controller
             // فلتر الحالة
             if ($request->status === 'deleted') {
                 $query->onlyTrashed()
-                      ->whereNotNull('deleted_by')
-                      ->whereNotNull('deletion_reason')
-                      ->with(['deletedByUser']);
+                    ->whereNotNull('deleted_by')
+                    ->whereNotNull('deletion_reason')
+                    ->with(['deletedByUser']);
             } elseif ($request->filled('status') && in_array($request->status, ['pending', 'confirmed'])) {
                 $query->where('status', $request->status);
             } else {
@@ -358,7 +358,7 @@ class MobileAdminOrderController extends Controller
             $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
             // تنسيق البيانات
-            $formattedOrders = $orders->map(function($order) {
+            $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderListItem($order);
             });
 
@@ -415,7 +415,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -503,7 +503,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -549,7 +549,7 @@ class MobileAdminOrderController extends Controller
 
             // تنسيق البيانات
             $formattedOrder = $this->formatOrderDetails($order);
-            $formattedProducts = $products->map(function($product) {
+            $formattedProducts = $products->map(function ($product) {
                 return [
                     'id' => $product->id,
                     'name' => $product->name,
@@ -562,7 +562,7 @@ class MobileAdminOrderController extends Controller
                         'name' => $product->warehouse->name,
                     ] : null,
                     'primary_image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                    'sizes' => $product->sizes->map(function($size) {
+                    'sizes' => $product->sizes->map(function ($size) {
                         return [
                             'id' => $size->id,
                             'size_name' => $size->size_name,
@@ -637,7 +637,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -664,7 +664,7 @@ class MobileAdminOrderController extends Controller
                 ], 400);
             }
 
-            DB::transaction(function() use ($request, $order, $user) {
+            DB::transaction(function () use ($request, $order, $user) {
                 // تحميل العناصر القديمة مع العلاقات
                 $oldItems = $order->items()->with(['size', 'product'])->get();
 
@@ -690,7 +690,8 @@ class MobileAdminOrderController extends Controller
 
                     // معالجة العناصر القديمة
                     foreach ($oldItemsMap as $key => $oldItem) {
-                        if (!$oldItem->size) continue;
+                        if (!$oldItem->size)
+                            continue;
 
                         // البحث عن العنصر في الطلب الجديد
                         $foundNewItem = null;
@@ -789,65 +790,65 @@ class MobileAdminOrderController extends Controller
                     }
                 }
 
-                    // حذف العناصر القديمة وإعادة إنشائها
-                    $order->items()->delete();
+                // حذف العناصر القديمة وإعادة إنشائها
+                $order->items()->delete();
 
-                    // إنشاء العناصر الجديدة
-                    $totalAmount = 0;
-                    foreach ($request->items as $itemData) {
-                        $product = Product::findOrFail($itemData['product_id']);
-                        $subtotal = $product->selling_price * $itemData['quantity'];
-                        $totalAmount += $subtotal;
+                // إنشاء العناصر الجديدة
+                $totalAmount = 0;
+                foreach ($request->items as $itemData) {
+                    $product = Product::findOrFail($itemData['product_id']);
+                    $subtotal = $product->selling_price * $itemData['quantity'];
+                    $totalAmount += $subtotal;
 
-                        OrderItem::create([
-                            'order_id' => $order->id,
-                            'product_id' => $itemData['product_id'],
-                            'size_id' => $itemData['size_id'],
-                            'size_name' => ProductSize::find($itemData['size_id'])->size_name ?? null,
-                            'quantity' => $itemData['quantity'],
-                            'unit_price' => $product->selling_price,
-                            'subtotal' => $subtotal,
-                            'product_name' => $product->name,
-                            'product_code' => $product->code,
-                        ]);
-                    }
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $itemData['product_id'],
+                        'size_id' => $itemData['size_id'],
+                        'size_name' => ProductSize::find($itemData['size_id'])->size_name ?? null,
+                        'quantity' => $itemData['quantity'],
+                        'unit_price' => $product->selling_price,
+                        'subtotal' => $subtotal,
+                        'product_name' => $product->name,
+                        'product_code' => $product->code,
+                    ]);
+                }
 
-                    // تحديث المبلغ الإجمالي
-                    $order->update(['total_amount' => $totalAmount]);
-                });
+                // تحديث المبلغ الإجمالي
+                $order->update(['total_amount' => $totalAmount]);
+            });
 
-                // إعادة تحميل الطلب
-                $order->refresh();
-                $order->load([
-                    'delegate',
-                    'items.product.primaryImage',
-                    'items.product.warehouse',
-                    'items.size',
-                    'confirmedBy',
-                ]);
+            // إعادة تحميل الطلب
+            $order->refresh();
+            $order->load([
+                'delegate',
+                'items.product.primaryImage',
+                'items.product.warehouse',
+                'items.size',
+                'confirmedBy',
+            ]);
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'تم تعديل الطلب بنجاح',
-                    'data' => [
-                        'order' => $this->formatOrderDetails($order),
-                    ],
-                ]);
-            } catch (\Exception $e) {
-                Log::error('MobileAdminOrderController: Failed to update order', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                    'order_id' => $id,
-                    'user_id' => $user->id,
-                ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تعديل الطلب بنجاح',
+                'data' => [
+                    'order' => $this->formatOrderDetails($order),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to update order', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'order_id' => $id,
+                'user_id' => $user->id,
+            ]);
 
-                return response()->json([
-                    'success' => false,
-                    'message' => $e->getMessage() ?: 'حدث خطأ أثناء تعديل الطلب',
-                    'error_code' => 'UPDATE_ERROR',
-                ], 500);
-            }
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage() ?: 'حدث خطأ أثناء تعديل الطلب',
+                'error_code' => 'UPDATE_ERROR',
+            ], 500);
         }
+    }
 
     /**
      * جلب قائمة الطلبات المقيدة للإرجاع الجزئي
@@ -871,14 +872,14 @@ class MobileAdminOrderController extends Controller
         try {
             $query = Order::where('status', 'confirmed')
                 // إخفاء الطلبات التي تم إرجاع جميع منتجاتها (لا تحتوي على منتجات قابلة للإرجاع)
-                ->whereHas('items', function($itemsQuery) {
+                ->whereHas('items', function ($itemsQuery) {
                     $itemsQuery->where('quantity', '>', 0);
                 });
 
             // تطبيق فلاتر الصلاحيات
             $warehouses = $this->getAccessibleWarehouses();
             if ($warehouses->isNotEmpty()) {
-                $query->whereHas('items.product', function($q) use ($warehouses) {
+                $query->whereHas('items.product', function ($q) use ($warehouses) {
                     $q->whereIn('warehouse_id', $warehouses->pluck('id'));
                 });
             }
@@ -896,20 +897,20 @@ class MobileAdminOrderController extends Controller
             // البحث الذكي (مطابقة تامة)
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
-                $query->where(function($q) use ($searchTerm) {
+                $query->where(function ($q) use ($searchTerm) {
                     $q->where('order_number', '=', $searchTerm)
-                      ->orWhere('customer_name', '=', $searchTerm)
-                      ->orWhere('customer_phone', '=', $searchTerm)
-                      ->orWhere('customer_social_link', '=', $searchTerm)
-                      ->orWhere('customer_address', '=', $searchTerm)
-                      ->orWhere('delivery_code', '=', $searchTerm)
-                      ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                          $delegateQuery->where('name', '=', $searchTerm)
-                                        ->orWhere('code', '=', $searchTerm);
-                      })
-                      ->orWhereHas('confirmedBy', function($confirmedQuery) use ($searchTerm) {
-                          $confirmedQuery->where('name', '=', $searchTerm);
-                      });
+                        ->orWhere('customer_name', '=', $searchTerm)
+                        ->orWhere('customer_phone', '=', $searchTerm)
+                        ->orWhere('customer_social_link', '=', $searchTerm)
+                        ->orWhere('customer_address', '=', $searchTerm)
+                        ->orWhere('delivery_code', '=', $searchTerm)
+                        ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                            $delegateQuery->where('name', '=', $searchTerm)
+                                ->orWhere('code', '=', $searchTerm);
+                        })
+                        ->orWhereHas('confirmedBy', function ($confirmedQuery) use ($searchTerm) {
+                            $confirmedQuery->where('name', '=', $searchTerm);
+                        });
                 });
             }
 
@@ -932,11 +933,11 @@ class MobileAdminOrderController extends Controller
             $query->with(['delegate', 'items.product.primaryImage', 'items.size', 'items.returnItems', 'confirmedBy']);
 
             $orders = $query->latest('created_at')
-                            ->paginate($perPage)
-                            ->appends($request->except('page'));
+                ->paginate($perPage)
+                ->appends($request->except('page'));
 
             // تنسيق البيانات
-            $formattedOrders = $orders->map(function($order) {
+            $formattedOrders = $orders->map(function ($order) {
                 return [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
@@ -956,7 +957,7 @@ class MobileAdminOrderController extends Controller
                     ] : null,
                     'created_at' => $order->created_at->toIso8601String(),
                     'items_count' => $order->items->count(),
-                    'items_with_remaining' => $order->items->filter(function($item) {
+                    'items_with_remaining' => $order->items->filter(function ($item) {
                         return $item->remaining_quantity > 0;
                     })->count(),
                 ];
@@ -1028,7 +1029,7 @@ class MobileAdminOrderController extends Controller
             // التحقق من الصلاحيات
             $warehouses = $this->getAccessibleWarehouses();
             if ($warehouses->isNotEmpty()) {
-                $hasAccess = $order->items()->whereHas('product', function($q) use ($warehouses) {
+                $hasAccess = $order->items()->whereHas('product', function ($q) use ($warehouses) {
                     $q->whereIn('warehouse_id', $warehouses->pluck('id'));
                 })->exists();
 
@@ -1051,7 +1052,7 @@ class MobileAdminOrderController extends Controller
 
             // تنسيق البيانات
             $formattedOrder = $this->formatOrderDetails($order);
-            $formattedOrder['items'] = $order->items->map(function($item) {
+            $formattedOrder['items'] = $order->items->map(function ($item) {
                 $returnedQuantity = $item->returnItems->sum('quantity_returned');
                 return [
                     'id' => $item->id,
@@ -1081,7 +1082,7 @@ class MobileAdminOrderController extends Controller
                     'returned_quantity' => (int) $returnedQuantity,
                     'unit_price' => (float) $item->unit_price,
                     'subtotal' => (float) $item->subtotal,
-                    'return_items' => $item->returnItems->map(function($returnItem) {
+                    'return_items' => $item->returnItems->map(function ($returnItem) {
                         return [
                             'id' => $returnItem->id,
                             'quantity_returned' => (int) $returnItem->quantity_returned,
@@ -1148,7 +1149,7 @@ class MobileAdminOrderController extends Controller
             // التحقق من الصلاحيات
             $warehouses = $this->getAccessibleWarehouses();
             if ($warehouses->isNotEmpty()) {
-                $hasAccess = $order->items()->whereHas('product', function($q) use ($warehouses) {
+                $hasAccess = $order->items()->whereHas('product', function ($q) use ($warehouses) {
                     $q->whereIn('warehouse_id', $warehouses->pluck('id'));
                 })->exists();
 
@@ -1178,7 +1179,7 @@ class MobileAdminOrderController extends Controller
                 'notes' => 'nullable|string|max:1000',
             ]);
 
-            $result = DB::transaction(function() use ($validated, $order, $request, $user) {
+            $result = DB::transaction(function () use ($validated, $order, $request, $user) {
                 $totalAmountReduction = 0;
 
                 foreach ($validated['return_items'] as $returnItem) {
@@ -1199,8 +1200,8 @@ class MobileAdminOrderController extends Controller
 
                     if (!$size && $orderItem->size_name) {
                         $size = ProductSize::where('product_id', $orderItem->product_id)
-                                          ->where('size_name', $orderItem->size_name)
-                                          ->first();
+                            ->where('size_name', $orderItem->size_name)
+                            ->first();
 
                         if ($size) {
                             $orderItem->size_id = $size->id;
@@ -1295,7 +1296,7 @@ class MobileAdminOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $result['all_items_returned'] 
+                'message' => $result['all_items_returned']
                     ? 'تم إرجاع جميع المنتجات بنجاح وتم حذف الطلب تلقائياً'
                     : 'تم إرجاع المنتجات بنجاح',
                 'data' => [
@@ -1355,7 +1356,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -1391,14 +1392,17 @@ class MobileAdminOrderController extends Controller
             // جلب المنتجات المتوفرة
             $warehouses = $this->getAccessibleWarehouses();
             $products = Product::whereIn('warehouse_id', $warehouses->pluck('id'))
-                              ->with(['primaryImage', 'sizes' => function($q) {
-                                  $q->where('quantity', '>', 0);
-                              }])
-                              ->get();
+                ->with([
+                    'primaryImage',
+                    'sizes' => function ($q) {
+                        $q->where('quantity', '>', 0);
+                    }
+                ])
+                ->get();
 
             // تنسيق البيانات
             $formattedOrder = $this->formatOrderDetails($order);
-            $formattedProducts = $products->map(function($product) {
+            $formattedProducts = $products->map(function ($product) {
                 return [
                     'id' => $product->id,
                     'name' => $product->name,
@@ -1411,7 +1415,7 @@ class MobileAdminOrderController extends Controller
                         'name' => $product->warehouse->name,
                     ] : null,
                     'primary_image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                    'sizes' => $product->sizes->map(function($size) {
+                    'sizes' => $product->sizes->map(function ($size) {
                         return [
                             'id' => $size->id,
                             'size_name' => $size->size_name,
@@ -1482,7 +1486,7 @@ class MobileAdminOrderController extends Controller
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                     });
                 } else {
@@ -1508,7 +1512,7 @@ class MobileAdminOrderController extends Controller
                 ], 400);
             }
 
-            DB::transaction(function() use ($order, $request, $user) {
+            DB::transaction(function () use ($order, $request, $user) {
                 // حفظ القيم الحالية من الإعدادات وقت التقييد
                 $deliveryFee = \App\Models\Setting::getDeliveryFee();
                 $profitMargin = \App\Models\Setting::getProfitMargin();
@@ -1624,7 +1628,7 @@ class MobileAdminOrderController extends Controller
             // فلتر الصلاحيات
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                     $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                 });
             }
@@ -1633,8 +1637,8 @@ class MobileAdminOrderController extends Controller
             if ($request->filled('status')) {
                 if ($request->status === 'deleted') {
                     $query->onlyTrashed()
-                          ->whereNotNull('deleted_by')
-                          ->whereNotNull('deletion_reason');
+                        ->whereNotNull('deleted_by')
+                        ->whereNotNull('deletion_reason');
                 } else {
                     $query->where('status', $request->status);
                 }
@@ -1653,8 +1657,9 @@ class MobileAdminOrderController extends Controller
 
             // فلترة items حسب المخزن والصلاحيات
             foreach ($orders as $order) {
-                $order->items = $order->items->filter(function($item) use ($request, $user) {
-                    if (!$item->product) return false;
+                $order->items = $order->items->filter(function ($item) use ($request, $user) {
+                    if (!$item->product)
+                        return false;
 
                     // فلتر المخزن
                     if ($request->filled('warehouse_id')) {
@@ -1676,7 +1681,7 @@ class MobileAdminOrderController extends Controller
             }
 
             // إزالة الطلبات التي لا تحتوي على items بعد الفلترة
-            $orders = $orders->filter(function($order) {
+            $orders = $orders->filter(function ($order) {
                 return $order->items->count() > 0;
             });
 
@@ -1684,7 +1689,8 @@ class MobileAdminOrderController extends Controller
             $materials = [];
             foreach ($orders as $order) {
                 foreach ($order->items as $item) {
-                    if (!$item->product) continue;
+                    if (!$item->product)
+                        continue;
 
                     $key = $item->product_id . '_' . $item->size_name;
 
@@ -1763,7 +1769,7 @@ class MobileAdminOrderController extends Controller
             // فلتر الصلاحيات
             if ($user->isSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                     $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                 });
             }
@@ -1772,8 +1778,8 @@ class MobileAdminOrderController extends Controller
             if ($request->filled('status')) {
                 if ($request->status === 'deleted') {
                     $query->onlyTrashed()
-                          ->whereNotNull('deleted_by')
-                          ->whereNotNull('deletion_reason');
+                        ->whereNotNull('deleted_by')
+                        ->whereNotNull('deletion_reason');
                 } else {
                     $query->where('status', $request->status);
                 }
@@ -1794,7 +1800,8 @@ class MobileAdminOrderController extends Controller
             $materialsGrouped = [];
             foreach ($orders as $order) {
                 foreach ($order->items as $item) {
-                    if (!$item->product) continue;
+                    if (!$item->product)
+                        continue;
 
                     // فلتر المخزن
                     if ($request->filled('warehouse_id')) {
@@ -1898,7 +1905,7 @@ class MobileAdminOrderController extends Controller
     {
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -1926,21 +1933,21 @@ class MobileAdminOrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone2', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone2', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -1966,7 +1973,7 @@ class MobileAdminOrderController extends Controller
 
         // فلتر حسب الساعات الماضية
         if ($request->filled('hours_ago')) {
-            $hoursAgo = (int)$request->hours_ago;
+            $hoursAgo = (int) $request->hours_ago;
             if ($hoursAgo > 0) {
                 $query->where('created_at', '>=', now()->subHours($hoursAgo));
             }
@@ -2009,7 +2016,7 @@ class MobileAdminOrderController extends Controller
         // تطبيق الفلاتر الأساسية فقط (بدون فلاتر التاريخ والوقت)
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -2037,21 +2044,21 @@ class MobileAdminOrderController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone2', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone2', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -2077,7 +2084,7 @@ class MobileAdminOrderController extends Controller
 
         // فلتر حسب الساعات الماضية (على confirmed_at)
         if ($request->filled('hours_ago')) {
-            $hoursAgo = (int)$request->hours_ago;
+            $hoursAgo = (int) $request->hours_ago;
             if ($hoursAgo > 0) {
                 $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
             }
@@ -2199,9 +2206,12 @@ class MobileAdminOrderController extends Controller
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
             'customer_address' => $order->customer_address,
+            'customer_social_link' => $order->customer_social_link,
             'status' => $order->status,
             'total_amount' => (float) $order->total_amount,
             'delivery_fee' => (float) ($order->delivery_fee_at_confirmation ?? 0),
+            'size_reviewed' => (bool) $order->size_reviewed,
+            'message_confirmed' => (bool) $order->message_confirmed,
             'delegate' => $order->delegate ? [
                 'id' => $order->delegate->id,
                 'name' => $order->delegate->name,
@@ -2214,7 +2224,121 @@ class MobileAdminOrderController extends Controller
             'created_at' => $order->created_at->toIso8601String(),
             'confirmed_at' => $order->confirmed_at ? $order->confirmed_at->toIso8601String() : null,
             'items_count' => $order->items->count(),
+            'items' => $order->items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'product' => [
+                        'id' => $item->product_id, // Safety if product relation is missing
+                        'name' => $item->product ? $item->product->name : $item->product_name,
+                        'code' => $item->product ? $item->product->code : $item->product_code,
+                        'primary_image_url' => ($item->product && $item->product->primaryImage) ? $item->product->primaryImage->image_url : null,
+                        'warehouse' => ($item->product && $item->product->warehouse) ? [
+                            'id' => $item->product->warehouse->id,
+                            'name' => $item->product->warehouse->name,
+                        ] : null,
+                    ],
+                    'size_id' => $item->size_id,
+                    'size_name' => $item->size_name,
+                    'quantity' => (int) $item->quantity,
+                    'unit_price' => (float) $item->unit_price,
+                    'subtotal' => (float) $item->subtotal,
+                ];
+            }),
         ];
+    }
+
+    /**
+     * تحديث سريع لحالة التدقيق أو الرسالة
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateQuickStatus(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح للقيام بهذا الإجراء.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $order = Order::find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الطلب غير موجود.',
+                    'error_code' => 'NOT_FOUND',
+                ], 404);
+            }
+
+            // للمجهز: التحقق من الصلاحيات
+            if ($user->isSupplier()) {
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                $hasAccess = $order->items()->whereHas('product', function ($q) use ($accessibleWarehouseIds) {
+                    $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                })->exists();
+
+                if (!$hasAccess) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ليس لديك صلاحية لتعديل هذا الطلب.',
+                        'error_code' => 'FORBIDDEN',
+                    ], 403);
+                }
+            }
+
+            // التحديث بناءً على البيانات المرسلة
+            $updateData = [];
+            if ($request->has('size_reviewed')) {
+                $updateData['size_reviewed'] = (bool) $request->size_reviewed;
+            }
+            if ($request->has('message_confirmed')) {
+                $updateData['message_confirmed'] = (bool) $request->message_confirmed;
+            }
+
+            if (empty($updateData)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا توجد بيانات للتحديث.',
+                    'error_code' => 'NO_DATA',
+                ], 400);
+            }
+
+            $order->update($updateData);
+
+            // إرسال إشعار للمندوب إذا تغيرت الحالات
+            try {
+                // يمكن إضافة منطق إرسال إشعارات هنا إذا رغب المستخدم
+            } catch (\Exception $e) {
+                Log::error('Error sending notification for quick status update');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث الحالة بنجاح.',
+                'data' => [
+                    'order' => $this->formatOrderListItem($order), // Return list item format to update local state
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to update quick status', [
+                'error' => $e->getMessage(),
+                'order_id' => $id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث الحالة.',
+                'error_code' => 'UPDATE_ERROR',
+            ], 500);
+        }
     }
 
     /**
@@ -2256,7 +2380,7 @@ class MobileAdminOrderController extends Controller
             'created_at' => $order->created_at->toIso8601String(),
             'confirmed_at' => $order->confirmed_at ? $order->confirmed_at->toIso8601String() : null,
             'can_be_edited' => $order->status === 'pending' || $order->canBeEdited(),
-            'items' => $order->items->map(function($item) {
+            'items' => $order->items->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'product' => [

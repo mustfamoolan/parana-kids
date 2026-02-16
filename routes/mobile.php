@@ -151,6 +151,7 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
     Route::get('/{id}/edit', [MobileAdminOrderController::class, 'getOrderEditData']);
     Route::put('/{id}', [MobileAdminOrderController::class, 'updateOrder']);
+    Route::put('/{id}/quick-status', [MobileAdminOrderController::class, 'updateQuickStatus']);
 
     // تجهيز الطلب
     Route::get('/{id}/process', [MobileAdminOrderController::class, 'getOrderProcessData']);
