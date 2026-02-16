@@ -56,7 +56,7 @@ class Order extends Model
         'is_partial_exchange' => 'boolean',
     ];
 
-    protected $appends = ['deleted_by_user'];
+    protected $appends = ['deleted_by_user_data'];
 
     protected static function boot()
     {
@@ -153,10 +153,6 @@ class Order extends Model
         return $this->hasMany(ExchangeItem::class);
     }
 
-    public function deletedBy()
-    {
-        return $this->belongsTo(User::class, 'deleted_by');
-    }
 
     public function profitRecords()
     {
@@ -317,7 +313,7 @@ class Order extends Model
         ][$this->message_confirmed] ?? 'badge-outline-secondary';
     }
 
-    public function getDeletedByUserAttribute()
+    public function getDeletedByUserDataAttribute()
     {
         if ($this->deleted_by && $this->deletedByUser) {
             return [
