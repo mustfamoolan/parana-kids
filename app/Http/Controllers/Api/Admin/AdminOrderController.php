@@ -213,15 +213,15 @@ class AdminOrderController extends Controller
             $stats[$status]['count'] = $orderIds->count();
 
             if ($stats[$status]['count'] > 0) {
-                $stats[$status]['total'] = DB::table('order_items')
+                $stats[$status]['total'] = (float) (DB::table('order_items')
                     ->whereIn('order_id', $orderIds)
-                    ->sum('subtotal') ?? 0;
+                    ->sum('subtotal') ?? 0);
 
-                $stats[$status]['profit'] = DB::table('order_items')
+                $stats[$status]['profit'] = (float) (DB::table('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
                     ->whereIn('order_items.order_id', $orderIds)
                     ->selectRaw('SUM((order_items.unit_price - COALESCE(products.purchase_price, 0)) * order_items.quantity) as total_profit')
-                    ->value('total_profit') ?? 0;
+                    ->value('total_profit') ?? 0);
             }
         }
 
