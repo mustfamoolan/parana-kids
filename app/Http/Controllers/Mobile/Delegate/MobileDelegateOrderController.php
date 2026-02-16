@@ -23,171 +23,59 @@ class MobileDelegateOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        // التحقق من أن المستخدم مندوب
-        if (!$user || !$user->isDelegate()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
-                'error_code' => 'FORBIDDEN',
-            ], 403);
-        }
-
-        // 1. تحديد نوع الطلبات المطلوبة بناءً على status
-        if ($request->status === 'deleted') {
-            // عرض فقط الطلبات المحذوفة التي حذفها المجهز (لها deleted_by و deletion_reason)
-            $query = Order::onlyTrashed()
-                ->where('delegate_id', $user->id)
-                ->whereNotNull('deleted_by')
-                ->whereNotNull('deletion_reason')
-                ->with(['items', 'deletedByUser']);
-
-            // تطبيق البحث في الطلبات المحذوفة
-            if ($request->filled('search')) {
-                $searchTerm = trim($request->search);
-                if (!empty($searchTerm)) {
-                    $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
-                    $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
-                    $this->applyExactSearch($query, $searchTerm, $phoneSearchTerm, true);
-                }
+            // التحقق من أن المستخدم مندوب
+            if (!$user || !$user->isDelegate()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                    'error_code' => 'FORBIDDEN',
+                ], 403);
             }
 
-            // فلتر حسب التاريخ (للطلبات المحذوفة)
-            if ($request->filled('date_from')) {
-                $query->whereDate('deleted_at', '>=', $request->date_from);
-            }
-
-            if ($request->filled('date_to')) {
-                $query->whereDate('deleted_at', '<=', $request->date_to);
-            }
-
-            // فلتر حسب الوقت (للطلبات المحذوفة)
-            if ($request->filled('time_from')) {
-                $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                $query->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-            }
-
-            if ($request->filled('time_to')) {
-                $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                $query->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-            }
-
-            $perPage = min($request->input('per_page', 15), 100);
-            $orders = $query->latest('deleted_at')->paginate($perPage);
-
-            // تنسيق البيانات للإرجاع
-            $formattedOrders = $orders->map(function ($order) {
-                return $this->formatOrderListItem($order);
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $formattedOrders,
-                'pagination' => [
-                    'current_page' => $orders->currentPage(),
-                    'per_page' => $orders->perPage(),
-                    'total' => $orders->total(),
-                    'last_page' => $orders->lastPage(),
-                    'has_more' => $orders->hasMorePages(),
-                ],
-            ]);
-        }
-        // الطلبات العادية (pending/confirmed) والمحذوفة
-        else {
-            // إذا لم يكن هناك فلتر status، نجلب كل الطلبات (النشطة والمحذوفة)
-            if (!$request->filled('status')) {
-                $query = Order::withTrashed()
+            // 1. تحديد نوع الطلبات المطلوبة بناءً على status
+            if ($request->status === 'deleted') {
+                // عرض فقط الطلبات المحذوفة التي حذفها المجهز (لها deleted_by و deletion_reason)
+                $query = Order::onlyTrashed()
                     ->where('delegate_id', $user->id)
-                    ->with(['items']);
+                    ->whereNotNull('deleted_by')
+                    ->whereNotNull('deletion_reason')
+                    ->with(['items', 'deletedByUser']);
 
-                // تنظيف رقم الهاتف للبحث إذا كان البحث برقم هاتف
-                $searchTerm = $request->filled('search') ? trim($request->search) : null;
-                $phoneSearchTerm = null;
-                if ($searchTerm && !empty($searchTerm)) {
-                    $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
-                    $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
+                // تطبيق البحث في الطلبات المحذوفة
+                if ($request->filled('search')) {
+                    $searchTerm = trim($request->search);
+                    if (!empty($searchTerm)) {
+                        $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
+                        $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
+                        $this->applyExactSearch($query, $searchTerm, $phoneSearchTerm, true);
+                    }
                 }
 
-                // فلتر الحالة: نشطة (pending/confirmed) أو محذوفة (soft deleted)
-                $query->where(function ($q) use ($searchTerm, $phoneSearchTerm) {
-                    // الطلبات النشطة (pending أو confirmed) - غير محذوفة
-                    $q->where(function ($subQ) use ($searchTerm, $phoneSearchTerm) {
-                        $subQ->whereNull('deleted_at')
-                            ->whereIn('status', ['pending', 'confirmed']);
-
-                        // تطبيق البحث على الطلبات النشطة
-                        if ($searchTerm && !empty($searchTerm)) {
-                            $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm);
-                        }
-                    })->orWhere(function ($subQ) use ($searchTerm, $phoneSearchTerm) {
-                        // الطلبات المحذوفة التي حذفها المجهز/المدير (soft deleted)
-                        $subQ->whereNotNull('deleted_at')
-                            ->whereNotNull('deleted_by')
-                            ->whereNotNull('deletion_reason');
-
-                        // تطبيق البحث على الطلبات المحذوفة
-                        if ($searchTerm && !empty($searchTerm)) {
-                            $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm, true);
-                        }
-                    });
-                });
-
-                // تطبيق فلاتر التاريخ
+                // فلتر حسب التاريخ (للطلبات المحذوفة)
                 if ($request->filled('date_from')) {
-                    $query->where(function ($q) use ($request) {
-                        $q->where(function ($subQ) use ($request) {
-                            $subQ->whereNull('deleted_at')
-                                ->whereDate('created_at', '>=', $request->date_from);
-                        })->orWhere(function ($subQ) use ($request) {
-                            $subQ->whereNotNull('deleted_at')
-                                ->whereDate('deleted_at', '>=', $request->date_from);
-                        });
-                    });
+                    $query->whereDate('deleted_at', '>=', $request->date_from);
                 }
+
                 if ($request->filled('date_to')) {
-                    $query->where(function ($q) use ($request) {
-                        $q->where(function ($subQ) use ($request) {
-                            $subQ->whereNull('deleted_at')
-                                ->whereDate('created_at', '<=', $request->date_to);
-                        })->orWhere(function ($subQ) use ($request) {
-                            $subQ->whereNotNull('deleted_at')
-                                ->whereDate('deleted_at', '<=', $request->date_to);
-                        });
-                    });
+                    $query->whereDate('deleted_at', '<=', $request->date_to);
                 }
+
+                // فلتر حسب الوقت (للطلبات المحذوفة)
                 if ($request->filled('time_from')) {
                     $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                    $query->where(function ($q) use ($dateFrom, $request) {
-                        $q->where(function ($subQ) use ($dateFrom, $request) {
-                            $subQ->whereNull('deleted_at')
-                                ->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-                        })->orWhere(function ($subQ) use ($dateFrom, $request) {
-                            $subQ->whereNotNull('deleted_at')
-                                ->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-                        });
-                    });
+                    $query->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
                 }
+
                 if ($request->filled('time_to')) {
                     $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                    $query->where(function ($q) use ($dateTo, $request) {
-                        $q->where(function ($subQ) use ($dateTo, $request) {
-                            $subQ->whereNull('deleted_at')
-                                ->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-                        })->orWhere(function ($subQ) use ($dateTo, $request) {
-                            $subQ->whereNotNull('deleted_at')
-                                ->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-                        });
-                    });
+                    $query->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
                 }
 
-                // إضافة deletedByUser للعلاقات
-                $query->with('deletedByUser');
-
-                // ترتيب مختلط: للطلبات المحذوفة deleted_at، للباقي created_at
                 $perPage = min($request->input('per_page', 15), 100);
-                $orders = $query->orderByRaw('CASE WHEN deleted_at IS NOT NULL THEN deleted_at ELSE created_at END DESC')
-                    ->paginate($perPage);
+                $orders = $query->latest('deleted_at')->paginate($perPage);
 
                 // تنسيق البيانات للإرجاع
                 $formattedOrders = $orders->map(function ($order) {
@@ -206,63 +94,191 @@ class MobileDelegateOrderController extends Controller
                     ],
                 ]);
             }
+            // الطلبات العادية (pending/confirmed) والمحذوفة
+            else {
+                // إذا لم يكن هناك فلتر status، نجلب كل الطلبات (النشطة والمحذوفة)
+                if (!$request->filled('status')) {
+                    $query = Order::withTrashed()
+                        ->where('delegate_id', $user->id)
+                        ->with(['items']);
 
-            // إذا كان هناك فلتر status (pending/confirmed)
-            $query = Order::where('delegate_id', $user->id)->with(['items']);
+                    // تنظيف رقم الهاتف للبحث إذا كان البحث برقم هاتف
+                    $searchTerm = $request->filled('search') ? trim($request->search) : null;
+                    $phoneSearchTerm = null;
+                    if ($searchTerm && !empty($searchTerm)) {
+                        $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
+                        $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
+                    }
 
-            // تطبيق البحث أولاً ثم فلتر الحالة
-            if ($request->filled('search')) {
-                $searchTerm = trim($request->search);
-                if (!empty($searchTerm)) {
-                    $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
-                    $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
-                    $this->applyExactSearch($query, $searchTerm, $phoneSearchTerm);
+                    // فلتر الحالة: نشطة (pending/confirmed) أو محذوفة (soft deleted)
+                    $query->where(function ($q) use ($searchTerm, $phoneSearchTerm) {
+                        // الطلبات النشطة (pending أو confirmed) - غير محذوفة
+                        $q->where(function ($subQ) use ($searchTerm, $phoneSearchTerm) {
+                            $subQ->whereNull('deleted_at')
+                                ->whereIn('status', ['pending', 'confirmed']);
+
+                            // تطبيق البحث على الطلبات النشطة
+                            if ($searchTerm && !empty($searchTerm)) {
+                                $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm);
+                            }
+                        })->orWhere(function ($subQ) use ($searchTerm, $phoneSearchTerm) {
+                            // الطلبات المحذوفة التي حذفها المجهز/المدير (soft deleted)
+                            $subQ->whereNotNull('deleted_at')
+                                ->whereNotNull('deleted_by')
+                                ->whereNotNull('deletion_reason');
+
+                            // تطبيق البحث على الطلبات المحذوفة
+                            if ($searchTerm && !empty($searchTerm)) {
+                                $this->applyExactSearch($subQ, $searchTerm, $phoneSearchTerm, true);
+                            }
+                        });
+                    });
+
+                    // تطبيق فلاتر التاريخ
+                    if ($request->filled('date_from')) {
+                        $query->where(function ($q) use ($request) {
+                            $q->where(function ($subQ) use ($request) {
+                                $subQ->whereNull('deleted_at')
+                                    ->whereDate('created_at', '>=', $request->date_from);
+                            })->orWhere(function ($subQ) use ($request) {
+                                $subQ->whereNotNull('deleted_at')
+                                    ->whereDate('deleted_at', '>=', $request->date_from);
+                            });
+                        });
+                    }
+                    if ($request->filled('date_to')) {
+                        $query->where(function ($q) use ($request) {
+                            $q->where(function ($subQ) use ($request) {
+                                $subQ->whereNull('deleted_at')
+                                    ->whereDate('created_at', '<=', $request->date_to);
+                            })->orWhere(function ($subQ) use ($request) {
+                                $subQ->whereNotNull('deleted_at')
+                                    ->whereDate('deleted_at', '<=', $request->date_to);
+                            });
+                        });
+                    }
+                    if ($request->filled('time_from')) {
+                        $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                        $query->where(function ($q) use ($dateFrom, $request) {
+                            $q->where(function ($subQ) use ($dateFrom, $request) {
+                                $subQ->whereNull('deleted_at')
+                                    ->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                            })->orWhere(function ($subQ) use ($dateFrom, $request) {
+                                $subQ->whereNotNull('deleted_at')
+                                    ->where('deleted_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                            });
+                        });
+                    }
+                    if ($request->filled('time_to')) {
+                        $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                        $query->where(function ($q) use ($dateTo, $request) {
+                            $q->where(function ($subQ) use ($dateTo, $request) {
+                                $subQ->whereNull('deleted_at')
+                                    ->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                            })->orWhere(function ($subQ) use ($dateTo, $request) {
+                                $subQ->whereNotNull('deleted_at')
+                                    ->where('deleted_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                            });
+                        });
+                    }
+
+                    // إضافة deletedByUser للعلاقات
+                    $query->with('deletedByUser');
+
+                    // ترتيب مختلط: للطلبات المحذوفة deleted_at، للباقي created_at
+                    $perPage = min($request->input('per_page', 15), 100);
+                    $orders = $query->orderByRaw('CASE WHEN deleted_at IS NOT NULL THEN deleted_at ELSE created_at END DESC')
+                        ->paginate($perPage);
+
+                    // تنسيق البيانات للإرجاع
+                    $formattedOrders = $orders->map(function ($order) {
+                        return $this->formatOrderListItem($order);
+                    });
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => $formattedOrders,
+                        'pagination' => [
+                            'current_page' => $orders->currentPage(),
+                            'per_page' => $orders->perPage(),
+                            'total' => $orders->total(),
+                            'last_page' => $orders->lastPage(),
+                            'has_more' => $orders->hasMorePages(),
+                        ],
+                    ]);
                 }
+
+                // إذا كان هناك فلتر status (pending/confirmed)
+                $query = Order::where('delegate_id', $user->id)->with(['items']);
+
+                // تطبيق البحث أولاً ثم فلتر الحالة
+                if ($request->filled('search')) {
+                    $searchTerm = trim($request->search);
+                    if (!empty($searchTerm)) {
+                        $normalizedSearchTerm = $this->normalizePhoneNumber($searchTerm);
+                        $phoneSearchTerm = $normalizedSearchTerm ?: $searchTerm;
+                        $this->applyExactSearch($query, $searchTerm, $phoneSearchTerm);
+                    }
+                }
+
+                // تطبيق فلتر الحالة (pending/confirmed) بعد البحث
+                if ($request->filled('status') && in_array($request->status, ['pending', 'confirmed'])) {
+                    $query->where('status', $request->status);
+                }
+
+                // فلاتر التاريخ والوقت
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+
+                if ($request->filled('time_from')) {
+                    $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                    $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+                }
+
+                if ($request->filled('time_to')) {
+                    $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                    $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+                }
+
+                $perPage = min($request->input('per_page', 15), 100);
+                $orders = $query->latest()->paginate($perPage);
+
+                // تنسيق البيانات للإرجاع
+                $formattedOrders = $orders->map(function ($order) {
+                    return $this->formatOrderListItem($order);
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $formattedOrders,
+                    'pagination' => [
+                        'current_page' => $orders->currentPage(),
+                        'per_page' => $orders->perPage(),
+                        'total' => $orders->total(),
+                        'last_page' => $orders->lastPage(),
+                        'has_more' => $orders->hasMorePages(),
+                    ],
+                ]);
             }
-
-            // تطبيق فلتر الحالة (pending/confirmed) بعد البحث
-            if ($request->filled('status') && in_array($request->status, ['pending', 'confirmed'])) {
-                $query->where('status', $request->status);
-            }
-
-            // فلاتر التاريخ والوقت
-            if ($request->filled('date_from')) {
-                $query->whereDate('created_at', '>=', $request->date_from);
-            }
-
-            if ($request->filled('date_to')) {
-                $query->whereDate('created_at', '<=', $request->date_to);
-            }
-
-            if ($request->filled('time_from')) {
-                $dateFrom = $request->date_from ?? now()->format('Y-m-d');
-                $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
-            }
-
-            if ($request->filled('time_to')) {
-                $dateTo = $request->date_to ?? now()->format('Y-m-d');
-                $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
-            }
-
-            $perPage = min($request->input('per_page', 15), 100);
-            $orders = $query->latest()->paginate($perPage);
-
-            // تنسيق البيانات للإرجاع
-            $formattedOrders = $orders->map(function ($order) {
-                return $this->formatOrderListItem($order);
-            });
+        } catch (\Exception $e) {
+            Log::error('MobileDelegateOrderController: Error in index', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'request' => $request->all(),
+            ]);
 
             return response()->json([
-                'success' => true,
-                'data' => $formattedOrders,
-                'pagination' => [
-                    'current_page' => $orders->currentPage(),
-                    'per_page' => $orders->perPage(),
-                    'total' => $orders->total(),
-                    'last_page' => $orders->lastPage(),
-                    'has_more' => $orders->hasMorePages(),
-                ],
-            ]);
+                'success' => false,
+                'message' => 'حدث خطأ في السيرفر',
+                'error_code' => 'SERVER_ERROR',
+                'debug' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 
