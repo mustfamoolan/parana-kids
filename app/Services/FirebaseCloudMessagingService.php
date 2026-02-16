@@ -395,8 +395,12 @@ class FirebaseCloudMessagingService
 
     /**
      * Send shipment status notification
+     * @param AlWaseetShipment $shipment
+     * @param mixed $order
+     * @param string $oldStatusText Status name (not ID), e.g., 'قيد التجهيز'
+     * @param string $newStatusText Status name (not ID), e.g., 'تم التسليم'
      */
-    public function sendShipmentNotification(AlWaseetShipment $shipment, $order, $oldStatus, $newStatus)
+    public function sendShipmentNotification(AlWaseetShipment $shipment, $order, $oldStatusText, $newStatusText)
     {
         try {
             if (!$order) {
@@ -408,15 +412,15 @@ class FirebaseCloudMessagingService
             }
 
             $title = 'تغيير حالة الشحنة';
-            $body = "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$oldStatus}' إلى '{$newStatus}'";
+            $body = "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$oldStatusText}' إلى '{$newStatusText}'";
 
             $data = [
                 'type' => 'shipment_status_changed',
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'shipment_id' => $shipment->id,
-                'old_status' => $oldStatus,
-                'new_status' => $newStatus,
+                'old_status' => $oldStatusText,
+                'new_status' => $newStatusText,
                 'screen' => 'order_details',
             ];
 

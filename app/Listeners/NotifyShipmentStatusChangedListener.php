@@ -31,6 +31,12 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
     public function handle(AlWaseetShipmentStatusChanged $event): void
     {
         try {
+            // جلب أسماء الحالات من جدول alwaseet_order_statuses
+            $oldStatusText = \App\Models\AlWaseetOrderStatus::where('status_id', $event->oldStatusId)
+                ->value('status_text') ?? $event->oldStatusId;
+            $newStatusText = \App\Models\AlWaseetOrderStatus::where('status_id', $event->newStatusId)
+                ->value('status_text') ?? $event->newStatusId;
+
             // التحقق من إعدادات الإشعارات
             $notifyStatuses = Setting::getValue('alwaseet_notify_statuses', '');
             $notifyStatusesArray = !empty($notifyStatuses) ? explode(',', $notifyStatuses) : [];
@@ -42,7 +48,7 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                     'alwaseet_shipment_id' => $event->shipment->id,
                     'type' => 'status_changed',
                     'title' => 'تغيير حالة الشحنة',
-                    'message' => "تم تغيير حالة الشحنة من '{$event->oldStatusId}' إلى '{$event->newStatusId}'",
+                    'message' => "تم تغيير حالة الشحنة من '{$oldStatusText}' إلى '{$newStatusText}'",
                     'old_status' => $event->oldStatusId,
                     'new_status' => $event->newStatusId,
                 ]);
@@ -50,7 +56,9 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 Log::info('AlWaseet: Status change notification created', [
                     'shipment_id' => $event->shipment->id,
                     'old_status' => $event->oldStatusId,
+                    'old_status_text' => $oldStatusText,
                     'new_status' => $event->newStatusId,
+                    'new_status_text' => $newStatusText,
                 ]);
             }
 
@@ -103,7 +111,7 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
 
             // جلب المجهزين (suppliers) الذين لديهم صلاحية على نفس المخزن
             $supplierIds = User::whereIn('role', ['admin', 'supplier'])
-                ->whereHas('warehouses', function($q) use ($warehouseIds) {
+                ->whereHas('warehouses', function ($q) use ($warehouseIds) {
                     $q->whereIn('warehouses.id', $warehouseIds);
                 })
                 ->pluck('id')
@@ -151,7 +159,7 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
             // إرسال إشعارات التليجرام لجميع أجهزة كل مستخدم
             $telegramService = app(TelegramService::class);
             foreach ($recipients as $recipient) {
-                $telegramService->sendToAllUserDevices($recipient, function($chatId) use ($telegramService, $shipment, $order) {
+                $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $shipment, $order) {
                     $telegramService->sendOrderStatusNotification($chatId, $shipment, $order);
                 });
             }
@@ -206,13 +214,19 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 }
             }
 
+            // جلب أسماء الحالات من جدول alwaseet_order_statuses
+            $oldStatusText = \App\Models\AlWaseetOrderStatus::where('status_id', $event->oldStatusId)
+                ->value('status_text') ?? $event->oldStatusId;
+            $newStatusText = \App\Models\AlWaseetOrderStatus::where('status_id', $event->newStatusId)
+                ->value('status_text') ?? $event->newStatusId;
+
             // حفظ إشعار في جدول notifications
             try {
                 Notification::create([
                     'user_id' => $order->delegate_id,
                     'type' => 'shipment_status_changed',
                     'title' => 'تغيير حالة الشحنة',
-                    'message' => "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$event->oldStatusId}' إلى '{$event->newStatusId}'",
+                    'message' => "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$oldStatusText}' إلى '{$newStatusText}'",
                     'data' => [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
@@ -228,13 +242,15 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 ]);
             }
 
-            // إرسال إشعار Firebase
+            // إرسال إشعار Firebase مع أسماء الحالات
             $fcmService = app(FirebaseCloudMessagingService::class);
-            $fcmService->sendShipmentNotification($shipment, $order, $event->oldStatusId, $event->newStatusId);
+            $fcmService->sendShipmentNotification($shipment, $order, $oldStatusText, $newStatusText);
 
             Log::info('AlWaseet: Firebase notification sent', [
                 'shipment_id' => $shipment->id,
                 'delegate_id' => $order->delegate_id,
+                'old_status_text' => $oldStatusText,
+                'new_status_text' => $newStatusText,
             ]);
         } catch (\Exception $e) {
             Log::error('AlWaseet: Failed to send Firebase notification', [
