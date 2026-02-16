@@ -35,8 +35,10 @@ class PwaToken extends Model
      */
     public static function generateToken($userId, $expiresInDays = 30)
     {
-        // Delete existing tokens for this user
-        self::where('user_id', $userId)->delete();
+        // We no longer delete existing tokens immediately to prevent race conditions
+        // where concurrent requests might be invalidated by a new login.
+        // Instead, we let them expire naturally.
+        // self::where('user_id', $userId)->delete();
 
         // Generate new token
         $token = Str::random(64);
