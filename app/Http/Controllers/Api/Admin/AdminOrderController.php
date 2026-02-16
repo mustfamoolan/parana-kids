@@ -68,7 +68,7 @@ class AdminOrderController extends Controller
 
             // Pagination
             $perPage = $request->input('per_page', 15);
-            $orders = $query->with(['delegate', 'items.product.warehouse', 'confirmedBy'])
+            $orders = $query->with(['delegate', 'items.product.warehouse', 'confirmedBy', 'deletedByUser'])
                 ->orderByRaw('CASE WHEN deleted_at IS NOT NULL THEN deleted_at ELSE created_at END DESC')
                 ->paginate($perPage);
 
