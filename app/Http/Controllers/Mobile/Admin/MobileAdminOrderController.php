@@ -2210,8 +2210,8 @@ class MobileAdminOrderController extends Controller
             'status' => $order->status,
             'total_amount' => (float) $order->total_amount,
             'delivery_fee' => (float) ($order->delivery_fee_at_confirmation ?? 0),
-            'size_reviewed' => (bool) $order->size_reviewed,
-            'message_confirmed' => (bool) $order->message_confirmed,
+            'size_reviewed' => $order->size_reviewed,
+            'message_confirmed' => $order->message_confirmed,
             'delegate' => $order->delegate ? [
                 'id' => $order->delegate->id,
                 'name' => $order->delegate->name,
