@@ -600,7 +600,7 @@ class MobileDelegateChatController extends Controller
         $query = $request->input('query');
 
         // بناء الاستعلام
-        $ordersQuery = Order::query();
+        $ordersQuery = Order::withTrashed();
 
         // البحث في رقم الطلب، رقم الهاتف، الرابط، أو كود الوسيط
         $ordersQuery->where(function ($q) use ($query) {
@@ -669,7 +669,7 @@ class MobileDelegateChatController extends Controller
         })->findOrFail($conversationId);
 
         // جلب الطلب
-        $order = Order::findOrFail($orderId);
+        $order = Order::withTrashed()->findOrFail($orderId);
 
         // إنشاء الرسالة
         $message = Message::create([
