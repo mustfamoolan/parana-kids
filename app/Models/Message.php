@@ -18,6 +18,7 @@ class Message extends Model
         'order_id',
         'product_id',
         'image_path',
+        'reply_to_id',
         'is_read',
         'read_at',
     ];
@@ -25,6 +26,7 @@ class Message extends Model
     protected $casts = [
         'is_read' => 'boolean',
         'read_at' => 'datetime',
+        'reply_to_id' => 'integer',
     ];
 
     /**
@@ -33,6 +35,14 @@ class Message extends Model
     public function conversation()
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /**
+     * Get the message this message is replying to
+     */
+    public function replyTo()
+    {
+        return $this->belongsTo(Message::class, 'reply_to_id');
     }
 
     /**
