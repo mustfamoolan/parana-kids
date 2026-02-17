@@ -207,7 +207,7 @@ class MobileDelegateChatController extends Controller
         $otherParticipant = $conversation->getOtherParticipant($user->id);
 
         $messages = $conversation->messages()
-            ->with(['user', 'order.delegate', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
+            ->with(['user', 'replyTo.user', 'order.delegate', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($message) use ($user, $otherParticipant, $conversation) {
@@ -270,16 +270,28 @@ class MobileDelegateChatController extends Controller
                     $data['sender_id'] = $message->user_id;
                 }
 
-                // إذا كانت الرسالة تحتوي على صورة
-                if ($message->image_path) {
-                    try {
-                        $data['image_url'] = Storage::disk('public')->url($message->image_path);
-                    } catch (\Exception $e) {
-                        // Fallback إلى asset() إذا فشل Storage::url()
-                        $data['image_url'] = asset('storage/' . $message->image_path);
+                // إذا كانت الرسالة رداً على رسالة أخرى
+                if ($message->reply_to_id && $message->replyTo) {
+                    $replyData = [
+                        'id' => $message->replyTo->id,
+                        'text' => $message->replyTo->message,
+                        'fromUserId' => $message->replyTo->user_id,
+                        'fromUserName' => $message->replyTo->user ? $message->replyTo->user->name : 'مستخدم',
+                        'type' => $message->replyTo->type ?? 'text',
+                    ];
+
+                    if ($message->replyTo->image_path) {
+                        try {
+                            $replyData['image_url'] = Storage::disk('public')->url($message->replyTo->image_path);
+                        } catch (\Exception $e) {
+                            $replyData['image_url'] = asset('storage/' . $message->replyTo->image_path);
+                        }
+                    } else {
+                        $replyData['image_url'] = null;
                     }
+                    $data['replyTo'] = $replyData;
                 } else {
-                    $data['image_url'] = null;
+                    $data['replyTo'] = null;
                 }
 
                 return $data;
@@ -316,9 +328,11 @@ class MobileDelegateChatController extends Controller
             'conversation_id' => 'required|exists:conversations,id',
             'message' => 'nullable|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max
+            'reply_to_id' => 'nullable|exists:messages,id',
         ]);
 
         $conversationId = $request->input('conversation_id');
+        $replyToId = $request->input('reply_to_id');
 
         try {
             // التحقق من أن المستخدم مشارك في المحادثة
@@ -366,6 +380,7 @@ class MobileDelegateChatController extends Controller
                 'message' => $request->input('message', ''),
                 'type' => $messageType,
                 'image_path' => $imagePath,
+                'reply_to_id' => $replyToId,
             ]);
 
             // تحديث وقت المحادثة
@@ -429,6 +444,7 @@ class MobileDelegateChatController extends Controller
                     'fromUserId' => $message->user_id,
                     'text' => $message->message,
                     'type' => $message->type,
+                    'reply_to_id' => $message->reply_to_id,
                     'time' => $message->created_at->format('g:i A'),
                     'created_at' => $message->created_at->toIso8601String(),
                 ]
