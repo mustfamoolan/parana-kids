@@ -34,7 +34,7 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             $syncEnabled = \App\Models\Setting::getValue('alwaseet_auto_sync_enabled', '0');
             if ($syncEnabled === '1') {
-                $syncInterval = (int)\App\Models\Setting::getValue('alwaseet_auto_sync_interval', '60');
+                $syncInterval = (int) \App\Models\Setting::getValue('alwaseet_auto_sync_interval', '60');
                 $syncStatusIds = \App\Models\Setting::getValue('alwaseet_auto_sync_status_ids', '');
                 $statusIdsArray = !empty($syncStatusIds) ? explode(',', $syncStatusIds) : null;
 
@@ -49,7 +49,7 @@ class Kernel extends ConsoleKernel
             }
         })->everyMinute()->when(function () {
             $syncEnabled = \App\Models\Setting::getValue('alwaseet_auto_sync_enabled', '0');
-            $syncInterval = (int)\App\Models\Setting::getValue('alwaseet_auto_sync_interval', '60');
+            $syncInterval = (int) \App\Models\Setting::getValue('alwaseet_auto_sync_interval', '60');
 
             if ($syncEnabled !== '1') {
                 return false;
@@ -70,13 +70,16 @@ class Kernel extends ConsoleKernel
 
         // تحديث جميع بيانات API للطلبات المرتبطة (كل دقيقة)
         $schedule->job(new \App\Jobs\UpdateAlWaseetShipmentsStatusJob)->everyMinute();
-        
+
         // تحديث حالات الطلبات من API (كل ساعتين)
         $schedule->job(new \App\Jobs\SyncAlWaseetOrderStatusesJob)->everyTwoHours();
-        
+
         // تحديث جميع الطلبات من merchant-orders API (كل 15 دقيقة) - لتحديث قاعدة البيانات المحلية
         $schedule->job(new \App\Jobs\UpdateOrdersFromMerchantOrdersJob)->everyFifteenMinutes();
-        
+
+        // حذف الإشعارات القديمة (أكثر من 24 ساعة) كل ساعة
+        $schedule->command('app:cleanup-notifications')->hourly();
+
         // تحديث عدد الطلبات لكل حالة (كل 15 دقيقة) - لتحسين الأداء
         $schedule->job(new \App\Jobs\UpdateStatusCountsJob)->everyFifteenMinutes();
     }
@@ -88,7 +91,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }
