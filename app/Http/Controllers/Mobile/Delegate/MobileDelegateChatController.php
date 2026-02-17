@@ -906,7 +906,9 @@ class MobileDelegateChatController extends Controller
                     'code' => $u->code,
                     'phone' => $u->phone,
                     'role' => $u->role,
-                    'profile_image_url' => $u->profile_image_url,
+                    'profile_image' => $u->profile_image,
+                    'profile_image_url' => $u->getProfileImageUrl(),
+                    'path' => $u->getProfileImageUrl(), // Add path key for consistency
                 ];
             });
 
