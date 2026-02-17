@@ -335,12 +335,14 @@ class FirebaseCloudMessagingService
                 'order_updated' => 'تعديل على الطلب',
             ];
 
-            $title = $titles[$type] ?? 'إشعار طلب';
-            $body = "{$title}: {$order->order_number}";
+            $statusText = $titles[$type] ?? 'إشعار طلب';
+            $title = $order->customer_name ?? $statusText;
+            $body = $statusText;
 
             $data = [
                 'type' => $type,
                 'order_id' => $order->id,
+                'customer_name' => $order->customer_name,
                 'order_number' => $order->order_number,
                 'screen' => 'order_details',
             ];
@@ -372,13 +374,14 @@ class FirebaseCloudMessagingService
                 return false;
             }
 
-            $title = 'رسالة جديدة';
-            $body = "رسالة من {$sender->name}: " . mb_substr($messageText, 0, 50);
+            $title = $sender->name;
+            $body = mb_substr($messageText, 0, 50);
 
             $data = [
                 'type' => 'message',
                 'conversation_id' => $conversationId,
                 'sender_id' => $senderId,
+                'customer_name' => $sender->name,
                 'screen' => 'chat',
             ];
 
@@ -411,12 +414,13 @@ class FirebaseCloudMessagingService
                 return false;
             }
 
-            $title = 'تغيير حالة الشحنة';
-            $body = "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$oldStatusText}' إلى '{$newStatusText}'";
+            $title = $order->customer_name ?? 'تغيير حالة الشحنة';
+            $body = "من '{$oldStatusText}' إلى '{$newStatusText}'";
 
             $data = [
                 'type' => 'shipment_status_changed',
                 'order_id' => $order->id,
+                'customer_name' => $order->customer_name,
                 'order_number' => $order->order_number,
                 'shipment_id' => $shipment->id,
                 'old_status' => $oldStatusText,

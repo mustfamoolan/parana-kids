@@ -173,10 +173,12 @@ class SweetAlertService
             return;
         }
 
-        $title = 'طلب جديد';
-        $message = "تم إنشاء طلب جديد: {$order->order_number}";
+        $statusText = 'طلب جديد';
+        $title = $order->customer_name ?? $statusText;
+        $message = $statusText;
         $data = [
             'order_id' => $order->id,
+            'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
         ];
 
@@ -279,10 +281,12 @@ class SweetAlertService
             return;
         }
 
-        $title = 'تم تقييد الطلب';
-        $message = "تم تقييد الطلب: {$order->order_number}";
+        $statusText = 'تم تقييد الطلب';
+        $title = $order->customer_name ?? $statusText;
+        $message = $statusText;
         $data = [
             'order_id' => $order->id,
+            'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
         ];
 
@@ -386,10 +390,12 @@ class SweetAlertService
             return;
         }
 
-        $title = 'تم حذف الطلب';
-        $message = "تم حذف الطلب: {$order->order_number}";
+        $statusText = 'تم حذف الطلب';
+        $title = $order->customer_name ?? $statusText;
+        $message = $statusText;
         $data = [
             'order_id' => $order->id,
+            'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
         ];
 
@@ -546,10 +552,12 @@ class SweetAlertService
             return;
         }
 
-        $title = 'تعديل على الطلب';
-        $message = "تم تعديل الطلب من قبل {$updatedBy->name}: {$order->order_number}";
+        $statusText = 'تعديل على الطلب';
+        $title = $order->customer_name ?? $statusText;
+        $message = "تم تعديل الطلب من قبل {$updatedBy->name}";
         $data = [
             'order_id' => $order->id,
+            'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
         ];
 

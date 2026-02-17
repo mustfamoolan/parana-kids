@@ -47,8 +47,8 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 AlWaseetNotification::create([
                     'alwaseet_shipment_id' => $event->shipment->id,
                     'type' => 'status_changed',
-                    'title' => 'تغيير حالة الشحنة',
-                    'message' => "تم تغيير حالة الشحنة من '{$oldStatusText}' إلى '{$newStatusText}'",
+                    'title' => $event->shipment->order->customer_name ?? 'تغيير حالة الشحنة',
+                    'message' => "من '{$oldStatusText}' إلى '{$newStatusText}'",
                     'old_status' => $event->oldStatusId,
                     'new_status' => $event->newStatusId,
                 ]);
@@ -225,10 +225,11 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                 Notification::create([
                     'user_id' => $order->delegate_id,
                     'type' => 'shipment_status_changed',
-                    'title' => 'تغيير حالة الشحنة',
-                    'message' => "تم تغيير حالة شحنة الطلب {$order->order_number} من '{$oldStatusText}' إلى '{$newStatusText}'",
+                    'title' => $order->customer_name ?? 'تغيير حالة الشحنة',
+                    'message' => "من '{$oldStatusText}' إلى '{$newStatusText}'",
                     'data' => [
                         'order_id' => $order->id,
+                        'customer_name' => $order->customer_name,
                         'order_number' => $order->order_number,
                         'shipment_id' => $shipment->id,
                         'old_status' => $event->oldStatusId,
