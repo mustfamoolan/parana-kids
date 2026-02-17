@@ -864,5 +864,58 @@ class MobileDelegateChatController extends Controller
             ]
         ]);
     }
+
+    /**
+     * جلب قائمة المستخدمين المتاحين للمراسلة
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAvailableUsers(Request $request)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مندوب
+        if (!$user || !$user->isDelegate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مندوباً للوصول إلى هذه البيانات.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        $search = $request->input('search');
+
+        // جلب المستخدمين المتاحين للمراسلة
+        $usersQuery = User::where('id', '!=', $user->id);
+
+        if ($search) {
+            $usersQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $usersQuery->limit(50)
+            ->get()
+            ->map(function ($u) {
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'code' => $u->code,
+                    'phone' => $u->phone,
+                    'role' => $u->role,
+                    'path' => $u->profile_image_url,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'users' => $users,
+            ],
+        ]);
+    }
 }
 

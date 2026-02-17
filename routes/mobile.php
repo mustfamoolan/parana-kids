@@ -81,6 +81,7 @@ Route::prefix('delegate/chat')->middleware('auth.pwa')->group(function () {
     Route::post('/send-order', [MobileDelegateChatController::class, 'sendOrderMessage']);
     Route::get('/search-product', [MobileDelegateChatController::class, 'searchProduct']);
     Route::post('/send-product', [MobileDelegateChatController::class, 'sendProductMessage']);
+    Route::get('/users', [MobileDelegateChatController::class, 'getAvailableUsers']);
 });
 
 // APIs الإشعارات للمندوب (تحتاج token)
