@@ -77,8 +77,8 @@ class Kernel extends ConsoleKernel
         // تحديث جميع الطلبات من merchant-orders API (كل 15 دقيقة) - لتحديث قاعدة البيانات المحلية
         $schedule->job(new \App\Jobs\UpdateOrdersFromMerchantOrdersJob)->everyFifteenMinutes();
 
-        // حذف الإشعارات القديمة (أكثر من 24 ساعة) كل ساعة
-        $schedule->command('app:cleanup-notifications')->hourly();
+        // حذف البيانات القديمة (إشعارات ورسائل أكثر من 24 ساعة) كل ساعة
+        $schedule->command('app:cleanup-old-data')->hourly();
 
         // تحديث عدد الطلبات لكل حالة (كل 15 دقيقة) - لتحسين الأداء
         $schedule->job(new \App\Jobs\UpdateStatusCountsJob)->everyFifteenMinutes();
