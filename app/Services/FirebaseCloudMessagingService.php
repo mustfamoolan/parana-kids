@@ -415,7 +415,7 @@ class FirebaseCloudMessagingService
             }
 
             $title = $order->customer_name ?? 'تغيير حالة الشحنة';
-            $body = "من '{$oldStatusText}' إلى '{$newStatusText}'";
+            $body = "تم '{$newStatusText}'";
 
             $data = [
                 'type' => 'shipment_status_changed',
