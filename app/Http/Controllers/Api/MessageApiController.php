@@ -33,7 +33,7 @@ class MessageApiController extends Controller
         $conversations = $user->conversations()
             ->with(['latestMessage.user', 'participants'])
             ->get()
-            ->map(function($conversation) use ($user) {
+            ->map(function ($conversation) use ($user) {
                 $otherParticipant = $conversation->getOtherParticipant($user->id);
                 $unreadCount = $conversation->unreadCount($user->id);
 
@@ -97,14 +97,14 @@ class MessageApiController extends Controller
         }
 
         // البحث عن محادثة موجودة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })
-        ->whereHas('participants', function($q) use ($otherUserId) {
-            $q->where('user_id', $otherUserId);
-        })
-        ->where('type', 'direct')
-        ->first();
+            ->whereHas('participants', function ($q) use ($otherUserId) {
+                $q->where('user_id', $otherUserId);
+            })
+            ->where('type', 'direct')
+            ->first();
 
         // إنشاء محادثة جديدة إذا لم تكن موجودة
         if (!$conversation) {
@@ -141,7 +141,7 @@ class MessageApiController extends Controller
         $user = Auth::user();
 
         // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -163,7 +163,7 @@ class MessageApiController extends Controller
             ->with(['user', 'order.delegate', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
             ->orderBy('created_at', 'asc')
             ->get()
-            ->map(function($message) use ($user, $otherParticipant, $conversation) {
+            ->map(function ($message) use ($user, $otherParticipant, $conversation) {
                 $data = [
                     'id' => $message->id,
                     'fromUserId' => $message->user_id,
@@ -185,6 +185,7 @@ class MessageApiController extends Controller
                         'total_amount' => $order->total_amount,
                         'status' => $order->status,
                         'delegate_name' => $order->delegate ? $order->delegate->name : null,
+                        'order_type' => $message->order_type ?? 'normal', // 'normal' أو 'broker'
                         'created_at' => $order->created_at->format('Y-m-d H:i'),
                     ];
                 }
@@ -200,7 +201,7 @@ class MessageApiController extends Controller
                         'gender_type' => $product->gender_type,
                         'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
                         'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                        'sizes' => $product->sizes->map(function($size) {
+                        'sizes' => $product->sizes->map(function ($size) {
                             $reserved = $size->reservations()->sum('quantity_reserved');
                             return [
                                 'id' => $size->id,
@@ -261,7 +262,7 @@ class MessageApiController extends Controller
 
         try {
             // التحقق من أن المستخدم مشارك في المحادثة
-            $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+            $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
             })->findOrFail($conversationId);
 
@@ -439,7 +440,7 @@ class MessageApiController extends Controller
         $user = Auth::user();
         $conversationId = $request->input('conversation_id');
 
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -470,30 +471,30 @@ class MessageApiController extends Controller
         $ordersQuery = Order::query();
 
         // البحث في رقم الطلب، رقم الهاتف، الرابط، أو كود الوسيط
-        $ordersQuery->where(function($q) use ($query) {
+        $ordersQuery->where(function ($q) use ($query) {
             $q->where('order_number', 'like', "%{$query}%")
-              ->orWhere('customer_phone', 'like', "%{$query}%")
-              ->orWhere('customer_social_link', 'like', "%{$query}%")
-              ->orWhere('delivery_code', 'like', "%{$query}%");
+                ->orWhere('customer_phone', 'like', "%{$query}%")
+                ->orWhere('customer_social_link', 'like', "%{$query}%")
+                ->orWhere('delivery_code', 'like', "%{$query}%");
         });
 
         $orders = $ordersQuery->with(['delegate', 'items.product.warehouse'])
-                             ->orderBy('created_at', 'desc')
-                             ->limit(10)
-                             ->get()
-                             ->map(function($order) {
-                                 return [
-                                     'id' => $order->id,
-                                     'order_number' => $order->order_number,
-                                     'customer_name' => $order->customer_name,
-                                     'customer_phone' => $order->customer_phone,
-                                     'customer_social_link' => $order->customer_social_link,
-                                     'total_amount' => $order->total_amount,
-                                     'status' => $order->status,
-                                     'delegate_name' => $order->delegate ? $order->delegate->name : null,
-                                     'created_at' => $order->created_at->format('Y-m-d H:i'),
-                                 ];
-                             });
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone,
+                    'customer_social_link' => $order->customer_social_link,
+                    'total_amount' => $order->total_amount,
+                    'status' => $order->status,
+                    'delegate_name' => $order->delegate ? $order->delegate->name : null,
+                    'created_at' => $order->created_at->format('Y-m-d H:i'),
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -509,27 +510,31 @@ class MessageApiController extends Controller
         $request->validate([
             'conversation_id' => 'required|exists:conversations,id',
             'order_id' => 'required|exists:orders,id',
+            'order_type' => 'nullable|string|in:normal,broker',
         ]);
 
         $user = Auth::user();
         $conversationId = $request->input('conversation_id');
         $orderId = $request->input('order_id');
+        // استقبال نوع الطلب من التطبيق ('normal' أو 'broker')
+        $orderType = $request->input('order_type', 'normal');
 
         // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
         // جلب الطلب
         $order = Order::findOrFail($orderId);
 
-        // إنشاء الرسالة
+        // إنشاء الرسالة مع حفظ نوع الطلب
         $message = Message::create([
             'conversation_id' => $conversationId,
             'user_id' => $user->id,
             'message' => "طلب: {$order->order_number}",
             'type' => 'order',
             'order_id' => $orderId,
+            'order_type' => $orderType, // حفظ نوع الطلب لتمييزه عند الضغط عليه لاحقاً
         ]);
 
         // تحديث وقت المحادثة
@@ -554,6 +559,7 @@ class MessageApiController extends Controller
                     'total_amount' => $order->total_amount,
                     'status' => $order->status,
                     'delegate_name' => $order->delegate ? $order->delegate->name : null,
+                    'order_type' => $orderType, // إرجاع نوع الطلب للتطبيق
                     'created_at' => $order->created_at->format('Y-m-d H:i'),
                 ],
                 'time' => $message->created_at->format('g:i A'),
@@ -577,36 +583,36 @@ class MessageApiController extends Controller
         $productsQuery = Product::query();
 
         // البحث في اسم المنتج أو الكود
-        $productsQuery->where(function($q) use ($query) {
+        $productsQuery->where(function ($q) use ($query) {
             $q->where('name', 'like', "%{$query}%")
-              ->orWhere('code', 'like', "%{$query}%");
+                ->orWhere('code', 'like', "%{$query}%");
         });
 
         $products = $productsQuery->with(['primaryImage', 'warehouse', 'sizes.reservations'])
-                                 ->where('is_hidden', false)
-                                 ->orderBy('created_at', 'desc')
-                                 ->limit(10)
-                                 ->get()
-                                 ->map(function($product) {
-                                     return [
-                                         'id' => $product->id,
-                                         'name' => $product->name,
-                                         'code' => $product->code,
-                                         'selling_price' => $product->selling_price,
-                                         'gender_type' => $product->gender_type,
-                                         'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
-                                         'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                                         'sizes' => $product->sizes->map(function($size) {
-                                             $reserved = $size->reservations()->sum('quantity_reserved');
-                                             return [
-                                                 'id' => $size->id,
-                                                 'size_name' => $size->size_name,
-                                                 'quantity' => $size->quantity,
-                                                 'available_quantity' => $size->quantity - $reserved,
-                                             ];
-                                         }),
-                                     ];
-                                 });
+            ->where('is_hidden', false)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'code' => $product->code,
+                    'selling_price' => $product->selling_price,
+                    'gender_type' => $product->gender_type,
+                    'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
+                    'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
+                    'sizes' => $product->sizes->map(function ($size) {
+                        $reserved = $size->reservations()->sum('quantity_reserved');
+                        return [
+                            'id' => $size->id,
+                            'size_name' => $size->size_name,
+                            'quantity' => $size->quantity,
+                            'available_quantity' => $size->quantity - $reserved,
+                        ];
+                    }),
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -629,7 +635,7 @@ class MessageApiController extends Controller
         $productId = $request->input('product_id');
 
         // التحقق من أن المستخدم مشارك في المحادثة
-        $conversation = Conversation::whereHas('participants', function($q) use ($user) {
+        $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->findOrFail($conversationId);
 
@@ -666,7 +672,7 @@ class MessageApiController extends Controller
                     'gender_type' => $product->gender_type,
                     'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
                     'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                    'sizes' => $product->sizes->map(function($size) {
+                    'sizes' => $product->sizes->map(function ($size) {
                         $reserved = $size->reservations()->sum('quantity_reserved');
                         return [
                             'id' => $size->id,
@@ -724,7 +730,7 @@ class MessageApiController extends Controller
                 'title' => $conversation->title,
                 'type' => 'group',
                 'participants_count' => $conversation->participants()->count(),
-                'participants' => $conversation->participants->map(function($participant) {
+                'participants' => $conversation->participants->map(function ($participant) {
                     return [
                         'id' => $participant->id,
                         'name' => $participant->name,
@@ -848,7 +854,7 @@ class MessageApiController extends Controller
             ], 400);
         }
 
-        $participants = $conversation->participants()->get()->map(function($participant) {
+        $participants = $conversation->participants()->get()->map(function ($participant) {
             return [
                 'id' => $participant->id,
                 'name' => $participant->name,
