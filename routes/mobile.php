@@ -166,6 +166,17 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     Route::get('/partial-returns', [MobileAdminOrderController::class, 'getPartialReturns']);
     Route::get('/{id}/partial-return', [MobileAdminOrderController::class, 'getPartialReturnOrder']);
     Route::post('/{id}/partial-return', [MobileAdminOrderController::class, 'processPartialReturn']);
+
+    // إنشاء طلب جديد (Admin Order Creation)
+    Route::prefix('create')->group(function () {
+        Route::post('/initialize', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'initialize']);
+        Route::get('/current-cart', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'currentCart']);
+        Route::post('/items', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'addItem']);
+        Route::get('/search-products', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'searchProducts']);
+        Route::put('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'updateItem']);
+        Route::delete('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'removeItem']);
+        Route::post('/submit', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'submit']);
+    });
 });
 
 // APIs حركات الطلبات للمدير والمجهز (تحتاج token)
