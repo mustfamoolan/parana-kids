@@ -90,4 +90,16 @@ Route::middleware('auth.pwa')->group(function () {
     // Materials API (Raw & Grouped)
     Route::get('/materials/raw', [MaterialApiController::class, 'index']);
     Route::get('/materials/grouped', [MaterialApiController::class, 'grouped']);
+
+    // Admin Order Creation API Routes
+    Route::prefix('admin/orders/create')->group(function () {
+        Route::post('/initialize', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'initialize']);
+        Route::get('/current-cart', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'currentCart']);
+        Route::get('/items', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'addItem']); // This was wrong in previous turn, should be POST
+        Route::post('/items', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'addItem']);
+        Route::get('/search-products', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'searchProducts']);
+        Route::put('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'updateItem']);
+        Route::delete('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'removeItem']);
+        Route::post('/submit', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'submit']);
+    });
 });
