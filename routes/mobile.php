@@ -176,6 +176,7 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
         Route::get('/search-products', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'searchProducts']);
         Route::put('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'updateItem']);
         Route::delete('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'removeItem']);
+        Route::delete('/cancel', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'cancel']);
         Route::post('/submit', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'submit']);
     });
 });

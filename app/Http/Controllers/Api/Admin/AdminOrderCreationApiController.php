@@ -451,4 +451,33 @@ class AdminOrderCreationApiController extends Controller
             return response()->json(['success' => false, 'message' => 'خطأ أثناء تنفيذ الطلب: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Cancel the current active order/cart
+     */
+    public function cancel()
+    {
+        $user = Auth::user();
+        $cart = Cart::where('created_by', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$cart) {
+            return response()->json(['success' => false, 'message' => 'لا توجد سلة نشطة لإلغائها.'], 404);
+        }
+
+        DB::transaction(function () use ($cart) {
+            foreach ($cart->items as $item) {
+                if ($item->stockReservation) {
+                    $item->stockReservation->delete();
+                }
+            }
+            $cart->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم إلغاء الطلب ومسح المسودة بنجاح.'
+        ]);
+    }
 }
