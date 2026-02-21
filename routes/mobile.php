@@ -172,6 +172,7 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
         Route::post('/initialize', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'initialize']);
         Route::get('/current-cart', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'currentCart']);
         Route::post('/items', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'addItem']);
+        Route::get('/search-filters', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'getSearchFilters']);
         Route::get('/search-products', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'searchProducts']);
         Route::put('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'updateItem']);
         Route::delete('/items/{itemId}', [\App\Http\Controllers\Api\Admin\AdminOrderCreationApiController::class, 'removeItem']);

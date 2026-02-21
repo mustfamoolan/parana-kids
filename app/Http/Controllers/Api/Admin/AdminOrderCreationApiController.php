@@ -33,6 +33,9 @@ class AdminOrderCreationApiController extends Controller
     {
         $user = Auth::user();
         $query = $request->input('query');
+        $warehouseId = $request->input('warehouse_id');
+        $genderType = $request->input('gender_type');
+        $onSale = $request->boolean('on_sale');
 
         $productsQuery = \App\Models\Product::query();
 
@@ -40,6 +43,12 @@ class AdminOrderCreationApiController extends Controller
         if ($user->isSupplier()) {
             $warehouseIds = $user->warehouses->pluck('id')->toArray();
             $productsQuery->whereIn('warehouse_id', $warehouseIds);
+        } elseif ($warehouseId) {
+            $productsQuery->where('warehouse_id', $warehouseId);
+        }
+
+        if ($genderType) {
+            $productsQuery->where('gender_type', $genderType);
         }
 
         if ($query) {
@@ -49,36 +58,72 @@ class AdminOrderCreationApiController extends Controller
             });
         }
 
-        $products = $productsQuery->with(['primaryImage', 'warehouse', 'sizes.reservations'])
+        $products = $productsQuery->with(['images', 'warehouse', 'sizes.reservations'])
             ->where('is_hidden', false)
             ->orderBy('created_at', 'desc')
-            ->limit(30)
-            ->get()
-            ->map(function ($product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'code' => $product->code,
-                    'selling_price' => $product->selling_price,
-                    'effective_price' => $product->effective_price,
-                    'gender_type' => $product->gender_type,
-                    'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
-                    'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                    'sizes' => $product->sizes->map(function ($size) {
-                        $reserved = $size->reservations()->sum('quantity_reserved');
-                        return [
-                            'id' => $size->id,
-                            'size_name' => $size->size_name,
-                            'quantity' => $size->quantity,
-                            'available_quantity' => $size->quantity - $reserved,
-                        ];
-                    }),
-                ];
+            ->limit(50)
+            ->get();
+
+        // Filter by discount if requested (done in collection for accuracy since some discounts are warehouse-based)
+        if ($onSale) {
+            $products = $products->filter(function ($product) {
+                return $product->hasActiveDiscount() || ($product->warehouse && $product->warehouse->activePromotion()->exists());
             });
+        }
+
+        $data = $products->map(function ($product) {
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'selling_price' => $product->selling_price,
+                'effective_price' => $product->effective_price,
+                'gender_type' => $product->gender_type,
+                'warehouse_name' => $product->warehouse ? $product->warehouse->name : null,
+                'image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
+                'images' => $product->images->map(function ($img) {
+                    return ['id' => $img->id, 'url' => $img->image_url];
+                }),
+                'has_discount' => $product->effective_price < $product->selling_price,
+                'discount_info' => $product->getDiscountInfo(),
+                'sizes' => $product->sizes->map(function ($size) {
+                    $reserved = $size->reservations()->sum('quantity_reserved');
+                    return [
+                        'id' => $size->id,
+                        'size_name' => $size->size_name,
+                        'quantity' => $size->quantity,
+                        'available_quantity' => $size->quantity - $reserved,
+                    ];
+                }),
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $products,
+            'data' => $data->values(),
+        ]);
+    }
+
+    /**
+     * Get filter options for product search
+     */
+    public function getSearchFilters()
+    {
+        $warehouses = \App\Models\Warehouse::select('id', 'name')->get();
+
+        // Gender types from Product model (enums or common values)
+        $types = [
+            ['id' => 'boy', 'name' => 'ولد'],
+            ['id' => 'girl', 'name' => 'بنت'],
+            ['id' => 'unisex', 'name' => 'للجنسين'],
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'warehouses' => $warehouses,
+                'types' => $types,
+            ],
         ]);
     }
 
