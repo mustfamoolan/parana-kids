@@ -48,7 +48,13 @@ class AdminOrderCreationApiController extends Controller
         }
 
         if ($genderType) {
-            $productsQuery->where('gender_type', $genderType);
+            if ($genderType == 'boys') {
+                $productsQuery->whereIn('gender_type', ['boys', 'boys_girls']);
+            } elseif ($genderType == 'girls') {
+                $productsQuery->whereIn('gender_type', ['girls', 'boys_girls']);
+            } else {
+                $productsQuery->where('gender_type', $genderType);
+            }
         }
 
         if ($query) {
@@ -58,18 +64,45 @@ class AdminOrderCreationApiController extends Controller
             });
         }
 
-        $products = $productsQuery->with(['images', 'warehouse', 'sizes.reservations'])
-            ->where('is_hidden', false)
-            ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get();
-
-        // Filter by discount if requested (done in collection for accuracy since some discounts are warehouse-based)
+        // Filter by discount if requested
         if ($onSale) {
-            $products = $products->filter(function ($product) {
-                return $product->hasActiveDiscount() || ($product->warehouse && $product->warehouse->activePromotion()->exists());
+            $productsQuery->where(function ($q) {
+                // 1. Product specific active discount
+                $q->where(function ($sq) {
+                    $sq->whereNotNull('discount_type')
+                        ->where('discount_type', '!=', 'none')
+                        ->whereNotNull('discount_value')
+                        ->where(function ($dq) {
+                            $now = now();
+                            $dq->where(function ($noDates) {
+                                $noDates->whereNull('discount_start_date')
+                                    ->whereNull('discount_end_date');
+                            })->orWhere(function ($withDates) use ($now) {
+                                $withDates->where(function ($sd) use ($now) {
+                                    $sd->whereNull('discount_start_date')
+                                        ->orWhere('discount_start_date', '<=', $now);
+                                })->where(function ($ed) use ($now) {
+                                    $ed->whereNull('discount_end_date')
+                                        ->orWhere('discount_end_date', '>=', $now);
+                                });
+                            });
+                        });
+                })
+                    // 2. OR Warehouse active promotion
+                    ->orWhereHas('warehouse.promotions', function ($pq) {
+                        $now = now();
+                        $pq->where('is_active', true)
+                            ->where('start_date', '<=', $now)
+                            ->where('end_date', '>=', $now);
+                    });
             });
         }
+
+        $products = $productsQuery->with(['images', 'warehouse.activePromotion', 'sizes.reservations'])
+            ->where('is_hidden', false)
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
 
         $data = $products->map(function ($product) {
             return [
@@ -113,9 +146,10 @@ class AdminOrderCreationApiController extends Controller
 
         // Gender types from Product model (enums or common values)
         $types = [
-            ['id' => 'boy', 'name' => 'ولد'],
-            ['id' => 'girl', 'name' => 'بنت'],
-            ['id' => 'unisex', 'name' => 'للجنسين'],
+            ['id' => 'boys', 'name' => 'ولادي'],
+            ['id' => 'girls', 'name' => 'بناتي'],
+            ['id' => 'boys_girls', 'name' => 'للجنسين'],
+            ['id' => 'accessories', 'name' => 'إكسسوارات'],
         ];
 
         return response()->json([
