@@ -28,7 +28,7 @@ class Cart extends Model
         'expires_at' => 'datetime',
     ];
 
-    protected $appends = ['total_amount'];
+    protected $appends = ['total_amount', 'total_items'];
 
     public function delegate()
     {
