@@ -237,7 +237,7 @@ class AdminOrderCreationApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم إنشاء مسودة الطلب بنجاح.',
-            'data' => $cart
+            'data' => $cart->load('items')
         ]);
     }
 
@@ -304,7 +304,7 @@ class AdminOrderCreationApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم إضافة المنتج إلى السلة.',
-            'data' => $cart->refresh()->load('items.product', 'items.size')
+            'data' => $cart->fresh(['items.product', 'items.size'])
         ]);
     }
 

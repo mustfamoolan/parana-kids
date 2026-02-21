@@ -28,6 +28,8 @@ class Cart extends Model
         'expires_at' => 'datetime',
     ];
 
+    protected $appends = ['total_amount'];
+
     public function delegate()
     {
         return $this->belongsTo(User::class, 'delegate_id');
@@ -50,7 +52,7 @@ class Cart extends Model
 
     public function getTotalAmountAttribute()
     {
-        return $this->items->sum(function($item) {
+        return $this->items->sum(function ($item) {
             return $item->quantity * $item->price;
         });
     }

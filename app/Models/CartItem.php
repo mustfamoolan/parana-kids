@@ -9,6 +9,8 @@ class CartItem extends Model
 {
     use HasFactory;
 
+    protected $appends = ['subtotal'];
+
     protected $fillable = [
         'cart_id',
         'product_id',
