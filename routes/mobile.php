@@ -145,7 +145,14 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'confirmOrder']);
     Route::get('/materials-list', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsList']);
     Route::get('/materials-list-grouped', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsListGrouped']);
+    // City & Region options from AlWaseet API
+    Route::get('/city-options', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getCityOptions']);
+    Route::get('/region-options', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getRegionOptions']);
+    // Update AlWaseet-specific order fields
+    Route::patch('/orders/{id}/fields', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'updateOrderFields']);
 });
+
+
 
 // APIs إدارة الطلبات للمدير والمجهز (تحتاج token)
 Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {

@@ -670,6 +670,79 @@ class AlWaseetApiController extends Controller
         });
     }
 
+    /**
+     * Get AlWaseet city options for mobile.
+     */
+    public function getCityOptions()
+    {
+        try {
+            $cities = $this->alWaseetService->getCities();
+            return response()->json(['success' => true, 'data' => $cities]);
+        } catch (\Exception $e) {
+            Log::error('AlWaseetApiController@getCityOptions error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'فشل جلب المحافظات', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get AlWaseet region options for a given city.
+     */
+    public function getRegionOptions(Request $request)
+    {
+        $request->validate(['city_id' => 'required|string']);
+        try {
+            $regions = $this->alWaseetService->getRegions($request->city_id);
+            return response()->json(['success' => true, 'data' => $regions]);
+        } catch (\Exception $e) {
+            Log::error('AlWaseetApiController@getRegionOptions error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'فشل جلب المناطق', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Update AlWaseet-specific order fields (city, region, statuses, time note).
+     */
+    public function updateOrderFields(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+
+        $request->validate([
+            'alwaseet_city_id' => 'nullable|string',
+            'alwaseet_region_id' => 'nullable|string',
+            'alwaseet_delivery_time_note' => 'nullable|string|in:morning,noon,evening,urgent',
+            'size_reviewed' => 'nullable|boolean',
+            'message_confirmed' => 'nullable|boolean',
+        ]);
+
+        try {
+            $data = $request->only([
+                'alwaseet_city_id',
+                'alwaseet_region_id',
+                'alwaseet_delivery_time_note',
+                'size_reviewed',
+                'message_confirmed',
+            ]);
+
+            // Only update provided fields
+            $order->update(array_filter($data, fn($v) => !is_null($v)));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث البيانات بنجاح',
+                'data' => $order->fresh()->only([
+                    'alwaseet_city_id',
+                    'alwaseet_region_id',
+                    'alwaseet_delivery_time_note',
+                    'size_reviewed',
+                    'message_confirmed',
+                ]),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AlWaseetApiController@updateOrderFields error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'فشل التحديث: ' . $e->getMessage()], 500);
+        }
+    }
+
     private function fetchRealTimeStatus($ids)
     {
         $cacheKey = 'mobile_alwaseet_api_batch_' . md5(implode(',', $ids));
