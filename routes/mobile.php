@@ -138,6 +138,13 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::get('/status-cards', [MobileAdminAlWaseetController::class, 'getStatusCards']);
     Route::get('/orders', [MobileAdminAlWaseetController::class, 'getOrders']);
     Route::get('/orders/{id}', [MobileAdminAlWaseetController::class, 'getOrderDetails']);
+
+    // Print & Upload routes
+    Route::get('/print-upload-orders', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getPrintUploadOrders']);
+    Route::post('/orders/{id}/send', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'sendToAlWaseet']);
+    Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'confirmOrder']);
+    Route::get('/materials-list', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsList']);
+    Route::get('/materials-list-grouped', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsListGrouped']);
 });
 
 // APIs إدارة الطلبات للمدير والمجهز (تحتاج token)
