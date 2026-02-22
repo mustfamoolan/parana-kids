@@ -149,7 +149,7 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::get('/city-options', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getCityOptions']);
     Route::get('/region-options', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getRegionOptions']);
     // Update AlWaseet-specific order fields
-    Route::patch('/orders/{id}/fields', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'updateOrderFields']);
+    Route::put('/orders/{id}/fields', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'updateOrderFields']);
 });
 
 
