@@ -91,10 +91,17 @@ Route::middleware('auth.pwa')->group(function () {
     Route::get('/materials/raw', [MaterialApiController::class, 'index']);
     Route::get('/materials/grouped', [MaterialApiController::class, 'grouped']);
 
-    // AlWaseet tracking routes
+    // AlWaseet management routes
     Route::prefix('admin/alwaseet')->group(function () {
         Route::get('/get-filters', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getFilters']);
         Route::get('/track-orders', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'index']);
         Route::delete('/track-orders/{order}', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'deleteOrder']);
+
+        // Print & Upload routes
+        Route::get('/print-upload-orders', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getPrintUploadOrders']);
+        Route::post('/orders/{id}/send', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'sendToAlWaseet']);
+        Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'confirmOrder']);
+        Route::get('/materials-list', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsList']);
+        Route::get('/materials-list-grouped', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsListGrouped']);
     });
 });
