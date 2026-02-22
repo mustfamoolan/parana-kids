@@ -35,6 +35,8 @@ class Product extends Model
         'discount_end_date' => 'datetime',
     ];
 
+    protected $appends = ['primary_image_url'];
+
     /**
      * Get the warehouse that owns this product
      */
@@ -81,6 +83,18 @@ class Product extends Model
     public function getTotalQuantityAttribute()
     {
         return $this->sizes()->sum('quantity');
+    }
+
+    /**
+     * Get primary image URL
+     */
+    public function getPrimaryImageUrlAttribute()
+    {
+        // استخدام loadMissing لضمان تحميل العلاقة عند الطلب إذا لم تكن محملة مسبقاً
+        if (!$this->relationLoaded('primaryImage')) {
+            $this->loadMissing('primaryImage');
+        }
+        return $this->primaryImage ? $this->primaryImage->image_url : null;
     }
 
     public function profitRecords()

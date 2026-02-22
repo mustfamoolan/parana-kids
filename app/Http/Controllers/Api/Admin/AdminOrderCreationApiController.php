@@ -204,37 +204,28 @@ class AdminOrderCreationApiController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        // حذف السلة النشطة القديمة لنفس المسؤول
-        Cart::where('created_by', $user->id)
-            ->where('status', 'active')
-            ->get()
-            ->each(function ($cart) {
-                foreach ($cart->items as $item) {
-                    if ($item->stockReservation) {
-                        $item->stockReservation->delete();
-                    }
-                }
-                $cart->delete();
-            });
-
-        // إنشاء سلة جديدة
-        $cart = Cart::create([
-            'created_by' => $user->id,
-            'cart_name' => 'طلب: ' . $request->customer_name,
-            'status' => 'active',
-            'expires_at' => now()->addHours(24),
-            'customer_name' => $request->customer_name,
-            'customer_phone' => $normalizedPhone,
-            'customer_phone2' => $this->normalizePhoneNumber($request->customer_phone2),
-            'customer_address' => $request->customer_address,
-            'customer_social_link' => $request->customer_social_link,
-            'notes' => $request->notes,
-        ]);
+        // البحث عن سلة نشطة للمسؤول أو إنشاء واحدة جديدة
+        $cart = Cart::updateOrCreate(
+            [
+                'created_by' => $user->id,
+                'status' => 'active',
+            ],
+            [
+                'cart_name' => 'طلب: ' . $request->customer_name,
+                'expires_at' => now()->addHours(24),
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $normalizedPhone,
+                'customer_phone2' => $this->normalizePhoneNumber($request->customer_phone2),
+                'customer_address' => $request->customer_address,
+                'customer_social_link' => $request->customer_social_link,
+                'notes' => $request->notes,
+            ]
+        );
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إنشاء مسودة الطلب بنجاح.',
-            'data' => $cart->load('items')
+            'message' => 'تم حفظ بيانات الزبون بنجاح.',
+            'data' => $cart->load(['items.product.primaryImage', 'items.size'])
         ]);
     }
 
@@ -301,7 +292,7 @@ class AdminOrderCreationApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم إضافة المنتج إلى السلة.',
-            'data' => $cart->fresh(['items.product', 'items.size'])
+            'data' => $cart->fresh(['items.product.primaryImage', 'items.size'])
         ]);
     }
 
