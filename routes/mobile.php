@@ -132,6 +132,9 @@ Route::prefix('admin/auth')->group(function () {
 
 // APIs تتبع طلبات الوسيط للمدير والمجهز (تحتاج token)
 Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
+    Route::get('/get-filters', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getFilters']);
+    Route::get('/track-orders', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'index']);
+    Route::delete('/track-orders/{order}', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'deleteOrder']);
     Route::get('/status-cards', [MobileAdminAlWaseetController::class, 'getStatusCards']);
     Route::get('/orders', [MobileAdminAlWaseetController::class, 'getOrders']);
     Route::get('/orders/{id}', [MobileAdminAlWaseetController::class, 'getOrderDetails']);
