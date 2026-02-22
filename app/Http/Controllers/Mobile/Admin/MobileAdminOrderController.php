@@ -627,6 +627,11 @@ class MobileAdminOrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.size_id' => 'required|exists:product_sizes,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'alwaseet_city_id' => 'nullable|string',
+            'alwaseet_region_id' => 'nullable|string',
+            'alwaseet_delivery_time_note' => 'nullable|string',
+            'size_reviewed' => 'nullable|string',
+            'message_confirmed' => 'nullable|string',
         ]);
 
         try {
@@ -677,6 +682,11 @@ class MobileAdminOrderController extends Controller
                     'customer_address',
                     'customer_social_link',
                     'notes',
+                    'alwaseet_city_id',
+                    'alwaseet_region_id',
+                    'alwaseet_delivery_time_note',
+                    'size_reviewed',
+                    'message_confirmed',
                 ]));
 
                 // للطلبات غير المقيدة (pending) أو المقيدة التي لم يمر عليها 5 ساعات: معالجة المنتجات
