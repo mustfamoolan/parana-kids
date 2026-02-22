@@ -90,4 +90,11 @@ Route::middleware('auth.pwa')->group(function () {
     // Materials API (Raw & Grouped)
     Route::get('/materials/raw', [MaterialApiController::class, 'index']);
     Route::get('/materials/grouped', [MaterialApiController::class, 'grouped']);
+
+    // AlWaseet tracking routes
+    Route::prefix('admin/alwaseet')->group(function () {
+        Route::get('/get-filters', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getFilters']);
+        Route::get('/track-orders', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'index']);
+        Route::delete('/track-orders/{order}', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'deleteOrder']);
+    });
 });
