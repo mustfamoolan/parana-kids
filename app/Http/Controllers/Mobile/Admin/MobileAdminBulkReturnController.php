@@ -47,13 +47,13 @@ class MobileAdminBulkReturnController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'warehouses' => $warehouses->map(function($warehouse) {
+                    'warehouses' => $warehouses->map(function ($warehouse) {
                         return [
                             'id' => $warehouse->id,
                             'name' => $warehouse->name,
                         ];
                     }),
-                    'delegates' => $delegates->map(function($delegate) {
+                    'delegates' => $delegates->map(function ($delegate) {
                         return [
                             'id' => $delegate->id,
                             'name' => $delegate->name,
@@ -112,9 +112,9 @@ class MobileAdminBulkReturnController extends Controller
 
             // البحث بالاسم أو الكود
             if ($request->filled('search')) {
-                $query->where(function($q) use ($request) {
+                $query->where(function ($q) use ($request) {
                     $q->where('name', 'like', '%' . $request->search . '%')
-                      ->orWhere('code', 'like', '%' . $request->search . '%');
+                        ->orWhere('code', 'like', '%' . $request->search . '%');
                 });
             }
 
@@ -127,7 +127,7 @@ class MobileAdminBulkReturnController extends Controller
             $products = $query->limit($limit)->get();
 
             // تنسيق البيانات
-            $formattedProducts = $products->map(function($product) {
+            $formattedProducts = $products->map(function ($product) {
                 return [
                     'id' => $product->id,
                     'name' => $product->name,
@@ -140,7 +140,7 @@ class MobileAdminBulkReturnController extends Controller
                         'name' => $product->warehouse->name,
                     ] : null,
                     'primary_image_url' => $product->primaryImage ? $product->primaryImage->image_url : null,
-                    'sizes' => $product->sizes->map(function($size) {
+                    'sizes' => $product->sizes->map(function ($size) {
                         return [
                             'id' => $size->id,
                             'size_name' => $size->size_name,
@@ -199,8 +199,8 @@ class MobileAdminBulkReturnController extends Controller
         ]);
 
         // التحقق من صلاحيات المخزن
-        $warehouses = $user->isAdmin() 
-            ? Warehouse::all() 
+        $warehouses = $user->isAdmin()
+            ? Warehouse::all()
             : $user->warehouses;
 
         $warehouseIds = $warehouses->pluck('id')->toArray();
@@ -213,7 +213,7 @@ class MobileAdminBulkReturnController extends Controller
         }
 
         try {
-            $result = DB::transaction(function() use ($validated, $user) {
+            $result = DB::transaction(function () use ($validated, $user) {
                 $delegate = User::find($validated['delegate_id']);
                 $returnedItems = [];
 
@@ -276,7 +276,7 @@ class MobileAdminBulkReturnController extends Controller
                     ],
                     'warehouse' => [
                         'id' => $validated['warehouse_id'],
-                        'name' => $warehouses->firstWhere('id', $validated['warehouse_id'])->name,
+                        'name' => $warehouses->firstWhere('id', $validated['warehouse_id'])->name ?? 'مخزن غير معروف',
                     ],
                     'items' => $returnedItems,
                     'total_items' => count($returnedItems),
