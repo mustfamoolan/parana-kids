@@ -219,3 +219,7 @@ Route::prefix('admin/bulk-exchange-returns')->middleware('auth.pwa')->group(func
     Route::get('/search-products', [MobileAdminBulkExchangeReturnController::class, 'searchProducts']);
     Route::post('/', [MobileAdminBulkExchangeReturnController::class, 'returnProducts']);
 });
+// APIs الداشبورد والتقارير للمدير (تحتاج token)
+Route::prefix('admin/dashboard')->middleware('auth.pwa')->group(function () {
+    Route::get('/reports', [\App\Http\Controllers\Mobile\Admin\MobileAdminDashboardController::class, 'reports']);
+});
