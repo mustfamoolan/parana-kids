@@ -165,9 +165,17 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'index']); // New unified API
     Route::get('/filters', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'getFilters']); // New filters API
 
+    // المواد المطلوبة
+    Route::get('/materials', [MobileAdminOrderController::class, 'getMaterialsList']);
+    Route::get('/materials/grouped', [MobileAdminOrderController::class, 'getMaterialsListGrouped']);
+
+    // الإرجاعات الجزئية
+    Route::get('/partial-returns', [MobileAdminOrderController::class, 'getPartialReturns']);
+    Route::get('/{id}/partial-return', [MobileAdminOrderController::class, 'getPartialReturnOrder']);
+    Route::post('/{id}/partial-return', [MobileAdminOrderController::class, 'processPartialReturn']);
+
     // تفاصيل وتعديل الطلب
     Route::get('/deleted', [MobileAdminOrderController::class, 'getOrders']); // Get deleted orders
-    Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
     Route::get('/{id}/edit', [MobileAdminOrderController::class, 'getOrderEditData']);
     Route::put('/{id}', [MobileAdminOrderController::class, 'updateOrder']);
     Route::put('/{id}/quick-status', [MobileAdminOrderController::class, 'updateQuickStatus']);
@@ -177,14 +185,8 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     Route::get('/{id}/process', [MobileAdminOrderController::class, 'getOrderProcessData']);
     Route::post('/{id}/process', [MobileAdminOrderController::class, 'processOrder']);
 
-    // المواد المطلوبة
-    Route::get('/materials', [MobileAdminOrderController::class, 'getMaterialsList']);
-    Route::get('/materials/grouped', [MobileAdminOrderController::class, 'getMaterialsListGrouped']);
-
-    // الإرجاعات الجزئية
-    Route::get('/partial-returns', [MobileAdminOrderController::class, 'getPartialReturns']);
-    Route::get('/{id}/partial-return', [MobileAdminOrderController::class, 'getPartialReturnOrder']);
-    Route::post('/{id}/partial-return', [MobileAdminOrderController::class, 'processPartialReturn']);
+    // جلب تفاصيل الطلب (يجب أن يكون في النهاية لتجنب الحجب)
+    Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
 
     // إنشاء طلب جديد (Admin Order Creation)
     Route::prefix('create')->group(function () {
