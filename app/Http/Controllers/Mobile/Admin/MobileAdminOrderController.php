@@ -2233,6 +2233,13 @@ class MobileAdminOrderController extends Controller
             ] : null,
             'created_at' => $order->created_at->toIso8601String(),
             'confirmed_at' => $order->confirmed_at ? $order->confirmed_at->toIso8601String() : null,
+            'deleted_at' => $order->deleted_at ? $order->deleted_at->toIso8601String() : null,
+            'deletion_reason' => $order->deletion_reason,
+            'deleted_by' => $order->deleted_by,
+            'deleted_by_user' => $order->deletedByUser ? [
+                'id' => $order->deletedByUser->id,
+                'name' => $order->deletedByUser->name,
+            ] : null,
             'items_count' => $order->items->count(),
             'items' => $order->items->map(function ($item) {
                 return [
@@ -2409,7 +2416,68 @@ class MobileAdminOrderController extends Controller
                     'subtotal' => (float) $item->subtotal,
                 ];
             }),
+            'deleted_at' => $order->deleted_at ? $order->deleted_at->toIso8601String() : null,
+            'deletion_reason' => $order->deletion_reason,
+            'deleted_by_user' => $order->deletedByUser ? [
+                'id' => $order->deletedByUser->id,
+                'name' => $order->deletedByUser->name,
+            ] : null,
         ];
+    }
+
+    /**
+     * حذف الطلب نهائياً من قاعدة البيانات
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function forceDelete($id)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير
+        if (!$user || !$user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح. يجب أن تكون مديراً للقيام بهذا الإجراء.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $order = Order::withTrashed()->find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الطلب غير موجود.',
+                    'error_code' => 'NOT_FOUND',
+                ], 404);
+            }
+
+            // حذف العناصر والمستحقات المرتبطة قبل حذف الطلب
+            DB::transaction(function () use ($order) {
+                $order->items()->delete();
+                $order->forceDelete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف الطلب نهائياً بنجاح.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to force delete order', [
+                'error' => $e->getMessage(),
+                'order_id' => $id,
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف الطلب نهائياً.',
+                'error_code' => 'DELETE_ERROR',
+            ], 500);
+        }
     }
 }
 

@@ -166,10 +166,12 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     Route::get('/filters', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'getFilters']); // New filters API
 
     // تفاصيل وتعديل الطلب
+    Route::get('/deleted', [MobileAdminOrderController::class, 'getOrders']); // Get deleted orders
     Route::get('/{id}', [MobileAdminOrderController::class, 'getOrderDetails']);
     Route::get('/{id}/edit', [MobileAdminOrderController::class, 'getOrderEditData']);
     Route::put('/{id}', [MobileAdminOrderController::class, 'updateOrder']);
     Route::put('/{id}/quick-status', [MobileAdminOrderController::class, 'updateQuickStatus']);
+    Route::delete('/{id}/force-delete', [MobileAdminOrderController::class, 'forceDelete']);
 
     // تجهيز الطلب
     Route::get('/{id}/process', [MobileAdminOrderController::class, 'getOrderProcessData']);
