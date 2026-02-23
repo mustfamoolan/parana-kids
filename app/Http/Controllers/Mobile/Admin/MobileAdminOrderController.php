@@ -2305,13 +2305,12 @@ class MobileAdminOrderController extends Controller
             }
 
             // التحديث بناءً على البيانات المرسلة
-            $updateData = [];
-            if ($request->has('size_reviewed')) {
-                $updateData['size_reviewed'] = (bool) $request->size_reviewed;
-            }
-            if ($request->has('message_confirmed')) {
-                $updateData['message_confirmed'] = (bool) $request->message_confirmed;
-            }
+            $request->validate([
+                'size_reviewed' => 'nullable|in:not_reviewed,reviewed',
+                'message_confirmed' => 'nullable|in:not_sent,waiting_response,not_confirmed,confirmed',
+            ]);
+
+            $updateData = $request->only(['size_reviewed', 'message_confirmed']);
 
             if (empty($updateData)) {
                 return response()->json([
