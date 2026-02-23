@@ -48,7 +48,10 @@ class MobileAdminDashboardController extends Controller
             // 2. بيانات الشارتات (Charts)
             $charts = $this->calculateCharts($request, $dateFrom, $dateTo);
 
-            // 3. قوائم المنتجات (Product Ranking)
+            // 3. تفاصيل المخازن (Warehouse Breakdown)
+            $warehouseBreakdown = $this->calculateWarehouseBreakdown($request, $dateFrom, $dateTo);
+
+            // 4. قوائم المنتجات (Product Ranking)
             $rankings = $this->calculateRankings($request, $dateFrom, $dateTo);
 
             return response()->json([
@@ -56,6 +59,7 @@ class MobileAdminDashboardController extends Controller
                 'data' => [
                     'metrics' => $metrics,
                     'charts' => $charts,
+                    'warehouse_breakdown' => $warehouseBreakdown,
                     'rankings' => $rankings,
                     'filters' => [
                         'date_from' => $dateFrom,
@@ -122,6 +126,7 @@ class MobileAdminDashboardController extends Controller
         $totalActualProfit = 0;
         $confirmedTotalAmount = 0;
         $totalMarginAmount = 0;
+        $totalCommissions = 0;
         $confirmedOrderIds = collect();
 
         if (!$request->filled('status') || $request->status === 'confirmed') {
@@ -145,6 +150,8 @@ class MobileAdminDashboardController extends Controller
                     ->whereIn('id', $confirmedOrderIds)
                     ->whereNotNull('profit_margin_at_confirmation')
                     ->sum('profit_margin_at_confirmation') ?? 0;
+
+                $totalCommissions = $totalMarginAmount; // في هذا النظام الهامش هو العمولة
             }
         }
 
@@ -217,10 +224,52 @@ class MobileAdminDashboardController extends Controller
             'pending_total_amount' => (float) $pendingTotalAmount,
             'total_product_value' => (float) $totalProductValue,
             'total_margin_amount' => (float) $totalMarginAmount,
+            'total_commissions' => (float) $totalCommissions,
             'total_expenses' => (float) $totalExpenses,
             'total_sold_items' => (int) $totalSoldItems,
             'total_warehouse_pieces' => (int) $totalWarehousePieces,
         ];
+    }
+
+    private function calculateWarehouseBreakdown(Request $request, $dateFrom, $dateTo)
+    {
+        $warehouses = Warehouse::all();
+        $breakdown = [];
+
+        foreach ($warehouses as $warehouse) {
+            $orderIds = Order::where('status', 'confirmed')
+                ->whereBetween(DB::raw('DATE(confirmed_at)'), [$dateFrom, $dateTo])
+                ->whereHas('items.product', function ($q) use ($warehouse) {
+                    $q->where('warehouse_id', $warehouse->id);
+                })
+                ->pluck('id');
+
+            if ($orderIds->count() > 0) {
+                $soldCount = DB::table('order_items')
+                    ->whereIn('order_id', $orderIds)
+                    ->sum('quantity') ?? 0;
+
+                $data = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->whereIn('order_items.order_id', $orderIds)
+                    ->selectRaw('
+                        SUM(order_items.unit_price * order_items.quantity) as selling_amount,
+                        SUM(products.purchase_price * order_items.quantity) as purchase_amount
+                    ')
+                    ->first();
+
+                $breakdown[] = [
+                    'id' => $warehouse->id,
+                    'name' => $warehouse->name,
+                    'sold_count' => (int) $soldCount,
+                    'selling_amount' => (float) $data->selling_amount,
+                    'purchase_amount' => (float) $data->purchase_amount,
+                    'profit' => (float) ($data->selling_amount - $data->purchase_amount),
+                ];
+            }
+        }
+
+        return $breakdown;
     }
 
     private function calculateCharts(Request $request, $dateFrom, $dateTo)
