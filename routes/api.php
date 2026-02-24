@@ -90,4 +90,20 @@ Route::middleware('auth.pwa')->group(function () {
     // Materials API (Raw & Grouped)
     Route::get('/materials/raw', [MaterialApiController::class, 'index']);
     Route::get('/materials/grouped', [MaterialApiController::class, 'grouped']);
+
+    // Admin Mobile API Routes
+    Route::prefix('admin')->group(function () {
+        // Investors API
+        Route::get('investors', [\App\Http\Controllers\Api\MobileAdminInvestorController::class, 'index']);
+        Route::get('investors/{investor}', [\App\Http\Controllers\Api\MobileAdminInvestorController::class, 'show']);
+        Route::post('investors', [\App\Http\Controllers\Api\MobileAdminInvestorController::class, 'store']);
+        Route::put('investors/{investor}', [\App\Http\Controllers\Api\MobileAdminInvestorController::class, 'update']);
+        Route::post('investors/{investor}/deposit-profits', [\App\Http\Controllers\Api\MobileAdminInvestorController::class, 'depositProfits']);
+
+        // Projects API
+        Route::get('projects', [\App\Http\Controllers\Api\MobileAdminProjectController::class, 'index']);
+        Route::get('projects/{project}', [\App\Http\Controllers\Api\MobileAdminProjectController::class, 'show']);
+        Route::post('projects', [\App\Http\Controllers\Api\MobileAdminProjectController::class, 'store']);
+        Route::post('projects/calculate-value', [\App\Http\Controllers\Api\MobileAdminProjectController::class, 'calculateValue']);
+    });
 });
