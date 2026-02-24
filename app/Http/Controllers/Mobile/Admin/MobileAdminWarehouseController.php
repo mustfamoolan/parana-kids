@@ -112,7 +112,7 @@ class MobileAdminWarehouseController extends Controller
             })->count();
 
             $perPage = $request->input('per_page', 24);
-            $products = $productsQuery->paginate($perPage);
+            $products = $productsQuery->with(['primaryImage', 'images'])->paginate($perPage);
 
             // Map products to include effective_price
             $products->getCollection()->transform(function ($product) {
