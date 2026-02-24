@@ -143,6 +143,312 @@ class MobileAdminWarehouseController extends Controller
     }
 
     /**
+     * Store a newly created warehouse.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $warehouse = Warehouse::create([
+                'name' => $request->name,
+                'location' => $request->location,
+                'created_by' => Auth::id(),
+            ]);
+
+            // Auto-assign the creator with manage permissions
+            $warehouse->users()->attach(Auth::id(), ['can_manage' => true]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء المخزن بنجاح',
+                'data' => $warehouse
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء إنشاء المخزن: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update the specified warehouse.
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $warehouse = Warehouse::find($id);
+            if (!$warehouse)
+                return response()->json(['success' => false, 'message' => 'المخزن غير موجود'], 404);
+
+            $warehouse->update($request->only(['name', 'location']));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث المخزن بنجاح',
+                'data' => $warehouse
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث المخزن: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Sync users for a warehouse (permissions).
+     */
+    public function syncUsers(Request $request, $id)
+    {
+        $request->validate([
+            'users' => 'required|array',
+            'users.*.id' => 'required|exists:users,id',
+            'users.*.can_manage' => 'boolean',
+        ]);
+
+        try {
+            $warehouse = Warehouse::find($id);
+            if (!$warehouse)
+                return response()->json(['success' => false, 'message' => 'المخزن غير موجود'], 404);
+
+            $syncData = [];
+            foreach ($request->users as $userData) {
+                $syncData[$userData['id']] = ['can_manage' => $userData['can_manage'] ?? false];
+            }
+
+            $warehouse->users()->sync($syncData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث صلاحيات الوصول بنجاح'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث الصلاحيات: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Store a newly created product in the warehouse.
+     */
+    public function storeProduct(Request $request, $id)
+    {
+        $warehouse = Warehouse::find($id);
+        if (!$warehouse)
+            return response()->json(['success' => false, 'message' => 'المخزن غير موجود'], 404);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|unique:products,code',
+            'purchase_price' => 'required|numeric',
+            'selling_price' => 'required|numeric',
+            'gender_type' => 'required|in:boys,girls,boys_girls,accessories',
+            'description' => 'nullable|string',
+            'sizes' => 'required|array',
+            'sizes.*.size_name' => 'required|string',
+            'sizes.*.quantity' => 'required|integer|min:0',
+            'images' => 'nullable|array',
+            'images.*' => 'image|max:2048',
+        ]);
+
+        try {
+            \DB::beginTransaction();
+
+            $product = $warehouse->products()->create([
+                'name' => $request->name,
+                'code' => $request->code,
+                'purchase_price' => $request->purchase_price,
+                'selling_price' => $request->selling_price,
+                'gender_type' => $request->gender_type,
+                'description' => $request->description,
+                'created_by' => Auth::id(),
+            ]);
+
+            // Sizes
+            foreach ($request->sizes as $size) {
+                $product->sizes()->create($size);
+            }
+
+            // Images
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $index => $file) {
+                    $path = $file->store('products', 'public');
+                    $product->images()->create([
+                        'image_path' => $path,
+                        'is_primary' => $index === 0,
+                        'order' => $index,
+                    ]);
+                }
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إضافة المنتج بنجاح',
+                'data' => $product->load('sizes', 'images')
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء إضافة المنتج: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update an existing product.
+     */
+    public function updateProduct(Request $request, $id, $productId)
+    {
+        $product = Product::where('warehouse_id', $id)->find($productId);
+        if (!$product)
+            return response()->json(['success' => false, 'message' => 'المنتج غير موجود'], 404);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'purchase_price' => 'required|numeric',
+            'selling_price' => 'required|numeric',
+            'gender_type' => 'required|in:boys,girls,boys_girls,accessories',
+            'description' => 'nullable|string',
+            'sizes' => 'required|array',
+        ]);
+
+        try {
+            \DB::beginTransaction();
+
+            $product->update($request->only(['name', 'purchase_price', 'selling_price', 'gender_type', 'description']));
+
+            // Update Sizes (Delete and Recreate or match by ID)
+            $product->sizes()->delete();
+            foreach ($request->sizes as $size) {
+                $product->sizes()->create([
+                    'size_name' => $size['size_name'],
+                    'quantity' => $size['quantity'],
+                ]);
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث المنتج بنجاح'
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث المنتج: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle product visibility (Hide/Unhide).
+     */
+    public function toggleVisibility($id, $productId)
+    {
+        try {
+            $product = Product::where('warehouse_id', $id)->find($productId);
+            if (!$product)
+                return response()->json(['success' => false, 'message' => 'المنتج غير موجود'], 404);
+
+            $product->update(['is_hidden' => !$product->is_hidden]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $product->is_hidden ? 'تم حجب المنتج' : 'تم إلغاء حجب المنتج',
+                'is_hidden' => $product->is_hidden
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Apply discount to product.
+     */
+    public function applyDiscount(Request $request, $id, $productId)
+    {
+        $request->validate([
+            'type' => 'required|in:percentage,amount,none',
+            'value' => 'nullable|numeric|min:0',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+        ]);
+
+        try {
+            $product = Product::where('warehouse_id', $id)->find($productId);
+            if (!$product)
+                return response()->json(['success' => false, 'message' => 'المنتج غير موجود'], 404);
+
+            $product->update([
+                'discount_type' => $request->type,
+                'discount_value' => $request->type === 'none' ? null : $request->value,
+                'discount_start_date' => $request->start_date,
+                'discount_end_date' => $request->end_date,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث الخصم بنجاح'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete a product.
+     */
+    public function destroyProduct($id, $productId)
+    {
+        try {
+            $product = Product::where('warehouse_id', $id)->find($productId);
+            if (!$product)
+                return response()->json(['success' => false, 'message' => 'المنتج غير موجود'], 404);
+
+            $product->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف المنتج بنجاح'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get all users for permissions assignment.
+     */
+    public function getUsers()
+    {
+        try {
+            $users = \App\Models\User::select('id', 'name', 'role')->get();
+            return response()->json([
+                'success' => true,
+                'data' => $users
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Apply filters to the products query.
      */
     private function applyFilters($query, Request $request)

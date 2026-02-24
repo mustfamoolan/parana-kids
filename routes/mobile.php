@@ -225,7 +225,18 @@ Route::prefix('admin/bulk-exchange-returns')->middleware('auth.pwa')->group(func
 // APIs المستودعات للمدير والمجهز (تحتاج token)
 Route::prefix('admin/warehouses')->middleware('auth.pwa')->group(function () {
     Route::get('/', [MobileAdminWarehouseController::class, 'index']);
+    Route::post('/', [MobileAdminWarehouseController::class, 'store']);
+    Route::get('/users', [MobileAdminWarehouseController::class, 'getUsers']);
     Route::get('/{id}', [MobileAdminWarehouseController::class, 'show']);
+    Route::put('/{id}', [MobileAdminWarehouseController::class, 'update']);
+    Route::post('/{id}/users', [MobileAdminWarehouseController::class, 'syncUsers']);
+
+    // Products within warehouse
+    Route::post('/{id}/products', [MobileAdminWarehouseController::class, 'storeProduct']);
+    Route::put('/{id}/products/{productId}', [MobileAdminWarehouseController::class, 'updateProduct']);
+    Route::delete('/{id}/products/{productId}', [MobileAdminWarehouseController::class, 'destroyProduct']);
+    Route::post('/{id}/products/{productId}/visibility', [MobileAdminWarehouseController::class, 'toggleVisibility']);
+    Route::post('/{id}/products/{productId}/discount', [MobileAdminWarehouseController::class, 'applyDiscount']);
 });
 
 // APIs الداشبورد والتقارير للمدير (تحتاج token)
