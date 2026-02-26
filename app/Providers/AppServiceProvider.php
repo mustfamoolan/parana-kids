@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         // تسجيل Observers
-        \App\Models\AlWaseetShipment::observe(\App\Observers\AlWaseetShipmentObserver::class);
+        // \App\Models\AlWaseetShipment::observe(\App\Observers\AlWaseetShipmentObserver::class);
     }
 
     /**
