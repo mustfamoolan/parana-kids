@@ -30,7 +30,7 @@ class FirebaseCloudMessagingService
             $factory = null;
 
             // محاولة استخدام Base64 أولاً (الأفضل للـ deployment)
-            $credentialsBase64 = env('FIREBASE_CREDENTIALS_BASE64');
+            $credentialsBase64 = config('services.firebase.credentials_base64');
 
             if ($credentialsBase64) {
                 try {
@@ -112,8 +112,8 @@ class FirebaseCloudMessagingService
             $this->messaging = $factory->createMessaging();
 
             // VAPID keys للمندوبين
-            $this->delegateVapidKey = env('FIREBASE_DELEGATE_VAPID_KEY', 'BH3zykRdN9qD16ZdwHB9A_mNpnVR4iWKbcB049yOLisNUGkKnkeXpEykKK-Za4BMAELHCqGH2qtvscJb6qCQwzg');
-            $this->delegateSenderId = env('FIREBASE_DELEGATE_SENDER_ID', '223597554792');
+            $this->delegateVapidKey = config('services.firebase.delegate_vapid_key', 'BH3zykRdN9qD16ZdwHB9A_mNpnVR4iWKbcB049yOLisNUGkKnkeXpEykKK-Za4BMAELHCqGH2qtvscJb6qCQwzg');
+            $this->delegateSenderId = config('services.firebase.delegate_sender_id', '223597554792');
 
         } catch (\Exception $e) {
             $this->initError = $e->getMessage();

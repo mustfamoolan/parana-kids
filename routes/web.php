@@ -26,6 +26,11 @@ use App\Http\Controllers\Shop\ShopController;
 use App\Http\Controllers\Shop\CartController as ShopCartController;
 use App\Http\Controllers\Shop\CartItemController as ShopCartItemController;
 
+// Health check route for cloud deployment
+Route::get('/health', function () {
+    return response('ok', 200);
+});
+
 // Redirect root to delegate login
 Route::get('/', function () {
     return redirect()->route('delegate.login');
@@ -393,7 +398,7 @@ Route::prefix('admin')->group(function () {
         Route::get('product-movements', [AdminProductMovementController::class, 'productMovements'])->name('admin.product-movements.index');
 
         // صفحة اختبار الاسترجاع (للتطوير فقط)
-        Route::get('test-restore', function() {
+        Route::get('test-restore', function () {
             return view('admin.orders.test-restore');
         })->name('admin.test-restore');
 
@@ -525,7 +530,7 @@ Route::post('/api/chat/add-participants', [App\Http\Controllers\ChatController::
 Route::post('/api/chat/remove-participant', [App\Http\Controllers\ChatController::class, 'removeParticipantFromGroup'])->name('chat.remove-participant');
 Route::get('/api/chat/group-participants/{id}', [App\Http\Controllers\ChatController::class, 'getGroupParticipants'])->name('chat.group-participants');
 
-    // Notification API Routes
+// Notification API Routes
 Route::middleware('auth')->group(function () {
     Route::get('/api/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'getUnreadCount'])->name('api.notifications.unread-count');
     Route::get('/api/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications'])->name('api.notifications.index');
