@@ -75,12 +75,12 @@ class AlWaseetService
     {
         if (strpos($token, '@@') !== 0) {
             $errorMessage = "❌ هذا الـ API ({$apiName}) يتطلب Merchant Account وليس Merchant User Account.\n\n" .
-                           "📝 الحل:\n" .
-                           "1. اذهب إلى صفحة الإعدادات: /admin/alwaseet/settings\n" .
-                           "2. تأكد من استخدام بيانات Merchant Account الرئيسي (وليس Merchant User)\n" .
-                           "3. اضغط على 'إعادة تسجيل الدخول' أو 'اختبار الاتصال'\n\n" .
-                           "💡 ملاحظة: Merchant token يبدأ بـ '@@' بينما Merchant User token لا يبدأ بهذا الرمز.\n" .
-                           "   الـ token الحالي يبدأ بـ: '" . substr($token, 0, 2) . "'";
+                "📝 الحل:\n" .
+                "1. اذهب إلى صفحة الإعدادات: /admin/alwaseet/settings\n" .
+                "2. تأكد من استخدام بيانات Merchant Account الرئيسي (وليس Merchant User)\n" .
+                "3. اضغط على 'إعادة تسجيل الدخول' أو 'اختبار الاتصال'\n\n" .
+                "💡 ملاحظة: Merchant token يبدأ بـ '@@' بينما Merchant User token لا يبدأ بهذا الرمز.\n" .
+                "   الـ token الحالي يبدأ بـ: '" . substr($token, 0, 2) . "'";
 
             Log::error('AlWaseetService: Merchant token required but merchant user token provided', [
                 'api_name' => $apiName,
@@ -189,19 +189,32 @@ class AlWaseetService
             ];
 
             $headers = [
-                'User-Agent' => 'Laravel-AlWaseet-Integration/1.0',
+                'Accept: application/json',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // Logging شامل قبل الإرسال
             $this->logRequestDetails('POST', $loginUrl, $headers, ['username' => '***', 'password' => '***'], null);
 
-            $response = Http::asMultipart()
-                ->withHeaders($headers)
-                ->post($loginUrl, $loginData);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $loginUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $loginData);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
-            $statusCode = $response->status();
-            $responseBody = $response->body();
-            $data = $response->json();
+            $responseBody = curl_exec($ch);
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlError) {
+                throw new \Exception('خطأ في الاتصال بالواسط: ' . $curlError);
+            }
+
+            $data = json_decode($responseBody, true);
 
             Log::info('AlWaseetService: Login response received', [
                 'status_code' => $statusCode,
@@ -209,17 +222,15 @@ class AlWaseetService
                 'errNum' => $data['errNum'] ?? null,
                 'msg' => $data['msg'] ?? null,
                 'has_token' => isset($data['data']['token']),
-                'body_preview' => substr($responseBody, 0, 200),
+                'body_preview' => substr($responseBody, 0, 500),
             ]);
 
             // التحقق من response status
-            if (!$response->successful()) {
+            if ($statusCode !== 200) {
                 $errorMsg = $data['msg'] ?? 'فشل تسجيل الدخول: ' . $statusCode;
-                $errNum = $data['errNum'] ?? null;
 
                 Log::error('AlWaseetService: Login failed - HTTP error', [
                     'status_code' => $statusCode,
-                    'errNum' => $errNum,
                     'msg' => $errorMsg,
                     'response_body' => $responseBody,
                 ]);
@@ -366,7 +377,7 @@ class AlWaseetService
             // استخدام GET method (بدون Content-Type header)
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -439,8 +450,8 @@ class AlWaseetService
                     if (strpos($newToken, '@@') !== 0) {
                         // إذا كان الـ token الجديد أيضاً لا يبدأ بـ @@، المشكلة في الحساب
                         $errorMsg = "❌ فشل الوصول: أنت تستخدم Merchant User Account\n\n" .
-                                   "📝 هذا الـ API يتطلب Merchant Account الرئيسي.\n" .
-                                   "يرجى تسجيل الدخول بحساب Merchant في: /admin/alwaseet/settings";
+                            "📝 هذا الـ API يتطلب Merchant Account الرئيسي.\n" .
+                            "يرجى تسجيل الدخول بحساب Merchant في: /admin/alwaseet/settings";
                         throw new \Exception($errorMsg);
                     }
 
@@ -514,7 +525,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -584,8 +595,8 @@ class AlWaseetService
                     $newToken = $this->refreshTokenIfNeeded();
                     if (strpos($newToken, '@@') !== 0) {
                         $errorMsg = "❌ فشل الوصول: أنت تستخدم Merchant User Account\n\n" .
-                                   "📝 هذا الـ API يتطلب Merchant Account الرئيسي.\n" .
-                                   "يرجى تسجيل الدخول بحساب Merchant في: /admin/alwaseet/settings";
+                            "📝 هذا الـ API يتطلب Merchant Account الرئيسي.\n" .
+                            "يرجى تسجيل الدخول بحساب Merchant في: /admin/alwaseet/settings";
                         throw new \Exception($errorMsg);
                     }
 
@@ -711,7 +722,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -830,7 +841,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -949,7 +960,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -1199,7 +1210,7 @@ class AlWaseetService
             $url = "{$this->baseUrl}/edit-order?token=" . $this->encodeTokenForUrl($token);
 
             // إضافة qr_id إلى body
-            $orderData['qr_id'] = (string)$qrId;
+            $orderData['qr_id'] = (string) $qrId;
 
             $headers = [
                 'User-Agent' => 'Laravel-AlWaseet-Integration/1.0',
@@ -1281,7 +1292,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -1403,7 +1414,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -1526,7 +1537,7 @@ class AlWaseetService
 
             $headers = [
                 'Accept: application/json',
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // إضافة X-Forwarded-For إذا كان متوفر
@@ -1706,9 +1717,11 @@ class AlWaseetService
             $contentType = $this->extractContentType($responseHeaders);
 
             // إذا كان HTML، قد يكون خطأ أو صفحة login
-            if (stripos($contentType, 'text/html') !== false ||
+            if (
+                stripos($contentType, 'text/html') !== false ||
                 stripos($pdfContent, '<html') !== false ||
-                stripos($pdfContent, '<!DOCTYPE') !== false) {
+                stripos($pdfContent, '<!DOCTYPE') !== false
+            ) {
 
                 Log::error('AlWaseetService: Received HTML instead of PDF', [
                     'url' => $url,
