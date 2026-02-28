@@ -642,7 +642,7 @@ class AlWaseetService
             $url = "{$this->baseUrl}/get-orders-by-ids-bulk?token=" . $this->encodeTokenForUrl($token);
 
             $headers = [
-                'User-Agent' => 'Laravel-AlWaseet-Integration/1.0',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             $postData = [
@@ -1087,7 +1087,7 @@ class AlWaseetService
             $orderDataWithToken = array_merge($orderData, ['token' => $token]);
 
             $headers = [
-                'User-Agent' => 'Laravel-AlWaseet-Integration/1.0',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // Logging شامل قبل الإرسال
@@ -1213,7 +1213,7 @@ class AlWaseetService
             $orderData['qr_id'] = (string) $qrId;
 
             $headers = [
-                'User-Agent' => 'Laravel-AlWaseet-Integration/1.0',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
 
             // Logging شامل قبل الإرسال
@@ -1681,9 +1681,15 @@ class AlWaseetService
 
             // إضافة headers
             $headers = [
-                'User-Agent: Laravel-AlWaseet-Integration/1.0',
                 'Accept: application/pdf',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ];
+
+            // إضافة X-Forwarded-For إذا كان متوفر
+            if (isset($_SERVER['REMOTE_ADDR'])) {
+                $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
+            }
+
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
             $response = curl_exec($ch);
@@ -1814,7 +1820,7 @@ class AlWaseetService
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, [
                         'Accept: application/pdf',
-                        'User-Agent: Laravel-AlWaseet-Integration/1.0',
+                        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     ]);
 
                     $pdfContent = curl_exec($ch);
