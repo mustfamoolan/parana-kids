@@ -188,27 +188,58 @@ class AlWaseetService
                 'password' => $password,
             ];
 
+            // استخدام application/x-www-form-urlencoded بدلاً من multipart/form-data
+            $postFields = http_build_query($loginData);
+
             $headers = [
-                'Accept: application/json',
-                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept: application/json, text/plain, */*',
+                'Accept-Language: ar,en;q=0.9',
+                'Accept-Encoding: gzip, deflate, br',
+                'Content-Type: application/x-www-form-urlencoded',
+                'Content-Length: ' . strlen($postFields),
+                'Connection: keep-alive',
+                'Cache-Control: no-cache',
+                'Origin: https://api.alwaseet-iq.net',
+                'Referer: https://api.alwaseet-iq.net/v1/merchant/login',
+                'Sec-Fetch-Dest: empty',
+                'Sec-Fetch-Mode: cors',
+                'Sec-Fetch-Site: same-origin',
+                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'sec-ch-ua: "Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+                'sec-ch-ua-mobile: ?0',
+                'sec-ch-ua-platform: "Windows"',
             ];
 
             // Logging شامل قبل الإرسال
             $this->logRequestDetails('POST', $loginUrl, $headers, ['username' => '***', 'password' => '***'], null);
 
+            // مسار مؤقت لـ cookie jar
+            $cookieFile = tempnam(sys_get_temp_dir(), 'alwaseet_cookie_');
+
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $loginUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $loginData);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_ENCODING, ''); // يرسل Accept-Encoding تلقائياً
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
 
             $responseBody = curl_exec($ch);
             $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curlError = curl_error($ch);
             curl_close($ch);
+
+            // حذف ملف الكوكي المؤقت
+            if (file_exists($cookieFile)) {
+                @unlink($cookieFile);
+            }
 
             if ($curlError) {
                 throw new \Exception('خطأ في الاتصال بالواسط: ' . $curlError);
@@ -227,6 +258,32 @@ class AlWaseetService
 
             // التحقق من response status
             if ($statusCode !== 200) {
+                // فحص ما إذا كان الـ response من Cloudflare (HTML بدلاً من JSON)
+                $isCloudflareBlock = (
+                    strpos($responseBody, 'error code:') !== false ||
+                    strpos($responseBody, 'Cloudflare') !== false ||
+                    strpos($responseBody, 'Access denied') !== false ||
+                    (strpos($responseBody, '<html') !== false && $statusCode === 403)
+                );
+
+                if ($isCloudflareBlock) {
+                    // استخراج رقم الخطأ من Cloudflare
+                    preg_match('/error code:\s*(\d+)/i', $responseBody, $matches);
+                    $cfErrorCode = $matches[1] ?? '1106';
+
+                    $errorMsg = "تم حجب الاتصال بواجهة الواسط من قِبَل Cloudflare (خطأ: {$cfErrorCode}).\n" .
+                        "يرجى التواصل مع دعم الواسط لإضافة عنوان IP الخادم إلى القائمة البيضاء.\n" .
+                        "عنوان IP الخادم الحالي: " . (gethostbyname(gethostname()) ?: 'غير معروف');
+
+                    Log::error('AlWaseetService: Login blocked by Cloudflare', [
+                        'status_code' => $statusCode,
+                        'cf_error_code' => $cfErrorCode,
+                        'body_preview' => substr($responseBody, 0, 300),
+                    ]);
+
+                    throw new \Exception($errorMsg);
+                }
+
                 $errorMsg = $data['msg'] ?? 'فشل تسجيل الدخول: ' . $statusCode;
 
                 Log::error('AlWaseetService: Login failed - HTTP error', [
