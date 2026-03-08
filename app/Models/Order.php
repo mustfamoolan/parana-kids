@@ -323,5 +323,27 @@ class Order extends Model
         }
         return null;
     }
+
+    public function setSizeReviewedAttribute($value)
+    {
+        if (is_bool($value)) {
+            $this->attributes['size_reviewed'] = $value ? 'reviewed' : 'not_reviewed';
+        } elseif ($value === 1 || $value === 0 || $value === "1" || $value === "0") {
+            $this->attributes['size_reviewed'] = $value ? 'reviewed' : 'not_reviewed';
+        } else {
+            $this->attributes['size_reviewed'] = $value;
+        }
+    }
+
+    public function setMessageConfirmedAttribute($value)
+    {
+        if (is_bool($value)) {
+            $this->attributes['message_confirmed'] = $value ? 'confirmed' : 'not_sent';
+        } elseif ($value === 1 || $value === 0 || $value === "1" || $value === "0") {
+            $this->attributes['message_confirmed'] = $value ? 'confirmed' : 'not_sent';
+        } else {
+            $this->attributes['message_confirmed'] = $value;
+        }
+    }
 }
 
