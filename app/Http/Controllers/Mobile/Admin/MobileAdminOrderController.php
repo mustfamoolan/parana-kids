@@ -161,6 +161,7 @@ class MobileAdminOrderController extends Controller
                 'items.product.primaryImage',
                 'items.product.warehouse',
                 'confirmedBy',
+                'alwaseetShipment',
             ]);
 
             // Pagination
@@ -250,6 +251,7 @@ class MobileAdminOrderController extends Controller
                 'items.product.warehouse',
                 'confirmedBy',
                 'processedBy',
+                'alwaseetShipment',
             ]);
 
             // Pagination
@@ -352,6 +354,7 @@ class MobileAdminOrderController extends Controller
                 'items.product.warehouse',
                 'confirmedBy',
                 'processedBy',
+                'alwaseetShipment',
             ]);
 
             // Pagination
@@ -432,6 +435,7 @@ class MobileAdminOrderController extends Controller
                 'cart',
                 'confirmedBy',
                 'processedBy',
+                'alwaseetShipment',
             ])->first();
 
             if (!$order) {
@@ -518,6 +522,7 @@ class MobileAdminOrderController extends Controller
                 'items.product.warehouse',
                 'items.size',
                 'cart',
+                'alwaseetShipment',
             ])->first();
 
             if (!$order) {
@@ -836,6 +841,7 @@ class MobileAdminOrderController extends Controller
                 'items.product.warehouse',
                 'items.size',
                 'confirmedBy',
+                'alwaseetShipment',
             ]);
 
             return response()->json([
@@ -1381,6 +1387,7 @@ class MobileAdminOrderController extends Controller
                 'items.product.warehouse',
                 'items.size',
                 'cart',
+                'alwaseetShipment',
             ])->first();
 
             if (!$order) {
@@ -1588,6 +1595,7 @@ class MobileAdminOrderController extends Controller
                 'items.size',
                 'confirmedBy',
                 'processedBy',
+                'alwaseetShipment',
             ]);
 
             return response()->json([
@@ -2221,8 +2229,10 @@ class MobileAdminOrderController extends Controller
             'status' => $order->status,
             'total_amount' => (float) $order->total_amount,
             'delivery_fee' => (float) ($order->delivery_fee_at_confirmation ?? 0),
+            'delivery_code' => $order->delivery_code,
             'size_reviewed' => $order->size_reviewed,
             'message_confirmed' => $order->message_confirmed,
+            'alwaseet_shipment' => $order->alwaseetShipment,
             'delegate' => $order->delegate ? [
                 'id' => $order->delegate->id,
                 'name' => $order->delegate->name,
@@ -2381,6 +2391,7 @@ class MobileAdminOrderController extends Controller
             'delivery_fee' => (float) ($order->delivery_fee_at_confirmation ?? 0),
             'size_reviewed' => $order->size_reviewed,
             'message_confirmed' => $order->message_confirmed,
+            'alwaseet_shipment' => $order->alwaseetShipment,
             'delegate' => $order->delegate ? [
                 'id' => $order->delegate->id,
                 'name' => $order->delegate->name,
