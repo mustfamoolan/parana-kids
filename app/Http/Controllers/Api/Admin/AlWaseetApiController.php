@@ -184,15 +184,15 @@ class AlWaseetApiController extends Controller
             $this->applyPrintFilters($statsQuery, $request);
 
             $pendingCount = (clone $statsQuery)->count();
-            $pendingTotalAmount = (clone $statsQuery)->sum('total_amount');
 
-            // Profit calculation (Sum of items: quantity * profit_margin_at_confirmation or setting)
-            $profitMargin = Setting::getProfitMargin();
-            $pendingProfitAmount = (clone $statsQuery)->with('items.product')->get()->sum(function ($order) use ($profitMargin) {
-                return $order->items->sum(function ($item) use ($profitMargin) {
-                    return $item->quantity * $profitMargin;
-                });
-            });
+            // Calculate Total Pieces (Sum of quantities) and Total Items (Unique Products)
+            $itemsStats = DB::table('order_items')
+                ->whereIn('order_id', (clone $statsQuery)->select('id'))
+                ->selectRaw('SUM(quantity) as total_pieces, COUNT(DISTINCT product_id) as total_items')
+                ->first();
+
+            $totalPiecesCount = (int) ($itemsStats->total_pieces ?? 0);
+            $totalItemsCount = (int) ($itemsStats->total_items ?? 0);
 
             $sentOrdersCount = (clone $statsQuery)->whereHas('alwaseetShipment')->count();
 
@@ -201,8 +201,8 @@ class AlWaseetApiController extends Controller
                 'data' => [
                     'orders' => $orders->getCollection(),
                     'pendingCount' => $pendingCount,
-                    'pendingTotalAmount' => $pendingTotalAmount,
-                    'pendingProfitAmount' => $pendingProfitAmount,
+                    'totalPiecesCount' => $totalPiecesCount,
+                    'totalItemsCount' => $totalItemsCount,
                     'sentOrdersCount' => $sentOrdersCount,
                     'pagination' => [
                         'total' => $orders->total(),
