@@ -169,10 +169,41 @@ class AlWaseetApiController extends Controller
                 'alwaseetShipment'
             ])->orderBy('created_at', 'desc')->paginate($perPage);
 
+            // 5. Calculate Statistics (Pending only)
+            $statsQuery = Order::where('status', 'pending');
+            // Apply same security filters to stats
+            if ($user->isSupplier()) {
+                $statsQuery->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
+                    $subQuery->select('order_id')
+                        ->from('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                        ->distinct();
+                });
+            }
+            $this->applyPrintFilters($statsQuery, $request);
+
+            $pendingCount = (clone $statsQuery)->count();
+            $pendingTotalAmount = (clone $statsQuery)->sum('total_amount');
+
+            // Profit calculation (Sum of items: quantity * profit_margin_at_confirmation or setting)
+            $profitMargin = Setting::getProfitMargin();
+            $pendingProfitAmount = (clone $statsQuery)->with('items.product')->get()->sum(function ($order) use ($profitMargin) {
+                return $order->items->sum(function ($item) use ($profitMargin) {
+                    return $item->quantity * $profitMargin;
+                });
+            });
+
+            $sentOrdersCount = (clone $statsQuery)->whereHas('alwaseetShipment')->count();
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'orders' => $orders->getCollection(),
+                    'pendingCount' => $pendingCount,
+                    'pendingTotalAmount' => $pendingTotalAmount,
+                    'pendingProfitAmount' => $pendingProfitAmount,
+                    'sentOrdersCount' => $sentOrdersCount,
                     'pagination' => [
                         'total' => $orders->total(),
                         'per_page' => $orders->perPage(),
