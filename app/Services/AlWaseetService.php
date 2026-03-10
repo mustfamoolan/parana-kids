@@ -148,19 +148,8 @@ class AlWaseetService
                     'is_merchant_token' => $isMerchantToken,
                 ]);
 
-                // إذا كان الـ token لا يبدأ بـ @@ (Merchant User token)، مسح Cache والحصول على token جديد
-                // هذا يضمن أننا نحصل على token محدث من API
-                if (!$isMerchantToken) {
-                    Log::warning('AlWaseetService: Merchant User token found in cache, clearing cache to get fresh token', [
-                        'token_preview' => substr($token, 0, 15) . '...',
-                    ]);
-                    Cache::forget($this->tokenCacheKey);
-                    Setting::setValue('alwaseet_token', null);
-                    // المتابعة للحصول على token جديد
-                } else {
-                    // الـ token صحيح، إرجاعه
-                    return $token;
-                }
+                // إرجاع الـ token الموجود في Cache (سواء كان Merchant أو Merchant User)
+                return $token;
             }
         }
 
