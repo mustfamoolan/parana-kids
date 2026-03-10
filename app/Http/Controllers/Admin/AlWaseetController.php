@@ -88,13 +88,13 @@ class AlWaseetController extends Controller
         // بحث شامل
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('client_name', 'like', "%{$search}%")
-                  ->orWhere('client_mobile', 'like', "%{$search}%")
-                  ->orWhere('client_mobile2', 'like', "%{$search}%")
-                  ->orWhere('alwaseet_order_id', 'like', "%{$search}%")
-                  ->orWhere('city_name', 'like', "%{$search}%")
-                  ->orWhere('region_name', 'like', "%{$search}%");
+                    ->orWhere('client_mobile', 'like', "%{$search}%")
+                    ->orWhere('client_mobile2', 'like', "%{$search}%")
+                    ->orWhere('alwaseet_order_id', 'like', "%{$search}%")
+                    ->orWhere('city_name', 'like', "%{$search}%")
+                    ->orWhere('region_name', 'like', "%{$search}%");
             });
         }
 
@@ -108,7 +108,7 @@ class AlWaseetController extends Controller
             $statuses = AlWaseetShipment::select('status_id', 'status')
                 ->distinct()
                 ->get()
-                ->map(function($item) {
+                ->map(function ($item) {
                     return [
                         'id' => $item->status_id,
                         'status' => $item->status,
@@ -129,7 +129,7 @@ class AlWaseetController extends Controller
             $cities = AlWaseetShipment::select('city_id', 'city_name')
                 ->distinct()
                 ->get()
-                ->map(function($item) {
+                ->map(function ($item) {
                     return [
                         'id' => $item->city_id,
                         'city_name' => $item->city_name,
@@ -188,13 +188,13 @@ class AlWaseetController extends Controller
         // بحث شامل
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('client_name', 'like', "%{$search}%")
-                  ->orWhere('client_mobile', 'like', "%{$search}%")
-                  ->orWhere('client_mobile2', 'like', "%{$search}%")
-                  ->orWhere('alwaseet_order_id', 'like', "%{$search}%")
-                  ->orWhere('city_name', 'like', "%{$search}%")
-                  ->orWhere('region_name', 'like', "%{$search}%");
+                    ->orWhere('client_mobile', 'like', "%{$search}%")
+                    ->orWhere('client_mobile2', 'like', "%{$search}%")
+                    ->orWhere('alwaseet_order_id', 'like', "%{$search}%")
+                    ->orWhere('city_name', 'like', "%{$search}%")
+                    ->orWhere('region_name', 'like', "%{$search}%");
             });
         }
 
@@ -208,7 +208,7 @@ class AlWaseetController extends Controller
             $statuses = AlWaseetShipment::select('status_id', 'status')
                 ->distinct()
                 ->get()
-                ->map(function($item) {
+                ->map(function ($item) {
                     return [
                         'id' => $item->status_id,
                         'status' => $item->status,
@@ -229,7 +229,7 @@ class AlWaseetController extends Controller
             $cities = AlWaseetShipment::select('city_id', 'city_name')
                 ->distinct()
                 ->get()
-                ->map(function($item) {
+                ->map(function ($item) {
                     return [
                         'id' => $item->city_id,
                         'city_name' => $item->city_name,
@@ -492,7 +492,7 @@ class AlWaseetController extends Controller
             $synced = 0;
             $updated = 0;
 
-            DB::transaction(function() use ($orders, &$synced, &$updated) {
+            DB::transaction(function () use ($orders, &$synced, &$updated) {
                 foreach ($orders as $orderData) {
                     $shipment = AlWaseetShipment::updateOrCreate(
                         ['alwaseet_order_id' => $orderData['id']],
@@ -639,10 +639,10 @@ class AlWaseetController extends Controller
                 'city_id' => $request->city_id,
                 'region_id' => $request->region_id,
                 'location' => $request->location,
-                'price' => (string)$request->price,
+                'price' => (string) $request->price,
                 'package_size' => $request->package_size,
                 'type_name' => $request->type_name,
-                'items_number' => (string)($request->items_number ?? '1'), // مطلوب حسب API
+                'items_number' => (string) ($request->items_number ?? '1'), // مطلوب حسب API
             ];
 
             if ($request->filled('client_mobile2')) {
@@ -787,10 +787,10 @@ class AlWaseetController extends Controller
                 'city_id' => $request->city_id,
                 'region_id' => $request->region_id,
                 'location' => $request->location,
-                'price' => (string)$request->price,
+                'price' => (string) $request->price,
                 'package_size' => $request->package_size,
                 'type_name' => $request->type_name,
-                'items_number' => (string)($request->items_number ?? '1'), // مطلوب حسب API
+                'items_number' => (string) ($request->items_number ?? '1'), // مطلوب حسب API
             ];
 
             if ($request->filled('client_mobile2')) {
@@ -902,18 +902,36 @@ class AlWaseetController extends Controller
         $shipment = $order->alwaseetShipment;
         if (!$shipment) {
             return redirect()->route('admin.alwaseet.materials-list', $request->only([
-                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-                'alwaseet_sent', 'alwaseet_complete'
+                'warehouse_id',
+                'search',
+                'confirmed_by',
+                'delegate_id',
+                'size_reviewed',
+                'message_confirmed',
+                'date_from',
+                'date_to',
+                'time_from',
+                'time_to',
+                'alwaseet_sent',
+                'alwaseet_complete'
             ]))->withErrors(['error' => 'لا يوجد طلب مرتبط بالوسيط']);
         }
 
         // التحقق من إمكانية التعديل
         if (!$shipment->canBeEdited()) {
             return redirect()->route('admin.alwaseet.materials-list', $request->only([
-                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-                'alwaseet_sent', 'alwaseet_complete'
+                'warehouse_id',
+                'search',
+                'confirmed_by',
+                'delegate_id',
+                'size_reviewed',
+                'message_confirmed',
+                'date_from',
+                'date_to',
+                'time_from',
+                'time_to',
+                'alwaseet_sent',
+                'alwaseet_complete'
             ]))->withErrors(['error' => 'لا يمكن تعديل هذا الطلب لأنه تم استلامه من قبل المندوب']);
         }
 
@@ -932,9 +950,18 @@ class AlWaseetController extends Controller
 
         // حفظ معاملات العودة
         $backParams = $request->only([
-            'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-            'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-            'alwaseet_sent', 'alwaseet_complete'
+            'warehouse_id',
+            'search',
+            'confirmed_by',
+            'delegate_id',
+            'size_reviewed',
+            'message_confirmed',
+            'date_from',
+            'date_to',
+            'time_from',
+            'time_to',
+            'alwaseet_sent',
+            'alwaseet_complete'
         ]);
 
         return view('admin.alwaseet.edit-from-materials-list', compact('order', 'shipment', 'cities', 'regions', 'packageSizes', 'backParams'));
@@ -951,17 +978,35 @@ class AlWaseetController extends Controller
         $shipment = $order->alwaseetShipment;
         if (!$shipment) {
             return redirect()->route('admin.alwaseet.materials-list', $request->only([
-                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-                'alwaseet_sent', 'alwaseet_complete'
+                'warehouse_id',
+                'search',
+                'confirmed_by',
+                'delegate_id',
+                'size_reviewed',
+                'message_confirmed',
+                'date_from',
+                'date_to',
+                'time_from',
+                'time_to',
+                'alwaseet_sent',
+                'alwaseet_complete'
             ]))->withErrors(['error' => 'لا يوجد طلب مرتبط بالوسيط']);
         }
 
         if (!$shipment->canBeEdited()) {
             return redirect()->route('admin.alwaseet.materials-list', $request->only([
-                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-                'alwaseet_sent', 'alwaseet_complete'
+                'warehouse_id',
+                'search',
+                'confirmed_by',
+                'delegate_id',
+                'size_reviewed',
+                'message_confirmed',
+                'date_from',
+                'date_to',
+                'time_from',
+                'time_to',
+                'alwaseet_sent',
+                'alwaseet_complete'
             ]))->withErrors(['error' => 'لا يمكن تعديل هذا الطلب لأنه تم استلامه من قبل المندوب']);
         }
 
@@ -988,10 +1033,10 @@ class AlWaseetController extends Controller
                 'city_id' => $request->city_id,
                 'region_id' => $request->region_id,
                 'location' => $request->location,
-                'price' => (string)$request->price,
+                'price' => (string) $request->price,
                 'package_size' => $request->package_size,
                 'type_name' => $request->type_name,
-                'items_number' => (string)($request->items_number ?? '1'),
+                'items_number' => (string) ($request->items_number ?? '1'),
             ];
 
             if ($request->filled('client_mobile2')) {
@@ -1079,9 +1124,18 @@ class AlWaseetController extends Controller
 
             // معاملات العودة
             $backParams = array_filter($request->only([
-                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-                'alwaseet_sent', 'alwaseet_complete'
+                'warehouse_id',
+                'search',
+                'confirmed_by',
+                'delegate_id',
+                'size_reviewed',
+                'message_confirmed',
+                'date_from',
+                'date_to',
+                'time_from',
+                'time_to',
+                'alwaseet_sent',
+                'alwaseet_complete'
             ]));
 
             return redirect()->route('admin.alwaseet.materials-list', $backParams)
@@ -1103,9 +1157,18 @@ class AlWaseetController extends Controller
             }
 
             $backParams = array_filter($request->only([
-                'warehouse_id', 'search', 'confirmed_by', 'delegate_id', 'size_reviewed',
-                'message_confirmed', 'date_from', 'date_to', 'time_from', 'time_to',
-                'alwaseet_sent', 'alwaseet_complete'
+                'warehouse_id',
+                'search',
+                'confirmed_by',
+                'delegate_id',
+                'size_reviewed',
+                'message_confirmed',
+                'date_from',
+                'date_to',
+                'time_from',
+                'time_to',
+                'alwaseet_sent',
+                'alwaseet_complete'
             ]));
 
             return redirect()->route('admin.alwaseet.materials-list', $backParams)
@@ -1129,7 +1192,7 @@ class AlWaseetController extends Controller
 
         // فلترة حسب الحالة
         if ($request->filled('status')) {
-            $invoices = array_filter($invoices, function($invoice) use ($request) {
+            $invoices = array_filter($invoices, function ($invoice) use ($request) {
                 return str_contains($invoice['status'] ?? '', $request->status);
             });
         }
@@ -1298,7 +1361,7 @@ class AlWaseetController extends Controller
             $statuses = AlWaseetShipment::select('status_id', 'status')
                 ->distinct()
                 ->get()
-                ->map(function($item) {
+                ->map(function ($item) {
                     return [
                         'id' => $item->status_id,
                         'status' => $item->status,
@@ -1370,7 +1433,7 @@ class AlWaseetController extends Controller
             $statuses = AlWaseetShipment::select('status_id', 'status')
                 ->distinct()
                 ->get()
-                ->map(function($item) {
+                ->map(function ($item) {
                     return [
                         'id' => $item->status_id,
                         'status' => $item->status,
@@ -1553,14 +1616,14 @@ class AlWaseetController extends Controller
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -1588,16 +1651,16 @@ class AlWaseetController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -1621,15 +1684,15 @@ class AlWaseetController extends Controller
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', 5);
 
         // تحميل العلاقات المطلوبة
         $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy']);
 
         // ترتيب الطلبات
         $orders = $query->latest('created_at')
-                   ->paginate($perPage)
-                   ->appends($request->except('page'));
+            ->paginate($perPage)
+            ->appends($request->except('page'));
 
         // حساب المبالغ الإجمالية والأرباح للمدير فقط
         $pendingTotalAmount = 0;
@@ -1644,31 +1707,31 @@ class AlWaseetController extends Controller
             }
 
             // دالة مساعدة لتطبيق نفس الفلاتر
-            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+            $applyFilters = function ($query) use ($request, $accessibleWarehouseIdsForTotal) {
                 if ($accessibleWarehouseIdsForTotal !== null) {
-                    $query->whereHas('items.product', function($q) use ($accessibleWarehouseIdsForTotal) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIdsForTotal) {
                         $q->whereIn('warehouse_id', $accessibleWarehouseIdsForTotal);
                     });
                 }
 
                 if ($request->filled('warehouse_id')) {
-                    $query->whereHas('items.product', function($q) use ($request) {
+                    $query->whereHas('items.product', function ($q) use ($request) {
                         $q->where('warehouse_id', $request->warehouse_id);
                     });
                 }
 
                 if ($request->filled('search')) {
                     $searchTerm = $request->search;
-                    $query->where(function($q) use ($searchTerm) {
+                    $query->where(function ($q) use ($searchTerm) {
                         $q->where('order_number', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                          });
+                            ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                            ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                            ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                                $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                            });
                     });
                 }
 
@@ -1785,7 +1848,7 @@ class AlWaseetController extends Controller
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
             if (!empty($accessibleWarehouseIds)) {
-                $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                $query->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
                     $subQuery->select('order_id')
                         ->from('order_items')
                         ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -1800,7 +1863,7 @@ class AlWaseetController extends Controller
 
         // فلتر المخزن - استخدام whereIn بدلاً من whereHas لتحسين الأداء
         if ($request->filled('warehouse_id')) {
-            $query->whereIn('id', function($subQuery) use ($request) {
+            $query->whereIn('id', function ($subQuery) use ($request) {
                 $subQuery->select('order_id')
                     ->from('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -1845,16 +1908,16 @@ class AlWaseetController extends Controller
             if ($request->alwaseet_complete === 'complete') {
                 // الطلبات المكتملة: لديها محافظة ومنطقة
                 $query->whereNotNull('alwaseet_city_id')
-                      ->whereNotNull('alwaseet_region_id')
-                      ->where('alwaseet_city_id', '!=', '')
-                      ->where('alwaseet_region_id', '!=', '');
+                    ->whereNotNull('alwaseet_region_id')
+                    ->where('alwaseet_city_id', '!=', '')
+                    ->where('alwaseet_region_id', '!=', '');
             } elseif ($request->alwaseet_complete === 'incomplete') {
                 // الطلبات غير المكتملة: لا لديها محافظة أو منطقة
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->whereNull('alwaseet_city_id')
-                      ->orWhere('alwaseet_city_id', '=', '')
-                      ->orWhereNull('alwaseet_region_id')
-                      ->orWhere('alwaseet_region_id', '=', '');
+                        ->orWhere('alwaseet_city_id', '=', '')
+                        ->orWhereNull('alwaseet_region_id')
+                        ->orWhere('alwaseet_region_id', '=', '');
                 });
             }
         }
@@ -1862,16 +1925,16 @@ class AlWaseetController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -1901,15 +1964,15 @@ class AlWaseetController extends Controller
             $query->where('created_at', '>=', $hoursAgo);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', 5);
 
         // تحميل العلاقات المطلوبة
         $query->with(['delegate', 'items.product.warehouse', 'items.product.primaryImage', 'confirmedBy', 'processedBy', 'alwaseetShipment']);
 
         // ترتيب الطلبات
         $orders = $query->latest('created_at')
-                   ->paginate($perPage)
-                   ->appends($request->except('page'));
+            ->paginate($perPage)
+            ->appends($request->except('page'));
 
         // حساب المبالغ الإجمالية والأرباح للمدير فقط
         $pendingTotalAmount = 0;
@@ -1924,9 +1987,9 @@ class AlWaseetController extends Controller
             }
 
             // دالة مساعدة لتطبيق نفس الفلاتر - استخدام whereIn لتحسين الأداء
-            $applyFilters = function($query) use ($request, $accessibleWarehouseIdsForTotal) {
+            $applyFilters = function ($query) use ($request, $accessibleWarehouseIdsForTotal) {
                 if ($accessibleWarehouseIdsForTotal !== null && !empty($accessibleWarehouseIdsForTotal)) {
-                    $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIdsForTotal) {
+                    $query->whereIn('id', function ($subQuery) use ($accessibleWarehouseIdsForTotal) {
                         $subQuery->select('order_id')
                             ->from('order_items')
                             ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -1936,7 +1999,7 @@ class AlWaseetController extends Controller
                 }
 
                 if ($request->filled('warehouse_id')) {
-                    $query->whereIn('id', function($subQuery) use ($request) {
+                    $query->whereIn('id', function ($subQuery) use ($request) {
                         $subQuery->select('order_id')
                             ->from('order_items')
                             ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -1947,16 +2010,16 @@ class AlWaseetController extends Controller
 
                 if ($request->filled('search')) {
                     $searchTerm = $request->search;
-                    $query->where(function($q) use ($searchTerm) {
+                    $query->where(function ($q) use ($searchTerm) {
                         $q->where('order_number', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                          ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                          ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                              $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                          });
+                            ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                            ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                            ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                            ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                                $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                            });
                     });
                 }
 
@@ -2071,7 +2134,7 @@ class AlWaseetController extends Controller
             $pendingCountQuery = Order::where('status', 'pending');
 
             if (!empty($accessibleWarehouseIds)) {
-                $pendingCountQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                $pendingCountQuery->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
                     $subQuery->select('order_id')
                         ->from('order_items')
                         ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2086,7 +2149,7 @@ class AlWaseetController extends Controller
         }
 
         if ($request->filled('warehouse_id')) {
-            $pendingCountQuery->whereIn('id', function($subQuery) use ($request) {
+            $pendingCountQuery->whereIn('id', function ($subQuery) use ($request) {
                 $subQuery->select('order_id')
                     ->from('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2146,7 +2209,7 @@ class AlWaseetController extends Controller
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
             if (!empty($accessibleWarehouseIds)) {
-                $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                $query->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
                     $subQuery->select('order_id')
                         ->from('order_items')
                         ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2160,7 +2223,7 @@ class AlWaseetController extends Controller
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereIn('id', function($subQuery) use ($request) {
+            $query->whereIn('id', function ($subQuery) use ($request) {
                 $subQuery->select('order_id')
                     ->from('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2182,23 +2245,23 @@ class AlWaseetController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('alwaseetShipment', function($shipmentQuery) use ($searchTerm) {
-                      $shipmentQuery->where('alwaseet_order_id', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('alwaseetShipment', function ($shipmentQuery) use ($searchTerm) {
+                        $shipmentQuery->where('alwaseet_order_id', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -2225,7 +2288,7 @@ class AlWaseetController extends Controller
 
         // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة) - تطبيق على تاريخ تقييد الطلب
         if ($request->filled('hours_ago')) {
-            $hoursAgo = (int)$request->hours_ago;
+            $hoursAgo = (int) $request->hours_ago;
             if ($hoursAgo > 0) {
                 $query->where('created_at', '>=', now()->subHours($hoursAgo));
             }
@@ -2233,7 +2296,7 @@ class AlWaseetController extends Controller
 
         // فلتر حسب حالة API مباشرة في SQL query (أسرع وأدق)
         if ($request->filled('api_status_id')) {
-            $query->whereHas('alwaseetShipment', function($q) use ($request) {
+            $query->whereHas('alwaseetShipment', function ($q) use ($request) {
                 $q->where('status_id', $request->api_status_id);
             });
         }
@@ -2246,13 +2309,15 @@ class AlWaseetController extends Controller
             $totalOrdersAmount = (clone $query)->sum(\DB::raw('COALESCE(total_amount, 0) + COALESCE(delivery_fee_at_confirmation, 0)'));
         }
 
+        $perPage = $request->input('per_page', 5);
+
         // جلب الطلبات مع pagination عادي (بدون حد على العدد!)
         $orders = $query->with([
             'delegate',
             'items.product.primaryImage',
             'items.product.warehouse',
             'alwaseetShipment.statusHistory.statusInfo' // إضافة Timeline
-        ])->orderBy('created_at', 'desc')->paginate(20);
+        ])->orderBy('created_at', 'desc')->paginate($perPage);
 
         $ordersForApi = $orders;
         $hasMoreOrders = false;
@@ -2388,13 +2453,13 @@ class AlWaseetController extends Controller
         if (!$request->filled('api_status_id')) {
             // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
             $hasFilters = $request->filled('warehouse_id') ||
-                         $request->filled('confirmed_by') ||
-                         $request->filled('delegate_id') ||
-                         $request->filled('date_from') ||
-                         $request->filled('date_to') ||
-                         $request->filled('time_from') ||
-                         $request->filled('time_to') ||
-                         $request->filled('hours_ago');
+                $request->filled('confirmed_by') ||
+                $request->filled('delegate_id') ||
+                $request->filled('date_from') ||
+                $request->filled('date_to') ||
+                $request->filled('time_from') ||
+                $request->filled('time_to') ||
+                $request->filled('hours_ago');
 
             // إنشاء مفتاح Cache فريد بناءً على الفلاتر المطبقة
             if ($hasFilters || Auth::user()->isSupplier()) {
@@ -2425,7 +2490,7 @@ class AlWaseetController extends Controller
 
                 // تهيئة جميع الحالات أولاً بقيمة 0
                 foreach ($allStatuses as $status) {
-                    $statusId = (string)$status['id'];
+                    $statusId = (string) $status['id'];
                     $counts[$statusId] = 0;
                 }
 
@@ -2436,7 +2501,7 @@ class AlWaseetController extends Controller
                 if (Auth::user()->isSupplier()) {
                     $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
                     if (!empty($accessibleWarehouseIds)) {
-                        $baseQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                        $baseQuery->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
                             $subQuery->select('order_id')
                                 ->from('order_items')
                                 ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2451,7 +2516,7 @@ class AlWaseetController extends Controller
                 // تطبيق نفس الفلاتر المطبقة على الطلبات
                 // فلتر المخزن
                 if ($request->filled('warehouse_id')) {
-                    $baseQuery->whereIn('id', function($subQuery) use ($request) {
+                    $baseQuery->whereIn('id', function ($subQuery) use ($request) {
                         $subQuery->select('order_id')
                             ->from('order_items')
                             ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2492,7 +2557,7 @@ class AlWaseetController extends Controller
 
                 // فلتر حسب الساعات - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('hours_ago')) {
-                    $hoursAgo = (int)$request->hours_ago;
+                    $hoursAgo = (int) $request->hours_ago;
                     if ($hoursAgo > 0) {
                         $baseQuery->where('created_at', '>=', now()->subHours($hoursAgo));
                     }
@@ -2507,15 +2572,15 @@ class AlWaseetController extends Controller
                         ->selectRaw('status_id, COUNT(*) as count')
                         ->groupBy('status_id')
                         ->get()
-                        ->mapWithKeys(function($item) {
-                            return [(string)$item->status_id => (int)$item->count];
+                        ->mapWithKeys(function ($item) {
+                            return [(string) $item->status_id => (int) $item->count];
                         })
                         ->toArray();
 
                     // تحديث العدادات للحالات الموجودة
                     foreach ($statusCountsFromDb as $statusId => $count) {
-                        $statusIdStr = (string)$statusId;
-                        $counts[$statusIdStr] = (int)$count;
+                        $statusIdStr = (string) $statusId;
+                        $counts[$statusIdStr] = (int) $count;
                     }
                 }
 
@@ -2528,7 +2593,7 @@ class AlWaseetController extends Controller
 
             // التأكد من أن جميع الحالات موجودة في statusCounts (حتى لو كانت 0)
             foreach ($allStatuses as $status) {
-                $statusId = (string)$status['id'];
+                $statusId = (string) $status['id'];
                 if (!isset($statusCounts[$statusId])) {
                     $statusCounts[$statusId] = 0;
                 }
@@ -2540,13 +2605,13 @@ class AlWaseetController extends Controller
         if (Auth::user()->isAdmin() && !$request->filled('api_status_id')) {
             // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
             $hasFilters = $request->filled('warehouse_id') ||
-                         $request->filled('confirmed_by') ||
-                         $request->filled('delegate_id') ||
-                         $request->filled('date_from') ||
-                         $request->filled('date_to') ||
-                         $request->filled('time_from') ||
-                         $request->filled('time_to') ||
-                         $request->filled('hours_ago');
+                $request->filled('confirmed_by') ||
+                $request->filled('delegate_id') ||
+                $request->filled('date_from') ||
+                $request->filled('date_to') ||
+                $request->filled('time_from') ||
+                $request->filled('time_to') ||
+                $request->filled('hours_ago');
 
             // إنشاء مفتاح Cache فريد بناءً على الفلاتر المطبقة
             if ($hasFilters) {
@@ -2576,7 +2641,7 @@ class AlWaseetController extends Controller
 
                 // تهيئة جميع الحالات أولاً بقيمة 0
                 foreach ($allStatuses as $status) {
-                    $statusId = (string)$status['id'];
+                    $statusId = (string) $status['id'];
                     $amounts[$statusId] = 0;
                 }
 
@@ -2587,7 +2652,7 @@ class AlWaseetController extends Controller
                 if (Auth::user()->isSupplier()) {
                     $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
                     if (!empty($accessibleWarehouseIds)) {
-                        $baseQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
+                        $baseQuery->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
                             $subQuery->select('order_id')
                                 ->from('order_items')
                                 ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2602,7 +2667,7 @@ class AlWaseetController extends Controller
                 // تطبيق نفس الفلاتر المطبقة على الطلبات
                 // فلتر المخزن
                 if ($request->filled('warehouse_id')) {
-                    $baseQuery->whereIn('id', function($subQuery) use ($request) {
+                    $baseQuery->whereIn('id', function ($subQuery) use ($request) {
                         $subQuery->select('order_id')
                             ->from('order_items')
                             ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -2643,7 +2708,7 @@ class AlWaseetController extends Controller
 
                 // فلتر حسب الساعات - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('hours_ago')) {
-                    $hoursAgo = (int)$request->hours_ago;
+                    $hoursAgo = (int) $request->hours_ago;
                     if ($hoursAgo > 0) {
                         $baseQuery->where('created_at', '>=', now()->subHours($hoursAgo));
                     }
@@ -2660,15 +2725,15 @@ class AlWaseetController extends Controller
                         ->selectRaw('alwaseet_shipments.status_id, SUM(COALESCE(orders.total_amount, 0) + COALESCE(orders.delivery_fee_at_confirmation, 0)) as total_amount')
                         ->groupBy('alwaseet_shipments.status_id')
                         ->get()
-                        ->mapWithKeys(function($item) {
-                            return [(string)$item->status_id => (float)$item->total_amount];
+                        ->mapWithKeys(function ($item) {
+                            return [(string) $item->status_id => (float) $item->total_amount];
                         })
                         ->toArray();
 
                     // تحديث المبالغ للحالات الموجودة
                     foreach ($statusAmountsFromDb as $statusId => $amount) {
-                        $statusIdStr = (string)$statusId;
-                        $amounts[$statusIdStr] = (float)$amount;
+                        $statusIdStr = (string) $statusId;
+                        $amounts[$statusIdStr] = (float) $amount;
                     }
                 }
 
@@ -2681,7 +2746,7 @@ class AlWaseetController extends Controller
 
             // التأكد من أن جميع الحالات موجودة في statusAmounts (حتى لو كانت 0)
             foreach ($allStatuses as $status) {
-                $statusId = (string)$status['id'];
+                $statusId = (string) $status['id'];
                 if (!isset($statusAmounts[$statusId])) {
                     $statusAmounts[$statusId] = 0;
                 }
@@ -2705,7 +2770,7 @@ class AlWaseetController extends Controller
         // التحقق من أن المستخدم مدير
         if (!Auth::user()->isAdmin()) {
             return redirect()->back()
-                            ->withErrors(['error' => 'غير مصرح لك بحذف الطلبات']);
+                ->withErrors(['error' => 'غير مصرح لك بحذف الطلبات']);
         }
 
         // جلب shipment للتحقق من api_status_id
@@ -2722,25 +2787,25 @@ class AlWaseetController extends Controller
                 // البحث عن الطلب المطلوب في الـ array
                 foreach ($apiOrders as $apiOrder) {
                     if (isset($apiOrder['id']) && $apiOrder['id'] == $shipment->alwaseet_order_id && isset($apiOrder['status_id'])) {
-                        $apiStatusId = (string)$apiOrder['status_id'];
+                        $apiStatusId = (string) $apiOrder['status_id'];
                         break;
                     }
                 }
             } catch (\Exception $e) {
                 // في حالة فشل API، استخدام البيانات المحفوظة
-                $apiStatusId = $shipment->status_id ? (string)$shipment->status_id : null;
+                $apiStatusId = $shipment->status_id ? (string) $shipment->status_id : null;
             }
         }
 
         // Fallback: استخدام البيانات المحفوظة
         if (!$apiStatusId && $shipment && $shipment->status_id) {
-            $apiStatusId = (string)$shipment->status_id;
+            $apiStatusId = (string) $shipment->status_id;
         }
 
         // التحقق من أن الحالة هي 1 أو 4
         if ($apiStatusId !== '1' && $apiStatusId !== '4') {
             return redirect()->back()
-                            ->withErrors(['error' => 'يمكن حذف الطلبات فقط في الحالتين: فعال (1) أو تم تسليم إلى الزبون (4)']);
+                ->withErrors(['error' => 'يمكن حذف الطلبات فقط في الحالتين: فعال (1) أو تم تسليم إلى الزبون (4)']);
         }
 
         try {
@@ -2751,10 +2816,10 @@ class AlWaseetController extends Controller
             $order->delete(); // soft delete
 
             return redirect()->back()
-                            ->with('success', 'تم حذف الطلب #' . $order->order_number . ' من القائمة');
+                ->with('success', 'تم حذف الطلب #' . $order->order_number . ' من القائمة');
         } catch (\Exception $e) {
             return redirect()->back()
-                            ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'حدث خطأ أثناء حذف الطلب: ' . $e->getMessage()]);
         }
     }
 
@@ -2864,7 +2929,7 @@ class AlWaseetController extends Controller
             $totalPrice = $order->total_amount + $deliveryFee;
 
             // تنسيق نوع البضاعة بشكل كامل (مثل process page - بدون النص الثابت)
-            $productParts = $order->items->map(function($item) {
+            $productParts = $order->items->map(function ($item) {
                 $rawName = optional($item->product)->name ?? $item->product_name ?? '';
                 $name = $rawName;
                 // إزالة النص بين الأقواس إذا كان موجوداً
@@ -2932,10 +2997,10 @@ class AlWaseetController extends Controller
                 'city_id' => $order->alwaseet_city_id,
                 'region_id' => $order->alwaseet_region_id,
                 'location' => $order->customer_address ?? '',
-                'price' => (string)$totalPrice,
+                'price' => (string) $totalPrice,
                 'package_size' => $normalPackageSize['id'],
                 'type_name' => $productNames,
-                'items_number' => (string)$order->items->count(),
+                'items_number' => (string) $order->items->count(),
             ];
 
             if ($phone2) {
@@ -2965,7 +3030,7 @@ class AlWaseetController extends Controller
             // إذا لم يكن pickup_id موجوداً، نستخدم qr_id
             $codeToSave = $pickupId ?? $qrId;
             if ($codeToSave) {
-                $order->delivery_code = (string)$codeToSave;
+                $order->delivery_code = (string) $codeToSave;
                 $order->save();
             }
 
@@ -2989,7 +3054,7 @@ class AlWaseetController extends Controller
                     'type_name' => $productNames,
                     'status_id' => $result['status_id'] ?? '1',
                     'status' => $result['status'] ?? 'جديد',
-                    'items_number' => (string)$order->items->count(),
+                    'items_number' => (string) $order->items->count(),
                     'merchant_notes' => $merchantNotes,
                     'replacement' => false,
                     'qr_id' => $result['qr_id'] ?? null,
@@ -3058,14 +3123,14 @@ class AlWaseetController extends Controller
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if (Auth::user()->isSupplier()) {
                 $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+                $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                     $q->whereIn('warehouse_id', $accessibleWarehouseIds);
                 });
             }
 
             // تطبيق نفس الفلاتر من request
             if ($request->filled('warehouse_id')) {
-                $query->whereHas('items.product', function($q) use ($request) {
+                $query->whereHas('items.product', function ($q) use ($request) {
                     $q->where('warehouse_id', $request->warehouse_id);
                 });
             }
@@ -3076,13 +3141,13 @@ class AlWaseetController extends Controller
 
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
-                $query->where(function($q) use ($searchTerm) {
+                $query->where(function ($q) use ($searchTerm) {
                     $q->where('order_number', 'like', "%{$searchTerm}%")
-                      ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                      ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                      ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                      ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                      ->orWhere('delivery_code', 'like', "%{$searchTerm}%");
+                        ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                        ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                        ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                        ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                        ->orWhere('delivery_code', 'like', "%{$searchTerm}%");
                 });
             }
 
@@ -3180,14 +3245,14 @@ class AlWaseetController extends Controller
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -3225,15 +3290,15 @@ class AlWaseetController extends Controller
         if ($request->filled('alwaseet_complete')) {
             if ($request->alwaseet_complete === 'complete') {
                 $query->whereNotNull('alwaseet_city_id')
-                      ->whereNotNull('alwaseet_region_id')
-                      ->where('alwaseet_city_id', '!=', '')
-                      ->where('alwaseet_region_id', '!=', '');
+                    ->whereNotNull('alwaseet_region_id')
+                    ->where('alwaseet_city_id', '!=', '')
+                    ->where('alwaseet_region_id', '!=', '');
             } elseif ($request->alwaseet_complete === 'incomplete') {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->whereNull('alwaseet_city_id')
-                      ->orWhere('alwaseet_city_id', '=', '')
-                      ->orWhereNull('alwaseet_region_id')
-                      ->orWhere('alwaseet_region_id', '=', '');
+                        ->orWhere('alwaseet_city_id', '=', '')
+                        ->orWhereNull('alwaseet_region_id')
+                        ->orWhere('alwaseet_region_id', '=', '');
                 });
             }
         }
@@ -3241,20 +3306,20 @@ class AlWaseetController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -3287,8 +3352,9 @@ class AlWaseetController extends Controller
 
         // فلترة items حسب المخزن والصلاحيات
         foreach ($orders as $order) {
-            $order->items = $order->items->filter(function($item) use ($request) {
-                if (!$item->product) return false;
+            $order->items = $order->items->filter(function ($item) use ($request) {
+                if (!$item->product)
+                    return false;
 
                 // فلتر المخزن: عرض فقط منتجات المخزن المحدد
                 if ($request->filled('warehouse_id')) {
@@ -3310,7 +3376,7 @@ class AlWaseetController extends Controller
         }
 
         // إزالة الطلبات التي لا تحتوي على items بعد الفلترة
-        $orders = $orders->filter(function($order) {
+        $orders = $orders->filter(function ($order) {
             return $order->items->count() > 0;
         });
 
@@ -3392,14 +3458,14 @@ class AlWaseetController extends Controller
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
         if (Auth::user()->isSupplier()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             });
         }
 
         // فلتر المخزن
         if ($request->filled('warehouse_id')) {
-            $query->whereHas('items.product', function($q) use ($request) {
+            $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
@@ -3437,15 +3503,15 @@ class AlWaseetController extends Controller
         if ($request->filled('alwaseet_complete')) {
             if ($request->alwaseet_complete === 'complete') {
                 $query->whereNotNull('alwaseet_city_id')
-                      ->whereNotNull('alwaseet_region_id')
-                      ->where('alwaseet_city_id', '!=', '')
-                      ->where('alwaseet_region_id', '!=', '');
+                    ->whereNotNull('alwaseet_region_id')
+                    ->where('alwaseet_city_id', '!=', '')
+                    ->where('alwaseet_region_id', '!=', '');
             } elseif ($request->alwaseet_complete === 'incomplete') {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->whereNull('alwaseet_city_id')
-                      ->orWhere('alwaseet_city_id', '=', '')
-                      ->orWhereNull('alwaseet_region_id')
-                      ->orWhere('alwaseet_region_id', '=', '');
+                        ->orWhere('alwaseet_city_id', '=', '')
+                        ->orWhereNull('alwaseet_region_id')
+                        ->orWhere('alwaseet_region_id', '=', '');
                 });
             }
         }
@@ -3453,20 +3519,20 @@ class AlWaseetController extends Controller
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                  ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('delegate', function($delegateQuery) use ($searchTerm) {
-                      $delegateQuery->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('items.product', function($productQuery) use ($searchTerm) {
-                      $productQuery->where('name', 'like', "%{$searchTerm}%")
-                                   ->orWhere('code', 'like', "%{$searchTerm}%");
-                  });
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('items.product', function ($productQuery) use ($searchTerm) {
+                        $productQuery->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('code', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -3500,7 +3566,8 @@ class AlWaseetController extends Controller
         $materialsGrouped = [];
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
-                if (!$item->product) continue;
+                if (!$item->product)
+                    continue;
 
                 // فلتر المخزن: عرض فقط منتجات المخزن المحدد
                 if ($request->filled('warehouse_id')) {
@@ -3578,7 +3645,7 @@ class AlWaseetController extends Controller
             return back()->withErrors(['error' => 'لا يمكن تقييد الطلبات المقيدة']);
         }
 
-        DB::transaction(function() use ($order) {
+        DB::transaction(function () use ($order) {
             // حفظ القيم الحالية من الإعدادات وقت التقييد
             $deliveryFee = Setting::getDeliveryFee();
             $profitMargin = Setting::getProfitMargin();
@@ -3587,12 +3654,12 @@ class AlWaseetController extends Controller
             $deliveryCode = $order->delivery_code;
             $shipment = $order->alwaseetShipment;
 
-            if ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id) && trim((string)$shipment->qr_id) !== '') {
+            if ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id) && trim((string) $shipment->qr_id) !== '') {
                 // استخدام qr_id من shipment كـ delivery_code (الأولوية الأولى)
-                $deliveryCode = (string)$shipment->qr_id;
+                $deliveryCode = (string) $shipment->qr_id;
             } elseif (!$deliveryCode && $shipment && isset($shipment->alwaseet_order_id) && !empty($shipment->alwaseet_order_id)) {
                 // إذا لم يكن delivery_code موجوداً، استخدم alwaseet_order_id كحل أخير
-                $deliveryCode = (string)$shipment->alwaseet_order_id;
+                $deliveryCode = (string) $shipment->alwaseet_order_id;
             }
 
             // تحديث حالة الطلب مع حفظ delivery_code
@@ -3641,10 +3708,10 @@ class AlWaseetController extends Controller
                 $params = [];
             }
             return redirect()->route($backRoute, $params)
-                        ->with('success', 'تم تقييد الطلب بنجاح');
+                ->with('success', 'تم تقييد الطلب بنجاح');
         }
 
         return redirect()->route('admin.alwaseet.print-and-upload-orders')
-                    ->with('success', 'تم تقييد الطلب بنجاح');
+            ->with('success', 'تم تقييد الطلب بنجاح');
     }
 }

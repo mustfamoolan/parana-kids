@@ -772,118 +772,121 @@ class AlWaseetService
      */
     public function getCities($retry = true)
     {
-        $token = $this->getToken();
+        return Cache::remember('alwaseet_cities', now()->addHours(24), function () use ($retry) {
+            $token = $this->getToken();
 
-        try {
-            $url = "{$this->baseUrl}/citys?token=" . $this->encodeTokenForUrl($token);
+            try {
+                $url = "{$this->baseUrl}/citys?token=" . $this->encodeTokenForUrl($token);
 
-            $headers = [
-                'Accept: application/json',
-                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ];
+                $headers = [
+                    'Accept: application/json',
+                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                ];
 
-            // إضافة X-Forwarded-For إذا كان متوفر
-            if (isset($_SERVER['REMOTE_ADDR'])) {
-                $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
-            }
-
-            // إضافة token في header
-            $headers[] = 'Authorization: Bearer ' . $token;
-            $headers[] = 'X-Auth-Token: ' . $token;
-
-            // Logging شامل قبل الإرسال
-            $this->logRequestDetails('GET', $url, $headers, [], $token);
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPGET, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_HEADER, true); // للحصول على response headers
-
-            $responseBody = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-
-            // الحصول على معلومات curl بعد التنفيذ
-            $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?? 'unknown';
-            $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP) ?? 'unknown';
-            $responseHeadersSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-
-            // فصل response headers من body
-            $responseHeaders = '';
-            if ($responseHeadersSize > 0) {
-                $responseHeaders = substr($responseBody, 0, $responseHeadersSize);
-                $responseBody = substr($responseBody, $responseHeadersSize);
-            }
-
-            curl_close($ch);
-
-            // Logging شامل بعد التنفيذ
-            Log::info('AlWaseetService: getCities response details', [
-                'http_code' => $httpCode,
-                'local_ip' => $localIp,
-                'primary_ip' => $primaryIp,
-                'response_headers_size' => $responseHeadersSize,
-                'response_headers_preview' => substr($responseHeaders, 0, 200),
-                'response_body_preview' => substr($responseBody, 0, 200),
-                'error' => $error ?: null,
-            ]);
-
-            if ($error) {
-                throw new \Exception('خطأ في الاتصال: ' . $error);
-            }
-
-            if ($httpCode !== 200) {
-                $data = json_decode($responseBody, true);
-                $errNum = $data['errNum'] ?? null;
-
-                // معالجة خطأ الصلاحية (errNum: 21)
-                if ($httpCode === 400 && $errNum == 21 && $retry) {
-                    Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
-                        'method' => 'getCities',
-                    ]);
-                    $this->refreshTokenIfNeeded();
-                    // إعادة المحاولة مرة واحدة فقط
-                    return $this->getCities(false);
+                // إضافة X-Forwarded-For إذا كان متوفر
+                if (isset($_SERVER['REMOTE_ADDR'])) {
+                    $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
                 }
 
-                Log::error('AlWaseetService: HTTP request failed', [
-                    'url' => $url,
-                    'status' => $httpCode,
-                    'errNum' => $errNum,
-                    'body' => $responseBody,
+                // إضافة token في header
+                $headers[] = 'Authorization: Bearer ' . $token;
+                $headers[] = 'X-Auth-Token: ' . $token;
+
+                // Logging شامل قبل الإرسال
+                $this->logRequestDetails('GET', $url, $headers, [], $token);
+
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPGET, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_HEADER, true); // للحصول على response headers
+
+                $responseBody = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+
+                // الحصول على معلومات curl بعد التنفيذ
+                $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?? 'unknown';
+                $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP) ?? 'unknown';
+                $responseHeadersSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+
+                // فصل response headers من body
+                $responseHeaders = '';
+                if ($responseHeadersSize > 0) {
+                    $responseHeaders = substr($responseBody, 0, $responseHeadersSize);
+                    $responseBody = substr($responseBody, $responseHeadersSize);
+                }
+
+                curl_close($ch);
+
+                // Logging شامل بعد التنفيذ
+                Log::info('AlWaseetService: getCities response details', [
+                    'http_code' => $httpCode,
+                    'local_ip' => $localIp,
+                    'primary_ip' => $primaryIp,
+                    'response_headers_size' => $responseHeadersSize,
+                    'response_headers_preview' => substr($responseHeaders, 0, 200),
+                    'response_body_preview' => substr($responseBody, 0, 200),
+                    'error' => $error ?: null,
                 ]);
 
-                // استخدام الرسالة الأصلية من API الواسط
-                $errorMsg = $data['msg'] ?? 'فشل الاتصال: ' . $httpCode;
+                if ($error) {
+                    throw new \Exception('خطأ في الاتصال: ' . $error);
+                }
 
-                throw new \Exception($errorMsg);
+                if ($httpCode !== 200) {
+                    $data = json_decode($responseBody, true);
+                    $errNum = $data['errNum'] ?? null;
+
+                    // معالجة خطأ الصلاحية (errNum: 21)
+                    if ($httpCode === 400 && $errNum == 21 && $retry) {
+                        Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
+                            'method' => 'getCities',
+                        ]);
+                        $this->refreshTokenIfNeeded();
+                        // إعادة المحاولة مرة واحدة فقط
+                        Cache::forget('alwaseet_cities');
+                        return $this->getCities(false);
+                    }
+
+                    Log::error('AlWaseetService: HTTP request failed', [
+                        'url' => $url,
+                        'status' => $httpCode,
+                        'errNum' => $errNum,
+                        'body' => $responseBody,
+                    ]);
+
+                    // استخدام الرسالة الأصلية من API الواسط
+                    $errorMsg = $data['msg'] ?? 'فشل الاتصال: ' . $httpCode;
+
+                    throw new \Exception($errorMsg);
+                }
+
+                $data = json_decode($responseBody, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('فشل تحليل الاستجابة: ' . json_last_error_msg());
+                }
+
+                if (!isset($data['status'])) {
+                    throw new \Exception('استجابة غير صحيحة من الواسط');
+                }
+
+                if ($data['status'] === true) {
+                    return $data['data'] ?? [];
+                }
+
+                throw new \Exception($data['msg'] ?? 'فشل جلب المدن');
+            } catch (\Exception $e) {
+                Log::error('AlWaseetService: Get cities failed', [
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
             }
-
-            $data = json_decode($responseBody, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('فشل تحليل الاستجابة: ' . json_last_error_msg());
-            }
-
-            if (!isset($data['status'])) {
-                throw new \Exception('استجابة غير صحيحة من الواسط');
-            }
-
-            if ($data['status'] === true) {
-                return $data['data'] ?? [];
-            }
-
-            throw new \Exception($data['msg'] ?? 'فشل جلب المدن');
-        } catch (\Exception $e) {
-            Log::error('AlWaseetService: Get cities failed', [
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -891,118 +894,121 @@ class AlWaseetService
      */
     public function getRegions($cityId, $retry = true)
     {
-        $token = $this->getToken();
+        return Cache::remember("alwaseet_regions_{$cityId}", now()->addHours(24), function () use ($cityId, $retry) {
+            $token = $this->getToken();
 
-        try {
-            $url = "{$this->baseUrl}/regions?token=" . $this->encodeTokenForUrl($token) . "&city_id=" . urlencode($cityId);
+            try {
+                $url = "{$this->baseUrl}/regions?token=" . $this->encodeTokenForUrl($token) . "&city_id=" . urlencode($cityId);
 
-            $headers = [
-                'Accept: application/json',
-                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ];
+                $headers = [
+                    'Accept: application/json',
+                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                ];
 
-            // إضافة X-Forwarded-For إذا كان متوفر
-            if (isset($_SERVER['REMOTE_ADDR'])) {
-                $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
-            }
-
-            // إضافة token في header
-            $headers[] = 'Authorization: Bearer ' . $token;
-            $headers[] = 'X-Auth-Token: ' . $token;
-
-            // Logging شامل قبل الإرسال
-            $this->logRequestDetails('GET', $url, $headers, [], $token);
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPGET, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_HEADER, true); // للحصول على response headers
-
-            $responseBody = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-
-            // الحصول على معلومات curl بعد التنفيذ
-            $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?? 'unknown';
-            $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP) ?? 'unknown';
-            $responseHeadersSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-
-            // فصل response headers من body
-            $responseHeaders = '';
-            if ($responseHeadersSize > 0) {
-                $responseHeaders = substr($responseBody, 0, $responseHeadersSize);
-                $responseBody = substr($responseBody, $responseHeadersSize);
-            }
-
-            curl_close($ch);
-
-            // Logging شامل بعد التنفيذ
-            Log::info('AlWaseetService: getRegions response details', [
-                'http_code' => $httpCode,
-                'local_ip' => $localIp,
-                'primary_ip' => $primaryIp,
-                'response_headers_size' => $responseHeadersSize,
-                'response_headers_preview' => substr($responseHeaders, 0, 200),
-                'response_body_preview' => substr($responseBody, 0, 200),
-                'error' => $error ?: null,
-            ]);
-
-            if ($error) {
-                throw new \Exception('خطأ في الاتصال: ' . $error);
-            }
-
-            if ($httpCode !== 200) {
-                $data = json_decode($responseBody, true);
-                $errNum = $data['errNum'] ?? null;
-
-                // معالجة خطأ الصلاحية (errNum: 21)
-                if ($httpCode === 400 && $errNum == 21 && $retry) {
-                    Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
-                        'method' => 'getRegions',
-                    ]);
-                    $this->refreshTokenIfNeeded();
-                    // إعادة المحاولة مرة واحدة فقط
-                    return $this->getRegions($cityId, false);
+                // إضافة X-Forwarded-For إذا كان متوفر
+                if (isset($_SERVER['REMOTE_ADDR'])) {
+                    $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
                 }
 
-                Log::error('AlWaseetService: HTTP request failed', [
-                    'url' => $url,
-                    'status' => $httpCode,
-                    'errNum' => $errNum,
-                    'body' => $responseBody,
+                // إضافة token في header
+                $headers[] = 'Authorization: Bearer ' . $token;
+                $headers[] = 'X-Auth-Token: ' . $token;
+
+                // Logging شامل قبل الإرسال
+                $this->logRequestDetails('GET', $url, $headers, [], $token);
+
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPGET, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_HEADER, true); // للحصول على response headers
+
+                $responseBody = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+
+                // الحصول على معلومات curl بعد التنفيذ
+                $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?? 'unknown';
+                $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP) ?? 'unknown';
+                $responseHeadersSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+
+                // فصل response headers من body
+                $responseHeaders = '';
+                if ($responseHeadersSize > 0) {
+                    $responseHeaders = substr($responseBody, 0, $responseHeadersSize);
+                    $responseBody = substr($responseBody, $responseHeadersSize);
+                }
+
+                curl_close($ch);
+
+                // Logging شامل بعد التنفيذ
+                Log::info('AlWaseetService: getRegions response details', [
+                    'http_code' => $httpCode,
+                    'local_ip' => $localIp,
+                    'primary_ip' => $primaryIp,
+                    'response_headers_size' => $responseHeadersSize,
+                    'response_headers_preview' => substr($responseHeaders, 0, 200),
+                    'response_body_preview' => substr($responseBody, 0, 200),
+                    'error' => $error ?: null,
                 ]);
 
-                // استخدام الرسالة الأصلية من API الواسط
-                $errorMsg = $data['msg'] ?? 'فشل الاتصال: ' . $httpCode;
+                if ($error) {
+                    throw new \Exception('خطأ في الاتصال: ' . $error);
+                }
 
-                throw new \Exception($errorMsg);
+                if ($httpCode !== 200) {
+                    $data = json_decode($responseBody, true);
+                    $errNum = $data['errNum'] ?? null;
+
+                    // معالجة خطأ الصلاحية (errNum: 21)
+                    if ($httpCode === 400 && $errNum == 21 && $retry) {
+                        Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
+                            'method' => 'getRegions',
+                        ]);
+                        $this->refreshTokenIfNeeded();
+                        // إعادة المحاولة مرة واحدة فقط
+                        Cache::forget("alwaseet_regions_{$cityId}");
+                        return $this->getRegions($cityId, false);
+                    }
+
+                    Log::error('AlWaseetService: HTTP request failed', [
+                        'url' => $url,
+                        'status' => $httpCode,
+                        'errNum' => $errNum,
+                        'body' => $responseBody,
+                    ]);
+
+                    // استخدام الرسالة الأصلية من API الواسط
+                    $errorMsg = $data['msg'] ?? 'فشل الاتصال: ' . $httpCode;
+
+                    throw new \Exception($errorMsg);
+                }
+
+                $data = json_decode($responseBody, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('فشل تحليل الاستجابة: ' . json_last_error_msg());
+                }
+
+                if (!isset($data['status'])) {
+                    throw new \Exception('استجابة غير صحيحة من الواسط');
+                }
+
+                if ($data['status'] === true) {
+                    return $data['data'] ?? [];
+                }
+
+                throw new \Exception($data['msg'] ?? 'فشل جلب المناطق');
+            } catch (\Exception $e) {
+                Log::error('AlWaseetService: Get regions failed', [
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
             }
-
-            $data = json_decode($responseBody, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('فشل تحليل الاستجابة: ' . json_last_error_msg());
-            }
-
-            if (!isset($data['status'])) {
-                throw new \Exception('استجابة غير صحيحة من الواسط');
-            }
-
-            if ($data['status'] === true) {
-                return $data['data'] ?? [];
-            }
-
-            throw new \Exception($data['msg'] ?? 'فشل جلب المناطق');
-        } catch (\Exception $e) {
-            Log::error('AlWaseetService: Get regions failed', [
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -1010,118 +1016,121 @@ class AlWaseetService
      */
     public function getPackageSizes($retry = true)
     {
-        $token = $this->getToken();
+        return Cache::remember('alwaseet_package_sizes', now()->addHours(24), function () use ($retry) {
+            $token = $this->getToken();
 
-        try {
-            $url = "{$this->baseUrl}/package-sizes?token=" . $this->encodeTokenForUrl($token);
+            try {
+                $url = "{$this->baseUrl}/package-sizes?token=" . $this->encodeTokenForUrl($token);
 
-            $headers = [
-                'Accept: application/json',
-                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            ];
+                $headers = [
+                    'Accept: application/json',
+                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                ];
 
-            // إضافة X-Forwarded-For إذا كان متوفر
-            if (isset($_SERVER['REMOTE_ADDR'])) {
-                $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
-            }
-
-            // إضافة token في header
-            $headers[] = 'Authorization: Bearer ' . $token;
-            $headers[] = 'X-Auth-Token: ' . $token;
-
-            // Logging شامل قبل الإرسال
-            $this->logRequestDetails('GET', $url, $headers, [], $token);
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPGET, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_HEADER, true); // للحصول على response headers
-
-            $responseBody = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-
-            // الحصول على معلومات curl بعد التنفيذ
-            $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?? 'unknown';
-            $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP) ?? 'unknown';
-            $responseHeadersSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-
-            // فصل response headers من body
-            $responseHeaders = '';
-            if ($responseHeadersSize > 0) {
-                $responseHeaders = substr($responseBody, 0, $responseHeadersSize);
-                $responseBody = substr($responseBody, $responseHeadersSize);
-            }
-
-            curl_close($ch);
-
-            // Logging شامل بعد التنفيذ
-            Log::info('AlWaseetService: getPackageSizes response details', [
-                'http_code' => $httpCode,
-                'local_ip' => $localIp,
-                'primary_ip' => $primaryIp,
-                'response_headers_size' => $responseHeadersSize,
-                'response_headers_preview' => substr($responseHeaders, 0, 200),
-                'response_body_preview' => substr($responseBody, 0, 200),
-                'error' => $error ?: null,
-            ]);
-
-            if ($error) {
-                throw new \Exception('خطأ في الاتصال: ' . $error);
-            }
-
-            if ($httpCode !== 200) {
-                $data = json_decode($responseBody, true);
-                $errNum = $data['errNum'] ?? null;
-
-                // معالجة خطأ الصلاحية (errNum: 21)
-                if ($httpCode === 400 && $errNum == 21 && $retry) {
-                    Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
-                        'method' => 'getPackageSizes',
-                    ]);
-                    $this->refreshTokenIfNeeded();
-                    // إعادة المحاولة مرة واحدة فقط
-                    return $this->getPackageSizes(false);
+                // إضافة X-Forwarded-For إذا كان متوفر
+                if (isset($_SERVER['REMOTE_ADDR'])) {
+                    $headers[] = 'X-Forwarded-For: ' . $_SERVER['REMOTE_ADDR'];
                 }
 
-                Log::error('AlWaseetService: HTTP request failed', [
-                    'url' => $url,
-                    'status' => $httpCode,
-                    'errNum' => $errNum,
-                    'body' => $responseBody,
+                // إضافة token في header
+                $headers[] = 'Authorization: Bearer ' . $token;
+                $headers[] = 'X-Auth-Token: ' . $token;
+
+                // Logging شامل قبل الإرسال
+                $this->logRequestDetails('GET', $url, $headers, [], $token);
+
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPGET, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_HEADER, true); // للحصول على response headers
+
+                $responseBody = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+
+                // الحصول على معلومات curl بعد التنفيذ
+                $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?? 'unknown';
+                $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP) ?? 'unknown';
+                $responseHeadersSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+
+                // فصل response headers من body
+                $responseHeaders = '';
+                if ($responseHeadersSize > 0) {
+                    $responseHeaders = substr($responseBody, 0, $responseHeadersSize);
+                    $responseBody = substr($responseBody, $responseHeadersSize);
+                }
+
+                curl_close($ch);
+
+                // Logging شامل بعد التنفيذ
+                Log::info('AlWaseetService: getPackageSizes response details', [
+                    'http_code' => $httpCode,
+                    'local_ip' => $localIp,
+                    'primary_ip' => $primaryIp,
+                    'response_headers_size' => $responseHeadersSize,
+                    'response_headers_preview' => substr($responseHeaders, 0, 200),
+                    'response_body_preview' => substr($responseBody, 0, 200),
+                    'error' => $error ?: null,
                 ]);
 
-                // استخدام الرسالة الأصلية من API الواسط
-                $errorMsg = $data['msg'] ?? 'فشل الاتصال: ' . $httpCode;
+                if ($error) {
+                    throw new \Exception('خطأ في الاتصال: ' . $error);
+                }
 
-                throw new \Exception($errorMsg);
+                if ($httpCode !== 200) {
+                    $data = json_decode($responseBody, true);
+                    $errNum = $data['errNum'] ?? null;
+
+                    // معالجة خطأ الصلاحية (errNum: 21)
+                    if ($httpCode === 400 && $errNum == 21 && $retry) {
+                        Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
+                            'method' => 'getPackageSizes',
+                        ]);
+                        $this->refreshTokenIfNeeded();
+                        // إعادة المحاولة مرة واحدة فقط
+                        Cache::forget('alwaseet_package_sizes');
+                        return $this->getPackageSizes(false);
+                    }
+
+                    Log::error('AlWaseetService: HTTP request failed', [
+                        'url' => $url,
+                        'status' => $httpCode,
+                        'errNum' => $errNum,
+                        'body' => $responseBody,
+                    ]);
+
+                    // استخدام الرسالة الأصلية من API الواسط
+                    $errorMsg = $data['msg'] ?? 'فشل الاتصال: ' . $httpCode;
+
+                    throw new \Exception($errorMsg);
+                }
+
+                $data = json_decode($responseBody, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('فشل تحليل الاستجابة: ' . json_last_error_msg());
+                }
+
+                if (!isset($data['status'])) {
+                    throw new \Exception('استجابة غير صحيحة من الواسط');
+                }
+
+                if ($data['status'] === true) {
+                    return $data['data'] ?? [];
+                }
+
+                throw new \Exception($data['msg'] ?? 'فشل جلب أحجام الطرود');
+            } catch (\Exception $e) {
+                Log::error('AlWaseetService: Get package sizes failed', [
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
             }
-
-            $data = json_decode($responseBody, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('فشل تحليل الاستجابة: ' . json_last_error_msg());
-            }
-
-            if (!isset($data['status'])) {
-                throw new \Exception('استجابة غير صحيحة من الواسط');
-            }
-
-            if ($data['status'] === true) {
-                return $data['data'] ?? [];
-            }
-
-            throw new \Exception($data['msg'] ?? 'فشل جلب أحجام الطرود');
-        } catch (\Exception $e) {
-            Log::error('AlWaseetService: Get package sizes failed', [
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
+        });
     }
 
     /**

@@ -269,16 +269,16 @@ class AlWaseetApiController extends Controller
             $goodsType = $productParts->implode(' - ') ?: 'بضاعة متنوعة';
 
             $alwaseetData = [
-                'customer_name' => $order->customer_name,
-                'customer_phone' => $order->customer_phone,
+                'client_name' => $order->customer_name,
+                'client_mobile' => $order->customer_phone,
                 'city_id' => $order->alwaseet_city_id,
                 'region_id' => $order->alwaseet_region_id,
                 'merchant_notes' => $order->notes,
                 'location' => $order->customer_address,
                 'price' => $totalPrice, // السعر شامل التوصيل
-                'goods_type' => $goodsType,
-                'quantity' => $totalQuantity,
-                'package_size_id' => $normalPackageSize['id'],
+                'type_name' => $goodsType,
+                'items_number' => $totalQuantity,
+                'package_size' => $normalPackageSize['id'],
             ];
 
             $response = $this->alWaseetService->createOrder($alwaseetData);
