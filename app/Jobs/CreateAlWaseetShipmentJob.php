@@ -83,7 +83,7 @@ class CreateAlWaseetShipmentJob implements ShouldQueue
                 'alwaseet_order_id' => $orderData['id'],
                 'order_id' => $this->order->id,
                 'client_name' => $orderData['client_name'] ?? $this->order->customer_name,
-                'client_mobile' => $orderData['client_mobile'] ?? $this->formatPhone($this->order->customer_phone),
+                'client_mobile' => $orderData['client_mobile'] ?? AlWaseetService::formatPhone($this->order->customer_phone),
                 'client_mobile2' => $orderData['client_mobile2'] ?? null,
                 'city_id' => $orderData['city_id'] ?? Setting::getValue('alwaseet_default_city_id'),
                 'city_name' => $orderData['city_name'] ?? '',
@@ -96,7 +96,7 @@ class CreateAlWaseetShipmentJob implements ShouldQueue
                 'type_name' => $orderData['type_name'] ?? Setting::getValue('alwaseet_default_type_name', 'ملابس'),
                 'status_id' => $orderData['status_id'] ?? '1',
                 'status' => $orderData['status'] ?? 'جديد',
-                'items_number' => $orderData['items_number'] ?? (string)$this->order->items->count(),
+                'items_number' => $orderData['items_number'] ?? (string) $this->order->items->count(),
                 'merchant_notes' => $orderData['merchant_notes'] ?? $this->order->notes,
                 'replacement' => isset($orderData['replacement']) && $orderData['replacement'] === '1',
                 'qr_id' => $result['qr_id'] ?? null,
@@ -129,14 +129,14 @@ class CreateAlWaseetShipmentJob implements ShouldQueue
     {
         $orderData = [
             'client_name' => $this->order->customer_name,
-            'client_mobile' => $this->formatPhone($this->order->customer_phone),
+            'client_mobile' => AlWaseetService::formatPhone($this->order->customer_phone),
             'city_id' => Setting::getValue('alwaseet_default_city_id'),
             'region_id' => Setting::getValue('alwaseet_default_region_id'),
             'location' => $this->order->customer_address ?? '',
-            'price' => (string)$this->order->total_amount,
+            'price' => (string) $this->order->total_amount,
             'package_size' => Setting::getValue('alwaseet_default_package_size_id'),
             'type_name' => Setting::getValue('alwaseet_default_type_name', 'ملابس'),
-            'items_number' => (string)$this->order->items->count(),
+            'items_number' => (string) $this->order->items->count(),
         ];
 
         if ($this->order->notes) {
@@ -146,23 +146,4 @@ class CreateAlWaseetShipmentJob implements ShouldQueue
         return $orderData;
     }
 
-    /**
-     * Format phone number to +964 format
-     */
-    protected function formatPhone(string $phone): string
-    {
-        // إزالة المسافات والأرقام
-        $phone = preg_replace('/[^0-9+]/', '', $phone);
-
-        // إذا كان يبدأ بـ 0، استبدله بـ +964
-        if (strpos($phone, '0') === 0) {
-            $phone = '+964' . substr($phone, 1);
-        } elseif (strpos($phone, '964') === 0) {
-            $phone = '+' . $phone;
-        } elseif (strpos($phone, '+964') !== 0) {
-            $phone = '+964' . $phone;
-        }
-
-        return $phone;
-    }
 }

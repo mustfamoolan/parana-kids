@@ -31,12 +31,15 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
     public function handle(AlWaseetService $alWaseetService): void
     {
         try {
-            // جلب فقط الطلبات المرتبطة (التي لها order_id) والتي لم يتم تحديثها في آخر دقيقة
+            // جلب فقط الطلبات النشطة (التي ليست في حالة نهائية) والتي لم يتم تحديثها في آخر 30 دقيقة
+            $finalStatusIds = [4, 17, 31, 32, 34, 35, 39];
+
             $shipments = AlWaseetShipment::whereNotNull('order_id')
                 ->whereNotNull('alwaseet_order_id')
-                ->where(function($query) {
+                ->whereNotIn('status_id', $finalStatusIds) // استبعاد الطلبات المنتهية
+                ->where(function ($query) {
                     $query->whereNull('synced_at')
-                        ->orWhere('synced_at', '<', now()->subMinute());
+                        ->orWhere('synced_at', '<', now()->subMinutes(30)); // تحديث كل 30 دقيقة بدلاً من دقيقة واحدة
                 })
                 ->select('id', 'alwaseet_order_id', 'status_id', 'status')
                 ->get();
@@ -56,7 +59,7 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
             // تقسيم إلى batches (10 طلب في كل batch)
             $batchSize = 10;
             $batches = array_chunk($alwaseetOrderIds, $batchSize);
-            
+
             $updated = 0;
             $failed = 0;
 
@@ -64,7 +67,7 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
                 try {
                     // جلب بيانات API
                     $apiOrders = $alWaseetService->getOrdersByIds($batch);
-                    
+
                     // إنشاء mapping
                     $apiOrdersMap = [];
                     foreach ($apiOrders as $apiOrder) {
@@ -80,14 +83,14 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
                         }
 
                         $apiOrder = $apiOrdersMap[$alwaseetOrderId];
-                        
+
                         $shipment = AlWaseetShipment::where('alwaseet_order_id', $alwaseetOrderId)
                             ->whereNotNull('order_id')
                             ->first();
 
                         if ($shipment) {
                             $oldStatusId = $shipment->status_id;
-                            
+
                             // حفظ جميع البيانات من API
                             $updateData = [
                                 'status_id' => $apiOrder['status_id'] ?? $shipment->status_id,
@@ -98,7 +101,7 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
                                 'api_data' => $apiOrder, // حفظ جميع بيانات API كاملة
                                 'synced_at' => now(),
                             ];
-                            
+
                             // تحديث الحقول الأخرى إذا كانت موجودة في API
                             if (isset($apiOrder['client_name'])) {
                                 $updateData['client_name'] = $apiOrder['client_name'];
@@ -157,7 +160,7 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
                             if (isset($apiOrder['updated_at'])) {
                                 $updateData['alwaseet_updated_at'] = \Carbon\Carbon::parse($apiOrder['updated_at']);
                             }
-                            
+
                             $shipment->update($updateData);
 
                             // إرسال event إذا تغيرت الحالة

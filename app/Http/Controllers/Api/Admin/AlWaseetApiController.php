@@ -270,7 +270,7 @@ class AlWaseetApiController extends Controller
 
             $alwaseetData = [
                 'client_name' => $order->customer_name,
-                'client_mobile' => $order->customer_phone,
+                'client_mobile' => AlWaseetService::formatPhone($order->customer_phone),
                 'city_id' => $order->alwaseet_city_id,
                 'region_id' => $order->alwaseet_region_id,
                 'merchant_notes' => $order->notes,

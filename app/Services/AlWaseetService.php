@@ -14,6 +14,7 @@ class AlWaseetService
     protected $baseUrl = 'https://api.alwaseet-iq.net/v1/merchant';
     protected $tokenCacheKey = 'alwaseet_token';
     protected $tokenExpiryCacheKey = 'alwaseet_token_expires_at';
+    protected $orderStatusCacheKeyPrefix = 'alwaseet_order_status_';
 
     /**
      * Encode token for URL - preserve @@ prefix
@@ -679,6 +680,27 @@ class AlWaseetService
      */
     public function getOrdersByIds(array $orderIds, $retry = true)
     {
+        if (empty($orderIds))
+            return [];
+
+        $results = [];
+        $idsToFetch = [];
+
+        // Check cache for each ID
+        foreach ($orderIds as $id) {
+            $cached = Cache::get($this->orderStatusCacheKeyPrefix . $id);
+            if ($cached) {
+                $results[] = $cached;
+            } else {
+                $idsToFetch[] = $id;
+            }
+        }
+
+        if (empty($idsToFetch)) {
+            Log::info('AlWaseetService: All order IDs found in cache', ['count' => count($orderIds)]);
+            return $results;
+        }
+
         $token = $this->getToken();
 
         // التحقق من أن الـ token هو Merchant token
@@ -692,7 +714,7 @@ class AlWaseetService
             ];
 
             $postData = [
-                'ids' => implode(',', $orderIds),
+                'ids' => implode(',', $idsToFetch),
             ];
 
             // Logging شامل قبل الإرسال
@@ -703,23 +725,13 @@ class AlWaseetService
                 ->withHeaders($headers)
                 ->post($url, $postData);
 
-            // Logging response headers
-            $responseHeaders = $response->headers();
-            Log::info('AlWaseetService: getOrdersByIds response headers', [
-                'headers' => $responseHeaders,
-            ]);
-
             if (!$response->successful()) {
                 $responseData = $response->json();
                 $errNum = $responseData['errNum'] ?? null;
 
                 // معالجة خطأ الصلاحية (errNum: 21)
                 if ($response->status() === 400 && $errNum == 21 && $retry) {
-                    Log::warning('AlWaseetService: Token expired (errNum: 21), refreshing...', [
-                        'method' => 'getOrdersByIds',
-                    ]);
                     $this->refreshTokenIfNeeded();
-                    // إعادة المحاولة مرة واحدة فقط
                     return $this->getOrdersByIds($orderIds, false);
                 }
 
@@ -730,27 +742,31 @@ class AlWaseetService
                     'body' => $response->body(),
                 ]);
 
-                // استخدام الرسالة الأصلية من API الواسط
-                $errorMsg = $responseData['msg'] ?? 'فشل الاتصال: ' . $response->status();
-
-                throw new \Exception($errorMsg);
+                throw new \Exception($responseData['msg'] ?? 'فشل الاتصال: ' . $response->status());
             }
 
             $data = $response->json();
 
-            if (!isset($data['status'])) {
-                throw new \Exception('استجابة غير صحيحة من الواسط');
-            }
-
             if ($data['status'] === true) {
-                return $data['data'] ?? [];
+                $fetchedOrders = $data['data'] ?? [];
+
+                // Update cache for fetched orders
+                foreach ($fetchedOrders as $apiOrder) {
+                    if (isset($apiOrder['id'])) {
+                        // Cache status for 5 minutes
+                        Cache::put($this->orderStatusCacheKeyPrefix . $apiOrder['id'], $apiOrder, now()->addMinutes(5));
+                        $results[] = $apiOrder;
+                    }
+                }
+
+                return $results;
             }
 
             throw new \Exception($data['msg'] ?? 'فشل جلب الطلبات');
         } catch (\Exception $e) {
             Log::error('AlWaseetService: Get orders by IDs failed', [
                 'error' => $e->getMessage(),
-                'order_ids' => $orderIds,
+                'order_ids' => $idsToFetch,
             ]);
             throw $e;
         }
@@ -2004,20 +2020,38 @@ class AlWaseetService
 
                 return $output;
             } catch (\Exception $e) {
-                Log::error('AlWaseetService: Error generating PDF output', [
+                Log::error('AlWaseetService: Merge PDFs failed', [
                     'error' => $e->getMessage(),
-                    'merged_count' => $mergedCount,
+                    'qr_links_count' => count($qrLinks),
+                    'trace' => $e->getTraceAsString(),
                 ]);
                 throw $e;
             }
-        } catch (\Exception $e) {
-            Log::error('AlWaseetService: Merge PDFs failed', [
-                'error' => $e->getMessage(),
-                'qr_links_count' => count($qrLinks),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw $e;
         }
+    }
+
+    /**
+     * Format phone number to +964 format
+     */
+    public static function formatPhone($phone): string
+    {
+        if (empty($phone))
+            return '';
+
+        // إزالة المسافات والأرقام غير الرقمية (مع الحفاظ على +)
+        $phone = preg_replace('/[^0-9]/', '', (string) $phone);
+
+        // إذا كان يبدأ بـ 0، استبدله بـ 964
+        if (strpos($phone, '0') === 0) {
+            $phone = '964' . substr($phone, 1);
+        }
+
+        // التأكد من وجود 964 في البداية
+        if (strpos($phone, '964') !== 0) {
+            $phone = '964' . $phone;
+        }
+
+        return '+' . $phone;
     }
 }
 
