@@ -17,6 +17,7 @@ use App\Http\Controllers\Mobile\Admin\MobileAdminOrderMovementController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminBulkReturnController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminBulkExchangeReturnController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminWarehouseController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminExpenseController;
 
 /*
 |--------------------------------------------------------------------------
@@ -153,7 +154,16 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
     Route::put('/orders/{id}/fields', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'updateOrderFields']);
 });
 
-
+// APIs المصروفات للمدير (تحتاج token)
+Route::prefix('admin/expenses')->middleware('auth.pwa')->group(function () {
+    Route::get('/filter-options', [MobileAdminExpenseController::class, 'getFilterOptions']);
+    Route::get('/search-products', [MobileAdminExpenseController::class, 'searchProducts']);
+    Route::get('/', [MobileAdminExpenseController::class, 'index']);
+    Route::post('/', [MobileAdminExpenseController::class, 'store']);
+    Route::get('/{id}', [MobileAdminExpenseController::class, 'show']);
+    Route::put('/{id}', [MobileAdminExpenseController::class, 'update']);
+    Route::delete('/{id}', [MobileAdminExpenseController::class, 'destroy']);
+});
 
 // APIs إدارة الطلبات للمدير والمجهز (تحتاج token)
 Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
