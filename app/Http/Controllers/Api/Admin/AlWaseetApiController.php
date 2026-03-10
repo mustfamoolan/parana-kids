@@ -284,17 +284,32 @@ class AlWaseetApiController extends Controller
             $response = $this->alWaseetService->createOrder($alwaseetData);
 
             if (isset($response['id'])) {
+                // جلب بيانات الطلب الكاملة لضمان توفر كافة الحقول لقاعدة البيانات
+                $fetchedOrders = $this->alWaseetService->getOrdersByIds([$response['id']]);
+                $alwaseetOrder = !empty($fetchedOrders) ? $fetchedOrders[0] : null;
+
+                $shipmentData = [
+                    'alwaseet_order_id' => $response['id'],
+                    'pickup_id' => $response['pickup_id'] ?? ($alwaseetOrder['pickup_id'] ?? null),
+                    'qr_id' => $response['qr_id'] ?? ($alwaseetOrder['qr_id'] ?? null),
+                    'qr_link' => $response['qr_link'] ?? ($alwaseetOrder['qr_link'] ?? null),
+                    'client_name' => $alwaseetOrder['client_name'] ?? $order->customer_name,
+                    'client_mobile' => $alwaseetOrder['client_mobile'] ?? AlWaseetService::formatPhone($order->customer_phone),
+                    'city_id' => $alwaseetOrder['city_id'] ?? $order->alwaseet_city_id,
+                    'region_id' => $alwaseetOrder['region_id'] ?? $order->alwaseet_region_id,
+                    'location' => $alwaseetOrder['location'] ?? $order->customer_address,
+                    'price' => $alwaseetOrder['price'] ?? $totalPrice,
+                    'package_size' => $alwaseetOrder['package_size'] ?? $normalPackageSize['id'],
+                    'type_name' => $alwaseetOrder['type_name'] ?? $goodsType,
+                    'items_number' => $alwaseetOrder['items_number'] ?? $totalQuantity,
+                    'status' => $alwaseetOrder['status'] ?? 'جديد',
+                    'status_id' => $alwaseetOrder['status_id'] ?? '1',
+                    'synced_at' => now(),
+                ];
+
                 $shipment = AlWaseetShipment::updateOrCreate(
                     ['order_id' => $order->id],
-                    [
-                        'alwaseet_order_id' => $response['id'],
-                        'pickup_id' => $response['pickup_id'] ?? null,
-                        'qr_id' => $response['qr_id'] ?? null,
-                        'qr_link' => $response['qr_link'] ?? null,
-                        'status' => 'جديد',
-                        'status_id' => '1',
-                        'synced_at' => now(),
-                    ]
+                    $shipmentData
                 );
 
                 return response()->json([
