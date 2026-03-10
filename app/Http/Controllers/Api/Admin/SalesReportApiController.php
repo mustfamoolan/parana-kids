@@ -58,8 +58,8 @@ class SalesReportApiController extends Controller
         // فلترة التاريخ (على confirmed_at)
         $ordersQuery->whereBetween(DB::raw('DATE(confirmed_at)'), [$dateFrom, $dateTo]);
 
-        // جلب الطلبات
-        $orders = $ordersQuery->get();
+        // جلب الطلبات مع بنود الطلب والمنتجات (لتحسين الأداء وتجنب N+1)
+        $orders = $ordersQuery->with(['items.product.warehouse'])->get();
         $orderIds = $orders->pluck('id');
 
         // حساب الإحصائيات (Ported logic)
@@ -101,7 +101,7 @@ class SalesReportApiController extends Controller
                 $q->where('warehouse_id', $request->warehouse_id);
             });
         }
-        $orderItems = $orderItemsQuery->get();
+        $orderItems = $orderItemsQuery->with(['product.warehouse'])->get();
 
         $totalAmountWithoutDelivery = $orderItems->sum('subtotal');
 
@@ -233,10 +233,15 @@ class SalesReportApiController extends Controller
         }
 
         $items = $query->groupBy('product_id')->get();
+        $productIds = $items->pluck('product_id');
+
+        // جلب المنتجات دفعة واحدة
+        $products = Product::with('warehouse')->whereIn('id', $productIds)->get()->keyBy('id');
+
         $productProfits = [];
 
         foreach ($items as $item) {
-            $product = Product::with('warehouse')->find($item->product_id);
+            $product = $products->get($item->product_id);
             if (!$product)
                 continue;
 
