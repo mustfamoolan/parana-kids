@@ -65,11 +65,22 @@ class SalesReportApiController extends Controller
         // حساب الإحصائيات (Ported logic)
         $statistics = $this->calculateStatistics($orders, $orderIds, $deliveryFee, $profitMargin, $request, $dateFrom, $dateTo);
 
-        // حساب بيانات الجارتات
-        $chartData = $this->calculateChartData($orders, $orderIds, $dateFrom, $dateTo, $request);
+        // حساب أرباح المخازن
+        $warehouseProfitsData = $this->calculateWarehouseProfits(
+            $orders,
+            $orderIds,
+            $request,
+            $dateFrom,
+            $dateTo,
+            $statistics['total_expenses'],
+            $statistics['items_count']
+        );
 
         // حساب أرباح المنتجات (مع pagination للـ API)
         $productProfitsResult = $this->calculateProductProfitsPaginated($orders, $orderIds, $request, $dateFrom, $dateTo, $statistics['total_expenses'], $statistics['items_count']);
+
+        // حساب بيانات الجارتات
+        $chartData = $this->calculateChartData($orders, $orderIds, $dateFrom, $dateTo, $request);
 
         // جلب بيانات الفلاتر (المخازن، المناديب)
         $filterOptions = [
@@ -82,6 +93,7 @@ class SalesReportApiController extends Controller
             'data' => [
                 'statistics' => $statistics,
                 'chart_data' => $chartData,
+                'warehouse_profits' => $warehouseProfitsData['warehouses'],
                 'product_profits' => $productProfitsResult['paginated'],
                 'product_totals' => $productProfitsResult['totals'],
                 'filter_options' => $filterOptions,
@@ -162,6 +174,8 @@ class SalesReportApiController extends Controller
             'net_profit' => round($totalProfitWithMargin - $totalExpenses, 2),
             'orders_count' => $orders->count(),
             'items_count' => (int) $itemsCount,
+            'admin_investment_profit_raw' => $adminProfitFromInvestments,
+            'regular_orders_profit_raw' => $regularOrdersProfit,
         ];
     }
 
@@ -169,6 +183,7 @@ class SalesReportApiController extends Controller
     {
         $salesByDate = [];
         $profitsByDate = [];
+        $profitsWithMarginByDate = [];
 
         foreach ($orders as $order) {
             if (!$order->confirmed_at)
@@ -180,6 +195,7 @@ class SalesReportApiController extends Controller
             if (!isset($salesByDate[$date])) {
                 $salesByDate[$date] = 0;
                 $profitsByDate[$date] = 0;
+                $profitsWithMarginByDate[$date] = 0;
             }
 
             $orderItems = $order->items;
@@ -187,7 +203,8 @@ class SalesReportApiController extends Controller
                 $orderItems = $orderItems->filter(fn($i) => $i->product && $i->product->warehouse_id == $request->warehouse_id);
             }
 
-            $salesByDate[$date] += $orderItems->sum('subtotal');
+            $orderAmount = $orderItems->sum('subtotal');
+            $salesByDate[$date] += $orderAmount;
 
             // الربح لهذا اليوم
             $dayProfit = 0;
@@ -202,15 +219,33 @@ class SalesReportApiController extends Controller
                 }
             }
             $profitsByDate[$date] += $dayProfit;
+
+            // الربح مع الفروقات
+            if ($order->status !== 'returned' || $order->is_partial_return) {
+                if ($request->filled('warehouse_id')) {
+                    $allOrderItems = $order->items;
+                    $warehouseOrderItems = $allOrderItems->filter(fn($i) => $i->product && $i->product->warehouse_id == $request->warehouse_id);
+                    $totalQty = $allOrderItems->sum('quantity');
+                    $whQty = $warehouseOrderItems->sum('quantity');
+                    $ratio = $totalQty > 0 ? $whQty / $totalQty : 0;
+                } else {
+                    $ratio = 1;
+                }
+                $profitsWithMarginByDate[$date] += $dayProfit + (($order->profit_margin_at_confirmation ?? Setting::getProfitMargin()) * $ratio);
+            } else {
+                $profitsWithMarginByDate[$date] += $dayProfit;
+            }
         }
 
         ksort($salesByDate);
         ksort($profitsByDate);
+        ksort($profitsWithMarginByDate);
 
         return [
             'labels' => array_keys($salesByDate),
             'sales' => array_values($salesByDate),
             'profits' => array_values($profitsByDate),
+            'profits_with_margin' => array_values($profitsWithMarginByDate),
         ];
     }
 
@@ -343,5 +378,77 @@ class SalesReportApiController extends Controller
         $result = $oldInvestment ? ($oldInvestment->admin_profit_percentage ?? 0) : 100;
         $this->adminPercentageCache[$cacheKey] = (float) $result;
         return (float) $result;
+    }
+
+    private function calculateWarehouseProfits($orders, $orderIds, $request, $dateFrom, $dateTo, $totalExpenses, $totalItemsCount)
+    {
+        $warehouses = Warehouse::all();
+        $allExpenses = Expense::byDateRange($dateFrom, $dateTo)->get();
+
+        $warehouseExpensesMap = [];
+        $generalExpenses = 0;
+
+        foreach ($allExpenses as $expense) {
+            if ($expense->warehouse_id) {
+                $warehouseExpensesMap[$expense->warehouse_id] = ($warehouseExpensesMap[$expense->warehouse_id] ?? 0) + $expense->amount;
+            } else {
+                $generalExpenses += $expense->amount;
+            }
+        }
+
+        $generalExpensePerItem = $totalItemsCount > 0 ? ($generalExpenses / $totalItemsCount) : 0;
+        $warehouseProfits = [];
+
+        foreach ($warehouses as $warehouse) {
+            $warehouseOrderItems = OrderItem::whereIn('order_id', $orderIds)
+                ->whereHas('product', fn($q) => $q->where('warehouse_id', $warehouse->id))
+                ->get();
+
+            $itemsCount = $warehouseOrderItems->sum('quantity');
+            $profitWithoutMargin = 0;
+
+            foreach ($warehouseOrderItems as $item) {
+                if ($item->product && $item->product->purchase_price > 0) {
+                    $itemProfit = ($item->unit_price - $item->product->purchase_price) * $item->quantity;
+                    if ($this->checkProductHasActiveInvestors($item->product)) {
+                        $profitWithoutMargin += $itemProfit * ($this->getAdminProfitPercentage($item->product) / 100);
+                    } else {
+                        $profitWithoutMargin += $itemProfit;
+                    }
+                }
+            }
+
+            $warehouseMarginAmount = 0;
+            foreach ($orders as $order) {
+                if ($order->status !== 'returned' || $order->is_partial_return) {
+                    $allOrderItems = $order->items;
+                    $warehouseItems = $allOrderItems->filter(fn($i) => $i->product && $i->product->warehouse_id == $warehouse->id);
+                    $totalQty = $allOrderItems->sum('quantity');
+                    $whQty = $warehouseItems->sum('quantity');
+                    $ratio = $totalQty > 0 ? $whQty / $totalQty : 0;
+                    $warehouseMarginAmount += ($order->profit_margin_at_confirmation ?? Setting::getProfitMargin()) * $ratio;
+                }
+            }
+
+            $profitWithMargin = $profitWithoutMargin + $warehouseMarginAmount;
+            $specificExpenses = $warehouseExpensesMap[$warehouse->id] ?? 0;
+            // Simplified expense distribution for API
+            $warehouseExpenses = $specificExpenses + ($generalExpensePerItem * $itemsCount);
+            $netProfit = $profitWithMargin - $warehouseExpenses;
+
+            if ($itemsCount > 0 || $warehouseExpenses > 0) {
+                $warehouseProfits[] = [
+                    'id' => $warehouse->id,
+                    'name' => $warehouse->name,
+                    'items_count' => (int) $itemsCount,
+                    'profit_without_margin' => round($profitWithoutMargin, 2),
+                    'profit_with_margin' => round($profitWithMargin, 2),
+                    'expenses' => round($warehouseExpenses, 2),
+                    'net_profit' => round($netProfit, 2),
+                ];
+            }
+        }
+
+        return ['warehouses' => $warehouseProfits];
     }
 }
