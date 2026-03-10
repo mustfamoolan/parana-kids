@@ -256,6 +256,7 @@ class MobileAdminWarehouseController extends Controller
             'selling_price' => 'required|numeric',
             'gender_type' => 'required|in:boys,girls,boys_girls,accessories',
             'description' => 'nullable|string',
+            'link_1688' => 'nullable|string',
             'sizes' => 'required|array',
             'sizes.*.size_name' => 'required|string',
             'sizes.*.quantity' => 'required|integer|min:0',
@@ -273,6 +274,7 @@ class MobileAdminWarehouseController extends Controller
                 'selling_price' => $request->selling_price,
                 'gender_type' => $request->gender_type,
                 'description' => $request->description,
+                'link_1688' => $request->link_1688,
                 'created_by' => Auth::id(),
             ]);
 
@@ -324,13 +326,14 @@ class MobileAdminWarehouseController extends Controller
             'selling_price' => 'required|numeric',
             'gender_type' => 'required|in:boys,girls,boys_girls,accessories',
             'description' => 'nullable|string',
+            'link_1688' => 'nullable|string',
             'sizes' => 'required|array',
         ]);
 
         try {
             \DB::beginTransaction();
 
-            $product->update($request->only(['name', 'purchase_price', 'selling_price', 'gender_type', 'description']));
+            $product->update($request->only(['name', 'purchase_price', 'selling_price', 'gender_type', 'description', 'link_1688']));
 
             // Update Sizes (Delete and Recreate or match by ID)
             $product->sizes()->delete();
