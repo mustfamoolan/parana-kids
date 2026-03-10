@@ -253,4 +253,5 @@ Route::prefix('admin/warehouses')->middleware('auth.pwa')->group(function () {
 // APIs الداشبورد والتقارير للمدير (تحتاج token)
 Route::prefix('admin/dashboard')->middleware('auth.pwa')->group(function () {
     Route::get('/reports', [\App\Http\Controllers\Mobile\Admin\MobileAdminDashboardController::class, 'reports']);
+    Route::get('/sales-report', [\App\Http\Controllers\Api\Admin\SalesReportApiController::class, 'index']);
 });
