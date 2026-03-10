@@ -2027,6 +2027,13 @@ class AlWaseetService
                 ]);
                 throw $e;
             }
+        } catch (\Exception $e) {
+            Log::error('AlWaseetService: Outer Merge PDFs failed', [
+                'error' => $e->getMessage(),
+                'qr_links_count' => count($qrLinks),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
     }
 
