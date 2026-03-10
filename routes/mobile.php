@@ -143,6 +143,7 @@ Route::prefix('admin/alwaseet')->middleware('auth.pwa')->group(function () {
 
     // Print & Upload routes
     Route::get('/print-upload-orders', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getPrintUploadOrders']);
+    Route::get('/print-all', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'printAllOrders']);
     Route::post('/orders/{id}/send', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'sendToAlWaseet']);
     Route::post('/orders/{order}/confirm', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'confirmOrder']);
     Route::get('/materials-list', [\App\Http\Controllers\Api\Admin\AlWaseetApiController::class, 'getMaterialsList']);

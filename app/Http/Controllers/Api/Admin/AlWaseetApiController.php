@@ -543,6 +543,62 @@ class AlWaseetApiController extends Controller
     }
 
     /**
+     * Print all sent orders in a single PDF (Mobile API).
+     */
+    public function printAllOrders(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        try {
+            $query = Order::where('status', 'pending');
+
+            // Security Filters (Suppliers)
+            if ($user->isSupplier()) {
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                $query->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
+                    $subQuery->select('order_id')->from('order_items')->join('products', 'order_items.product_id', '=', 'products.id')->whereIn('products.warehouse_id', $accessibleWarehouseIds);
+                });
+            }
+
+            // Apply Filters (Same as listing)
+            $this->applyPrintFilters($query, $request);
+
+            // Get orders with shipments that have PDF links
+            $orders = $query->whereHas('alwaseetShipment', function ($q) {
+                $q->whereNotNull('qr_link')->where('qr_link', '!=', '');
+            })->with('alwaseetShipment')->get();
+
+            $qrLinks = $orders->pluck('alwaseetShipment.qr_link')->toArray();
+
+            if (empty($qrLinks)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا توجد طلبات مرسلة لديها روابط طباعة للدمج',
+                ], 400);
+            }
+
+            // Merge PDFs
+            $mergedPdf = $this->alWaseetService->mergePdfs($qrLinks);
+
+            // Return the PDF content
+            return response($mergedPdf, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="alwaseet-all-' . date('Y-m-d') . '.pdf"')
+                ->header('Content-Length', strlen($mergedPdf));
+
+        } catch (\Exception $e) {
+            Log::error('AlWaseetApiController@printAllOrders error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل دمج الملفات: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Delete an order (soft-delete) from tracking.
      */
     public function deleteOrder(Request $request, Order $order)

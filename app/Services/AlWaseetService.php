@@ -1861,17 +1861,23 @@ class AlWaseetService
                 try {
                     // تحميل PDF من qr_link
                     // تنظيف qr_link من المسافات الزائدة
-                    $qrLink = trim($qrLink);
+                    $url = trim($qrLink);
 
+                    // استخراج الـ token الحالي إذا وجد واستبداله بـ token جديد
                     $token = $this->getToken();
-                    $url = $qrLink;
-                    if (strpos($qrLink, 'token=') === false) {
-                        $separator = strpos($qrLink, '?') !== false ? '&' : '?';
-                        $url = $qrLink . $separator . 'token=' . $this->encodeTokenForUrl($token);
+                    $freshToken = $this->encodeTokenForUrl($token);
+
+                    if (strpos($url, 'token=') !== false) {
+                        // استبدال الـ token القديم بالجديد
+                        $url = preg_replace('/token=[^&]+/', 'token=' . $freshToken, $url);
                     } else {
-                        // إذا كان token موجود، تأكد من تنظيف URL من المسافات
-                        $url = trim($url);
+                        // إضافة token جديد
+                        $separator = strpos($url, '?') !== false ? '&' : '?';
+                        $url = $url . $separator . 'token=' . $freshToken;
                     }
+
+                    // تنظيف الـ URL من أي مسافات أو رموز غريبة قد توجد في النهاية
+                    $url = trim($url);
 
                     Log::info('AlWaseetService: Downloading PDF for merge', [
                         'index' => $qrLinkIndex,
