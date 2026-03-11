@@ -257,6 +257,11 @@ Route::prefix('admin/dashboard')->middleware('auth.pwa')->group(function () {
     Route::get('/sales-report', [\App\Http\Controllers\Api\Admin\SalesReportApiController::class, 'index']);
 });
 
+// APIs حركة المواد (تحتاج token)
+Route::prefix('admin/product-movements')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductMovementController::class, 'index']);
+});
+
 // APIs نقل المواد (تحتاج token)
 Route::prefix('admin/transfers')->middleware('auth.pwa')->group(function () {
     Route::get('/warehouses', [MobileAdminTransferController::class, 'getWarehouses']);
