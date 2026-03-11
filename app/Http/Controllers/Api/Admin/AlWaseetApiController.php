@@ -852,6 +852,131 @@ class AlWaseetApiController extends Controller
         }
     }
 
+    /**
+     * Get AlWaseet settings and connection status.
+     */
+    public function getSettings()
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        $username = Setting::getValue('alwaseet_username');
+        $password = Setting::getValue('alwaseet_password');
+        $isConfigured = !empty($username) && !empty($password);
+
+        $connectionStatus = ['success' => false, 'message' => 'غير متصل'];
+        $accountType = null;
+
+        if ($isConfigured) {
+            try {
+                $connectionStatus = $this->alWaseetService->testConnection();
+                $accountType = $this->alWaseetService->getAccountType();
+            } catch (\Exception $e) {
+                $connectionStatus = ['success' => false, 'message' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'username' => $username,
+                'password_set' => !empty($password),
+                'is_configured' => $isConfigured,
+                'connection_status' => $connectionStatus,
+                'account_type' => $accountType,
+            ]
+        ]);
+    }
+
+    /**
+     * Update AlWaseet credentials.
+     */
+    public function updateSettings(Request $request)
+    {
+        if (!Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        $request->validate([
+            'username' => 'required|string',
+            'password' => 'nullable|string',
+        ]);
+
+        try {
+            Setting::setValue('alwaseet_username', $request->username);
+            if ($request->filled('password')) {
+                Setting::setValue('alwaseet_password', $request->password);
+                $this->alWaseetService->clearToken();
+            }
+
+            $test = $this->alWaseetService->testConnection();
+            $accountType = null;
+            if ($test['success']) {
+                $accountType = $this->alWaseetService->getAccountType();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $test['success'] ? 'تم التحديث والاتصال بنجاح' : 'تم حفظ الإعدادات ولكن فشل الاتصال: ' . $test['message'],
+                'data' => [
+                    'connection_status' => $test,
+                    'account_type' => $accountType,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'فشل التحديث: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Reconnect to AlWaseet (refresh token).
+     */
+    public function reconnect()
+    {
+        if (!Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        try {
+            $this->alWaseetService->clearToken();
+            $test = $this->alWaseetService->testConnection();
+            $accountType = null;
+            if ($test['success']) {
+                $accountType = $this->alWaseetService->getAccountType();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $test['success'] ? 'تم إعادة الاتصال بنجاح' : 'فشل إعادة الاتصال: ' . $test['message'],
+                'data' => [
+                    'connection_status' => $test,
+                    'account_type' => $accountType,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'فشل إعادة الاتصال: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Logout from AlWaseet (clear token).
+     */
+    public function logoutAlWaseet()
+    {
+        if (!Auth::user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        try {
+            $this->alWaseetService->clearToken();
+            return response()->json(['success' => true, 'message' => 'تم تسجيل الخروج بنجاح']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'فشل تسجيل الخروج: ' . $e->getMessage()], 500);
+        }
+    }
+
     private function fetchRealTimeStatus($ids)
     {
         $cacheKey = 'mobile_alwaseet_api_batch_' . md5(implode(',', $ids));
