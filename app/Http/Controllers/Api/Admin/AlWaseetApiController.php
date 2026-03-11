@@ -92,33 +92,39 @@ class AlWaseetApiController extends Controller
                     $apiStatus = $apiData[$shipment->alwaseet_order_id];
                 }
 
-                // Add calculated fields to order object for easier mobile consumption
-                $order->current_api_status = $apiStatus['status'] ?? ($shipment->status ?? 'غير معروف');
-                $order->current_api_status_id = $apiStatus['status_id'] ?? ($shipment->status_id ?? null);
+                // Create the base array from the model
+                $orderData = $order->toArray();
+
+                // Add calculated fields for easier mobile consumption
+                $orderData['current_api_status'] = $apiStatus['status'] ?? ($shipment->status ?? 'غير معروف');
+                $orderData['current_api_status_id'] = $apiStatus['status_id'] ?? ($shipment->status_id ?? null);
 
                 // Construct pickup code
-                $order->alwaseet_code = $apiStatus['pickup_id'] ?? ($shipment->pickup_id ?? ($shipment->qr_id ?? ($order->delivery_code ?? null)));
+                $orderData['alwaseet_code'] = $apiStatus['pickup_id'] ?? ($shipment->pickup_id ?? ($shipment->qr_id ?? ($order->delivery_code ?? null)));
 
                 // Add Timeline (Movements Log)
                 if ($shipment) {
                     $statusTimeline = $shipment->statusHistory
                         ->sortBy('changed_at')
-                        ->map(function($history) use ($shipment) {
+                        ->map(function ($history) use ($shipment) {
                             return [
                                 'status_id' => $history->status_id,
                                 'status_text' => $history->status_text,
                                 'changed_at' => $history->changed_at ? $history->changed_at->toIso8601String() : null,
-                                'is_current' => (string)$history->status_id === (string)$shipment->status_id,
+                                'is_current' => (string) $history->status_id === (string) $shipment->status_id,
                                 'display_order' => $history->statusInfo ? $history->statusInfo->display_order : 999,
                             ];
                         })
-                        ->values();
-                    
-                    // Attach to the shipment object in the order
-                    $order->alwaseetShipment->status_timeline = $statusTimeline;
+                        ->values()
+                        ->toArray();
+
+                    // Attach to the shipment object in the order data
+                    if (isset($orderData['alwaseet_shipment'])) {
+                        $orderData['alwaseet_shipment']['status_timeline'] = $statusTimeline;
+                    }
                 }
 
-                return $order;
+                return $orderData;
             });
 
             return response()->json([
