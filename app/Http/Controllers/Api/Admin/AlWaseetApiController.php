@@ -99,6 +99,25 @@ class AlWaseetApiController extends Controller
                 // Construct pickup code
                 $order->alwaseet_code = $apiStatus['pickup_id'] ?? ($shipment->pickup_id ?? ($shipment->qr_id ?? ($order->delivery_code ?? null)));
 
+                // Add Timeline (Movements Log)
+                if ($shipment) {
+                    $statusTimeline = $shipment->statusHistory
+                        ->sortBy('changed_at')
+                        ->map(function($history) use ($shipment) {
+                            return [
+                                'status_id' => $history->status_id,
+                                'status_text' => $history->status_text,
+                                'changed_at' => $history->changed_at ? $history->changed_at->toIso8601String() : null,
+                                'is_current' => (string)$history->status_id === (string)$shipment->status_id,
+                                'display_order' => $history->statusInfo ? $history->statusInfo->display_order : 999,
+                            ];
+                        })
+                        ->values();
+                    
+                    // Attach to the shipment object in the order
+                    $order->alwaseetShipment->status_timeline = $statusTimeline;
+                }
+
                 return $order;
             });
 
@@ -770,12 +789,23 @@ class AlWaseetApiController extends Controller
             if (empty($orderIds))
                 return [];
 
-            return AlWaseetShipment::whereIn('order_id', $orderIds)
+            $countsFromDb = AlWaseetShipment::whereIn('order_id', $orderIds)
                 ->whereNotNull('status_id')
                 ->selectRaw('status_id, COUNT(*) as count')
                 ->groupBy('status_id')
                 ->get()
-                ->pluck('count', 'status_id');
+                ->pluck('count', 'status_id')
+                ->toArray();
+
+            // Ensure all active statuses are included, even if count is 0
+            $allStatuses = \App\Models\AlWaseetOrderStatus::where('is_active', true)->get();
+            $resultCounts = [];
+            foreach ($allStatuses as $status) {
+                $sid = (string)$status->status_id;
+                $resultCounts[$sid] = $countsFromDb[$sid] ?? $countsFromDb[(int)$sid] ?? 0;
+            }
+
+            return $resultCounts;
         });
     }
 
