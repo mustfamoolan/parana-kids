@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Log;
 
 class AdminNotificationService
@@ -36,6 +37,17 @@ class AdminNotificationService
                 'order_number' => $order->order_number,
                 'screen' => 'order_details',
             ];
+
+            // Save to database
+            foreach ($adminIds as $adminId) {
+                Notification::create([
+                    'user_id' => $adminId,
+                    'type' => 'order_created',
+                    'title' => $title,
+                    'message' => $body,
+                    'data' => $data,
+                ]);
+            }
 
             $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
 
@@ -70,6 +82,17 @@ class AdminNotificationService
                 'order_number' => $order->order_number,
                 'screen' => 'order_details',
             ];
+
+            // Save to database
+            foreach ($adminIds as $adminId) {
+                Notification::create([
+                    'user_id' => $adminId,
+                    'type' => 'order_updated',
+                    'title' => $title,
+                    'message' => $body,
+                    'data' => $data,
+                ]);
+            }
 
             $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
         } catch (\Exception $e) {

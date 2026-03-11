@@ -94,4 +94,130 @@ class MobileAdminNotificationController extends Controller
             ],
         ]);
     }
+
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user || $user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admin access only.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        try {
+            $perPage = $request->input('per_page', 20);
+            $type = $request->input('type');
+
+            $query = Notification::where('user_id', $user->id)
+                ->active()
+                ->orderBy('created_at', 'desc');
+
+            if ($type) {
+                $query->ofType($type);
+            }
+
+            $notifications = $query->paginate($perPage);
+
+            $formattedNotifications = $notifications->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'type' => $notification->type,
+                    'title' => $notification->title,
+                    'message' => $notification->message,
+                    'data' => $notification->data,
+                    'is_read' => !is_null($notification->read_at),
+                    'read_at' => $notification->read_at ? $notification->read_at->toIso8601String() : null,
+                    'created_at' => $notification->created_at->toIso8601String(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'notifications' => $formattedNotifications,
+                    'pagination' => [
+                        'current_page' => $notifications->currentPage(),
+                        'last_page' => $notifications->lastPage(),
+                        'per_page' => $notifications->perPage(),
+                        'total' => $notifications->total(),
+                    ],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminNotificationController: Error fetching notifications', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب الإشعارات: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function markAsRead($id)
+    {
+        $user = Auth::user();
+
+        if (!$user || $user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admin access only.',
+            ], 403);
+        }
+
+        try {
+            $notification = Notification::where('user_id', $user->id)->findOrFail($id);
+
+            if (!$notification->isRead()) {
+                $notification->markAsRead();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديد الإشعار كمقروء',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الإشعار غير موجود أو حدث خطأ',
+            ], 404);
+        }
+    }
+
+    public function markAllAsRead()
+    {
+        $user = Auth::user();
+
+        if (!$user || $user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admin access only.',
+            ], 403);
+        }
+
+        try {
+            $updated = Notification::where('user_id', $user->id)
+                ->unread()
+                ->active()
+                ->update(['read_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "تم تحديد {$updated} إشعار كمقروء",
+                'data' => [
+                    'updated_count' => $updated,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء التحديث',
+            ], 500);
+        }
+    }
 }

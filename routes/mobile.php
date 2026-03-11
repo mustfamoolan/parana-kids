@@ -293,4 +293,7 @@ Route::prefix('admin/settings')->middleware('auth.pwa')->group(function () {
 Route::prefix('admin/notifications')->middleware('auth.pwa')->group(function () {
     Route::post('/register-token', [MobileAdminNotificationController::class, 'registerToken']);
     Route::get('/unread-count', [MobileAdminNotificationController::class, 'getUnreadCount']);
+    Route::get('/', [MobileAdminNotificationController::class, 'index']);
+    Route::post('/{id}/read', [MobileAdminNotificationController::class, 'markAsRead']);
+    Route::post('/mark-all-read', [MobileAdminNotificationController::class, 'markAllAsRead']);
 });
