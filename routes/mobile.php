@@ -268,3 +268,12 @@ Route::prefix('admin/transfers')->middleware('auth.pwa')->group(function () {
     Route::get('/search-products', [MobileAdminTransferController::class, 'searchProducts']);
     Route::post('/submit', [MobileAdminTransferController::class, 'submit']);
 });
+
+// APIs روابط المنتجات للمدير والمجهز (تحتاج token)
+Route::prefix('admin/product-links')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'store']);
+    Route::delete('/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'destroy']);
+    Route::get('/get-sizes', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'getSizes']);
+    Route::get('/warehouses', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'getWarehouses']);
+});
