@@ -277,3 +277,13 @@ Route::prefix('admin/product-links')->middleware('auth.pwa')->group(function () 
     Route::get('/get-sizes', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'getSizes']);
     Route::get('/warehouses', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'getWarehouses']);
 });
+
+// APIs الإعدادات للمدير (تحتاج token)
+Route::prefix('admin/settings')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'update']);
+    Route::post('/banner', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'updateBanner']);
+    Route::post('/banner/toggle', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'toggleBanner']);
+    Route::post('/dashboard-banner', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'updateDashboardBanner']);
+    Route::post('/dashboard-banner/toggle', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'toggleDashboardBanner']);
+});
