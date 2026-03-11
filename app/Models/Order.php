@@ -96,6 +96,14 @@ class Order extends Model
             }
         });
 
+        static::created(function ($order) {
+            try {
+                app(\App\Services\AdminNotificationService::class)->notifyNewOrder($order);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Order Model: Failed to trigger new order notification: ' . $e->getMessage());
+            }
+        });
+
         // إرسال إشعار عند حذف الطلب
         static::deleting(function ($order) {
             // التأكد من أن الحذف soft delete وليس force delete

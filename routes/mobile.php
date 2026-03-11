@@ -19,6 +19,7 @@ use App\Http\Controllers\Mobile\Admin\MobileAdminBulkExchangeReturnController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminWarehouseController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminExpenseController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminTransferController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminNotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -286,4 +287,10 @@ Route::prefix('admin/settings')->middleware('auth.pwa')->group(function () {
     Route::post('/banner/toggle', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'toggleBanner']);
     Route::post('/dashboard-banner', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'updateDashboardBanner']);
     Route::post('/dashboard-banner/toggle', [\App\Http\Controllers\Mobile\Admin\MobileAdminSettingController::class, 'toggleDashboardBanner']);
+});
+
+// APIs الإشعارات للمدير (تحتاج token)
+Route::prefix('admin/notifications')->middleware('auth.pwa')->group(function () {
+    Route::post('/register-token', [MobileAdminNotificationController::class, 'registerToken']);
+    Route::get('/unread-count', [MobileAdminNotificationController::class, 'getUnreadCount']);
 });
