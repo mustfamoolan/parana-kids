@@ -24,6 +24,33 @@ class MessageApiController extends Controller
     }
 
     /**
+     * جلب قائمة جهات الاتصال (المستخدمين المتاحين للمراسلة)
+     */
+    public function getContacts()
+    {
+        $user = Auth::user();
+
+        // جلب جميع المستخدمين باستثناء المستخدم الحالي
+        $users = User::where('id', '!=', $user->id)
+            ->select('id', 'name', 'code', 'role', 'profile_image')
+            ->get()
+            ->map(function ($contact) {
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->name,
+                    'code' => $contact->code,
+                    'role' => $contact->role,
+                    'path' => $contact->getProfileImageUrl(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'contacts' => $users,
+        ]);
+    }
+
+    /**
      * جلب قائمة المحادثات
      */
     public function getConversations()

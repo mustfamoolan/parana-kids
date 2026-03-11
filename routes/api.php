@@ -44,6 +44,9 @@ Route::middleware('auth.pwa')->group(function () {
     // جلب قائمة المحادثات
     Route::get('/messages/conversations', [MessageApiController::class, 'getConversations']);
 
+    // جلب قائمة جهات الاتصال
+    Route::get('/messages/contacts', [MessageApiController::class, 'getContacts']);
+
     // الحصول على أو إنشاء محادثة
     Route::post('/messages/conversation', [MessageApiController::class, 'getOrCreateConversation']);
 
