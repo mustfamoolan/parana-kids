@@ -283,6 +283,10 @@ Route::prefix('admin/product-links')->middleware('auth.pwa')->group(function () 
 // APIs إدارة المستخدمين للمدير (تحتاج token)
 Route::prefix('admin/users')->middleware('auth.pwa')->group(function () {
     Route::get('/', [MobileAdminUserController::class, 'index']);
+    Route::get('/get-warehouses', [MobileAdminUserController::class, 'getWarehouses']);
+    Route::post('/', [MobileAdminUserController::class, 'store']);
+    Route::put('/{id}', [MobileAdminUserController::class, 'update']);
+    Route::delete('/{id}', [MobileAdminUserController::class, 'destroy']);
 });
 
 // APIs الإعدادات للمدير (تحتاج token)
