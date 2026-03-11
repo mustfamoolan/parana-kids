@@ -83,7 +83,7 @@ class MobileAdminSettingController extends Controller
             'banner_title' => 'required|string|max:255',
             'banner_text' => 'nullable|string|max:1000',
             'banner_image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
-            'banner_icon' => 'required|in:success,error,warning,info,question',
+            'banner_icon' => 'required|in:success,error,warning,info,question,campaign',
         ]);
 
         try {
@@ -108,7 +108,14 @@ class MobileAdminSettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Banner updated successfully'
+                'message' => 'Banner updated successfully',
+                'data' => [
+                    'floating_banner_title' => Setting::getValue('floating_banner_title', ''),
+                    'floating_banner_text' => Setting::getValue('floating_banner_text', ''),
+                    'floating_banner_image' => Setting::getValue('floating_banner_image', ''),
+                    'floating_banner_image_url' => Setting::getValue('floating_banner_image', '') ? url('storage/' . Setting::getValue('floating_banner_image')) : null,
+                    'floating_banner_icon' => Setting::getValue('floating_banner_icon', 'info'),
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
