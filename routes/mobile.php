@@ -18,6 +18,7 @@ use App\Http\Controllers\Mobile\Admin\MobileAdminBulkReturnController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminBulkExchangeReturnController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminWarehouseController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminExpenseController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminTransferController;
 
 /*
 |--------------------------------------------------------------------------
@@ -254,4 +255,11 @@ Route::prefix('admin/warehouses')->middleware('auth.pwa')->group(function () {
 Route::prefix('admin/dashboard')->middleware('auth.pwa')->group(function () {
     Route::get('/reports', [\App\Http\Controllers\Mobile\Admin\MobileAdminDashboardController::class, 'reports']);
     Route::get('/sales-report', [\App\Http\Controllers\Api\Admin\SalesReportApiController::class, 'index']);
+});
+
+// APIs نقل المواد (تحتاج token)
+Route::prefix('admin/transfers')->middleware('auth.pwa')->group(function () {
+    Route::get('/warehouses', [MobileAdminTransferController::class, 'getWarehouses']);
+    Route::get('/search-products', [MobileAdminTransferController::class, 'searchProducts']);
+    Route::post('/submit', [MobileAdminTransferController::class, 'submit']);
 });
