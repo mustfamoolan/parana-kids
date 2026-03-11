@@ -20,6 +20,7 @@ use App\Http\Controllers\Mobile\Admin\MobileAdminWarehouseController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminExpenseController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminTransferController;
 use App\Http\Controllers\Mobile\Admin\MobileAdminNotificationController;
+use App\Http\Controllers\Mobile\Admin\MobileAdminUserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -277,6 +278,11 @@ Route::prefix('admin/product-links')->middleware('auth.pwa')->group(function () 
     Route::delete('/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'destroy']);
     Route::get('/get-sizes', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'getSizes']);
     Route::get('/warehouses', [\App\Http\Controllers\Mobile\Admin\MobileAdminProductLinkController::class, 'getWarehouses']);
+});
+
+// APIs إدارة المستخدمين للمدير (تحتاج token)
+Route::prefix('admin/users')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [MobileAdminUserController::class, 'index']);
 });
 
 // APIs الإعدادات للمدير (تحتاج token)
