@@ -56,7 +56,11 @@ class Order extends Model
         'is_partial_exchange' => 'boolean',
     ];
 
-    protected $appends = ['deleted_by_user_data'];
+    protected $appends = [
+        'deleted_by_user_data',
+        'created_at_formatted',
+        'created_at_time'
+    ];
 
     protected static function boot()
     {
@@ -352,6 +356,23 @@ class Order extends Model
         } else {
             $this->attributes['message_confirmed'] = $value;
         }
+    }
+
+    public function getCreatedAtFormattedAttribute()
+    {
+        return $this->created_at ? $this->created_at->format('Y-m-d') : null;
+    }
+
+    public function getCreatedAtTimeAttribute()
+    {
+        if (!$this->created_at) {
+            return null;
+        }
+
+        $time = $this->created_at->format('g:i');
+        $ampm = $this->created_at->format('A') === 'AM' ? 'صباحاً' : 'مساءً';
+
+        return "{$time} {$ampm}";
     }
 }
 
