@@ -1487,11 +1487,11 @@ class MobileAdminOrderController extends Controller
         }
 
         $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
+            'customer_name' => 'sometimes|required|string|max:255',
+            'customer_phone' => 'sometimes|required|string|max:20',
             'customer_phone2' => 'nullable|string|max:20',
-            'customer_address' => 'required|string',
-            'customer_social_link' => 'required|string|max:255',
+            'customer_address' => 'sometimes|required|string',
+            'customer_social_link' => 'nullable|string|max:255',
             'delivery_code' => 'required|string|max:100',
             'notes' => 'nullable|string',
         ]);
