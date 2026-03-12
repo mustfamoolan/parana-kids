@@ -344,6 +344,13 @@ class AlWaseetApiController extends Controller
                     $shipmentData
                 );
 
+                // حفظ كود التوصيل في الطلب نفسه لضمان ظهوره في كافة القوائم
+                // نفضل qr_id ثم pickup_id
+                $trackingCode = $shipment->qr_id ?: $shipment->pickup_id;
+                if ($trackingCode) {
+                    $order->update(['delivery_code' => $trackingCode]);
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'تم إرسال الطلب للواسط بنجاح',
