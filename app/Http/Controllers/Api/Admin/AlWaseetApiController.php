@@ -857,6 +857,7 @@ class AlWaseetApiController extends Controller
             'alwaseet_delivery_time_note' => 'nullable|string|in:morning,noon,evening,urgent',
             'size_reviewed' => 'nullable|boolean',
             'message_confirmed' => 'nullable|boolean',
+            'customer_social_link' => 'nullable|string|max:500',
         ]);
 
         try {
@@ -866,6 +867,7 @@ class AlWaseetApiController extends Controller
                 'alwaseet_delivery_time_note',
                 'size_reviewed',
                 'message_confirmed',
+                'customer_social_link',
             ]);
 
             // Only update provided fields
@@ -880,6 +882,7 @@ class AlWaseetApiController extends Controller
                     'alwaseet_delivery_time_note',
                     'size_reviewed',
                     'message_confirmed',
+                    'customer_social_link',
                 ]),
             ]);
         } catch (\Exception $e) {
