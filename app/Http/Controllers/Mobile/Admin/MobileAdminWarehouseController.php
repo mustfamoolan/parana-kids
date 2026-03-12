@@ -417,7 +417,7 @@ class MobileAdminWarehouseController extends Controller
 
             // Delete sizes not in the request
             foreach ($existingSizes as $existingSize) {
-                if (!in_array($existingSize.id, $keptSizeIds)) {
+                if (!in_array($existingSize->id, $keptSizeIds)) {
                     // Record movement before deletion
                     \App\Models\ProductMovement::record([
                         'product_id' => $product->id,
