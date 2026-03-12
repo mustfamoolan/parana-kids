@@ -384,7 +384,9 @@ class AlWaseetApiController extends Controller
                 $deliveryCode = $order->delivery_code;
                 $shipment = $order->alwaseetShipment;
 
-                if ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id) && trim((string) $shipment->qr_id) !== '') {
+                if ($shipment && isset($shipment->pickup_id) && !empty($shipment->pickup_id)) {
+                    $deliveryCode = (string) $shipment->pickup_id;
+                } elseif ($shipment && isset($shipment->qr_id) && !empty($shipment->qr_id)) {
                     $deliveryCode = (string) $shipment->qr_id;
                 } elseif (!$deliveryCode && $shipment && isset($shipment->alwaseet_order_id) && !empty($shipment->alwaseet_order_id)) {
                     $deliveryCode = (string) $shipment->alwaseet_order_id;
