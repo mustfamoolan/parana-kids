@@ -335,13 +335,69 @@ class MobileAdminWarehouseController extends Controller
 
             $product->update($request->only(['name', 'purchase_price', 'selling_price', 'gender_type', 'description', 'link_1688']));
 
-            // Update Sizes (Delete and Recreate or match by ID)
-            $product->sizes()->delete();
-            foreach ($request->sizes as $size) {
-                $product->sizes()->create([
-                    'size_name' => $size['size_name'],
-                    'quantity' => $size['quantity'],
-                ]);
+            // Update Sizes (Intelligent Update)
+            $existingSizes = $product->sizes->keyBy('id');
+            $keptSizeIds = [];
+
+            foreach ($request->sizes as $sizeData) {
+                if (isset($sizeData['id']) && $sizeData['id'] && $existingSizes->has($sizeData['id'])) {
+                    // Update existing size
+                    $size = $existingSizes[$sizeData['id']];
+                    $oldQuantity = $size->quantity;
+                    $size->update([
+                        'size_name' => $sizeData['size_name'],
+                        'quantity' => $sizeData['quantity'],
+                    ]);
+                    $keptSizeIds[] = $size->id;
+
+                    // Record movement if quantity changed
+                    if ($oldQuantity != $sizeData['quantity']) {
+                        \App\Models\ProductMovement::record([
+                            'product_id' => $product->id,
+                            'size_id' => $size->id,
+                            'warehouse_id' => $product->warehouse_id,
+                            'movement_type' => 'adjustment',
+                            'quantity' => $sizeData['quantity'] - $oldQuantity,
+                            'balance_after' => $sizeData['quantity'],
+                            'notes' => "تعديل الكمية من التطبيق (تعديل سريع) - من {$oldQuantity} إلى {$sizeData['quantity']}"
+                        ]);
+                    }
+                } else {
+                    // Create new size
+                    $newSize = $product->sizes()->create([
+                        'size_name' => $sizeData['size_name'],
+                        'quantity' => $sizeData['quantity'],
+                    ]);
+                    $keptSizeIds[] = $newSize->id;
+
+                    // Record movement
+                    \App\Models\ProductMovement::record([
+                        'product_id' => $product->id,
+                        'size_id' => $newSize->id,
+                        'warehouse_id' => $product->warehouse_id,
+                        'movement_type' => 'increase',
+                        'quantity' => $sizeData['quantity'],
+                        'balance_after' => $sizeData['quantity'],
+                        'notes' => "إضافة قياس جديد من التطبيق (تعديل سريع) - القياس: {$sizeData['size_name']} (الكمية: {$sizeData['quantity']})",
+                    ]);
+                }
+            }
+
+            // Delete sizes not in the request
+            foreach ($existingSizes as $existingSize) {
+                if (!in_array($existingSize.id, $keptSizeIds)) {
+                    // Record movement before deletion
+                    \App\Models\ProductMovement::record([
+                        'product_id' => $product->id,
+                        'size_id' => $existingSize->id,
+                        'warehouse_id' => $product->warehouse_id,
+                        'movement_type' => 'delete',
+                        'quantity' => -$existingSize->quantity,
+                        'balance_after' => 0,
+                        'notes' => "حذف القياس من التطبيق (تعديل سريع) - القياس: {$existingSize->size_name} (كان الرصيد: {$existingSize->quantity})",
+                    ]);
+                    $existingSize->delete();
+                }
             }
 
             \DB::commit();
