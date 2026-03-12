@@ -253,6 +253,7 @@ Route::prefix('admin/warehouses')->middleware('auth.pwa')->group(function () {
     Route::post('/{id}/users', [MobileAdminWarehouseController::class, 'syncUsers']);
 
     // Products within warehouse
+    Route::get('/{id}/products/{productId}', [MobileAdminWarehouseController::class, 'showProduct']);
     Route::post('/{id}/products', [MobileAdminWarehouseController::class, 'storeProduct']);
     Route::put('/{id}/products/{productId}', [MobileAdminWarehouseController::class, 'updateProduct']);
     Route::delete('/{id}/products/{productId}', [MobileAdminWarehouseController::class, 'destroyProduct']);

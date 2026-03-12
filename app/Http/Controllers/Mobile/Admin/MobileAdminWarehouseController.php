@@ -312,6 +312,38 @@ class MobileAdminWarehouseController extends Controller
     }
 
     /**
+     * Display the specified product.
+     */
+    public function showProduct($id, $productId)
+    {
+        try {
+            $product = Product::where('warehouse_id', $id)
+                ->with(['images', 'primaryImage', 'sizes', 'creator', 'warehouse'])
+                ->find($productId);
+
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'المنتج غير موجود'
+                ], 404);
+            }
+
+            // Add effective_price
+            $product->effective_price = $product->effective_price;
+
+            return response()->json([
+                'success' => true,
+                'data' => $product
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب تفاصيل المنتج: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Update an existing product.
      */
     public function updateProduct(Request $request, $id, $productId)
