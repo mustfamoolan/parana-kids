@@ -201,6 +201,7 @@ Route::prefix('admin/orders')->middleware('auth.pwa')->group(function () {
     Route::put('/{id}', [MobileAdminOrderController::class, 'updateOrder']);
     Route::put('/{id}/quick-status', [MobileAdminOrderController::class, 'updateQuickStatus']);
     Route::delete('/{id}/force-delete', [MobileAdminOrderController::class, 'forceDelete']);
+    Route::delete('/{id}', [MobileAdminOrderController::class, 'destroy']);
 
     // تجهيز الطلب
     Route::get('/{id}/process', [MobileAdminOrderController::class, 'getOrderProcessData']);

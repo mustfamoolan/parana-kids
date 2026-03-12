@@ -2438,6 +2438,102 @@ class MobileAdminOrderController extends Controller
     }
 
     /**
+     * حذف الطلب (soft delete) مع إرجاع المنتجات للمخزن
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function destroy(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        // التحقق من أن المستخدم مدير
+        if (!$user || !$user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح للقيام بهذا الإجراء.',
+                'error_code' => 'FORBIDDEN',
+            ], 403);
+        }
+
+        $request->validate([
+            'deletion_reason' => 'required|string|min:3|max:1000',
+        ]);
+
+        try {
+            $order = Order::findOrFail($id);
+            
+            // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
+            if (!in_array($order->status, ['pending', 'confirmed'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن حذف هذا الطلب',
+                    'error_code' => 'INVALID_STATUS',
+                ], 400);
+            }
+
+            DB::transaction(function () use ($order, $request, $user) {
+                // تحميل العلاقات المطلوبة
+                $order->load('items.size');
+
+                // إرجاع جميع المنتجات للمخزن
+                foreach ($order->items as $item) {
+                    if ($item->size) {
+                        $item->size->increment('quantity', $item->quantity);
+
+                        // تسجيل حركة الحذف
+                        \App\Models\ProductMovement::record([
+                            'product_id' => $item->product_id,
+                            'size_id' => $item->size_id,
+                            'warehouse_id' => $item->product->warehouse_id,
+                            'order_id' => $order->id,
+                            'movement_type' => 'delete',
+                            'quantity' => $item->quantity,
+                            'balance_after' => $item->size->quantity,
+                            'order_status' => $order->status,
+                            'notes' => "حذف طلب #{$order->order_number} عبر التطبيق"
+                        ]);
+                    }
+                }
+
+                // تسجيل من قام بالحذف وسبب الحذف
+                $order->deleted_by = $user->id;
+                $order->deletion_reason = $request->deletion_reason;
+                $order->save();
+
+                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
+                try {
+                    $sweetAlertService = app(\App\Services\SweetAlertService::class);
+                    $sweetAlertService->notifyOrderDeleted($order);
+                } catch (\Exception $e) {
+                    Log::error('MobileAdminOrderController: Error sending SweetAlert for order_deleted: ' . $e->getMessage());
+                }
+
+                // soft delete للطلب
+                $order->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف الطلب بنجاح وإرجاع جميع المنتجات للمخزن',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MobileAdminOrderController: Failed to soft delete order', [
+                'error' => $e->getMessage(),
+                'order_id' => $id,
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف الطلب.',
+                'error_code' => 'DELETE_ERROR',
+            ], 500);
+        }
+    }
+
+    /**
      * حذف الطلب نهائياً من قاعدة البيانات
      *
      * @param int $id
