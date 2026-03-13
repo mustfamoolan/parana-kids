@@ -537,7 +537,7 @@ class MessageApiController extends Controller
         $request->validate([
             'conversation_id' => 'required|exists:conversations,id',
             'order_id' => 'required|exists:orders,id',
-            'order_type' => 'nullable|string|in:normal,broker',
+            'order_type' => 'nullable|string|in:normal,broker,alwaseet,alwaseet_track,alwaseet_print,alwaseet_shipment,pending,confirmed,restricted,deleted,partial_return',
         ]);
 
         $user = Auth::user();
