@@ -15,6 +15,23 @@ class Warehouse extends Model
         'created_by',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($warehouse) {
+            app(\App\Services\AdminNotificationService::class)->notifyWarehouseAction($warehouse, 'created', auth()->user());
+        });
+
+        static::updated(function ($warehouse) {
+            app(\App\Services\AdminNotificationService::class)->notifyWarehouseAction($warehouse, 'updated', auth()->user());
+        });
+
+        static::deleted(function ($warehouse) {
+            app(\App\Services\AdminNotificationService::class)->notifyWarehouseAction($warehouse, 'deleted', auth()->user());
+        });
+    }
+
     /**
      * Get the user who created this warehouse
      */

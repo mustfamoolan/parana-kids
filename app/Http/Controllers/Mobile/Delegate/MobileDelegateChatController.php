@@ -386,7 +386,7 @@ class MobileDelegateChatController extends Controller
             // تحديث وقت المحادثة
             $conversation->touch();
 
-            // إرسال SweetAlert للمستلم
+            // إرسال SweetAlert للمستلم (يتضمن FCM)
             try {
                 $otherParticipant = $conversation->getOtherParticipant($user->id);
                 if ($otherParticipant) {
@@ -400,15 +400,6 @@ class MobileDelegateChatController extends Controller
                         $otherParticipant->id,
                         $messageText
                     );
-
-                    // إرسال FCM Notification
-                    try {
-                        $fcmService = app(\App\Services\FirebaseCloudMessagingService::class);
-                        $fcmService->sendMessageNotification($conversationId, $user->id, $otherParticipant->id, $messageText);
-                    } catch (\Exception $e) {
-                        Log::error('MobileDelegateChatController: Error sending FCM: ' . $e->getMessage());
-                    }
-
                 } elseif ($conversation->isGroup()) {
                     // للمجموعات: إرسال لجميع المشاركين عدا المرسل
                     $participants = $conversation->participants()->where('user_id', '!=', $user->id)->get();
@@ -423,18 +414,10 @@ class MobileDelegateChatController extends Controller
                             $participant->id,
                             $messageText
                         );
-
-                        // إرسال FCM Notification لكل مشارك
-                        try {
-                            $fcmService = app(\App\Services\FirebaseCloudMessagingService::class);
-                            $fcmService->sendMessageNotification($conversationId, $user->id, $participant->id, $messageText);
-                        } catch (\Exception $e) {
-                            Log::error('MobileDelegateChatController: Error sending FCM to participant ' . $participant->id . ': ' . $e->getMessage());
-                        }
                     }
                 }
             } catch (\Exception $e) {
-                Log::error('MobileDelegateChatController: Error sending SweetAlert: ' . $e->getMessage());
+                Log::error('MobileDelegateChatController: Error sending SweetAlert/FCM: ' . $e->getMessage());
             }
 
             $responseData = [
@@ -680,15 +663,19 @@ class MobileDelegateChatController extends Controller
             'order_id' => $orderId,
         ]);
 
-        // إرسال FCM Notification
+        // إرسال SweetAlert (يتضمن FCM)
         try {
             $otherParticipant = $conversation->getOtherParticipant($user->id);
             if ($otherParticipant) {
-                $fcmService = app(\App\Services\FirebaseCloudMessagingService::class);
-                $fcmService->sendMessageNotification($conversationId, $user->id, $otherParticipant->id, "طلب: {$order->order_number}");
+                $this->sweetAlertService->notifyNewMessage(
+                    $conversationId,
+                    $user->id,
+                    $otherParticipant->id,
+                    "طلب: {$order->order_number}"
+                );
             }
         } catch (\Exception $e) {
-            Log::error('MobileDelegateChatController: Error sending FCM for order message: ' . $e->getMessage());
+            Log::error('MobileDelegateChatController: Error sending notification for order message: ' . $e->getMessage());
         }
 
         // تحديث وقت المحادثة
@@ -833,15 +820,19 @@ class MobileDelegateChatController extends Controller
             'product_id' => $productId,
         ]);
 
-        // إرسال FCM Notification
+        // إرسال SweetAlert (يتضمن FCM)
         try {
             $otherParticipant = $conversation->getOtherParticipant($user->id);
             if ($otherParticipant) {
-                $fcmService = app(\App\Services\FirebaseCloudMessagingService::class);
-                $fcmService->sendMessageNotification($conversationId, $user->id, $otherParticipant->id, "منتج: {$product->name}");
+                $this->sweetAlertService->notifyNewMessage(
+                    $conversationId,
+                    $user->id,
+                    $otherParticipant->id,
+                    "منتج: {$product->name}"
+                );
             }
         } catch (\Exception $e) {
-            Log::error('MobileDelegateChatController: Error sending FCM for product message: ' . $e->getMessage());
+            Log::error('MobileDelegateChatController: Error sending notification for product message: ' . $e->getMessage());
         }
 
         // تحديث وقت المحادثة

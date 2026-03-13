@@ -567,6 +567,21 @@ class MessageApiController extends Controller
         // تحديث وقت المحادثة
         $conversation->touch();
 
+        // إرسال SweetAlert (يتضمن FCM) للمستلم
+        try {
+            $otherParticipant = $conversation->getOtherParticipant($user->id);
+            if ($otherParticipant) {
+                $this->sweetAlertService->notifyNewMessage(
+                    $conversationId,
+                    $user->id,
+                    $otherParticipant->id,
+                    "طلب: {$order->order_number}"
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('MessageApiController: Error sending notification for order message: ' . $e->getMessage());
+        }
+
         // جلب بيانات الطلب الكاملة
         $order->load(['delegate', 'items.product.warehouse']);
 
@@ -680,6 +695,21 @@ class MessageApiController extends Controller
 
         // تحديث وقت المحادثة
         $conversation->touch();
+
+        // إرسال SweetAlert (يتضمن FCM) للمستلم
+        try {
+            $otherParticipant = $conversation->getOtherParticipant($user->id);
+            if ($otherParticipant) {
+                $this->sweetAlertService->notifyNewMessage(
+                    $conversationId,
+                    $user->id,
+                    $otherParticipant->id,
+                    "منتج: {$product->name}"
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('MessageApiController: Error sending notification for product message: ' . $e->getMessage());
+        }
 
         // جلب بيانات المنتج الكاملة
         $product->load(['primaryImage', 'warehouse', 'sizes.reservations']);

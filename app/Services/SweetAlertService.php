@@ -494,10 +494,10 @@ class SweetAlertService
             ]);
         }
 
-        // إرسال إشعار Firebase للمستلم إذا كان مندوب
+        // إرسال إشعار Firebase للمستلم
         try {
             $recipient = User::find($recipientId);
-            if ($recipient && $recipient->isDelegate()) {
+            if ($recipient) {
                 $fcmService = app(FirebaseCloudMessagingService::class);
                 $fcmService->sendMessageNotification($conversationId, $senderId, $recipientId, $messageText);
             }

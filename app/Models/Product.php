@@ -26,6 +26,23 @@ class Product extends Model
         'discount_end_date',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($product) {
+            app(\App\Services\AdminNotificationService::class)->notifyProductAction($product, 'created', auth()->user());
+        });
+
+        static::updated(function ($product) {
+            app(\App\Services\AdminNotificationService::class)->notifyProductAction($product, 'updated', auth()->user());
+        });
+
+        static::deleted(function ($product) {
+            app(\App\Services\AdminNotificationService::class)->notifyProductAction($product, 'deleted', auth()->user());
+        });
+    }
+
     protected $casts = [
         'purchase_price' => 'decimal:2',
         'selling_price' => 'decimal:2',

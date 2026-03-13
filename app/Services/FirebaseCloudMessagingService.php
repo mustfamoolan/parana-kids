@@ -385,7 +385,12 @@ class FirebaseCloudMessagingService
                 'screen' => 'chat',
             ];
 
-            return $this->sendToUser($recipientId, $title, $body, $data, 'delegate_mobile');
+            $recipient = User::find($recipientId);
+            $appType = ($recipient && ($recipient->isAdmin() || $recipient->isSupplier())) 
+                ? 'admin_mobile' 
+                : 'delegate_mobile';
+
+            return $this->sendToUser($recipientId, $title, $body, $data, $appType);
         } catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send message notification', [
                 'conversation_id' => $conversationId,

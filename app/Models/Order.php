@@ -112,15 +112,31 @@ class Order extends Model
         static::deleting(function ($order) {
             // التأكد من أن الحذف soft delete وليس force delete
             if (!$order->isForceDeleting()) {
-                app(\App\Services\SweetAlertService::class)->notifyOrderDeleted($order);
+                try {
+                    app(\App\Services\SweetAlertService::class)->notifyOrderDeleted($order);
+                    app(\App\Services\AdminNotificationService::class)->notifyOrderDeleted($order, auth()->user());
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Order Model: Failed to trigger delete notification: ' . $e->getMessage());
+                }
             }
         });
 
-        // إرسال إشعار عند تقييد الطلب
+        // إرسال إشعار عند تحديث الطلب أو تقييده
         static::updating(function ($order) {
-            // التحقق من أن confirmed_at تم تعيينه لأول مرة
-            if ($order->isDirty('confirmed_at') && $order->confirmed_at && !$order->getOriginal('confirmed_at')) {
-                app(\App\Services\SweetAlertService::class)->notifyOrderConfirmed($order);
+            try {
+                // التحقق من أن confirmed_at تم تعيينه لأول مرة
+                if ($order->isDirty('confirmed_at') && $order->confirmed_at && !$order->getOriginal('confirmed_at')) {
+                    app(\App\Services\SweetAlertService::class)->notifyOrderConfirmed($order);
+                }
+
+                // التحقق من تغيير الحالة
+                if ($order->isDirty('status')) {
+                    $oldStatus = $order->getOriginal('status');
+                    $newStatus = $order->status;
+                    app(\App\Services\AdminNotificationService::class)->notifyOrderStatusChanged($order, $oldStatus, $newStatus, auth()->user());
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Order Model: Failed to trigger update notification: ' . $e->getMessage());
             }
         });
     }
