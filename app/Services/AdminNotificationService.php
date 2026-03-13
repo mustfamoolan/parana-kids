@@ -180,6 +180,59 @@ class AdminNotificationService
     }
 
     /**
+     * Notify all admins about a product size action
+     */
+    public function notifyProductSizeAction($productSize, $action, $user = null)
+    {
+        $userName = $user ? $user->name : 'المستخدم';
+        $productName = $productSize->product ? $productSize->product->name : 'منتج غير معروف';
+        
+        $actions = [
+            'created' => 'إضافة قياس جديد',
+            'updated' => 'تعديل كمية/قياس',
+            'deleted' => 'حذف قياس',
+        ];
+        
+        $actionText = $actions[$action] ?? 'عملية على القياس';
+        $title = "{$actionText}: {$productName}";
+        $body = "قام {$userName} بـ " . mb_strtolower($actionText) . " ({$productSize->size_name}) - الكمية: {$productSize->quantity}";
+
+        $data = [
+            'type' => 'product_size_action',
+            'product_id' => (string) $productSize->product_id,
+            'size_id' => (string) $productSize->id,
+            'size_name' => $productSize->size_name,
+            'quantity' => (string) $productSize->quantity,
+            'action' => $action,
+            'screen' => 'product_details',
+        ];
+
+        $this->notifyAdmins('product_size_' . $action, $title, $body, $data);
+    }
+
+    /**
+     * Notify all admins about AlWaseet status change
+     */
+    public function notifyAlWaseetStatusChanged($shipment, $oldStatusText, $newStatusText)
+    {
+        $order = $shipment->order;
+        $customerName = $order ? $order->customer_name : 'غير معروف';
+        $title = "الواسط: تحديث حالة طلب {$customerName}";
+        $body = "تغيرت حالة الطلب رقم {$order->order_number} من '{$oldStatusText}' إلى '{$newStatusText}'";
+
+        $data = [
+            'type' => 'alwaseet_status_changed',
+            'order_id' => (string) $shipment->order_id,
+            'shipment_id' => (string) $shipment->id,
+            'old_status' => $oldStatusText,
+            'new_status' => $newStatusText,
+            'screen' => 'order_details',
+        ];
+
+        $this->notifyAdmins('alwaseet_status_changed', $title, $body, $data);
+    }
+
+    /**
      * Notify all admins about a message
      */
     public function notifyAdminMessage($sender, $messageText, $conversationId)

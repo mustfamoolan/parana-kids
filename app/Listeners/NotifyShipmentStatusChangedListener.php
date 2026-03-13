@@ -65,6 +65,16 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
             // إرسال إشعارات التليجرام
             $this->sendTelegramNotifications($event);
 
+            // إرسال إشعار للمدير عبر النظام الموحد
+            try {
+                app(\App\Services\AdminNotificationService::class)->notifyAlWaseetStatusChanged($event->shipment, $oldStatusText, $newStatusText);
+            } catch (\Exception $e) {
+                Log::error('AlWaseet: Failed to notify admins about status change', [
+                    'shipment_id' => $event->shipment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // إرسال إشعارات Firebase للمندوبين
             $this->sendFirebaseNotifications($event);
         } catch (\Exception $e) {

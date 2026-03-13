@@ -15,6 +15,33 @@ class ProductSize extends Model
         'quantity',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($productSize) {
+            $user = auth()->user();
+            if ($user && ($user->isAdmin() || $user->isSupplier() || $user->isPrivateSupplier())) {
+                app(\App\Services\AdminNotificationService::class)->notifyProductSizeAction($productSize, 'created', $user);
+            }
+        });
+
+        static::updated(function ($productSize) {
+            $user = auth()->user();
+            // Only notify if triggered by admin/supplier (not automatic order sync)
+            if ($user && ($user->isAdmin() || $user->isSupplier() || $user->isPrivateSupplier())) {
+                app(\App\Services\AdminNotificationService::class)->notifyProductSizeAction($productSize, 'updated', $user);
+            }
+        });
+
+        static::deleted(function ($productSize) {
+            $user = auth()->user();
+            if ($user && ($user->isAdmin() || $user->isSupplier() || $user->isPrivateSupplier())) {
+                app(\App\Services\AdminNotificationService::class)->notifyProductSizeAction($productSize, 'deleted', $user);
+            }
+        });
+    }
+
     /**
      * Get the product that owns this size
      */
