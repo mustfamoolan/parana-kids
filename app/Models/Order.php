@@ -113,7 +113,6 @@ class Order extends Model
             // التأكد من أن الحذف soft delete وليس force delete
             if (!$order->isForceDeleting()) {
                 try {
-                    app(\App\Services\SweetAlertService::class)->notifyOrderDeleted($order);
                     app(\App\Services\AdminNotificationService::class)->notifyOrderDeleted($order, auth()->user());
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error('Order Model: Failed to trigger delete notification: ' . $e->getMessage());
@@ -125,9 +124,6 @@ class Order extends Model
         static::updating(function ($order) {
             try {
                 // التحقق من أن confirmed_at تم تعيينه لأول مرة
-                if ($order->isDirty('confirmed_at') && $order->confirmed_at && !$order->getOriginal('confirmed_at')) {
-                    app(\App\Services\SweetAlertService::class)->notifyOrderConfirmed($order);
-                }
 
                 // التحقق من تغيير الحالة
                 if ($order->isDirty('status')) {

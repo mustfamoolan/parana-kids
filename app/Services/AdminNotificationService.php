@@ -19,7 +19,7 @@ class AdminNotificationService
     /**
      * Send notification to all admins and relevant suppliers
      */
-    protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [])
+    protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [], string $icon = 'success')
     {
         try {
             // Get Warehouse IDs for the order
@@ -85,7 +85,7 @@ class AdminNotificationService
             // 4. Create SweetAlerts (for web/app popups)
             try {
                 $sweetAlertService = app(SweetAlertService::class);
-                $sweetAlertService->createForUsers($recipientIds, $type, $title, $message, 'success', $data);
+                $sweetAlertService->createForUsers($recipientIds, $type, $title, $message, $icon, $data);
             } catch (\Exception $e) {
                 Log::error("AdminNotificationService: SweetAlert failed: " . $e->getMessage());
             }
@@ -192,7 +192,7 @@ class AdminNotificationService
             'screen' => 'orders_list',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $body, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $body, $data, 'warning');
         
         // Notify delegate
         if ($order->delegate_id) {
@@ -321,9 +321,11 @@ class AdminNotificationService
     public function notifyAlWaseetStatusChanged($shipment, $oldStatusText, $newStatusText)
     {
         $order = $shipment->order;
-        $customerName = $order ? $order->customer_name : 'غير معروف';
-        $title = "الواسط: تحديث حالة طلب {$customerName}";
-        $body = "تغيرت حالة الطلب رقم {$order->order_number} من '{$oldStatusText}' إلى '{$newStatusText}'";
+        if (!$order) return;
+
+        $customerName = $order->customer_name ?? 'غير معروف';
+        $title = "الواسط: {$customerName}";
+        $body = "تم '{$newStatusText}' (#{$order->order_number})";
 
         $data = [
             'type' => 'alwaseet_status_changed',
@@ -334,17 +336,13 @@ class AdminNotificationService
             'screen' => 'order_details',
         ];
 
-        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
-        foreach ($adminIds as $adminId) {
-            Notification::create([
-                'user_id' => $adminId,
-                'type' => 'alwaseet_status_changed',
-                'title' => $title,
-                'message' => $body,
-                'data' => $data,
-            ]);
+        // Notify Admins and Suppliers
+        $this->notifyAdminsAndSuppliers($order, 'alwaseet_status_changed', $title, $body, $data, 'info');
+
+        // Notify Delegate separately via FCM if they are assigned
+        if ($order->delegate_id) {
+            $this->fcmService->sendShipmentNotification($shipment, $order, $oldStatusText, $newStatusText);
         }
-        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
