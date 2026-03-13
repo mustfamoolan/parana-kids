@@ -587,12 +587,6 @@ class OrderController extends Controller
                 $order->deleted_by = auth()->id();
                 $order->save();
 
-                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
-                try {
-                    $this->sweetAlertService->notifyOrderDeleted($order);
-                } catch (\Exception $e) {
-                    \Log::error('Delegate/OrderController: Error sending SweetAlert for order_deleted: ' . $e->getMessage());
-                }
 
                 // soft delete للطلب
                 $order->delete();

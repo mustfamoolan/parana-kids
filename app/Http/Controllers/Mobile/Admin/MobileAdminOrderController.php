@@ -1551,16 +1551,6 @@ class MobileAdminOrderController extends Controller
                     'profit_margin_at_confirmation' => $profitMargin,
                 ]);
 
-                // إرسال SweetAlert للمندوب
-                try {
-                    $this->sweetAlertService->notifyOrderConfirmed($order);
-                } catch (\Exception $e) {
-                    Log::error('MobileAdminOrderController: Error sending SweetAlert for order_confirmed', [
-                        'error' => $e->getMessage(),
-                        'order_id' => $order->id,
-                    ]);
-                }
-
                 // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب
                 $order->load('items.product', 'items.size');
                 foreach ($order->items as $item) {
@@ -2339,13 +2329,6 @@ class MobileAdminOrderController extends Controller
             }
 
             $order->update($updateData);
-
-            // إرسال إشعار للمندوب إذا تغيرت الحالات
-            try {
-                // يمكن إضافة منطق إرسال إشعارات هنا إذا رغب المستخدم
-            } catch (\Exception $e) {
-                Log::error('Error sending notification for quick status update');
-            }
 
             return response()->json([
                 'success' => true,

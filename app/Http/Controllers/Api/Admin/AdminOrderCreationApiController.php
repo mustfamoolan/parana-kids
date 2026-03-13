@@ -427,7 +427,6 @@ class AdminOrderCreationApiController extends Controller
             });
 
             event(new \App\Events\OrderCreated($order));
-            $this->sweetAlertService->notifyOrderCreated($order);
 
             return response()->json([
                 'success' => true,

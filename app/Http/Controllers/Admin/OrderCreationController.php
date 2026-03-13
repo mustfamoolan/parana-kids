@@ -246,12 +246,6 @@ class OrderCreationController extends Controller
         // إرسال Event لإنشاء شحنة في الواسط
         event(new \App\Events\OrderCreated($order));
 
-        // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
-        try {
-            $this->sweetAlertService->notifyOrderCreated($order);
-        } catch (\Exception $e) {
-            \Log::error('Admin/OrderCreationController: Error sending SweetAlert for order_created: ' . $e->getMessage());
-        }
 
         // مسح session
         session()->forget('current_cart_id');

@@ -666,16 +666,6 @@ class MobileDelegateOrderController extends Controller
                 $order->update(['total_amount' => $totalAmount]);
             });
 
-            // إرسال إشعار التعديل
-            try {
-                $sweetAlertService = app(SweetAlertService::class);
-                $sweetAlertService->notifyOrderUpdated($order, $user);
-            } catch (\Exception $e) {
-                Log::error('MobileDelegateOrderController: Error sending SweetAlert for order_updated', [
-                    'order_id' => $order->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
 
             // إعادة تحميل الطلب مع العلاقات
             $order->refresh();
@@ -789,16 +779,6 @@ class MobileDelegateOrderController extends Controller
                 $order->deletion_reason = $request->deletion_reason;
                 $order->save();
 
-                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
-                try {
-                    $sweetAlertService = app(SweetAlertService::class);
-                    $sweetAlertService->notifyOrderDeleted($order);
-                } catch (\Exception $e) {
-                    Log::error('MobileDelegateOrderController: Error sending SweetAlert for order_deleted', [
-                        'order_id' => $order->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
 
                 // soft delete للطلب
                 $order->delete();

@@ -1253,12 +1253,6 @@ class OrderController extends Controller
                 'profit_margin_at_confirmation' => $profitMargin,
             ]);
 
-            // إرسال SweetAlert للمندوب (نفس المخزن)
-            try {
-                $this->sweetAlertService->notifyOrderConfirmed($order);
-            } catch (\Exception $e) {
-                \Log::error('OrderController: Error sending SweetAlert for order_confirmed: ' . $e->getMessage());
-            }
 
             // تسجيل حركة التقييد/التجهيز لكل منتج في الطلب (فقط للتسجيل، بدون خصم من المخزن)
             $order->load('items.product', 'items.size');
@@ -1577,15 +1571,6 @@ class OrderController extends Controller
             'confirmed_by' => auth()->id(),
         ]);
 
-        // إرسال إشعار التقييد للمندوب
-        try {
-            $this->sweetAlertService->notifyOrderConfirmed($order);
-        } catch (\Exception $e) {
-            \Log::error('OrderController: Error sending SweetAlert for order_confirmed', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
 
         return redirect()->route('admin.orders.management', ['status' => 'confirmed'])
             ->with('success', 'تم تقييد الطلب بنجاح');
@@ -1877,15 +1862,6 @@ class OrderController extends Controller
                 $order->update(['total_amount' => $totalAmount]);
             });
 
-            // إرسال إشعار التعديل
-            try {
-                $this->sweetAlertService->notifyOrderUpdated($order, Auth::user());
-            } catch (\Exception $e) {
-                \Log::error('OrderController: Error sending SweetAlert for order_updated', [
-                    'order_id' => $order->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
 
             // التحقق من وجود back_route أولاً (الأفضل - يعمل على أي بيئة)
             $backRoute = $request->input('back_route');
@@ -2399,12 +2375,6 @@ class OrderController extends Controller
                 $order->deletion_reason = $request->deletion_reason;
                 $order->save();
 
-                // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير أو المندوب
-                try {
-                    $this->sweetAlertService->notifyOrderDeleted($order);
-                } catch (\Exception $e) {
-                    \Log::error('OrderController: Error sending SweetAlert for order_deleted: ' . $e->getMessage());
-                }
 
                 // soft delete للطلب
                 $order->delete();

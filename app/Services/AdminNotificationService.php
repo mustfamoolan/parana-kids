@@ -17,21 +17,45 @@ class AdminNotificationService
     }
 
     /**
-     * Send notification to all admins
+     * Send notification to all admins and relevant suppliers
      */
-    protected function notifyAdmins(string $type, string $title, string $message, array $data = [])
+    protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [])
     {
         try {
+            // Get Warehouse IDs for the order
+            $warehouseIds = $order->items()
+                ->with('product')
+                ->get()
+                ->pluck('product.warehouse_id')
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            // Get Suppliers for these warehouses
+            $supplierIds = [];
+            if (!empty($warehouseIds)) {
+                $supplierIds = User::where('role', 'supplier')
+                    ->whereHas('warehouses', function ($q) use ($warehouseIds) {
+                        $q->whereIn('warehouses.id', $warehouseIds);
+                    })
+                    ->pluck('id')
+                    ->toArray();
+            }
+
+            // Get all Admins
             $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
 
-            if (empty($adminIds)) {
+            // Combine recipients
+            $recipientIds = array_unique(array_merge($adminIds, $supplierIds));
+
+            if (empty($recipientIds)) {
                 return;
             }
 
-            // Save to database
-            foreach ($adminIds as $adminId) {
+            // 1. Save to database notifications
+            foreach ($recipientIds as $recipientId) {
                 Notification::create([
-                    'user_id' => $adminId,
+                    'user_id' => $recipientId,
                     'type' => $type,
                     'title' => $title,
                     'message' => $message,
@@ -39,90 +63,141 @@ class AdminNotificationService
                 ]);
             }
 
-            // Send Push Notification
-            $this->fcmService->sendToUsers($adminIds, $title, $message, $data, 'admin_mobile');
+            // 2. Send Push Notifications (Admin App type)
+            $this->fcmService->sendToUsers($recipientIds, $title, $message, $data, 'admin_mobile');
 
-            Log::info("AdminNotificationService: Notified admins about {$type}");
+            // 3. Send Telegram Alerts
+            try {
+                $telegramService = app(TelegramService::class);
+                $recipientsWithTelegram = User::whereIn('id', $recipientIds)
+                    ->whereHas('telegramChats')
+                    ->get();
+
+                foreach ($recipientsWithTelegram as $recipient) {
+                    $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
+                        $telegramService->sendOrderNotification($chatId, $order);
+                    });
+                }
+            } catch (\Exception $e) {
+                Log::error("AdminNotificationService: Telegram failed: " . $e->getMessage());
+            }
+
+            // 4. Create SweetAlerts (for web/app popups)
+            try {
+                $sweetAlertService = app(SweetAlertService::class);
+                $sweetAlertService->createForUsers($recipientIds, $type, $title, $message, 'success', $data);
+            } catch (\Exception $e) {
+                Log::error("AdminNotificationService: SweetAlert failed: " . $e->getMessage());
+            }
+
+            Log::info("AdminNotificationService: Notified " . count($recipientIds) . " users about {$type}");
         } catch (\Exception $e) {
-            Log::error("AdminNotificationService: Failed to notify about {$type}: " . $e->getMessage());
+            Log::error("AdminNotificationService: Global notify failed: " . $e->getMessage());
         }
     }
 
     /**
-     * Notify all admins about a new order
+     * Notify about a new order
      */
     public function notifyNewOrder(Order $order)
     {
-        $title = 'طلب جديد: ' . ($order->customer_name ?? $order->order_number);
-        $body = 'تم إنشاء طلب جديد برقم ' . $order->order_number;
+        $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
+        $title = $customerName;
+        $body = 'طلب جديد';
 
         $data = [
-            'type' => 'new_order',
+            'type' => 'order_created',
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdmins('order_created', $title, $body, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_created', $title, $body, $data);
+        
+        // Also notify the delegate (confirmation)
+        if ($order->delegate_id) {
+            $this->fcmService->sendOrderNotification($order, 'order_created');
+        }
     }
 
     /**
-     * Notify all admins about an order update
+     * Notify about an order update
      */
     public function notifyOrderUpdated(Order $order, $updatedBy = null)
     {
-        $updaterName = $updatedBy ? $updatedBy->name : 'المستخدم';
-        $title = 'تعديل طلب: ' . $order->order_number;
-        $body = "قام {$updaterName} بتعديل الطلب الخاص بـ " . ($order->customer_name ?? '');
+        $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
+        $title = $customerName;
+        $body = 'تعديل على الطلب';
 
         $data = [
             'type' => 'order_updated',
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdmins('order_updated', $title, $body, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_updated', $title, $body, $data);
+        
+        // Notify delegate if updated by admin/supplier
+        if ($updatedBy && !$updatedBy->isDelegate() && $order->delegate_id) {
+            $this->fcmService->sendOrderNotification($order, 'order_updated');
+        }
     }
 
     /**
-     * Notify all admins about an order status change
+     * Notify about an order status change
      */
     public function notifyOrderStatusChanged(Order $order, $oldStatus, $newStatus, $updatedBy = null)
     {
-        $updaterName = $updatedBy ? $updatedBy->name : 'المستخدم';
-        $title = 'تغيير حالة الطلب: ' . $order->order_number;
-        $body = "قام {$updaterName} بتغيير حالة الطلب إلى '{$newStatus}'";
+        $translatedStatus = $this->translateStatus($newStatus);
+        $body = "تم {$translatedStatus}";
 
         $data = [
             'type' => 'order_status_changed',
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
             'old_status' => $oldStatus,
             'new_status' => $newStatus,
+            'new_status_text' => $translatedStatus,
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdmins('order_status_changed', $title, $body, $data);
+        $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
+        $title = $customerName;
+        $this->notifyAdminsAndSuppliers($order, 'order_status_changed', $title, $body, $data);
+        
+        // Notify delegate
+        if ($order->delegate_id) {
+            $this->fcmService->sendOrderNotification($order, 'order_confirmed'); // Using general confirmed/status change
+        }
     }
 
     /**
-     * Notify all admins about an order deletion
+     * Notify about an order deletion
      */
     public function notifyOrderDeleted(Order $order, $deletedBy = null)
     {
-        $deleterName = $deletedBy ? $deletedBy->name : 'المستخدم';
-        $title = 'حذف طلب: ' . $order->order_number;
-        $body = "قام {$deleterName} بحذف الطلب الخاص بـ " . ($order->customer_name ?? '');
+        $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
+        $title = $customerName;
+        $body = 'تم حذف الطلب';
 
         $data = [
             'type' => 'order_deleted',
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
             'screen' => 'orders_list',
         ];
 
-        $this->notifyAdmins('order_deleted', $title, $body, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $body, $data);
+        
+        // Notify delegate
+        if ($order->delegate_id) {
+            $this->fcmService->sendOrderNotification($order, 'order_deleted');
+        }
     }
 
     /**
@@ -149,7 +224,17 @@ class AdminNotificationService
             'screen' => 'warehouses_list',
         ];
 
-        $this->notifyAdmins('warehouse_' . $action, $title, $body, $data);
+        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+        foreach ($adminIds as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'warehouse_' . $action,
+                'title' => $title,
+                'message' => $body,
+                'data' => $data,
+            ]);
+        }
+        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
@@ -176,7 +261,17 @@ class AdminNotificationService
             'screen' => 'product_details',
         ];
 
-        $this->notifyAdmins('product_' . $action, $title, $body, $data);
+        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+        foreach ($adminIds as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'product_' . $action,
+                'title' => $title,
+                'message' => $body,
+                'data' => $data,
+            ]);
+        }
+        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
@@ -207,7 +302,17 @@ class AdminNotificationService
             'screen' => 'product_details',
         ];
 
-        $this->notifyAdmins('product_size_' . $action, $title, $body, $data);
+        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+        foreach ($adminIds as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'product_size_' . $action,
+                'title' => $title,
+                'message' => $body,
+                'data' => $data,
+            ]);
+        }
+        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
@@ -229,7 +334,17 @@ class AdminNotificationService
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdmins('alwaseet_status_changed', $title, $body, $data);
+        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+        foreach ($adminIds as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'alwaseet_status_changed',
+                'title' => $title,
+                'message' => $body,
+                'data' => $data,
+            ]);
+        }
+        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
@@ -247,6 +362,34 @@ class AdminNotificationService
             'screen' => 'chat',
         ];
 
-        $this->notifyAdmins('message_received', $title, $body, $data);
+        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+        foreach ($adminIds as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'message_received',
+                'title' => $title,
+                'message' => $body,
+                'data' => $data,
+            ]);
+        }
+        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
+    }
+
+    /**
+     * Translate order status to concise Arabic
+     */
+    protected function translateStatus($status)
+    {
+        $map = [
+            'pending' => 'بانتظار التجهيز',
+            'confirmed' => 'التقييد/التجهيز',
+            'cancelled' => 'الإلغاء',
+            'returned' => 'الإرجاع',
+            'exchanged' => 'الاستبدال',
+            'shipped' => 'الشحن',
+            'delivered' => 'التسليم',
+        ];
+        
+        return $map[$status] ?? $status;
     }
 }

@@ -620,28 +620,6 @@ class MobileDelegateCartController extends Controller
             // إرسال Event لإنشاء شحنة في الواسط
             event(new \App\Events\OrderCreated($order));
 
-            // إرسال SweetAlert للمجهز (نفس المخزن) أو المدير
-            try {
-                $sweetAlertService = app(SweetAlertService::class);
-                $sweetAlertService->notifyOrderCreated($order);
-            } catch (\Exception $e) {
-                Log::error('MobileDelegateCartController: Error sending SweetAlert for order_created', [
-                    'order_id' => $order->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            // إرسال FCM Notification للمندوب (تأكيد استلام الطلب)
-            try {
-                $fcmService = app(\App\Services\FirebaseCloudMessagingService::class);
-                $fcmService->sendOrderNotification($order, 'order_created');
-            } catch (\Exception $e) {
-                Log::error('MobileDelegateCartController: Error sending FCM for order_created', [
-                    'order_id' => $order->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
             // إعادة تحميل الطلب مع العلاقات
             $order->refresh();
             $order->load(['items.product.primaryImage', 'items.size', 'alwaseetShipment']);
