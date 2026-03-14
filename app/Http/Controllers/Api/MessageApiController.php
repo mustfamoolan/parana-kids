@@ -212,7 +212,8 @@ class MessageApiController extends Controller
                         'total_amount' => $order->total_amount,
                         'status' => $order->status,
                         'delegate_name' => $order->delegate ? $order->delegate->name : null,
-                        'order_type' => $message->order_type ?? 'normal', // 'normal' أو 'broker'
+                        'order_type' => $message->order_type ?? 'normal',
+                        'source_view' => $message->source_view, // للتنقل الذكي عند الضغط على الرسالة
                         'created_at' => $order->created_at->format('Y-m-d H:i'),
                     ];
                 }
@@ -538,13 +539,14 @@ class MessageApiController extends Controller
             'conversation_id' => 'required|exists:conversations,id',
             'order_id' => 'required|exists:orders,id',
             'order_type' => 'nullable|string|in:normal,broker,alwaseet,alwaseet_track,alwaseet_print,alwaseet_shipment,pending,confirmed,restricted,deleted,partial_return',
+            'source_view' => 'nullable|string|max:50', // الصفحة التي تم المشاركة منها للتنقل الذكي
         ]);
 
         $user = Auth::user();
         $conversationId = $request->input('conversation_id');
         $orderId = $request->input('order_id');
-        // استقبال نوع الطلب من التطبيق ('normal' أو 'broker')
         $orderType = $request->input('order_type', 'normal');
+        $sourceView = $request->input('source_view'); // حقل مستقل خاص بالتنقل الذكي
 
         // التحقق من أن المستخدم مشارك في المحادثة
         $conversation = Conversation::whereHas('participants', function ($q) use ($user) {
@@ -554,14 +556,15 @@ class MessageApiController extends Controller
         // جلب الطلب
         $order = Order::findOrFail($orderId);
 
-        // إنشاء الرسالة مع حفظ نوع الطلب
+        // إنشاء الرسالة مع حفظ نوع الطلب والصفحة المصدر
         $message = Message::create([
             'conversation_id' => $conversationId,
             'user_id' => $user->id,
             'message' => "طلب: {$order->order_number}",
             'type' => 'order',
             'order_id' => $orderId,
-            'order_type' => $orderType, // حفظ نوع الطلب لتمييزه عند الضغط عليه لاحقاً
+            'order_type' => $orderType,
+            'source_view' => $sourceView, // حفظ الصفحة المصدر للتنقل الذكي
         ]);
 
         // تحديث وقت المحادثة
@@ -601,7 +604,8 @@ class MessageApiController extends Controller
                     'total_amount' => $order->total_amount,
                     'status' => $order->status,
                     'delegate_name' => $order->delegate ? $order->delegate->name : null,
-                    'order_type' => $orderType, // إرجاع نوع الطلب للتطبيق
+                    'order_type' => $orderType,
+                    'source_view' => $sourceView, // للتنقل الذكي
                     'created_at' => $order->created_at->format('Y-m-d H:i'),
                 ],
                 'time' => $message->created_at->format('g:i A'),
