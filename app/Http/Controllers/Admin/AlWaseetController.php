@@ -18,10 +18,12 @@ use Illuminate\Support\Facades\Log;
 class AlWaseetController extends Controller
 {
     protected $alWaseetService;
+    protected $syncService;
 
-    public function __construct(AlWaseetService $alWaseetService)
+    public function __construct(AlWaseetService $alWaseetService, \App\Services\AlWaseetSyncService $syncService)
     {
         $this->alWaseetService = $alWaseetService;
+        $this->syncService = $syncService;
     }
 
     /**
@@ -2414,6 +2416,16 @@ class AlWaseetController extends Controller
             Log::error('AlWaseetController: Failed to load orders data from API in trackOrders', [
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        // تحديث قاعدة البيانات بالبيانات الجديدة من API (لضمان دقة الحالات وسرعة الإشعارات)
+        if (!empty($alwaseetOrdersData)) {
+            foreach ($ordersForApi as $order) {
+                if ($order->alwaseetShipment && isset($alwaseetOrdersData[$order->alwaseetShipment->alwaseet_order_id])) {
+                    $apiOrder = $alwaseetOrdersData[$order->alwaseetShipment->alwaseet_order_id];
+                    $this->syncService->syncShipmentWithApiData($order->alwaseetShipment, $apiOrder);
+                }
+            }
         }
 
         // جلب قائمة الحالات من قاعدة البيانات مع Cache (أسرع بكثير)

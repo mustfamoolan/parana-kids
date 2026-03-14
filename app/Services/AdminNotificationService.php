@@ -346,18 +346,21 @@ class AdminNotificationService
         if (!$order) return;
 
         $customerName = $order->customer_name ?? 'غير معروف';
+        $location = $order->customer_address ?? 'غير محدد';
+        $amount = number_format(($order->total_amount ?? 0) + ($order->delivery_fee_at_confirmation ?? 0));
+        $alwaseetId = $shipment->alwaseet_order_id ?? '---';
+        
         $title = "الواسط: {$customerName}";
         
-        // Enhance body for FCM/Telegram
-        $alwaseetId = $shipment->alwaseet_order_id ?? '---';
-        $body = "📊 {$newStatusText}\n📦 {$order->order_number} | 🔢 {$alwaseetId}";
+        // Enhance body for FCM/Telegram to match Telegram richness
+        $body = "🔄 من: {$oldStatusText}\n✅ إلى: {$newStatusText}\n\n📍 {$location}\n💰 {$amount} د.ع\n📦 {$order->order_number} | 🔢 {$alwaseetId}";
 
         $data = [
             'type' => 'alwaseet_status_changed',
             'order_id' => (string) $shipment->order_id,
             'shipment_id' => (string) $shipment->id,
-            'old_status' => $oldStatusText,
-            'new_status' => $newStatusText,
+            'old_status' => (string)$oldStatusText,
+            'new_status' => (string)$newStatusText,
             'screen' => 'order_details',
         ];
 

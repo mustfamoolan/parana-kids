@@ -49,7 +49,7 @@ class NotifyShipmentStatusChangedListener implements ShouldQueue
                     'alwaseet_shipment_id' => $event->shipment->id,
                     'type' => 'status_changed',
                     'title' => $event->shipment->order->customer_name ?? 'تغيير حالة الشحنة',
-                    'message' => "تم '{$newStatusText}'",
+                    'message' => "من '{$oldStatusText}' إلى '{$newStatusText}'",
                     'old_status' => $event->oldStatusId,
                     'new_status' => $event->newStatusId,
                 ]);
