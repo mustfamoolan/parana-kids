@@ -167,7 +167,14 @@ class AdminNotificationService
 
         $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
         $title = $customerName;
-        $this->notifyAdminsAndSuppliers($order, 'order_status_changed', $title, $body, $data);
+        
+        // Enhance body for FCM if it's for admins
+        $fcmBody = "📦 {$order->order_number} | {$body}";
+        if ($updatedBy) {
+            $fcmBody .= " (بواسطة {$updatedBy->name})";
+        }
+
+        $this->notifyAdminsAndSuppliers($order, 'order_status_changed', $title, $fcmBody, $data);
         
         // Notify delegate
         if ($order->delegate_id) {
@@ -325,7 +332,10 @@ class AdminNotificationService
 
         $customerName = $order->customer_name ?? 'غير معروف';
         $title = "الواسط: {$customerName}";
-        $body = "تم '{$newStatusText}' (#{$order->order_number})";
+        
+        // Enhance body for FCM/Telegram
+        $alwaseetId = $shipment->alwaseet_order_id ?? '---';
+        $body = "📊 {$newStatusText}\n📦 {$order->order_number} | 🔢 {$alwaseetId}";
 
         $data = [
             'type' => 'alwaseet_status_changed',
