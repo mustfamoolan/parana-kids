@@ -424,10 +424,10 @@ class FirebaseCloudMessagingService
             $amount = number_format(($order->total_amount ?? 0) + ($order->delivery_fee_at_confirmation ?? 0));
             $alwaseetId = $shipment->alwaseet_order_id ?? '---';
 
-            $title = "شحنة: {$customerName}";
+            $title = $customerName;
             
-            // Rich body for delegate to match Telegram experience
-            $body = "🔄 من: {$oldStatusText}\n✅ إلى: {$newStatusText}\n\n📍 {$location}\n💰 {$amount} د.ع\n📦 {$order->order_number} | 🔢 {$alwaseetId}";
+            // Short and clear body for delegate
+            $body = "{$newStatusText} | {$order->order_number}";
 
             $data = [
                 'type' => 'shipment_status_changed',
