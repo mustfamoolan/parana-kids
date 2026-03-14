@@ -104,6 +104,9 @@ class AdminNotificationService
         $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
         $title = $customerName;
         $body = 'طلب جديد';
+        
+        // Enrich body for FCM
+        $fcmBody = "🆕 طلب جديد: 📦 {$order->order_number} | 💰 " . number_format($order->total_amount, 0) . " د.ع";
 
         $data = [
             'type' => 'order_created',
@@ -113,7 +116,7 @@ class AdminNotificationService
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_created', $title, $body, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_created', $title, $fcmBody, $data, 'success');
         
         // Also notify the delegate (confirmation)
         if ($order->delegate_id) {
@@ -129,6 +132,12 @@ class AdminNotificationService
         $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
         $title = $customerName;
         $body = 'تعديل على الطلب';
+        
+        // Enrich body for FCM
+        $fcmBody = "📝 تعديل: 📦 {$order->order_number}";
+        if ($updatedBy) {
+            $fcmBody .= " (بواسطة {$updatedBy->name})";
+        }
 
         $data = [
             'type' => 'order_updated',
@@ -138,7 +147,7 @@ class AdminNotificationService
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_updated', $title, $body, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_updated', $title, $fcmBody, $data);
         
         // Notify delegate if updated by admin/supplier
         if ($updatedBy && !$updatedBy->isDelegate() && $order->delegate_id) {
@@ -169,7 +178,7 @@ class AdminNotificationService
         $title = $customerName;
         
         // Enhance body for FCM if it's for admins
-        $fcmBody = "📦 {$order->order_number} | {$body}";
+        $fcmBody = "📊 {$translatedStatus}: 📦 {$order->order_number}";
         if ($updatedBy) {
             $fcmBody .= " (بواسطة {$updatedBy->name})";
         }
@@ -190,6 +199,12 @@ class AdminNotificationService
         $customerName = $order->customer_name ?? "طلب #{$order->order_number}";
         $title = $customerName;
         $body = 'تم حذف الطلب';
+        
+        // Enrich body for FCM
+        $fcmBody = "🗑️ تم الحذف: 📦 {$order->order_number}";
+        if ($deletedBy) {
+            $fcmBody .= " (بواسطة {$deletedBy->name})";
+        }
 
         $data = [
             'type' => 'order_deleted',
@@ -199,7 +214,7 @@ class AdminNotificationService
             'screen' => 'orders_list',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $body, $data, 'warning');
+        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $fcmBody, $data, 'warning');
         
         // Notify delegate
         if ($order->delegate_id) {
