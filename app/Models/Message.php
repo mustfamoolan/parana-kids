@@ -16,6 +16,8 @@ class Message extends Model
         'message',
         'type',
         'order_id',
+        'order_type',    // نوع الطلب للتنقل
+        'source_view',   // الصفحة المصدر للتنقل الذكي
         'product_id',
         'image_path',
         'reply_to_id',
