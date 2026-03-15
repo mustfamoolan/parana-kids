@@ -176,6 +176,7 @@ class SweetAlertService
             'order_id' => $order->id,
             'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
+            'source_view' => 'pending',
         ];
 
         // إرسال SweetAlert فقط، باقي الإشعارات تتم عبر AdminNotificationService
@@ -230,6 +231,7 @@ class SweetAlertService
             'order_id' => $order->id,
             'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
+            'source_view' => 'restricted',
         ];
 
         // إرسال SweetAlert فقط
@@ -285,6 +287,7 @@ class SweetAlertService
             'order_id' => $order->id,
             'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
+            'source_view' => 'deleted',
         ];
 
         // إرسال SweetAlert
@@ -296,6 +299,7 @@ class SweetAlertService
                 Notification::create([
                     'user_id' => $recipientId,
                     'type' => 'order_deleted',
+                    'source_view' => 'deleted',
                     'title' => $title,
                     'message' => $message,
                     'data' => $data,
@@ -447,6 +451,7 @@ class SweetAlertService
             'order_id' => $order->id,
             'customer_name' => $order->customer_name,
             'order_number' => $order->order_number,
+            'source_view' => ($order->status === 'confirmed') ? 'restricted' : 'pending',
         ];
 
         // إرسال SweetAlert
@@ -458,6 +463,7 @@ class SweetAlertService
                 Notification::create([
                     'user_id' => $recipientId,
                     'type' => 'order_updated',
+                    'source_view' => $data['source_view'],
                     'title' => $title,
                     'message' => $message,
                     'data' => $data,

@@ -339,11 +339,17 @@ class FirebaseCloudMessagingService
             $title = $order->customer_name ?? $statusText;
             $body = $statusText;
 
+            $sourceView = 'pending';
+            if ($order->status === 'confirmed') $sourceView = 'restricted';
+            if ($order->status === 'deleted' || $order->status === 'cancelled') $sourceView = 'deleted';
+
             $data = [
                 'type' => $type,
-                'order_id' => $order->id,
+                'order_id' => (string)$order->id,
                 'customer_name' => $order->customer_name,
                 'order_number' => $order->order_number,
+                'source_view' => $sourceView,
+                'status' => $order->status,
                 'screen' => 'order_details',
             ];
 
