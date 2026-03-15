@@ -22,6 +22,7 @@ class AppNotification extends Model
         'title',
         'message', // استخدام message بدلاً من body للتوافق مع الجدول الموجود
         'data',
+        'source_view', // التنقل الذكي
         'read_at',
         'expires_at',
     ];

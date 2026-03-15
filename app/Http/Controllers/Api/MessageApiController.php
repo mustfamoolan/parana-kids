@@ -212,8 +212,10 @@ class MessageApiController extends Controller
                         'total_amount' => $order->total_amount,
                         'status' => $order->status,
                         'delegate_name' => $order->delegate ? $order->delegate->name : null,
-                        'order_type' => $message->order_type ?? 'normal',
-                        'source_view' => $message->source_view, // للتنقل الذكي عند الضغط على الرسالة
+                        'order_type' => ($message->order_type && $message->order_type !== 'normal') 
+                            ? $message->order_type 
+                            : ($order->alwaseetShipment ? 'broker' : 'normal'),
+                        'source_view' => $message->source_view ?? ($order->alwaseetShipment ? 'alwaseet' : null), 
                         'created_at' => $order->created_at->format('Y-m-d H:i'),
                     ];
                 }

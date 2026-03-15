@@ -11,7 +11,7 @@ class NotificationService
     /**
      * إرسال إشعار شامل (قابل للتوسع)
      */
-    public function send($userId, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [])
+    public function send($userId, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [], $sourceView = null)
     {
         try {
             $notification = AppNotification::create([
@@ -19,6 +19,7 @@ class NotificationService
                 'type' => $type,
                 'title' => $title,
                 'message' => $body, // استخدام message بدلاً من body
+                'source_view' => $sourceView ?? ($data['source_view'] ?? null),
                 'data' => array_merge([
                     'title' => $title,
                     'body' => $body,
