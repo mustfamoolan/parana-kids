@@ -215,7 +215,7 @@ class MessageApiController extends Controller
                         'order_type' => ($message->order_type && $message->order_type !== 'normal') 
                             ? $message->order_type 
                             : ($order->alwaseetShipment ? 'broker' : 'normal'),
-                        'source_view' => $message->source_view ?? ($order->alwaseetShipment ? 'alwaseet' : null), 
+                        'source_view' => $message->source_view ?? ($order->alwaseetShipment ? 'delegate_broker' : 'delegate_pending'), 
                         'created_at' => $order->created_at->format('Y-m-d H:i'),
                     ];
                 }
