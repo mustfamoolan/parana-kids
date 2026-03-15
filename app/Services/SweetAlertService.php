@@ -139,10 +139,6 @@ class SweetAlertService
             ->exists();
     }
 
-    /**
-     * Create alert for order created
-     * إشعار للمجهز (نفس المخزن) أو المدير
-     */
     public function notifyOrderCreated(Order $order)
     {
         $warehouseIds = $order->items()
@@ -182,62 +178,8 @@ class SweetAlertService
             'order_number' => $order->order_number,
         ];
 
-        // إرسال SweetAlert
+        // إرسال SweetAlert فقط، باقي الإشعارات تتم عبر AdminNotificationService
         $this->createForUsers($recipientIds, 'order_created', $title, $message, 'success', $data);
-
-        // حفظ إشعار في جدول notifications
-        foreach ($recipientIds as $recipientId) {
-            try {
-                Notification::create([
-                    'user_id' => $recipientId,
-                    'type' => 'order_created',
-                    'title' => $title,
-                    'message' => $message,
-                    'data' => $data,
-                ]);
-            } catch (\Exception $e) {
-                Log::error('SweetAlertService: Failed to create notification record', [
-                    'user_id' => $recipientId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // إرسال إشعارات تليجرام للمستخدمين المربوطين
-        try {
-            $telegramService = app(TelegramService::class);
-            $recipients = User::whereIn('id', $recipientIds)
-                ->whereHas('telegramChats')
-                ->get();
-
-            foreach ($recipients as $recipient) {
-                $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
-                    $telegramService->sendOrderNotification($chatId, $order);
-                });
-            }
-        } catch (\Exception $e) {
-            Log::error('SweetAlertService: Failed to send Telegram notifications', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // إرسال إشعارات Firebase للمندوبين فقط
-        try {
-            $fcmService = app(FirebaseCloudMessagingService::class);
-            $delegates = User::whereIn('id', $recipientIds)
-                ->where('role', 'delegate')
-                ->get();
-
-            foreach ($delegates as $delegate) {
-                $fcmService->sendOrderNotification($order, 'order_created');
-            }
-        } catch (\Exception $e) {
-            Log::error('SweetAlertService: Failed to send FCM notifications', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 
     /**
@@ -290,62 +232,8 @@ class SweetAlertService
             'order_number' => $order->order_number,
         ];
 
-        // إرسال SweetAlert
+        // إرسال SweetAlert فقط
         $this->createForUsers($recipientIds, 'order_confirmed', $title, $message, 'success', $data);
-
-        // حفظ إشعار في جدول notifications
-        foreach ($recipientIds as $recipientId) {
-            try {
-                Notification::create([
-                    'user_id' => $recipientId,
-                    'type' => 'order_confirmed',
-                    'title' => $title,
-                    'message' => $message,
-                    'data' => $data,
-                ]);
-            } catch (\Exception $e) {
-                Log::error('SweetAlertService: Failed to create notification record', [
-                    'user_id' => $recipientId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // إرسال إشعارات تليجرام للمستخدمين المربوطين
-        try {
-            $telegramService = app(TelegramService::class);
-            $recipients = User::whereIn('id', $recipientIds)
-                ->whereHas('telegramChats')
-                ->get();
-
-            foreach ($recipients as $recipient) {
-                $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
-                    $telegramService->sendOrderRestrictedNotification($chatId, $order);
-                });
-            }
-        } catch (\Exception $e) {
-            Log::error('SweetAlertService: Failed to send Telegram notifications for order confirmed', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // إرسال إشعارات Firebase للمندوبين فقط
-        try {
-            $fcmService = app(FirebaseCloudMessagingService::class);
-            $delegates = User::whereIn('id', $recipientIds)
-                ->where('role', 'delegate')
-                ->get();
-
-            foreach ($delegates as $delegate) {
-                $fcmService->sendOrderNotification($order, 'order_confirmed');
-            }
-        } catch (\Exception $e) {
-            Log::error('SweetAlertService: Failed to send FCM notifications for order confirmed', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 
     /**

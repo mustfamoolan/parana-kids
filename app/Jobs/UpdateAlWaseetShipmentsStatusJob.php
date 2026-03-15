@@ -9,13 +9,19 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 
-class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
+class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
 
-    public $tries = 2;
-    public $timeout = 300;
+    public $tries = 1;
+    public $timeout = 120; // تقليل الوقت لضمان عدم التداخل
+
+    /**
+     * The number of seconds after which the job's unique lock will be released.
+     */
+    public $uniqueFor = 60;
 
     /**
      * Create a new job instance.
@@ -25,10 +31,22 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
         //
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(AlWaseetService $alWaseetService, \App\Services\AlWaseetSyncService $syncService): void
+    {
+        // تشغيل مرتين في الدقيقة (كل 30 ثانية) لتحقيق سرعة "شبه فورية"
+        for ($i = 0; $i < 2; $i++) {
+            $this->performSync($alWaseetService, $syncService);
+            
+            if ($i === 0) {
+                sleep(30);
+            }
+        }
+    }
+
+    /**
+     * تنفيذ المزامنة
+     */
+    protected function performSync(AlWaseetService $alWaseetService, \App\Services\AlWaseetSyncService $syncService): void
     {
         try {
             // جلب فقط الطلبات النشطة (التي ليست في حالة نهائية) والتي لم يتم تحديثها في آخر 2 دقيقة
@@ -39,7 +57,7 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
                 ->whereNotIn('status_id', $finalStatusIds) // استبعاد الطلبات المنتهية
                 ->where(function ($query) {
                     $query->whereNull('synced_at')
-                        ->orWhere('synced_at', '<', now()->subMinutes(2)); // تحديث كل دقيقتين لضمان عدم تجاوز حدود API (30 طلب/30 ثانية)
+                        ->orWhere('synced_at', '<', now()->subSeconds(30)); // تحديث كل 30 ثانية لضمان سرعة الوصول واستقرار النظام
                 })
                 ->select('id', 'alwaseet_order_id', 'status_id', 'status')
                 ->get();
@@ -56,15 +74,23 @@ class UpdateAlWaseetShipmentsStatusJob implements ShouldQueue
                 return;
             }
 
-            // تقسيم إلى batches (10 طلب في كل batch)
-            $batchSize = 10;
+            // تقسيم إلى batches (30 طلب في كل batch لتقليل عدد الطلبات لـ API)
+            $batchSize = 30; 
             $batches = array_chunk($alwaseetOrderIds, $batchSize);
 
             $updated = 0;
             $failed = 0;
+            $requestCount = 0;
 
             foreach ($batches as $batch) {
+                // التوقف إذا وصلنا للحد الأقصى (25 طلب في الـ 30 ثانية لترك هامش أمان)
+                if ($requestCount >= 25) {
+                    Log::warning('UpdateAlWaseetShipmentsStatusJob: Reached safety limit of 25 requests per window');
+                    break;
+                }
+
                 try {
+                    $requestCount++;
                     // جلب بيانات API
                     $apiOrders = $alWaseetService->getOrdersByIds($batch);
 

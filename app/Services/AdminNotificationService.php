@@ -22,13 +22,13 @@ class AdminNotificationService
      */
     protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [], string $icon = 'success')
     {
-        // 0. Deduplication check (prevent duplicate notifications for same order+type within 5 seconds)
+        // 0. Deduplication check (prevent duplicate notifications for same order+type within 10 seconds for robustness)
         $cacheKey = "notif_lock_{$order->id}_{$type}";
         if (Cache::has($cacheKey)) {
             Log::info("AdminNotificationService: Deduped notification for Order #{$order->order_number} (Type: {$type})");
             return;
         }
-        Cache::put($cacheKey, true, 5); // Lock for 5 seconds
+        Cache::put($cacheKey, true, 10); // Lock for 10 seconds
 
         try {
             // Get Warehouse IDs for the order
@@ -75,17 +75,30 @@ class AdminNotificationService
             // 2. Send Push Notifications (Admin App type)
             $this->fcmService->sendToUsers($recipientIds, $title, $message, $data, 'admin_mobile');
 
-            // 3. Send Telegram Alerts
+            // 3. Send Telegram Alerts (جمع Chat IDs فريدة لعدم التكرار)
             try {
                 $telegramService = app(TelegramService::class);
+                $uniqueChatIds = [];
+                
                 $recipientsWithTelegram = User::whereIn('id', $recipientIds)
                     ->whereHas('telegramChats')
+                    ->with('telegramChats')
                     ->get();
 
                 foreach ($recipientsWithTelegram as $recipient) {
-                    $telegramService->sendToAllUserDevices($recipient, function ($chatId) use ($telegramService, $order) {
+                    foreach ($recipient->telegramChats as $chat) {
+                        if ($chat->chat_id && !in_array($chat->chat_id, $uniqueChatIds)) {
+                            $uniqueChatIds[] = $chat->chat_id;
+                        }
+                    }
+                }
+
+                foreach ($uniqueChatIds as $chatId) {
+                    try {
                         $telegramService->sendOrderNotification($chatId, $order);
-                    });
+                    } catch (\Exception $e) {
+                         Log::error("AdminNotificationService: Telegram failed for chat {$chatId}: " . $e->getMessage());
+                    }
                 }
             } catch (\Exception $e) {
                 Log::error("AdminNotificationService: Telegram failed: " . $e->getMessage());
