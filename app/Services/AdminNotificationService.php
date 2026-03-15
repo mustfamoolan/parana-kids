@@ -423,9 +423,11 @@ class AdminNotificationService
         $body = mb_substr($messageText, 0, 100) . (mb_strlen($messageText) > 100 ? '...' : '');
 
         $data = [
-            'type' => 'new_message',
+            'type' => 'message',
             'sender_id' => (string) $sender->id,
             'conversation_id' => (string) $conversationId,
+            'sender_name' => $sender->name,
+            'customer_name' => $sender->name,
             'screen' => 'chat',
         ];
 

@@ -47,12 +47,13 @@ class FirebaseCloudMessagingService
 
                     Log::info('FirebaseCloudMessagingService: Initialized with Base64 credentials');
                     $this->debugInfo['method'] = 'base64';
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     $this->debugInfo['base64_error'] = $e->getMessage();
                     Log::warning('FirebaseCloudMessagingService: Failed to use Base64 credentials, falling back to file', [
                         'error' => $e->getMessage()
                     ]);
-                    // Fallback to file will happen below since $factory is null
+                // Fallback to file will happen below since $factory is null
                 }
             }
 
@@ -77,7 +78,8 @@ class FirebaseCloudMessagingService
                     if (is_dir($storagePath)) {
                         $this->debugInfo['storage_app_files'] = array_values(array_diff(scandir($storagePath), ['.', '..']));
                     }
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     $this->debugInfo['scan_error'] = $e->getMessage();
                 }
 
@@ -89,7 +91,8 @@ class FirebaseCloudMessagingService
 
                     if (file_exists($publicPath)) {
                         $credentialsPath = $publicPath;
-                    } else {
+                    }
+                    else {
                         $this->initError = "Credentials file not found at: $credentialsPath or $publicPath";
                         Log::warning('FirebaseCloudMessagingService: Credentials file not found everywhere', [
                             'config_path' => $credentialsPath,
@@ -115,7 +118,8 @@ class FirebaseCloudMessagingService
             $this->delegateVapidKey = config('services.firebase.delegate_vapid_key', 'BH3zykRdN9qD16ZdwHB9A_mNpnVR4iWKbcB049yOLisNUGkKnkeXpEykKK-Za4BMAELHCqGH2qtvscJb6qCQwzg');
             $this->delegateSenderId = config('services.firebase.delegate_sender_id', '223597554792');
 
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $this->initError = $e->getMessage();
             Log::error('FirebaseCloudMessagingService: Failed to initialize', [
                 'error' => $e->getMessage(),
@@ -162,7 +166,8 @@ class FirebaseCloudMessagingService
             ]);
 
             return $this->sendToTokens($tokens, $title, $body, $data);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send to user', [
                 'user_id' => $userId,
                 'error' => $e->getMessage(),
@@ -198,7 +203,8 @@ class FirebaseCloudMessagingService
             }
 
             return $this->sendToTokens($tokens, $title, $body, $data);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send to users', [
                 'user_ids' => $userIds,
                 'error' => $e->getMessage(),
@@ -265,10 +271,10 @@ class FirebaseCloudMessagingService
                     $message = CloudMessage::withTarget('token', $token)
                         ->withNotification($notification)
                         ->withData(array_merge([
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                            'sound' => 'default',
-                            'priority' => 'high',
-                        ], $data))
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        'sound' => 'default',
+                        'priority' => 'high',
+                    ], $data))
                         ->withAndroidConfig($androidConfig)
                         ->withApnsConfig($apnsConfig);
 
@@ -282,7 +288,8 @@ class FirebaseCloudMessagingService
 
                     $successCount++;
 
-                } catch (InvalidArgument $e) {
+                }
+                catch (InvalidArgument $e) {
                     // Token غير صالح - تعطيله
                     $this->debugInfo['last_send_error'] = $e->getMessage();
                     Log::warning('FirebaseCloudMessagingService: Invalid token', [
@@ -290,7 +297,8 @@ class FirebaseCloudMessagingService
                         'error' => $e->getMessage(),
                     ]);
                     $invalidTokens[] = $token;
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     $this->debugInfo['last_send_error'] = $e->getMessage();
                     Log::error('FirebaseCloudMessagingService: Failed to send to token', [
                         'token' => substr($token, 0, 20) . '...',
@@ -312,7 +320,8 @@ class FirebaseCloudMessagingService
             ]);
 
             return $successCount;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send notifications', [
                 'error' => $e->getMessage(),
             ]);
@@ -340,8 +349,10 @@ class FirebaseCloudMessagingService
             $body = $statusText;
 
             $sourceView = 'pending';
-            if ($order->status === 'confirmed') $sourceView = 'restricted';
-            if ($order->status === 'deleted' || $order->status === 'cancelled') $sourceView = 'deleted';
+            if ($order->status === 'confirmed')
+                $sourceView = 'restricted';
+            if ($order->status === 'deleted' || $order->status === 'cancelled')
+                $sourceView = 'deleted';
 
             $data = [
                 'type' => $type,
@@ -359,7 +370,8 @@ class FirebaseCloudMessagingService
             }
 
             return false;
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send order notification', [
                 'order_id' => $order->id,
                 'type' => $type,
@@ -385,19 +397,21 @@ class FirebaseCloudMessagingService
 
             $data = [
                 'type' => 'message',
-                'conversation_id' => $conversationId,
-                'sender_id' => $senderId,
+                'conversation_id' => (string)$conversationId,
+                'sender_id' => (string)$senderId,
+                'sender_name' => $sender->name,
                 'customer_name' => $sender->name,
                 'screen' => 'chat',
             ];
 
             $recipient = User::find($recipientId);
-            $appType = ($recipient && ($recipient->isAdmin() || $recipient->isSupplier())) 
-                ? 'admin_mobile' 
+            $appType = ($recipient && ($recipient->isAdmin() || $recipient->isSupplier()))
+                ? 'admin_mobile'
                 : 'delegate_mobile';
 
             return $this->sendToUser($recipientId, $title, $body, $data, $appType);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send message notification', [
                 'conversation_id' => $conversationId,
                 'recipient_id' => $recipientId,
@@ -431,7 +445,7 @@ class FirebaseCloudMessagingService
             $alwaseetId = $shipment->alwaseet_order_id ?? '---';
 
             $title = $customerName;
-            
+
             // Short and clear body for delegate
             $body = "{$newStatusText} | {$order->order_number}";
 
@@ -447,7 +461,8 @@ class FirebaseCloudMessagingService
             ];
 
             return $this->sendToUser($order->delegate_id, $title, $body, $data, 'delegate_mobile');
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Failed to send shipment notification', [
                 'shipment_id' => $shipment->id,
                 'error' => $e->getMessage(),
@@ -486,14 +501,16 @@ class FirebaseCloudMessagingService
                     'tokens_sent' => $result,
                     'debug_info' => $this->debugInfo,
                 ];
-            } else {
+            }
+            else {
                 return [
                     'success' => false,
                     'message' => 'Failed to send test notification. Check server logs for details.',
                     'debug_info' => $this->debugInfo,
                 ];
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('FirebaseCloudMessagingService: Test notification failed', [
                 'token' => substr($token, 0, 20) . '...',
                 'error' => $e->getMessage(),
@@ -520,15 +537,14 @@ class FirebaseCloudMessagingService
             'total_tokens' => $tokens->count(),
             'active_tokens' => $tokens->where('is_active', true)->count(),
             'tokens' => $tokens->map(function ($token) {
-                return [
+            return [
                     'id' => $token->id,
                     'device_type' => $token->device_type,
                     'is_active' => $token->is_active,
                     'token_preview' => substr($token->token, 0, 20) . '...',
                     'created_at' => $token->created_at,
                 ];
-            }),
+        }),
         ];
     }
 }
-

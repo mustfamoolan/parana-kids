@@ -365,6 +365,8 @@ class SweetAlertService
         $data = [
             'conversation_id' => $conversationId,
             'sender_id' => $senderId,
+            'sender_name' => $sender->name,
+            'customer_name' => $sender->name,
         ];
 
         // إرسال SweetAlert
