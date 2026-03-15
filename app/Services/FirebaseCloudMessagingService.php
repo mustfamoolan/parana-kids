@@ -349,10 +349,13 @@ class FirebaseCloudMessagingService
             $body = $statusText;
 
             $sourceView = 'pending';
-            if ($order->status === 'confirmed')
+            if ($type === 'alwaseet_status_changed' || $type === 'shipment_status_changed') {
+                $sourceView = 'alwaseet';
+            } elseif ($order->status === 'confirmed') {
                 $sourceView = 'restricted';
-            if ($order->status === 'deleted' || $order->status === 'cancelled')
+            } elseif ($order->status === 'deleted' || $order->status === 'cancelled') {
                 $sourceView = 'deleted';
+            }
 
             $data = [
                 'type' => $type,
