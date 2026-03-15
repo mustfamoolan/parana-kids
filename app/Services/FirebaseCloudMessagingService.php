@@ -460,6 +460,7 @@ class FirebaseCloudMessagingService
                 'shipment_id' => (string)$shipment->id,
                 'old_status' => (string)$oldStatusText,
                 'new_status' => (string)$newStatusText,
+                'source_view' => 'alwaseet',
                 'screen' => 'order_details',
             ];
 

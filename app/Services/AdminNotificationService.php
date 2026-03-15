@@ -391,7 +391,7 @@ class AdminNotificationService
         // Short and clear notification body
         $body = "{$newStatusText} | {$order->order_number}";
 
-        $sourceView = $this->deriveSourceView($order);
+        $sourceView = 'alwaseet';
 
         $data = [
             'type' => 'alwaseet_status_changed',
@@ -435,7 +435,7 @@ class AdminNotificationService
         foreach ($adminIds as $adminId) {
             Notification::create([
                 'user_id' => $adminId,
-                'type' => 'message_received',
+                'type' => 'message',
                 'title' => $title,
                 'message' => $body,
                 'data' => $data,
