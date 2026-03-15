@@ -348,13 +348,13 @@ class FirebaseCloudMessagingService
             $title = $order->customer_name ?? $statusText;
             $body = $statusText;
 
-            $sourceView = 'pending';
+            $sourceView = 'delegate_pending';
             if ($type === 'alwaseet_status_changed' || $type === 'shipment_status_changed') {
-                $sourceView = 'alwaseet';
+                $sourceView = 'delegate_broker';
             } elseif ($order->status === 'confirmed') {
-                $sourceView = 'restricted';
+                $sourceView = 'delegate_confirmed';
             } elseif ($order->status === 'deleted' || $order->status === 'cancelled') {
-                $sourceView = 'deleted';
+                $sourceView = 'delegate_deleted';
             }
 
             $data = [
@@ -460,7 +460,7 @@ class FirebaseCloudMessagingService
                 'shipment_id' => (string)$shipment->id,
                 'old_status' => (string)$oldStatusText,
                 'new_status' => (string)$newStatusText,
-                'source_view' => 'alwaseet',
+                'source_view' => 'delegate_broker',
                 'screen' => 'order_details',
             ];
 

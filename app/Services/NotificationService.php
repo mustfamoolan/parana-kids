@@ -46,18 +46,18 @@ class NotificationService
      */
     public function sendToUser($userId, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [], $sourceView = null)
     {
-        return $this->send($userId, $type, $title, $body, $data);
+        return $this->send($userId, $type, $title, $body, $data, $sourceView);
     }
 
     /**
      * إرسال إشعار لعدة مستخدمين
      */
-    public function sendToUsers(array $userIds, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [])
+    public function sendToUsers(array $userIds, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [], $sourceView = null)
     {
         $successCount = 0;
 
         foreach ($userIds as $userId) {
-            if ($this->send($userId, $type, $title, $body, $data)) {
+            if ($this->send($userId, $type, $title, $body, $data, $sourceView)) {
                 $successCount++;
             }
         }
