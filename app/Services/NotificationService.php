@@ -44,7 +44,7 @@ class NotificationService
     /**
      * إرسال إشعار لمستخدم واحد
      */
-    public function sendToUser($userId, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [])
+    public function sendToUser($userId, $type = 'message', $title = 'إشعار جديد', $body = 'لديك إشعار جديد', $data = [], $sourceView = null)
     {
         return $this->send($userId, $type, $title, $body, $data);
     }
