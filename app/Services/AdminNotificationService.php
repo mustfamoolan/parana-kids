@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class AdminNotificationService
 {
@@ -21,6 +22,14 @@ class AdminNotificationService
      */
     protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [], string $icon = 'success')
     {
+        // 0. Deduplication check (prevent duplicate notifications for same order+type within 5 seconds)
+        $cacheKey = "notif_lock_{$order->id}_{$type}";
+        if (Cache::has($cacheKey)) {
+            Log::info("AdminNotificationService: Deduped notification for Order #{$order->order_number} (Type: {$type})");
+            return;
+        }
+        Cache::put($cacheKey, true, 5); // Lock for 5 seconds
+
         try {
             // Get Warehouse IDs for the order
             $warehouseIds = $order->items()

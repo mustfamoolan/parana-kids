@@ -43,6 +43,12 @@ class MobileAdminNotificationController extends Controller
             $existingToken = FcmToken::where('token', $token)->first();
 
             if ($existingToken) {
+                // Deactivate other tokens for this user/app
+                FcmToken::where('user_id', $user->id)
+                    ->where('app_type', 'admin_mobile')
+                    ->where('id', '!=', $existingToken->id)
+                    ->update(['is_active' => false]);
+
                 $existingToken->update([
                     'user_id' => $user->id,
                     'device_type' => $deviceType,
@@ -50,6 +56,11 @@ class MobileAdminNotificationController extends Controller
                     'is_active' => true,
                 ]);
             } else {
+                // Deactivate other tokens for this user/app
+                FcmToken::where('user_id', $user->id)
+                    ->where('app_type', 'admin_mobile')
+                    ->update(['is_active' => false]);
+
                 FcmToken::create([
                     'user_id' => $user->id,
                     'token' => $token,
