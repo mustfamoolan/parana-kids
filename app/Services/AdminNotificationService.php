@@ -20,7 +20,7 @@ class AdminNotificationService
     /**
      * Send notification to all admins and relevant suppliers
      */
-    protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [], string $icon = 'success')
+    protected function notifyAdminsAndSuppliers(Order $order, string $type, string $title, string $message, array $data = [], string $icon = 'success', ?string $sourceView = null)
     {
         // 0. Deduplication check (prevent duplicate notifications for same order+type within 10 seconds for robustness)
         $cacheKey = "notif_lock_{$order->id}_{$type}";
@@ -61,11 +61,11 @@ class AdminNotificationService
                 return;
             }
 
-            // 1. Save to database notifications
             foreach ($recipientIds as $recipientId) {
                 Notification::create([
                     'user_id' => $recipientId,
                     'type' => $type,
+                    'source_view' => $sourceView,
                     'title' => $title,
                     'message' => $message,
                     'data' => $data,
@@ -135,10 +135,12 @@ class AdminNotificationService
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
             'customer_name' => $order->customer_name,
+            'status' => $order->status,
+            'source_view' => 'pending', // جديد دائماً في الانتظار
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_created', $title, $fcmBody, $data, 'success');
+        $this->notifyAdminsAndSuppliers($order, 'order_created', $title, $fcmBody, $data, 'success', 'pending');
         
         // Also notify the delegate (confirmation)
         if ($order->delegate_id) {
@@ -161,15 +163,20 @@ class AdminNotificationService
             $fcmBody .= " (بواسطة {$updatedBy->name})";
         }
 
+        // تحديد الـ source_view بناء على الحالة
+        $sourceView = $this->deriveSourceView($order);
+
         $data = [
             'type' => 'order_updated',
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
             'customer_name' => $order->customer_name,
+            'status' => $order->status,
+            'source_view' => $sourceView,
             'screen' => 'order_details',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_updated', $title, $fcmBody, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_updated', $title, $fcmBody, $data, 'success', $sourceView);
         
         // Notify delegate if updated by admin/supplier
         if ($updatedBy && !$updatedBy->isDelegate() && $order->delegate_id) {
@@ -185,14 +192,19 @@ class AdminNotificationService
         $translatedStatus = $this->translateStatus($newStatus);
         $body = "تم {$translatedStatus}";
 
+        // تحديد الـ source_view بناء على الحالة الجديدة
+        $sourceView = $this->deriveSourceView($order);
+
         $data = [
             'type' => 'order_status_changed',
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
             'customer_name' => $order->customer_name,
+            'status' => $newStatus,
             'old_status' => $oldStatus,
             'new_status' => $newStatus,
             'new_status_text' => $translatedStatus,
+            'source_view' => $sourceView,
             'screen' => 'order_details',
         ];
 
@@ -205,7 +217,7 @@ class AdminNotificationService
             $fcmBody .= " (بواسطة {$updatedBy->name})";
         }
 
-        $this->notifyAdminsAndSuppliers($order, 'order_status_changed', $title, $fcmBody, $data);
+        $this->notifyAdminsAndSuppliers($order, 'order_status_changed', $title, $fcmBody, $data, 'info', $sourceView);
         
         // Notify delegate
         if ($order->delegate_id) {
@@ -233,10 +245,12 @@ class AdminNotificationService
             'order_id' => (string) $order->id,
             'order_number' => $order->order_number,
             'customer_name' => $order->customer_name,
+            'status' => 'deleted',
+            'source_view' => 'deleted',
             'screen' => 'orders_list',
         ];
 
-        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $fcmBody, $data, 'warning');
+        $this->notifyAdminsAndSuppliers($order, 'order_deleted', $title, $fcmBody, $data, 'warning', 'deleted');
         
         // Notify delegate
         if ($order->delegate_id) {
@@ -377,17 +391,22 @@ class AdminNotificationService
         // Short and clear notification body
         $body = "{$newStatusText} | {$order->order_number}";
 
+        $sourceView = $this->deriveSourceView($order);
+
         $data = [
             'type' => 'alwaseet_status_changed',
             'order_id' => (string) $shipment->order_id,
+            'order_number' => $order->order_number,
             'shipment_id' => (string) $shipment->id,
             'old_status' => (string)$oldStatusText,
             'new_status' => (string)$newStatusText,
+            'status' => $order->status,
+            'source_view' => $sourceView,
             'screen' => 'order_details',
         ];
 
         // Notify Admins and Suppliers
-        $this->notifyAdminsAndSuppliers($order, 'alwaseet_status_changed', $title, $body, $data, 'info');
+        $this->notifyAdminsAndSuppliers($order, 'alwaseet_status_changed', $title, $body, $data, 'info', $sourceView);
 
         // Notify Delegate separately via FCM if they are assigned
         if ($order->delegate_id) {
@@ -439,5 +458,26 @@ class AdminNotificationService
         ];
         
         return $map[$status] ?? $status;
+    }
+
+    /**
+     * Derive source_view from order status and type
+     */
+    protected function deriveSourceView(Order $order): string
+    {
+        if ($order->status === 'pending') {
+            return 'pending';
+        }
+        
+        if ($order->status === 'confirmed') {
+            return 'restricted';
+        }
+
+        if ($order->status === 'deleted' || $order->status === 'cancelled') {
+            return 'deleted';
+        }
+
+        // Default to alwaseet for most status changes if it's already there
+        return 'alwaseet';
     }
 }
