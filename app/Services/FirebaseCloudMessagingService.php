@@ -408,7 +408,7 @@ class FirebaseCloudMessagingService
             ];
 
             $recipient = User::find($recipientId);
-            $appType = ($recipient && ($recipient->isAdmin() || $recipient->isSupplier()))
+            $appType = ($recipient && ($recipient->isAdmin() || $recipient->isSupplier() || $recipient->isPrivateSupplier()))
                 ? 'admin_mobile'
                 : 'delegate_mobile';
 

@@ -43,7 +43,7 @@ class AdminNotificationService
             // Get Suppliers for these warehouses
             $supplierIds = [];
             if (!empty($warehouseIds)) {
-                $supplierIds = User::where('role', 'supplier')
+                $supplierIds = User::whereIn('role', ['supplier', 'private_supplier'])
                     ->whereHas('warehouses', function ($q) use ($warehouseIds) {
                         $q->whereIn('warehouses.id', $warehouseIds);
                     })
