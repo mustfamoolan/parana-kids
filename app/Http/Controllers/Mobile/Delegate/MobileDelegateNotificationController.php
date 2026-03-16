@@ -56,13 +56,7 @@ class MobileDelegateNotificationController extends Controller
             $existingToken = FcmToken::where('token', $token)->first();
 
             if ($existingToken) {
-                // 1. Deactivate ALL other tokens for this user and app_type first
-                FcmToken::where('user_id', $user->id)
-                    ->where('app_type', 'delegate_mobile')
-                    ->where('id', '!=', $existingToken->id)
-                    ->update(['is_active' => false]);
-
-                // 2. Update existing token and make it active
+                // Update existing token and make it active
                 $existingToken->update([
                     'user_id' => $user->id,
                     'device_type' => $deviceType,
@@ -76,12 +70,7 @@ class MobileDelegateNotificationController extends Controller
                     'message' => 'تم تحديث تسجيل الجهاز بنجاح',
                 ]);
             } else {
-                // 1. Deactivate ALL other tokens for this user and app_type first
-                FcmToken::where('user_id', $user->id)
-                    ->where('app_type', 'delegate_mobile')
-                    ->update(['is_active' => false]);
-
-                // 2. Create new token as active
+                // Create new token as active
                 FcmToken::create([
                     'user_id' => $user->id,
                     'token' => $token,
