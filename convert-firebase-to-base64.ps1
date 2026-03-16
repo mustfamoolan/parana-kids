@@ -1,7 +1,7 @@
 # Script لتحويل ملف Firebase credentials إلى Base64
 # للاستخدام في Laravel Cloud
 
-$filePath = "storage/app/parana-kids-firebase-adminsdk-fbsvc-aabd2ef994.json"
+$filePath = "storage/app/paranakids-b743f-firebase-adminsdk-fbsvc-4e1340d3ce.json"
 
 if (Test-Path $filePath) {
     Write-Host "Converting file to Base64..." -ForegroundColor Green
