@@ -141,6 +141,46 @@ class TelegramService
     }
 
     /**
+     * Send order updated notification
+     */
+    public function sendOrderUpdatedNotification($chatId, $order)
+    {
+        $phone = $order->customer_phone ?? null;
+        $socialLink = $order->customer_social_link ?? null;
+        $alwaseetOrderId = $order->alwaseetShipment?->alwaseet_order_id ?? null;
+
+        // تحميل المندوب
+        $order->loadMissing('delegate');
+        $delegate = $order->delegate;
+        $delegateName = $delegate ? $delegate->name : null;
+        $delegateRole = $delegate ? $this->getUserRoleName($delegate->role) : null;
+
+        $message = "📝 <b>تعديل على الطلب</b>\n\n";
+        $message .= "📦 {$order->order_number}\n";
+        $message .= "👤 {$order->customer_name}\n";
+
+        if ($phone) {
+            $message .= "📞 <code>{$phone}</code>\n";
+        }
+
+        if ($order->customer_address) {
+            $message .= "📍 {$order->customer_address}\n";
+        }
+
+        if ($delegateName) {
+            $roleText = $delegateRole ? " ({$delegateRole})" : '';
+            $message .= "👨‍💼 {$delegateName}{$roleText}\n";
+        }
+
+        $message .= "💰 " . number_format($order->total_amount, 2) . " د.ع\n";
+        $message .= "⏰ " . now()->format('Y-m-d H:i:s');
+
+        $keyboard = $this->buildOrderKeyboard($alwaseetOrderId, $phone, $socialLink);
+
+        return $this->sendMessage($chatId, $message, 'HTML', $keyboard);
+    }
+
+    /**
      * Send message to multiple users
      */
     public function sendToUsers(array $chatIds, $message)
@@ -250,9 +290,9 @@ class TelegramService
      */
     public function sendOrderStatusNotification($chatId, $shipment, $order)
     {
-        $status = $shipment->status ?? 'غير محدد';
-        $alwaseetOrderId = $shipment->alwaseet_order_id ?? null;
-        $phone = $shipment->client_mobile ?? $order->customer_phone ?? null;
+        $status = $shipment?->status ?? 'تغيير حالة';
+        $alwaseetOrderId = $shipment?->alwaseet_order_id ?? null;
+        $phone = $shipment?->client_mobile ?? $order->customer_phone ?? null;
         $socialLink = $order->customer_social_link ?? null;
 
         // تحميل المستخدم الذي أنشأ الطلب (المندوب)
@@ -299,7 +339,7 @@ class TelegramService
     {
         $phone = $order->customer_phone ?? null;
         $socialLink = $order->customer_social_link ?? null;
-        $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
+        $alwaseetOrderId = $order->alwaseetShipment?->alwaseet_order_id ?? null;
 
         // تحميل المستخدم الذي حذف الطلب والمندوب الأصلي
         $order->load(['deletedByUser', 'delegate']);
@@ -358,7 +398,7 @@ class TelegramService
     {
         $phone = $order->customer_phone ?? null;
         $socialLink = $order->customer_social_link ?? null;
-        $alwaseetOrderId = $order->alwaseetShipment->alwaseet_order_id ?? null;
+        $alwaseetOrderId = $order->alwaseetShipment?->alwaseet_order_id ?? null;
 
         // تحميل المستخدم الذي قيد الطلب والمندوب الأصلي
         $order->load(['confirmedBy', 'delegate']);

@@ -95,7 +95,23 @@ class AdminNotificationService
 
                 foreach ($uniqueChatIds as $chatId) {
                     try {
-                        $telegramService->sendOrderNotification($chatId, $order);
+                        if ($type === 'order_created') {
+                            $telegramService->sendOrderNotification($chatId, $order);
+                        } elseif (in_array($type, ['order_status_changed', 'alwaseet_status_changed'])) {
+                            $order->loadMissing('alwaseetShipment');
+                            $telegramService->sendOrderStatusNotification($chatId, $order->alwaseetShipment, $order);
+                        } elseif ($type === 'order_deleted') {
+                            $telegramService->sendOrderDeletedNotification($chatId, $order);
+                        } elseif ($type === 'order_updated') {
+                            if ($order->status === 'confirmed') {
+                                $telegramService->sendOrderRestrictedNotification($chatId, $order);
+                            } else {
+                                $telegramService->sendOrderUpdatedNotification($chatId, $order);
+                            }
+                        } else {
+                            // Fallback for any other types
+                            $telegramService->sendOrderNotification($chatId, $order);
+                        }
                     } catch (\Exception $e) {
                          Log::error("AdminNotificationService: Telegram failed for chat {$chatId}: " . $e->getMessage());
                     }
