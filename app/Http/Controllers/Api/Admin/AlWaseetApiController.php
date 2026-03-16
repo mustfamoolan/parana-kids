@@ -733,7 +733,7 @@ class AlWaseetApiController extends Controller
         }
     }
 
-    private function applyTrackFilters($query, Request $request)
+    private function applyTrackFilters($query, Request $request, $excludeStatusAndSearch = false)
     {
         if ($request->filled('warehouse_id')) {
             $query->whereHas('items.product', function ($q) use ($request) {
@@ -745,13 +745,13 @@ class AlWaseetApiController extends Controller
             $query->where('confirmed_by', $request->confirmed_by);
         if ($request->filled('delegate_id'))
             $query->where('delegate_id', $request->delegate_id);
-        if ($request->filled('api_status_id')) {
+        if (!$excludeStatusAndSearch && $request->filled('api_status_id')) {
             $query->whereHas('alwaseetShipment', function ($q) use ($request) {
                 $q->where('status_id', $request->api_status_id);
             });
         }
 
-        if ($request->filled('search')) {
+        if (!$excludeStatusAndSearch && $request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('order_number', 'like', "%{$search}%")
@@ -798,7 +798,7 @@ class AlWaseetApiController extends Controller
                 }
             }
 
-            $this->applyTrackFilters($query, $request);
+            $this->applyTrackFilters($query, $request, true);
             $orderIds = $query->pluck('id')->toArray();
 
             if (empty($orderIds))
