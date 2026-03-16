@@ -227,9 +227,10 @@ class MobileDelegateProductLinkController extends Controller
         }
 
         // جلب المنتجات
-        $productsQuery = Product::whereHas('sizes', function($q) {
-            $q->where('quantity', '>', 0);
-        });
+        $productsQuery = Product::where('is_hidden', false)
+            ->whereHas('sizes', function ($q) {
+                $q->where('quantity', '>', 0);
+            });
 
         // الحصول على معرفات المخازن المصرح بها للمندوب
         $userWarehouseIds = $user->warehouses()->pluck('warehouse_id');

@@ -196,9 +196,10 @@ class MobileAdminProductLinkController extends Controller
         }
 
         // جلب المنتجات
-        $productsQuery = Product::whereHas('sizes', function ($q) {
-            $q->where('quantity', '>', 0);
-        });
+        $productsQuery = Product::where('is_hidden', false)
+            ->whereHas('sizes', function ($q) {
+                $q->where('quantity', '>', 0);
+            });
 
         // فلتر حسب المخزن (إذا كان محدداً)
         if ($request->warehouse_id) {

@@ -21,7 +21,8 @@ class PublicProductController extends Controller
         }
 
         // Base query: منتجات المخزن المحدد (أو المخازن المخصصة للمستخدم إذا كان null)
-        $productsQuery = Product::with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
+        $productsQuery = Product::where('is_hidden', false)
+            ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
 
         if ($productLink->warehouse_id) {
             // إذا كان هناك مخزن محدد، عرض المنتجات من ذلك المخزن فقط
