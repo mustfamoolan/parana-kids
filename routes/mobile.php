@@ -314,4 +314,5 @@ Route::prefix('admin/notifications')->middleware('auth.pwa')->group(function () 
     Route::get('/', [MobileAdminNotificationController::class, 'index']);
     Route::post('/{id}/read', [MobileAdminNotificationController::class, 'markAsRead']);
     Route::post('/mark-all-read', [MobileAdminNotificationController::class, 'markAllAsRead']);
+    Route::delete('/unregister-token', [MobileAdminNotificationController::class, 'unregisterToken']);
 });

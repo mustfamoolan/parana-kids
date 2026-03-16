@@ -220,4 +220,55 @@ class MobileAdminNotificationController extends Controller
             ], 500);
         }
     }
+
+    public function unregisterToken(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user || $user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        try {
+            $validator = Validator::make($request->all(), [
+                'token' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $token = $request->input('token');
+
+            $deleted = FcmToken::where('user_id', $user->id)
+                ->where('token', $token)
+                ->where('app_type', 'admin_mobile')
+                ->delete();
+
+            if ($deleted) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Token unregistered successfully',
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token not found',
+                ], 404);
+            }
+        } catch (\Exception $e) {
+            Log::error('MobileAdminNotificationController: Error unregistering token: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error unregistering token',
+            ], 500);
+        }
+    }
 }
