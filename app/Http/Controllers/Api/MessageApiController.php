@@ -215,7 +215,7 @@ class MessageApiController extends Controller
                         'order_type' => ($message->order_type && $message->order_type !== 'normal') 
                             ? $message->order_type 
                             : ($order->alwaseetShipment ? 'broker' : 'normal'),
-                        'source_view' => $message->source_view ?? ($order->alwaseetShipment ? 'delegate_broker' : 'delegate_pending'), 
+                        'source_view' => $message->source_view ?? ($order->alwaseetShipment ? 'alwaseet' : ($order->status === 'pending' ? 'pending' : ($order->status === 'confirmed' ? 'restricted' : ($order->status === 'deleted' ? 'deleted' : 'pending')))), 
                         'created_at' => $order->created_at->format('Y-m-d H:i'),
                     ];
                 }
@@ -522,6 +522,8 @@ class MessageApiController extends Controller
                     'total_amount' => $order->total_amount,
                     'status' => $order->status,
                     'delegate_name' => $order->delegate ? $order->delegate->name : null,
+                    'order_type' => $order->alwaseetShipment ? 'broker' : 'normal',
+                    'source_view' => $order->alwaseetShipment ? 'alwaseet' : ($order->status === 'pending' ? 'pending' : ($order->status === 'confirmed' ? 'restricted' : ($order->status === 'deleted' ? 'deleted' : 'pending'))),
                     'created_at' => $order->created_at->format('Y-m-d H:i'),
                 ];
             });
