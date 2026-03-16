@@ -80,7 +80,13 @@ class AdminNotificationService
                 $telegramService = app(TelegramService::class);
                 $uniqueChatIds = [];
                 
-                $recipientsWithTelegram = User::whereIn('id', $recipientIds)
+                // Recipients include admins, suppliers, and the delegate of the order
+                $telegramRecipientIds = $recipientIds;
+                if ($order->delegate_id && !in_array($order->delegate_id, $telegramRecipientIds)) {
+                    $telegramRecipientIds[] = $order->delegate_id;
+                }
+
+                $recipientsWithTelegram = User::whereIn('id', $telegramRecipientIds)
                     ->whereHas('telegramChats')
                     ->with('telegramChats')
                     ->get();
@@ -99,7 +105,8 @@ class AdminNotificationService
                             $telegramService->sendOrderNotification($chatId, $order);
                         } elseif (in_array($type, ['order_status_changed', 'alwaseet_status_changed'])) {
                             $order->loadMissing('alwaseetShipment');
-                            $telegramService->sendOrderStatusNotification($chatId, $order->alwaseetShipment, $order);
+                            $statusText = $data['new_status_text'] ?? null;
+                            $telegramService->sendOrderStatusNotification($chatId, $order->alwaseetShipment, $order, $statusText);
                         } elseif ($type === 'order_deleted') {
                             $telegramService->sendOrderDeletedNotification($chatId, $order);
                         } elseif ($type === 'order_updated') {

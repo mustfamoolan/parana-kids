@@ -288,9 +288,9 @@ class TelegramService
     /**
      * Send order status notification (from API)
      */
-    public function sendOrderStatusNotification($chatId, $shipment, $order)
+    public function sendOrderStatusNotification($chatId, $shipment, $order, $customStatus = null)
     {
-        $status = $shipment?->status ?? 'تغيير حالة';
+        $status = $shipment?->status ?? $customStatus ?? 'تغيير حالة';
         $alwaseetOrderId = $shipment?->alwaseet_order_id ?? null;
         $phone = $shipment?->client_mobile ?? $order->customer_phone ?? null;
         $socialLink = $order->customer_social_link ?? null;
