@@ -187,7 +187,7 @@ class MessageApiController extends Controller
         $otherParticipant = $conversation->getOtherParticipant($user->id);
 
         $messages = $conversation->messages()
-            ->with(['user', 'order.delegate', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
+            ->with(['user', 'order.delegate', 'order.alwaseetShipment', 'order.items.product.warehouse', 'product.primaryImage', 'product.warehouse', 'product.sizes.reservations'])
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($message) use ($user, $otherParticipant, $conversation) {
@@ -508,7 +508,7 @@ class MessageApiController extends Controller
                 ->orWhere('delivery_code', 'like', "%{$query}%");
         });
 
-        $orders = $ordersQuery->with(['delegate', 'items.product.warehouse'])
+        $orders = $ordersQuery->with(['delegate', 'alwaseetShipment', 'items.product.warehouse'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get()

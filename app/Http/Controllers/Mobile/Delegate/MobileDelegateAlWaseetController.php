@@ -58,9 +58,14 @@ class MobileDelegateAlWaseetController extends Controller
                 // جلب جميع الحالات النشطة
                 $allStatuses = AlWaseetOrderStatus::getActiveStatuses();
 
-                // بناء query base - طلبات المندوب فقط مع shipment
-                $baseQuery = Order::where('delegate_id', $user->id)
+                // بناء query base - جلب الطلبات المؤكدة التي لها شحنة وسيط
+                $baseQuery = Order::where('status', 'confirmed')
                     ->whereHas('alwaseetShipment');
+
+                // تطبيق فلتر المندوب فقط إذا لم يكن هناك بحث عن رقم طلب محدد
+                if (!$request->filled('search')) {
+                    $baseQuery->where('delegate_id', $user->id);
+                }
 
                 // تطبيق الفلاتر
                 $this->applyFilters($baseQuery, $request);
@@ -181,10 +186,14 @@ class MobileDelegateAlWaseetController extends Controller
                 'error_code' => 'FORBIDDEN',
             ], 403);
         }
-
-        // بناء query base - طلبات المندوب فقط مع shipment
-        $query = Order::where('delegate_id', $user->id)
+        // بناء query base - جلب الطلبات المؤكدة التي لها شحنة وسيط
+        $query = Order::where('status', 'confirmed')
             ->whereHas('alwaseetShipment');
+
+        // تطبيق فلتر المندوب فقط إذا لم يكن هناك بحث عن رقم طلب محدد
+        if (!$request->filled('search')) {
+            $query->where('delegate_id', $user->id);
+        }
 
         // تطبيق الفلاتر
         $this->applyFilters($query, $request);
@@ -259,17 +268,16 @@ class MobileDelegateAlWaseetController extends Controller
             ], 403);
         }
 
-        // جلب الطلب مع التحقق من أنه للمندوب الحالي
+        // جلب الطلب - السماح للمندوب برؤية تفاصيل أي طلب وسيط (لتمكين الفتح من الدردشة)
         $order = Order::where('id', $id)
-            ->where('delegate_id', $user->id)
             ->whereHas('alwaseetShipment')
             ->with([
+                'delegate',
                 'items.product.primaryImage',
                 'items.product.warehouse',
                 'alwaseetShipment.statusHistory.statusInfo',
                 'confirmedBy',
-            ])
-            ->first();
+            ])->first();
 
         if (!$order) {
             return response()->json([
