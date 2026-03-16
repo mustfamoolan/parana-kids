@@ -15,8 +15,14 @@ class MobileAdminNotificationController extends Controller
     public function registerToken(Request $request)
     {
         $user = Auth::user();
+        Log::info('MobileAdminNotificationController: Registration attempt', [
+            'user_id' => $user->id ?? 'null',
+            'role' => $user->role ?? 'null',
+            'request_all' => $request->all()
+        ]);
 
         if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
+            Log::warning('MobileAdminNotificationController: Unauthorized registration attempt', ['user_id' => $user->id ?? 'null']);
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. Admin or Supplier access only.',
@@ -31,6 +37,7 @@ class MobileAdminNotificationController extends Controller
             ]);
 
             if ($validator->fails()) {
+                Log::warning('MobileAdminNotificationController: Validation failed', ['errors' => $validator->errors()]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation error',
@@ -56,6 +63,7 @@ class MobileAdminNotificationController extends Controller
                         'is_active' => true,
                     ]);
 
+                    Log::info('MobileAdminNotificationController: Token updated by device_id', ['device_id' => $deviceId, 'user_id' => $user->id]);
                     return response()->json([
                         'success' => true,
                         'message' => 'Token updated by device_id',
@@ -74,6 +82,7 @@ class MobileAdminNotificationController extends Controller
                     'app_type' => 'admin_mobile',
                     'is_active' => true,
                 ]);
+                Log::info('MobileAdminNotificationController: Existing token updated', ['token' => substr($token, 0, 15) . '...', 'user_id' => $user->id]);
             } else {
                 FcmToken::create([
                     'user_id' => $user->id,
@@ -83,6 +92,7 @@ class MobileAdminNotificationController extends Controller
                     'app_type' => 'admin_mobile',
                     'is_active' => true,
                 ]);
+                Log::info('MobileAdminNotificationController: New token registered', ['token' => substr($token, 0, 15) . '...', 'device_id' => $deviceId, 'user_id' => $user->id]);
             }
 
             return response()->json([
@@ -90,7 +100,9 @@ class MobileAdminNotificationController extends Controller
                 'message' => 'Token registered successfully',
             ]);
         } catch (\Exception $e) {
-            Log::error('MobileAdminNotificationController: Error registering token: ' . $e->getMessage());
+            Log::error('MobileAdminNotificationController: Error registering token: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error registering token',

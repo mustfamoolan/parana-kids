@@ -11,6 +11,7 @@ class FcmToken extends Model
 
     protected $fillable = [
         'user_id',
+        'device_id',
         'token',
         'device_type',
         'device_info',
