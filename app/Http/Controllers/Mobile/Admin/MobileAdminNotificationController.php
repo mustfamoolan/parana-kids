@@ -16,10 +16,10 @@ class MobileAdminNotificationController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access only.',
+                'message' => 'Unauthorized. Admin or Supplier access only.',
             ], 403);
         }
 
@@ -102,7 +102,7 @@ class MobileAdminNotificationController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -125,10 +125,10 @@ class MobileAdminNotificationController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access only.',
+                'message' => 'Unauthorized. Admin or Supplier access only.',
                 'error_code' => 'FORBIDDEN',
             ], 403);
         }
@@ -189,10 +189,10 @@ class MobileAdminNotificationController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access only.',
+                'message' => 'Unauthorized. Admin or Supplier access only.',
             ], 403);
         }
 
@@ -219,10 +219,10 @@ class MobileAdminNotificationController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access only.',
+                'message' => 'Unauthorized. Admin or Supplier access only.',
             ], 403);
         }
 
@@ -251,7 +251,7 @@ class MobileAdminNotificationController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'supplier' && $user->role !== 'private_supplier')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
