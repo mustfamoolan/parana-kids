@@ -26,6 +26,7 @@ class MobileAdminNotificationController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'token' => 'required|string',
+                'device_id' => 'nullable|string',
                 'device_type' => 'nullable|string|in:android,ios',
             ]);
 
@@ -38,13 +39,37 @@ class MobileAdminNotificationController extends Controller
             }
 
             $token = $request->input('token');
+            $deviceId = $request->input('device_id');
             $deviceType = $request->input('device_type', 'android');
 
+            // 1. إذا تم توفير device_id، نبحث عنه أولاً لتحديث التوكن لنفس الجهاز
+            if ($deviceId) {
+                $existingByDevice = FcmToken::where('device_id', $deviceId)
+                    ->where('app_type', 'admin_mobile')
+                    ->first();
+
+                if ($existingByDevice) {
+                    $existingByDevice->update([
+                        'user_id' => $user->id,
+                        'token' => $token,
+                        'device_type' => $deviceType,
+                        'is_active' => true,
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Token updated by device_id',
+                    ]);
+                }
+            }
+
+            // 2. إذا لم نجد بـ device_id أو لم يتم توفيره، نبحث بالتوكن نفسه
             $existingToken = FcmToken::where('token', $token)->first();
 
             if ($existingToken) {
                 $existingToken->update([
                     'user_id' => $user->id,
+                    'device_id' => $deviceId ?? $existingToken->device_id,
                     'device_type' => $deviceType,
                     'app_type' => 'admin_mobile',
                     'is_active' => true,
@@ -52,6 +77,7 @@ class MobileAdminNotificationController extends Controller
             } else {
                 FcmToken::create([
                     'user_id' => $user->id,
+                    'device_id' => $deviceId,
                     'token' => $token,
                     'device_type' => $deviceType,
                     'app_type' => 'admin_mobile',

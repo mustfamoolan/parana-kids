@@ -35,6 +35,7 @@ class MobileDelegateNotificationController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'token' => 'required|string',
+                'device_id' => 'nullable|string',
                 'device_type' => 'nullable|string|in:android,ios,web',
                 'device_info' => 'nullable|array',
             ]);
@@ -49,16 +50,39 @@ class MobileDelegateNotificationController extends Controller
             }
 
             $token = $request->input('token');
+            $deviceId = $request->input('device_id');
             $deviceType = $request->input('device_type', 'android');
             $deviceInfo = $request->input('device_info', []);
 
-            // البحث عن token موجود
+            // 1. البحث بواسطة device_id أولاً لتحديث التوكن لنفس الجهاز
+            if ($deviceId) {
+                $existingByDevice = FcmToken::where('device_id', $deviceId)
+                    ->where('app_type', 'delegate_mobile')
+                    ->first();
+
+                if ($existingByDevice) {
+                    $existingByDevice->update([
+                        'user_id' => $user->id,
+                        'token' => $token,
+                        'device_type' => $deviceType,
+                        'device_info' => $deviceInfo,
+                        'is_active' => true,
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'تم تحديث التوكن بواسطة معرف الجهاز',
+                    ]);
+                }
+            }
+
+            // 2. البحث بواسطة التوكن التقليدي
             $existingToken = FcmToken::where('token', $token)->first();
 
             if ($existingToken) {
-                // Update existing token and make it active
                 $existingToken->update([
                     'user_id' => $user->id,
+                    'device_id' => $deviceId ?? $existingToken->device_id,
                     'device_type' => $deviceType,
                     'device_info' => $deviceInfo,
                     'app_type' => 'delegate_mobile',
@@ -70,9 +94,9 @@ class MobileDelegateNotificationController extends Controller
                     'message' => 'تم تحديث تسجيل الجهاز بنجاح',
                 ]);
             } else {
-                // Create new token as active
                 FcmToken::create([
                     'user_id' => $user->id,
+                    'device_id' => $deviceId,
                     'token' => $token,
                     'device_type' => $deviceType,
                     'device_info' => $deviceInfo,
