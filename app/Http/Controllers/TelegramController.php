@@ -90,10 +90,10 @@ class TelegramController extends Controller
         }
 
         // Handle developer command: test
-        if ($text === 'test' || $text === 'تجربة') {
-            $devChatIds = json_decode(\App\Models\Setting::getValue('developer_telegram_chat_ids', '[]'), true);
+        if (str_starts_with($text, 'test') || str_starts_with($text, 'تجربة')) {
+            $devChatIds = json_decode(Setting::getValue('developer_telegram_chat_ids', '[]'), true);
             if (in_array($chatId, $devChatIds)) {
-                $this->handleDeveloperTestCommand($chatId);
+                $this->handleDeveloperTestCommand($chatId, $text);
                 return;
             }
         }
@@ -309,32 +309,47 @@ class TelegramController extends Controller
     /**
      * Handle test FCM command for developers
      */
-    protected function handleDeveloperTestCommand($chatId)
+    protected function handleDeveloperTestCommand($chatId, $text)
     {
-        // البحث عن أي مستخدم مربوط بهذا الـ Chat ID
-        $linkedChat = UserTelegramChat::where('chat_id', $chatId)->first();
-        
-        if (!$linkedChat) {
-            $this->sendMessage($chatId, "⚠️ أنت حساب مطور ولكن حسابك في النظام غير مربوط بالبوت.\n\nيرجى ربط حسابك أولاً عن طريق إرسال رقم هاتفك ثم كلمة المرور لكي يصلك الإشعار على هاتفك.");
-            return;
+        // التحقق إذا كان المطور حدد رقم مستخدم معين: test 123
+        $parts = explode(' ', trim($text));
+        $targetUserId = null;
+        if (isset($parts[1]) && is_numeric($parts[1])) {
+            $targetUserId = $parts[1];
         }
 
-        $user = $linkedChat->user;
-        $this->sendMessage($chatId, "⏳ جاري إرسال إشعار تجريبي (FCM) للمستخدم: <b>{$user->name}</b>...");
+        if ($targetUserId) {
+            $user = User::find($targetUserId);
+            if (!$user) {
+                $this->sendMessage($chatId, "❌ لم نجد مستخدم بالرقم: <code>{$targetUserId}</code>");
+                return;
+            }
+        } else {
+            // البحث عن أي مستخدم مربوط بهذا الـ Chat ID لإرسال التجربة لهاتفه
+            $linkedChat = UserTelegramChat::where('chat_id', $chatId)->first();
+            
+            if (!$linkedChat) {
+                $this->sendMessage($chatId, "⚠️ لا يمكنني معرفة أي هاتف هو هاتفك لأنك لم تربط حسابك (العادي) بالبوت بعد.\n\n<b>أمامك خياران:</b>\n1. اربط حسابك (أرسل رقم هاتفك ثم الباسورد) لكي تستلم الإشعار على هاتفك الشخصي.\n2. أرسل <code>test [user_id]</code> لتجربة الإرسال لمسخدم معين (مثلاً: <code>test 1</code>).");
+                return;
+            }
+            $user = $linkedChat->user;
+        }
+
+        $this->sendMessage($chatId, "⏳ جاري محاولة إرسال إشعار (Push) للمستخدم: <b>{$user->name}</b> (ID: {$user->id})...");
 
         // محاولة الإرسال لجميع أنواع التطبيقات الممكنة للمستخدم
         $appTypes = ['delegate_mobile', 'admin_mobile'];
         $foundTokens = false;
 
         foreach ($appTypes as $appType) {
-            $tokens = FcmToken::where('user_id', $user->id)
+            $tokensExist = FcmToken::where('user_id', $user->id)
                 ->where('app_type', $appType)
                 ->where('is_active', true)
                 ->exists();
             
-            if ($tokens) {
+            if ($tokensExist) {
                 $foundTokens = true;
-                $this->telegramService->sendMessage($chatId, "🚀 جاري التجربة على تطبيق: <code>{$appType}</code>");
+                $this->sendMessage($chatId, "🚀 جاري التجربة على تطبيق: <code>{$appType}</code>");
                 $this->fcmService->sendToUser($user->id, "إشعار تجريبي مطور", "إذا وصلك هذا يعني أن الـ FCM يعمل بنجاح ✅", [
                     'type' => 'test',
                     'screen' => 'home'
@@ -343,7 +358,7 @@ class TelegramController extends Controller
         }
 
         if (!$foundTokens) {
-            $this->sendMessage($chatId, "❌ لم نجد أي توكنات نشطة (Active Tokens) لهذا المستخدم في قاعدة البيانات.\n\nيرجى فتح التطبيق في الموبايل لكي يتم تحديث التوكن.");
+            $this->sendMessage($chatId, "❌ لم نجد أي توكنات نشطة لهذا المستخدم في النظام.\n\nيجب أن يكون المستخدم قد فتح التطبيق الموبابل وسجل دخول مؤخراً.");
         }
     }
 
