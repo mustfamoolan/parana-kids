@@ -135,6 +135,11 @@ class FirebaseCloudMessagingService
     protected function logToDevelopers($message)
     {
         try {
+            // التحقق من أن الرسالة نصية
+            if (is_array($message) || is_object($message)) {
+                $message = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            }
+
             $devChatIdsJson = \App\Models\Setting::getValue('developer_telegram_chat_ids', '[]');
             $devChatIds = json_decode($devChatIdsJson, true);
 
@@ -144,7 +149,7 @@ class FirebaseCloudMessagingService
 
             $telegramService = app(TelegramService::class);
             foreach ($devChatIds as $chatId) {
-                $telegramService->sendMessage($chatId, "🛠 <b>FCM Log:</b>\n\n" . $message);
+                $telegramService->sendMessage($chatId, "🛠 <b>FCM Log:</b>\n\n" . (string)$message);
             }
         } catch (\Exception $e) {
             Log::error('FCM Service: Failed to log to developers', ['error' => $e->getMessage()]);
@@ -259,10 +264,15 @@ class FirebaseCloudMessagingService
         $successCount = 0;
         $invalidTokens = [];
 
+        // التأكد من أن العنوان والرسالة نصوص
+        $title = is_array($title) || is_object($title) ? json_encode($title, JSON_UNESCAPED_UNICODE) : (string)$title;
+        $body = is_array($body) || is_object($body) ? json_encode($body, JSON_UNESCAPED_UNICODE) : (string)$body;
+
         try {
             // إرسال لكل token على حدة (للتأكد من معالجة الأخطاء بشكل صحيح)
             foreach ($tokens as $token) {
                 try {
+                    $token = (string)$token;
                     $notification = FirebaseNotification::create($title, $body);
 
                     // Android Configuration - High Priority with Sound
@@ -326,7 +336,7 @@ class FirebaseCloudMessagingService
                         'title' => $title,
                     ]);
 
-                    $this->logToDevelopers("✅ <b>نجاح الإرسال</b>\n\nالعنوان: {$title}\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>\nالمعرف: <code>{$result}</code>");
+                    $this->logToDevelopers("✅ <b>نجاح الإرسال</b>\n\nالعنوان: " . (string)$title . "\nالتوكن: <code>" . substr((string)$token, 0, 15) . "...</code>\nالمعرف: <code>" . (string)$result . "</code>");
 
                     $successCount++;
 
