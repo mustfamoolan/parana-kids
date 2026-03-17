@@ -297,13 +297,20 @@ class FirebaseCloudMessagingService
                         ],
                     ]);
 
-                    $message = CloudMessage::withTarget('token', $token)
-                        ->withNotification($notification)
-                        ->withData(array_merge([
+                    // تصفية البيانات للتأكد من أن جميع القيم نصوص (Strings) فقط
+                    // FCM Data accepts only string values
+                    $sanitizedData = [];
+                    foreach (array_merge([
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         'sound' => 'default',
                         'priority' => 'high',
-                    ], $data))
+                    ], $data) as $key => $value) {
+                        $sanitizedData[(string)$key] = is_array($value) ? json_encode($value) : (string)$value;
+                    }
+
+                    $message = CloudMessage::withTarget('token', $token)
+                        ->withNotification($notification)
+                        ->withData($sanitizedData)
                         ->withAndroidConfig($androidConfig)
                         ->withApnsConfig($apnsConfig);
 
@@ -332,11 +339,20 @@ class FirebaseCloudMessagingService
                 }
                 catch (\Exception $e) {
                     $this->debugInfo['last_send_error'] = $e->getMessage();
+                    $errorMessage = $e->getMessage();
+                    
                     Log::error('FirebaseCloudMessagingService: Failed to send to token', [
                         'token' => substr($token, 0, 20) . '...',
-                        'error' => $e->getMessage(),
+                        'error' => $errorMessage,
                     ]);
-                    $this->logToDevelopers("❌ <b>فشل الإرسال لتوكن</b>\n\nالخطأ: <code>{$e->getMessage()}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
+
+                    // إذا كان الخطأ "Requested entity was not found" فهذا يعني التوكن منتهي/غير صحيح
+                    if (str_contains($errorMessage, 'Requested entity was not found') || str_contains($errorMessage, 'unregistered')) {
+                        $this->logToDevelopers("⚠️ <b>توكن غير موجود (Expired/Invalid)</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
+                        $invalidTokens[] = $token;
+                    } else {
+                        $this->logToDevelopers("❌ <b>فشل الإرسال لتوكن</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
+                    }
                 }
             }
 
