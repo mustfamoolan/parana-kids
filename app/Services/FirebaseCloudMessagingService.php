@@ -125,6 +125,29 @@ class FirebaseCloudMessagingService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            $this->logToDevelopers("❌ <b>فشل تهيئة خدمة FCM</b>\n\nالخطأ: <code>{$e->getMessage()}</code>");
+        }
+    }
+
+    /**
+     * Send log message to developers via Telegram
+     */
+    protected function logToDevelopers($message)
+    {
+        try {
+            $devChatIdsJson = \App\Models\Setting::getValue('developer_telegram_chat_ids', '[]');
+            $devChatIds = json_decode($devChatIdsJson, true);
+
+            if (empty($devChatIds)) {
+                return;
+            }
+
+            $telegramService = app(TelegramService::class);
+            foreach ($devChatIds as $chatId) {
+                $telegramService->sendMessage($chatId, "🛠 <b>FCM Log:</b>\n\n" . $message);
+            }
+        } catch (\Exception $e) {
+            Log::error('FCM Service: Failed to log to developers', ['error' => $e->getMessage()]);
         }
     }
 
@@ -149,12 +172,18 @@ class FirebaseCloudMessagingService
                 ->toArray();
 
             if (empty($tokens)) {
+                $fcmCount = FcmToken::where('user_id', $userId)->count();
+                $activeCount = FcmToken::where('user_id', $userId)->where('is_active', true)->count();
+                
                 Log::warning('FirebaseCloudMessagingService: No tokens found for user', [
                     'user_id' => $userId,
                     'app_type' => $appType,
-                    'total_tokens' => FcmToken::where('user_id', $userId)->count(),
-                    'active_tokens' => FcmToken::where('user_id', $userId)->where('is_active', true)->count(),
+                    'total_tokens' => $fcmCount,
+                    'active_tokens' => $activeCount,
                 ]);
+
+                $this->logToDevelopers("⚠️ <b>لا توجد توكنات نشطة</b>\n\nالمستخدم: <code>{$userId}</code>\nالنوع: <code>{$appType}</code>\nإجمالي التوكنات: {$fcmCount}\nالنشطة منها: {$activeCount}");
+                
                 return false;
             }
 
@@ -286,6 +315,8 @@ class FirebaseCloudMessagingService
                         'title' => $title,
                     ]);
 
+                    $this->logToDevelopers("✅ <b>نجاح الإرسال</b>\n\nالعنوان: {$title}\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>\nالمعرف: <code>{$result}</code>");
+
                     $successCount++;
 
                 }
@@ -296,6 +327,7 @@ class FirebaseCloudMessagingService
                         'token' => substr($token, 0, 20) . '...',
                         'error' => $e->getMessage(),
                     ]);
+                    $this->logToDevelopers("⚠️ <b>توكن غير صالح (Invalid Token)</b>\n\nالخطأ: <code>{$e->getMessage()}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
                     $invalidTokens[] = $token;
                 }
                 catch (\Exception $e) {
@@ -304,6 +336,7 @@ class FirebaseCloudMessagingService
                         'token' => substr($token, 0, 20) . '...',
                         'error' => $e->getMessage(),
                     ]);
+                    $this->logToDevelopers("❌ <b>فشل الإرسال لتوكن</b>\n\nالخطأ: <code>{$e->getMessage()}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
                 }
             }
 

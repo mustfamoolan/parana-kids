@@ -60,6 +60,29 @@ class TelegramController extends Controller
             'from' => $from,
         ]);
 
+        // Handle developer login - Step 1
+        if ($text === 'moolan') {
+            Cache::put("telegram_dev_link_{$chatId}", 'pending_password', now()->addMinutes(5));
+            $this->sendMessage($chatId, "🔐 أهلاً بك أيها المطور.\n\nيرجى إرسال كلمة المرور لتفعيل استلام التقارير:");
+            return;
+        }
+
+        // Handle developer login - Step 2 (Password)
+        if (Cache::get("telegram_dev_link_{$chatId}") === 'pending_password') {
+            if ($text === '12345678') {
+                Cache::forget("telegram_dev_link_{$chatId}");
+                $devChatIds = json_decode(\App\Models\Setting::getValue('developer_telegram_chat_ids', '[]'), true);
+                if (!in_array($chatId, $devChatIds)) {
+                    $devChatIds[] = $chatId;
+                    \App\Models\Setting::setValue('developer_telegram_chat_ids', json_encode($devChatIds), 'معرفات تليكرام للمطورين لاستلام اللوكات');
+                }
+                $this->sendMessage($chatId, "✅ تم تفعيل حساب المطور بنجاح!\n\nستصلك الآن جميع تقارير (Logs) إشعارات الفايربيس مباشرة هنا.");
+            } else {
+                $this->sendMessage($chatId, "❌ كلمة المرور خاطئة.");
+            }
+            return;
+        }
+
         // Handle /start command
         if ($text === '/start') {
             $this->handleStartCommand($chatId, $from);
@@ -80,8 +103,6 @@ class TelegramController extends Controller
         }
 
         // Handle phone number or code for linking (accepts alphanumeric codes)
-        // Phone: +1234567890 or 1234567890 (10-15 digits)
-        // Code: alphanumeric (3-20 chars) like SUP999, ABC123, etc.
         if (preg_match('/^(\+?\d{10,15})$/', $text) || preg_match('/^[A-Za-z0-9]{3,20}$/', $text)) {
             $this->handleLinkRequest($chatId, $text);
             return;
