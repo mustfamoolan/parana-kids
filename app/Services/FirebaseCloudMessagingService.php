@@ -305,7 +305,11 @@ class FirebaseCloudMessagingService
                         'sound' => 'default',
                         'priority' => 'high',
                     ], $data) as $key => $value) {
-                        $sanitizedData[(string)$key] = is_array($value) ? json_encode($value) : (string)$value;
+                        if (is_array($value) || is_object($value)) {
+                            $sanitizedData[(string)$key] = json_encode($value);
+                        } else {
+                            $sanitizedData[(string)$key] = (string)$value;
+                        }
                     }
 
                     $message = CloudMessage::withTarget('token', $token)
@@ -339,7 +343,7 @@ class FirebaseCloudMessagingService
                 }
                 catch (\Exception $e) {
                     $this->debugInfo['last_send_error'] = $e->getMessage();
-                    $errorMessage = $e->getMessage();
+                    $errorMessage = (string)$e->getMessage();
                     
                     Log::error('FirebaseCloudMessagingService: Failed to send to token', [
                         'token' => substr($token, 0, 20) . '...',
@@ -347,7 +351,7 @@ class FirebaseCloudMessagingService
                     ]);
 
                     // إذا كان الخطأ "Requested entity was not found" فهذا يعني التوكن منتهي/غير صحيح
-                    if (str_contains($errorMessage, 'Requested entity was not found') || str_contains($errorMessage, 'unregistered')) {
+                    if (stripos($errorMessage, 'Requested entity was not found') !== false || stripos($errorMessage, 'unregistered') !== false) {
                         $this->logToDevelopers("⚠️ <b>توكن غير موجود (Expired/Invalid)</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
                         $invalidTokens[] = $token;
                     } else {

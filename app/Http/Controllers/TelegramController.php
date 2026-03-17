@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Setting;
+use App\Models\FcmToken;
+use App\Models\UserTelegramChat;
 use App\Services\TelegramService;
+use App\Services\FirebaseCloudMessagingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
@@ -13,10 +17,12 @@ use Telegram\Bot\Api;
 class TelegramController extends Controller
 {
     protected $telegramService;
+    protected $fcmService;
 
-    public function __construct(TelegramService $telegramService)
+    public function __construct(TelegramService $telegramService, FirebaseCloudMessagingService $fcmService)
     {
         $this->telegramService = $telegramService;
+        $this->fcmService = $fcmService;
     }
 
     /**
@@ -71,16 +77,25 @@ class TelegramController extends Controller
         if (Cache::get("telegram_dev_link_{$chatId}") === 'pending_password') {
             if ($text === '12345678') {
                 Cache::forget("telegram_dev_link_{$chatId}");
-                $devChatIds = json_decode(\App\Models\Setting::getValue('developer_telegram_chat_ids', '[]'), true);
+                $devChatIds = json_decode(Setting::getValue('developer_telegram_chat_ids', '[]'), true);
                 if (!in_array($chatId, $devChatIds)) {
                     $devChatIds[] = $chatId;
-                    \App\Models\Setting::setValue('developer_telegram_chat_ids', json_encode($devChatIds), 'معرفات تليكرام للمطورين لاستلام اللوكات');
+                    Setting::setValue('developer_telegram_chat_ids', json_encode($devChatIds), 'معرفات تليكرام للمطورين لاستلام اللوكات');
                 }
-                $this->sendMessage($chatId, "✅ تم تفعيل حساب المطور بنجاح!\n\nستصلك الآن جميع تقارير (Logs) إشعارات الفايربيس مباشرة هنا.");
+                $this->sendMessage($chatId, "✅ تم تفعيل حساب المطور بنجاح!\n\nستصلك الآن جميع تقارير (Logs) إشعارات الفايربيس مباشرة هنا.\n\nيمكنك إرسال <b>test</b> أو <b>تجربة</b> لإرسال إشعار تجريبي لهاتفك.");
             } else {
                 $this->sendMessage($chatId, "❌ كلمة المرور خاطئة.");
             }
             return;
+        }
+
+        // Handle developer command: test
+        if ($text === 'test' || $text === 'تجربة') {
+            $devChatIds = json_decode(\App\Models\Setting::getValue('developer_telegram_chat_ids', '[]'), true);
+            if (in_array($chatId, $devChatIds)) {
+                $this->handleDeveloperTestCommand($chatId);
+                return;
+            }
         }
 
         // Handle /start command
@@ -289,6 +304,47 @@ class TelegramController extends Controller
             'chat_id' => $chatId,
             'remaining_devices' => $remainingDevices,
         ]);
+    }
+
+    /**
+     * Handle test FCM command for developers
+     */
+    protected function handleDeveloperTestCommand($chatId)
+    {
+        // البحث عن أي مستخدم مربوط بهذا الـ Chat ID
+        $linkedChat = UserTelegramChat::where('chat_id', $chatId)->first();
+        
+        if (!$linkedChat) {
+            $this->sendMessage($chatId, "⚠️ أنت حساب مطور ولكن حسابك في النظام غير مربوط بالبوت.\n\nيرجى ربط حسابك أولاً عن طريق إرسال رقم هاتفك ثم كلمة المرور لكي يصلك الإشعار على هاتفك.");
+            return;
+        }
+
+        $user = $linkedChat->user;
+        $this->sendMessage($chatId, "⏳ جاري إرسال إشعار تجريبي (FCM) للمستخدم: <b>{$user->name}</b>...");
+
+        // محاولة الإرسال لجميع أنواع التطبيقات الممكنة للمستخدم
+        $appTypes = ['delegate_mobile', 'admin_mobile'];
+        $foundTokens = false;
+
+        foreach ($appTypes as $appType) {
+            $tokens = FcmToken::where('user_id', $user->id)
+                ->where('app_type', $appType)
+                ->where('is_active', true)
+                ->exists();
+            
+            if ($tokens) {
+                $foundTokens = true;
+                $this->telegramService->sendMessage($chatId, "🚀 جاري التجربة على تطبيق: <code>{$appType}</code>");
+                $this->fcmService->sendToUser($user->id, "إشعار تجريبي مطور", "إذا وصلك هذا يعني أن الـ FCM يعمل بنجاح ✅", [
+                    'type' => 'test',
+                    'screen' => 'home'
+                ], $appType);
+            }
+        }
+
+        if (!$foundTokens) {
+            $this->sendMessage($chatId, "❌ لم نجد أي توكنات نشطة (Active Tokens) لهذا المستخدم في قاعدة البيانات.\n\nيرجى فتح التطبيق في الموبايل لكي يتم تحديث التوكن.");
+        }
     }
 
     /**
