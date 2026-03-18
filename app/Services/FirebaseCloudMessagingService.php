@@ -147,12 +147,21 @@ class FirebaseCloudMessagingService
                 return;
             }
 
+            // التأكد من أن الرسالة نصية تماماً لتجنب Array to string conversion
+            $finalMessage = is_array($message) || is_object($message) 
+                ? json_encode($message, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) 
+                : (string)$message;
+
             $telegramService = app(TelegramService::class);
             foreach ($devChatIds as $chatId) {
-                $telegramService->sendMessage($chatId, "🛠 <b>FCM Log:</b>\n\n" . (string)$message);
+                $telegramService->sendMessage($chatId, "🛠 <b>FCM Log:</b>\n\n" . $finalMessage);
             }
         } catch (\Exception $e) {
-            Log::error('FCM Service: Failed to log to developers', ['error' => $e->getMessage()]);
+            Log::error('FCM Service: Failed to log to developers', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
         }
     }
 
@@ -354,18 +363,24 @@ class FirebaseCloudMessagingService
                 catch (\Exception $e) {
                     $this->debugInfo['last_send_error'] = $e->getMessage();
                     $errorMessage = (string)$e->getMessage();
+                    $errorFile = $e->getFile();
+                    $errorLine = $e->getLine();
                     
                     Log::error('FirebaseCloudMessagingService: Failed to send to token', [
-                        'token' => substr($token, 0, 20) . '...',
+                        'token' => substr((string)$token, 0, 20) . '...',
                         'error' => $errorMessage,
+                        'file' => $errorFile,
+                        'line' => $errorLine,
                     ]);
+
+                    $debugText = "\nالسطر: <code>{$errorLine}</code>\nالملف: <code>" . basename($errorFile) . "</code>";
 
                     // إذا كان الخطأ "Requested entity was not found" فهذا يعني التوكن منتهي/غير صحيح
                     if (stripos($errorMessage, 'Requested entity was not found') !== false || stripos($errorMessage, 'unregistered') !== false) {
-                        $this->logToDevelopers("⚠️ <b>توكن غير موجود (Expired/Invalid)</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
+                        $this->logToDevelopers("⚠️ <b>توكن غير موجود (Expired/Invalid)</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr((string)$token, 0, 15) . "...</code>" . $debugText);
                         $invalidTokens[] = $token;
                     } else {
-                        $this->logToDevelopers("❌ <b>فشل الإرسال لتوكن</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
+                        $this->logToDevelopers("❌ <b>فشل الإرسال لتوكن</b>\n\nالخطأ: <code>{$errorMessage}</code>\nالتوكن: <code>" . substr((string)$token, 0, 15) . "...</code>" . $debugText);
                     }
                 }
             }
