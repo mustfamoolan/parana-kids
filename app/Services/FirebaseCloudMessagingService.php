@@ -345,7 +345,8 @@ class FirebaseCloudMessagingService
                         'title' => $title,
                     ]);
 
-                    $this->logToDevelopers("✅ <b>نجاح الإرسال</b>\n\nالعنوان: " . (string)$title . "\nالتوكن: <code>" . substr((string)$token, 0, 15) . "...</code>\nالمعرف: <code>" . (string)$result . "</code>");
+                    $resultString = is_array($result) || is_object($result) ? json_encode($result) : (string)$result;
+                    $this->logToDevelopers("✅ <b>نجاح الإرسال</b>\n\nالعنوان: " . (string)$title . "\nالتوكن: <code>" . substr((string)$token, 0, 15) . "...</code>\nالمعرف: <code>" . $resultString . "</code>");
 
                     $successCount++;
 
