@@ -342,13 +342,13 @@ class FirebaseCloudMessagingService
 
                 }
                 catch (InvalidArgument $e) {
-                    // Token غير صالح - تعطيله
+                    // Token غير صالح - حذفه فوراً
                     $this->debugInfo['last_send_error'] = $e->getMessage();
-                    Log::warning('FirebaseCloudMessagingService: Invalid token', [
+                    Log::warning('FirebaseCloudMessagingService: Invalid token (Deleting)', [
                         'token' => substr($token, 0, 20) . '...',
                         'error' => $e->getMessage(),
                     ]);
-                    $this->logToDevelopers("⚠️ <b>توكن غير صالح (Invalid Token)</b>\n\nالخطأ: <code>{$e->getMessage()}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
+                    $this->logToDevelopers("⚠️ <b>توكن غير صالح - تم الحذف</b>\n\nالخطأ: <code>{$e->getMessage()}</code>\nالتوكن: <code>" . substr($token, 0, 15) . "...</code>");
                     $invalidTokens[] = $token;
                 }
                 catch (\Exception $e) {
@@ -370,10 +370,9 @@ class FirebaseCloudMessagingService
                 }
             }
 
-            // تعطيل tokens غير الصالحة
+            // حذف tokens غير الصالحة نهائياً لتنظيف القاعدة
             if (!empty($invalidTokens)) {
-                FcmToken::whereIn('token', $invalidTokens)
-                    ->update(['is_active' => false]);
+                FcmToken::whereIn('token', $invalidTokens)->delete();
             }
 
             Log::info('FirebaseCloudMessagingService: Notifications sent', [

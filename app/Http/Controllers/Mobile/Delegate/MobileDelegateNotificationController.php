@@ -61,6 +61,7 @@ class MobileDelegateNotificationController extends Controller
                     ->first();
 
                 if ($existingByDevice) {
+                    $existingByDevice->touch(); // تحديث updated_at حتى لو لم تتغير البيانات
                     $existingByDevice->update([
                         'user_id' => $user->id,
                         'token' => $token,
@@ -80,6 +81,7 @@ class MobileDelegateNotificationController extends Controller
             $existingToken = FcmToken::where('token', $token)->first();
 
             if ($existingToken) {
+                $existingToken->touch(); // تحديث updated_at
                 $existingToken->update([
                     'user_id' => $user->id,
                     'device_id' => $deviceId ?? $existingToken->device_id,
