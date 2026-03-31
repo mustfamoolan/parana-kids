@@ -12,6 +12,7 @@ use App\Http\Controllers\Delegate\ProductController as DelegateProductController
 use App\Http\Controllers\Delegate\CartController;
 use App\Http\Controllers\Delegate\CartItemController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\StoreOrderController as AdminStoreOrderController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\StoreAppSettingController;
@@ -348,6 +349,7 @@ Route::prefix('admin')->group(function () {
 
         // إدارة الطلبات (الصفحة الجديدة الموحدة)
         Route::get('orders-management', [AdminOrderController::class, 'management'])->name('admin.orders.management');
+        Route::get('store-orders', [AdminStoreOrderController::class, 'index'])->name('admin.orders.store_management');
         Route::get('orders-pending', [AdminOrderController::class, 'pendingOrders'])->name('admin.orders.pending');
         Route::get('orders-confirmed', [AdminOrderController::class, 'confirmedOrders'])->name('admin.orders.confirmed');
 

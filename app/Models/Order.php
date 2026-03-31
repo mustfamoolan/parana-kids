@@ -45,6 +45,8 @@ class Order extends Model
         'alwaseet_city_id',
         'alwaseet_region_id',
         'alwaseet_delivery_time_note',
+        'source',
+        'customer_id',
     ];
 
     protected $casts = [
@@ -59,7 +61,8 @@ class Order extends Model
     protected $appends = [
         'deleted_by_user_data',
         'created_at_formatted',
-        'created_at_time'
+        'created_at_time',
+        'app_status'
     ];
 
     protected static function boot()
@@ -140,6 +143,11 @@ class Order extends Model
     public function delegate()
     {
         return $this->belongsTo(User::class, 'delegate_id');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(User::class, 'customer_id');
     }
 
     public function cart()
@@ -385,6 +393,39 @@ class Order extends Model
         $ampm = $this->created_at->format('A') === 'AM' ? 'صباحاً' : 'مساءً';
 
         return "{$time} {$ampm}";
+    }
+
+    public function getAppStatusAttribute()
+    {
+        // 1. Check for cancellation
+        if ($this->status === 'cancelled') {
+            return 'ملغي';
+        }
+
+        // 2. Check for AlWaseet status (If confirmed and linked to AlWaseet)
+        if ($this->status === 'confirmed' && $this->alwaseetShipment) {
+            $alwaseetStatusId = (string)$this->alwaseetShipment->status_id;
+            
+            // "تم الاستلام من قبل المندوب" usually status 3
+            if ($alwaseetStatusId === '3') {
+                return 'قيد التوصيل';
+            }
+            
+            // "تم التسليم للزبون" usually status 4
+            if ($alwaseetStatusId === '4') {
+                return 'تم التسليم';
+            }
+
+            // Any other AlWaseet status still counts as "Processing" for the customer
+            return 'قيد التجهيز';
+        }
+
+        // 3. Fallback to basic statuses
+        return match($this->status) {
+            'pending' => 'معلق',
+            'confirmed' => 'قيد التجهيز',
+            default => 'معلق',
+        };
     }
 }
 

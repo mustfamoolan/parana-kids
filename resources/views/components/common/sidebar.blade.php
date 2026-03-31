@@ -301,6 +301,19 @@
                     </a>
                 </li>
 
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.orders.store_management') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5" d="M3 17V7C3 5.89543 3.89543 5 5 5H19C20.1046 5 21 5.89543 21 7V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17Z" fill="currentColor"/>
+                                <path d="M10 5L10 3C10 2.44772 10.4477 2 11 2H13C13.5523 2 14 2.44772 14 3V5H10Z" fill="currentColor"/>
+                                <path d="M3 11L21 11" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">طلبات المتجر</span>
+                        </div>
+                    </a>
+                </li>
+
                 @if(auth()->user()->isAdmin())
                 <li class="menu nav-item">
                     <a href="{{ route('admin.alwaseet.dashboard') }}" class="nav-link group">

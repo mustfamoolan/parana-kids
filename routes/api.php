@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MaterialApiController;
 use App\Http\Controllers\Api\CustomerApiController;
 use App\Http\Controllers\Api\StoreSettingApiController;
 use App\Http\Controllers\Api\CustomerProductApiController;
+use App\Http\Controllers\Api\CustomerOrderApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,6 +51,10 @@ Route::prefix('customer')->group(function () {
 Route::middleware('auth.pwa')->group(function () {
     // معلومات المستخدم الحالي
     Route::get('/user', [UserApiController::class, 'me']);
+
+    // تحديث بيانات المستخدم الحالي
+    Route::get('/customer/orders', [CustomerOrderApiController::class, 'index']);
+    Route::post('/customer/orders', [CustomerOrderApiController::class, 'store']);
 
     // تحديث بيانات المستخدم الحالي
     Route::put('/user', [UserApiController::class, 'update']);
