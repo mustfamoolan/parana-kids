@@ -28,7 +28,7 @@ class CustomerProductApiController extends Controller
         }
 
         // 2. Build Query
-        $query = Product::with(['primaryImage', 'warehouse.activePromotion'])
+        $query = Product::with(['primaryImage', 'sizes', 'warehouse.activePromotion'])
             ->whereIn('warehouse_id', $allowedWarehouses)
             ->where('is_hidden', false);
 
@@ -160,6 +160,14 @@ class CustomerProductApiController extends Controller
             'discount_percentage' => $discountInfo ? (float)$discountInfo['percentage'] : 0,
             'primary_image' => $product->primary_image_url ?? '',
             'warehouse_name' => $product->warehouse ? $product->warehouse->name : '',
+            'sizes' => $product->sizes->map(function($size) {
+                return [
+                    'id' => $size->id,
+                    'size_name' => $size->size_name,
+                    'quantity' => (int)$size->quantity,
+                    'available' => (int)$size->quantity > 0,
+                ];
+            })->values(),
         ];
     }
 
