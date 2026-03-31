@@ -70,6 +70,7 @@ class StoreSettingApiController extends Controller
                 ],
                 'customer_allowed_warehouses' => $customerAllowedWarehouses,
                 'categories' => $categories,
+                'delivery_fee' => Setting::getDeliveryFee(),
             ]
         ]);
     }
