@@ -131,7 +131,7 @@ class CustomerProductApiController extends Controller
             'effective_price' => (float)$product->effective_price,
             'has_discount' => $product->hasActiveDiscount(),
             'discount_percentage' => $discountInfo ? (float)$discountInfo['percentage'] : 0,
-            'primary_image' => $product->primary_image_url ? url(Storage::url($product->primary_image_url)) : '',
+            'primary_image' => $product->primary_image_url ?? '',
             'warehouse_name' => $product->warehouse ? $product->warehouse->name : '',
         ];
     }
@@ -159,7 +159,7 @@ class CustomerProductApiController extends Controller
                 'percentage' => (float)$discountInfo['percentage']
             ] : null,
             'images' => $product->images->map(function($img) {
-                return url(Storage::url($img->image_path));
+                return $img->image_url;
             }),
             'sizes' => $product->sizes->map(function($size) {
                 return [
