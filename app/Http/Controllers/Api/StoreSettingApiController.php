@@ -47,6 +47,15 @@ class StoreSettingApiController extends Controller
             $customerAllowedWarehouses = [];
         }
 
+        // 5. الأقسام (Categories)
+        $categories = [
+            ['id' => 'all', 'name' => 'الكل'],
+            ['id' => 'girls', 'name' => 'بناتي'],
+            ['id' => 'boys', 'name' => 'ولادي'],
+            ['id' => 'boys_girls', 'name' => 'ولادي بناتي'],
+            ['id' => 'accessories', 'name' => 'إكسسوارات'],
+        ];
+
         // بناء الرد
         return response()->json([
             'success' => true,
@@ -60,6 +69,7 @@ class StoreSettingApiController extends Controller
                     'image' => $announcementImage,
                 ],
                 'customer_allowed_warehouses' => $customerAllowedWarehouses,
+                'categories' => $categories,
             ]
         ]);
     }

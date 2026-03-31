@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\MessageApiController;
 use App\Http\Controllers\Api\DelegateProductApiController;
 use App\Http\Controllers\Api\MaterialApiController;
 use App\Http\Controllers\Api\CustomerApiController;
+use App\Http\Controllers\Api\StoreSettingApiController;
+use App\Http\Controllers\Api\CustomerProductApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,7 +36,14 @@ Route::post('/delegate/login', [UserApiController::class, 'loginDelegate']);
 Route::post('/customer/google-login', [CustomerApiController::class, 'googleLogin']);
 
 // إعدادات تطبيق المتجر (صور و بنرات للواجهات) متاحة للكل (لشاشة البداية وتسجيل الدخول)
-Route::get('/store-settings', [\App\Http\Controllers\Api\StoreSettingApiController::class, 'getSettings']);
+Route::get('/store-settings', [StoreSettingApiController::class, 'getSettings']);
+
+// Customer Product Routes
+Route::prefix('customer')->group(function () {
+    Route::get('/products', [CustomerProductApiController::class, 'index']);
+    Route::get('/products/{id}', [CustomerProductApiController::class, 'show']);
+    Route::get('/products/{id}/suggestions', [CustomerProductApiController::class, 'suggestions']);
+});
 
 // المسارات المحمية (تتطلب PWA token)
 Route::middleware('auth.pwa')->group(function () {
