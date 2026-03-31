@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -35,12 +36,24 @@ class StoreAppSettingController extends Controller
         $announcementSubtitle = Setting::getValue('app_home_announcement_subtitle', '');
         $announcementImage = Setting::getValue('app_home_announcement_image', '');
 
+        // المخازن المسموحة للعملاء
+        $customerAllowedWarehousesJson = Setting::getValue('app_customer_allowed_warehouses', '[]');
+        $customerAllowedWarehouses = json_decode($customerAllowedWarehousesJson, true);
+        if (!is_array($customerAllowedWarehouses)) {
+            $customerAllowedWarehouses = [];
+        }
+
+        // جلب جميع المخازن
+        $warehouses = Warehouse::all();
+
         return view('admin.store-settings.index', compact(
             'loginImages',
             'sliderImages',
             'announcementTitle',
             'announcementSubtitle',
-            'announcementImage'
+            'announcementImage',
+            'customerAllowedWarehouses',
+            'warehouses'
         ));
     }
 
@@ -64,6 +77,10 @@ class StoreAppSettingController extends Controller
             'announcement_title' => 'nullable|string|max:255',
             'announcement_subtitle' => 'nullable|string|max:255',
             'announcement_image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
+
+            // Allow customers to see specific warehouses
+            'customer_allowed_warehouses' => 'nullable|array',
+            'customer_allowed_warehouses.*' => 'exists:warehouses,id',
         ]);
 
         try {
@@ -117,6 +134,11 @@ class StoreAppSettingController extends Controller
             if ($request->hasFile('announcement_image')) {
                 $this->replaceImageSetting('app_home_announcement_image', $request->file('announcement_image'), $storageFolder, "صورة بانر الإعلان في التطبيق");
             }
+
+            // 4. حفظ المخازن المسموحة للعملاء
+            // Save allowed warehouses array as JSON
+            $allowedWarehouses = $request->customer_allowed_warehouses ?? [];
+            Setting::setValue('app_customer_allowed_warehouses', json_encode($allowedWarehouses), 'المخازن المسموحة لكل عملاء التطبيق');
 
             return redirect()->route('admin.store-settings.index')->with('success', 'تم حفظ إعدادات التطبيق وتحديث الصور بنجاح!');
 

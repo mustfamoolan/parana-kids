@@ -114,6 +114,30 @@
                     </div>
                 </div>
 
+                <hr class="my-6 border-white-light dark:border-dark" />
+
+                <!-- 4. المخازن المتاحة للعملاء (Customer Allowed Warehouses) -->
+                <div class="mb-5">
+                    <h6 class="text-lg font-semibold mb-4 text-primary">④ المخازن المسموحة لعملاء التطبيق (الكستمر)</h6>
+                    <p class="text-sm text-gray-500 mb-4">
+                        العملاء سيرون فقط منتجات المخازن المحددة، ويمكنهم الطلب منها. (هذا الإعداد ينطبق على جميع العملاء بشكل عام، ولا يؤثر على المندوبين).
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        @if($warehouses->isEmpty())
+                            <div class="col-span-full text-center text-gray-500 py-4">لا توجد مخازن مضافة في النظام حالياً.</div>
+                        @else
+                            @foreach($warehouses as $warehouse)
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="customer_allowed_warehouses[]" value="{{ $warehouse->id }}" class="form-checkbox text-primary rounded border-gray-300" 
+                                        {{ in_array($warehouse->id, old('customer_allowed_warehouses', $customerAllowedWarehouses ?? [])) ? 'checked' : '' }}>
+                                    <span class="ltr:ml-2 rtl:mr-2 text-sm">{{ $warehouse->name }}</span>
+                                </label>
+                            @endforeach
+                        @endif
+                    </div>
+                </div>
+
                 <div class="mt-8 flex justify-end">
                     <button type="submit" class="btn btn-primary w-full sm:w-auto">
                         <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

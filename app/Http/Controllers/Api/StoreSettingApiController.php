@@ -40,6 +40,13 @@ class StoreSettingApiController extends Controller
         $announcementImagePath = Setting::getValue('app_home_announcement_image', '');
         $announcementImage = !empty($announcementImagePath) ? url(Storage::url($announcementImagePath)) : '';
 
+        // 4. المخازن المسموحة للعملاء
+        $allowedWarehousesJson = Setting::getValue('app_customer_allowed_warehouses', '[]');
+        $customerAllowedWarehouses = json_decode($allowedWarehousesJson, true);
+        if (!is_array($customerAllowedWarehouses)) {
+            $customerAllowedWarehouses = [];
+        }
+
         // بناء الرد
         return response()->json([
             'success' => true,
@@ -51,7 +58,8 @@ class StoreSettingApiController extends Controller
                     'title' => $announcementTitle,
                     'subtitle' => $announcementSubtitle,
                     'image' => $announcementImage,
-                ]
+                ],
+                'customer_allowed_warehouses' => $customerAllowedWarehouses,
             ]
         ]);
     }
