@@ -54,7 +54,6 @@ class CustomerProductApiController extends Controller
         }
 
         // c. Check availability (Total stock > 0)
-        // using whereHas to ensure we only show items with sizes having quantity > 0
         $query->whereHas('sizes', function($q) {
             $q->where('quantity', '>', 0);
         });
@@ -72,6 +71,34 @@ class CustomerProductApiController extends Controller
                 'last_page' => $products->lastPage(),
                 'total' => $products->total(),
             ]
+        ]);
+    }
+
+    /**
+     * Get smart search suggestions
+     */
+    public function searchSuggestions(Request $request)
+    {
+        $q = $request->get('q', '');
+        if (strlen($q) < 2) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $allowedWarehousesJson = Setting::getValue('app_customer_allowed_warehouses', '[]');
+        $allowedWarehouses = json_decode($allowedWarehousesJson, true);
+
+        $suggestions = Product::whereIn('warehouse_id', $allowedWarehouses)
+            ->where('is_hidden', false)
+            ->where('name', 'LIKE', "%{$q}%")
+            ->whereHas('sizes', function($qu) {
+                $qu->where('quantity', '>', 0);
+            })
+            ->limit(10)
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $suggestions
         ]);
     }
 

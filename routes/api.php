@@ -41,6 +41,7 @@ Route::get('/store-settings', [StoreSettingApiController::class, 'getSettings'])
 // Customer Product Routes
 Route::prefix('customer')->group(function () {
     Route::get('/products', [CustomerProductApiController::class, 'index']);
+    Route::get('/products/search/suggestions', [CustomerProductApiController::class, 'searchSuggestions']);
     Route::get('/products/{id}', [CustomerProductApiController::class, 'show']);
     Route::get('/products/{id}/suggestions', [CustomerProductApiController::class, 'suggestions']);
 });
