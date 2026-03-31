@@ -98,8 +98,24 @@ class CustomerOrderApiController extends Controller
                     ];
                 }
 
-                // 2. Create Order
+                // 2. Create a Cart record to satisfy DB constraints
+                $cart = \App\Models\Cart::create([
+                    'delegate_id' => 1, // Default to Admin
+                    'created_by' => 1,   // Default to Admin
+                    'cart_name' => 'طلب تطبيق - ' . $request->customer_name,
+                    'status' => 'completed',
+                    'customer_name' => $request->customer_name,
+                    'customer_phone' => $phone1,
+                    'customer_phone2' => $phone2,
+                    'customer_address' => $request->customer_address,
+                    'customer_social_link' => 'https://parana-kids-main-sbv4op.laravel.cloud/admin/dashboard',
+                    'notes' => $request->notes,
+                ]);
+
+                // 3. Create Order linked to the Cart
                 $order = Order::create([
+                    'cart_id' => $cart->id,
+                    'delegate_id' => 1, // Default to Admin
                     'customer_id' => $user->id,
                     'source' => 'store',
                     'customer_name' => $request->customer_name,
@@ -112,7 +128,7 @@ class CustomerOrderApiController extends Controller
                     'total_amount' => $totalAmount,
                 ]);
 
-                // 3. Create Items and Deduct Stock
+                // 4. Create Items and Deduct Stock
                 foreach ($orderItemsData as $itemData) {
                     $itemData['order_id'] = $order->id;
                     OrderItem::create($itemData);
