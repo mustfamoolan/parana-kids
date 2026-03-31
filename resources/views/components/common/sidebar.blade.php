@@ -109,6 +109,17 @@
                         </div>
                     </a>
                 </li>
+                
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.store-settings.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12.0001 22.0001C11.5262 22.0001 11.0825 21.7513 10.8247 21.3432L7.30691 15.7745L2.65685 15.7745C2.10457 15.7745 1.65685 15.3268 1.65685 14.7745V3.00012C1.65685 2.44784 2.10457 2.00012 2.65685 2.00012H21.3431C21.8954 2.00012 22.3431 2.44784 22.3431 3.00012V14.7745C22.3431 15.3268 21.8954 15.7745 21.3431 15.7745H16.6931L13.1754 21.3432C12.9175 21.7513 12.4739 22.0001 12.0001 22.0001Z" fill="currentColor"/>
+                            </svg>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إعدادات تطبيق المتجر</span>
+                        </div>
+                    </a>
+                </li>
                 @endif
 
                 @if(auth()->user()->isAdmin())

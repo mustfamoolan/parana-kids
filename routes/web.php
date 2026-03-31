@@ -14,6 +14,7 @@ use App\Http\Controllers\Delegate\CartItemController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\StoreAppSettingController;
 use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\BulkReturnController;
 use App\Http\Controllers\Admin\BulkExchangeReturnController;
@@ -268,6 +269,10 @@ Route::prefix('admin')->group(function () {
 
         // View supplier invoices (Admin only)
         Route::get('users/{userId}/invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'viewSupplierInvoices'])->name('admin.users.invoices');
+
+        // إعدادات تطبيق المتجر (Store App Settings)
+        Route::get('store-settings', [\App\Http\Controllers\Admin\StoreAppSettingController::class, 'index'])->name('admin.store-settings.index');
+        Route::post('store-settings', [\App\Http\Controllers\Admin\StoreAppSettingController::class, 'update'])->name('admin.store-settings.update');
 
         // Investor routes (Admin only)
         Route::resource('investors', \App\Http\Controllers\Admin\InvestorController::class)->names([

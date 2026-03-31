@@ -33,6 +33,9 @@ Route::post('/delegate/login', [UserApiController::class, 'loginDelegate']);
 // تسجيل دخول العميل (Customer) عبر Google
 Route::post('/customer/google-login', [CustomerApiController::class, 'googleLogin']);
 
+// إعدادات تطبيق المتجر (صور و بنرات للواجهات) متاحة للكل (لشاشة البداية وتسجيل الدخول)
+Route::get('/store-settings', [\App\Http\Controllers\Api\StoreSettingApiController::class, 'getSettings']);
+
 // المسارات المحمية (تتطلب PWA token)
 Route::middleware('auth.pwa')->group(function () {
     // معلومات المستخدم الحالي
