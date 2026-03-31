@@ -99,6 +99,20 @@
 
                 @if(auth()->user()->isAdmin())
                 <li class="menu nav-item">
+                    <a href="{{ route('admin.customers.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5" d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" fill="currentColor"/>
+                                <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" fill="currentColor"/>
+                            </svg>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">العملاء (الكستمر)</span>
+                        </div>
+                    </a>
+                </li>
+                @endif
+
+                @if(auth()->user()->isAdmin())
+                <li class="menu nav-item">
                     <a href="{{ route('admin.projects.index') }}" class="nav-link group">
                         <div class="flex items-center">
                             <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24"

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\MessageApiController;
 use App\Http\Controllers\Api\DelegateProductApiController;
 use App\Http\Controllers\Api\MaterialApiController;
+use App\Http\Controllers\Api\CustomerApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,6 +29,9 @@ Route::post('/admin/login', [UserApiController::class, 'loginAdmin']);
 
 // تسجيل دخول المندوب
 Route::post('/delegate/login', [UserApiController::class, 'loginDelegate']);
+
+// تسجيل دخول العميل (Customer) عبر Google
+Route::post('/customer/google-login', [CustomerApiController::class, 'googleLogin']);
 
 // المسارات المحمية (تتطلب PWA token)
 Route::middleware('auth.pwa')->group(function () {

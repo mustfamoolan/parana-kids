@@ -13,6 +13,7 @@ use App\Http\Controllers\Delegate\CartController;
 use App\Http\Controllers\Delegate\CartItemController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\BulkReturnController;
 use App\Http\Controllers\Admin\BulkExchangeReturnController;
@@ -256,6 +257,14 @@ Route::prefix('admin')->group(function () {
             'update' => 'admin.users.update',
             'destroy' => 'admin.users.destroy',
         ]);
+
+        // Customer Management (Admin only)
+        Route::resource('customers', CustomerController::class)->names([
+            'index' => 'admin.customers.index',
+            'edit' => 'admin.customers.edit',
+            'update' => 'admin.customers.update',
+            'destroy' => 'admin.customers.destroy',
+        ])->only(['index', 'edit', 'update', 'destroy']);
 
         // View supplier invoices (Admin only)
         Route::get('users/{userId}/invoices', [\App\Http\Controllers\Admin\InvoiceController::class, 'viewSupplierInvoices'])->name('admin.users.invoices');

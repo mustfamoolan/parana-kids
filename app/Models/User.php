@@ -28,6 +28,7 @@ class User extends Authenticatable
         'private_warehouse_id',
         'profile_image',
         'telegram_chat_id',
+        'google_id',
     ];
 
     /**
@@ -87,6 +88,14 @@ class User extends Authenticatable
     public function isDelegate()
     {
         return $this->role === 'delegate';
+    }
+
+    /**
+     * Check if user is customer
+     */
+    public function isCustomer()
+    {
+        return $this->role === 'customer';
     }
 
     /**
@@ -201,6 +210,10 @@ class User extends Authenticatable
     public function getProfileImageUrl()
     {
         if ($this->profile_image) {
+            if (str_starts_with($this->profile_image, 'http')) {
+                return $this->profile_image;
+            }
+            
             // استخدام Storage::url() الذي يعمل مع local و S3/Bucket
             try {
                 return Storage::disk('public')->url($this->profile_image);
