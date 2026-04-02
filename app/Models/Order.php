@@ -397,12 +397,17 @@ class Order extends Model
 
     public function getAppStatusAttribute()
     {
-        // 1. Check for cancellation
+        // 1. Check if deleted (soft delete)
+        if ($this->trashed()) {
+            return 'محذوف';
+        }
+
+        // 2. Check for cancellation
         if ($this->status === 'cancelled') {
             return 'ملغي';
         }
 
-        // 2. Check for AlWaseet status (If confirmed and linked to AlWaseet)
+        // 3. Check for AlWaseet status (If confirmed and linked to AlWaseet)
         if ($this->status === 'confirmed' && $this->alwaseetShipment) {
             $alwaseetStatusId = (string)$this->alwaseetShipment->status_id;
             
@@ -413,18 +418,18 @@ class Order extends Model
             
             // "تم التسليم للزبون" usually status 4
             if ($alwaseetStatusId === '4') {
-                return 'تم التسليم';
+                return 'مستلم';
             }
 
-            // Any other AlWaseet status still counts as "Processing" for the customer
-            return 'قيد التجهيز';
+            // Any other AlWaseet status (1, 2, etc.) means it's ready/confirmed but not yet in transit
+            return 'مجهز';
         }
 
-        // 3. Fallback to basic statuses
+        // 4. Fallback to basic statuses
         return match($this->status) {
-            'pending' => 'معلق',
-            'confirmed' => 'قيد التجهيز',
-            default => 'معلق',
+            'pending' => 'قيد التجهيز',
+            'confirmed' => 'مجهز',
+            default => 'قيد التجهيز',
         };
     }
 }
