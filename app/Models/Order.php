@@ -126,13 +126,16 @@ class Order extends Model
         // إرسال إشعار عند تحديث الطلب أو تقييده
         static::updating(function ($order) {
             try {
-                // التحقق من أن confirmed_at تم تعيينه لأول مرة
-
                 // التحقق من تغيير الحالة
                 if ($order->isDirty('status')) {
                     $oldStatus = $order->getOriginal('status');
                     $newStatus = $order->status;
-                    app(\App\Services\AdminNotificationService::class)->notifyOrderStatusChanged($order, $oldStatus, $newStatus, auth()->user());
+                    
+                    // 1. Notify Admin and Suppliers
+                    app(\App\Services\AdminNotificationService::class)->notifyOrderStatusChanged($order, $oldStatus, $newStatus);
+                    
+                    // 2. Notify Customer
+                    app(\App\Services\CustomerNotificationService::class)->notifyStatusChanged($order, $newStatus);
                 }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Order Model: Failed to trigger update notification: ' . $e->getMessage());

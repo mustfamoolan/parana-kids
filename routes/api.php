@@ -52,9 +52,9 @@ Route::middleware('auth.pwa')->group(function () {
     // معلومات المستخدم الحالي
     Route::get('/user', [UserApiController::class, 'me']);
 
-    // تحديث بيانات المستخدم الحالي
     Route::get('/customer/orders', [CustomerOrderApiController::class, 'index']);
     Route::post('/customer/orders', [CustomerOrderApiController::class, 'store']);
+    Route::post('/customer/fcm-token', [CustomerApiController::class, 'registerFcmToken']);
 
     // تحديث بيانات المستخدم الحالي
     Route::put('/user', [UserApiController::class, 'update']);
