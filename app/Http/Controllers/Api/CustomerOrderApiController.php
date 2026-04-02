@@ -21,7 +21,8 @@ class CustomerOrderApiController extends Controller
     {
         $user = $request->user();
         
-        $orders = Order::with(['items.product'])
+        $orders = Order::withTrashed()
+            ->with(['items.product'])
             ->where('customer_id', $user->id)
             ->latest()
             ->paginate(20);
