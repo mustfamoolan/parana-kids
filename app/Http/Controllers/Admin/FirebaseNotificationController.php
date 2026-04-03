@@ -80,14 +80,22 @@ class FirebaseNotificationController extends Controller
         };
 
         try {
-            $sentCount = 0;
+            $userIds = [];
             
             if ($targetScope === 'all') {
                 $roles = ($targetGroup === 'supplier') ? ['supplier', 'private_supplier'] : [$targetGroup];
-                $sentCount = $this->fcmService->sendToRole($roles, $title, $body, ['type' => 'mass_notification'], $appType);
+                // جلب الـ IDs وتحويلها لمصفوفة أرقام صحيحة لضمان التوافق
+                $userIds = User::whereIn('role', $roles)->pluck('id')->map(fn($id) => (int)$id)->toArray();
             } else {
-                $sentCount = $this->fcmService->sendToUsers([$request->user_id], $title, $body, ['type' => 'mass_notification'], $appType);
+                $userIds = [(int)$request->user_id];
             }
+
+            if (empty($userIds)) {
+                return back()->with('error', 'لا يوجد مستخدمين في هذه الفئة حالياً.');
+            }
+
+            // استخدام نفس الدالة التي أثبتت نجاحها مع الفرد للجميع
+            $sentCount = $this->fcmService->sendToUsers($userIds, $title, $body, ['type' => 'mass_notification'], $appType);
 
             if ($sentCount > 0) {
                 return back()->with('success', "تم إرسال الإشعار بنجاح إلى {$sentCount} جهاز.");
