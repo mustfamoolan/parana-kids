@@ -250,8 +250,23 @@ class AlWaseetApiController extends Controller
     {
         try {
             $order = Order::with('items.product')->findOrFail($id);
-            if (!Auth::user()->isAdmin()) {
+            $user = Auth::user();
+            if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
                 return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+            }
+
+            // Security Check for Suppliers
+            if ($user->isSupplier()) {
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                $orderHasAccessibleItems = DB::table('order_items')
+                    ->join('products', 'order_items.product_id', '=', 'products.id')
+                    ->where('order_items.order_id', $id)
+                    ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                    ->exists();
+
+                if (!$orderHasAccessibleItems) {
+                    return response()->json(['success' => false, 'message' => 'غير مصرح لك بالتحكم في هذا الطلب.'], 403);
+                }
             }
 
             // التحقق من وجود المحافظة والمنطقة
@@ -375,8 +390,23 @@ class AlWaseetApiController extends Controller
      */
     public function confirmOrder(Request $request, Order $order)
     {
-        if (!Auth::user()->isAdmin()) {
+        $user = Auth::user();
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
             return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        // Security Check for Suppliers
+        if ($user->isSupplier()) {
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            $orderHasAccessibleItems = DB::table('order_items')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->where('order_items.order_id', $order->id)
+                ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                ->exists();
+
+            if (!$orderHasAccessibleItems) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالتحكم في هذا الطلب.'], 403);
+            }
         }
 
         if ($order->status !== 'pending') {
@@ -637,8 +667,23 @@ class AlWaseetApiController extends Controller
      */
     public function deleteOrder(Request $request, Order $order)
     {
-        if (!Auth::user()->isAdmin()) {
+        $user = Auth::user();
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
             return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        // Security Check for Suppliers
+        if ($user->isSupplier()) {
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            $orderHasAccessibleItems = DB::table('order_items')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->where('order_items.order_id', $order->id)
+                ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                ->exists();
+
+            if (!$orderHasAccessibleItems) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالتحكم في هذا الطلب.'], 403);
+            }
         }
 
         try {
@@ -858,7 +903,26 @@ class AlWaseetApiController extends Controller
      */
     public function updateOrderFields(Request $request, $id)
     {
+        $user = Auth::user();
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
         $order = Order::findOrFail($id);
+
+        // Security Check for Suppliers
+        if ($user->isSupplier()) {
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            $orderHasAccessibleItems = DB::table('order_items')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->where('order_items.order_id', $id)
+                ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                ->exists();
+
+            if (!$orderHasAccessibleItems) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بتعديل هذا الطلب.'], 403);
+            }
+        }
 
         $request->validate([
             'alwaseet_city_id' => 'nullable|string',
