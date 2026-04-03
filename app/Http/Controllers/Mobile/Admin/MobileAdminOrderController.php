@@ -2234,6 +2234,7 @@ class MobileAdminOrderController extends Controller
             ] : null,
             'created_at' => $order->created_at->toIso8601String(),
             'confirmed_at' => $order->confirmed_at ? $order->confirmed_at->toIso8601String() : null,
+            'can_be_edited' => $order->status === 'pending' || $order->canBeEdited(),
             'deleted_at' => $order->deleted_at ? $order->deleted_at->toIso8601String() : null,
             'deletion_reason' => $order->deletion_reason,
             'deleted_by' => $order->deleted_by,
@@ -2447,12 +2448,20 @@ class MobileAdminOrderController extends Controller
         try {
             $order = Order::findOrFail($id);
             
-            // التحقق من أن الطلب يمكن حذفه (pending أو confirmed)
+            // التحقق من أن الطلب يمكن حذفه (pending أو confirmed خلال مدة 5 ساعات)
             if (!in_array($order->status, ['pending', 'confirmed'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'لا يمكن حذف هذا الطلب',
+                    'message' => 'لا يمكن حذف هذا الطلب نظراً لحالته الحالية',
                     'error_code' => 'INVALID_STATUS',
+                ], 400);
+            }
+
+            if ($order->status === 'confirmed' && !$order->canBeEdited()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن حذف هذا الطلب (مر أكثر من 5 ساعات على التقييد)',
+                    'error_code' => 'CANNOT_DELETE',
                 ], 400);
             }
 
