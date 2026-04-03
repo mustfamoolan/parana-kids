@@ -221,6 +221,47 @@ class FirebaseCloudMessagingService
     }
 
     /**
+     * Send notification to all users with a specific role
+     */
+    public function sendToRole($roles, $title, $body, $data = [], $appType = 'delegate_mobile')
+    {
+        if (!$this->messaging) {
+            return 0;
+        }
+
+        if (!is_array($roles)) {
+            $roles = [$roles];
+        }
+
+        try {
+            $tokens = FcmToken::join('users', 'fcm_tokens.user_id', '=', 'users.id')
+                ->whereIn('users.role', $roles)
+                ->where('fcm_tokens.app_type', $appType)
+                ->where('fcm_tokens.is_active', true)
+                ->pluck('fcm_tokens.token')
+                ->toArray();
+
+            Log::info('FirebaseCloudMessagingService: Role-based token lookup', [
+                'roles' => $roles,
+                'tokens_found' => count($tokens),
+                'app_type' => $appType
+            ]);
+
+            if (empty($tokens)) {
+                return 0;
+            }
+
+            return $this->sendToTokens($tokens, $title, $body, $data);
+        } catch (\Exception $e) {
+            Log::error('FirebaseCloudMessagingService: Failed to send to role', [
+                'roles' => $roles,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
+    /**
      * Send notification to multiple users
      */
     public function sendToUsers($userIds, $title, $body, $data = [], $appType = 'delegate_mobile')
