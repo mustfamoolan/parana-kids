@@ -441,6 +441,13 @@ Route::prefix('admin')->group(function () {
             'store' => 'admin.product-links.store',
             'destroy' => 'admin.product-links.destroy',
         ])->except(['show', 'edit', 'update']);
+
+        // Firebase Notifications routes
+        Route::prefix('notifications')->name('admin.notifications.')->group(function () {
+            Route::get('/send', [\App\Http\Controllers\Admin\FirebaseNotificationController::class, 'index'])->name('index');
+            Route::post('/send', [\App\Http\Controllers\Admin\FirebaseNotificationController::class, 'send'])->name('send');
+            Route::get('/users-by-role', [\App\Http\Controllers\Admin\FirebaseNotificationController::class, 'getUsersByRole'])->name('users-by-role');
+        });
     });
 });
 

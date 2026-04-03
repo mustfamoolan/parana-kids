@@ -120,6 +120,18 @@
                         </div>
                     </a>
                 </li>
+                
+                <li class="menu nav-item">
+                    <a href="{{ route('admin.notifications.index') }}" class="nav-link group">
+                        <div class="flex items-center">
+                            <svg class="group-hover:!text-primary shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path opacity="0.5" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor" />
+                                <path d="M12 17L12 7M12 7L15 10.5M12 7L9 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 12 12)"/>
+                            </svg>
+                            <span class="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">إرسال الإشعارات</span>
+                        </div>
+                    </a>
+                </li>
                 @endif
 
                 @if(auth()->user()->isAdmin())
