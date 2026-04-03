@@ -237,6 +237,13 @@ class FirebaseCloudMessagingService
                 ->pluck('token')
                 ->toArray();
 
+            Log::info('FirebaseCloudMessagingService: Token lookup result', [
+                'requested_users_count' => count($userIds),
+                'found_tokens_count' => count($tokens),
+                'app_type' => $appType,
+                'user_ids_sample' => array_slice($userIds, 0, 10)
+            ]);
+
             if (empty($tokens)) {
                 Log::info('FirebaseCloudMessagingService: No tokens found for users', [
                     'user_ids' => $userIds,

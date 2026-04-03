@@ -93,6 +93,12 @@ class FirebaseNotificationController extends Controller
                 return back()->with('error', 'لا يوجد مستخدمين لإرسال الإشعار لهم في هذه المجموعة.');
             }
 
+            Log::info('FirebaseNotificationController: Sending to users', [
+                'count' => count($userIds),
+                'group' => $targetGroup,
+                'scope' => $targetScope
+            ]);
+
             $sentCount = $this->fcmService->sendToUsers($userIds, $title, $body, ['type' => 'mass_notification'], $appType);
 
             if ($sentCount > 0) {
