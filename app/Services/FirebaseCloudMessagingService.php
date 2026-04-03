@@ -272,20 +272,36 @@ class FirebaseCloudMessagingService
         }
 
         try {
+            // محاولة البحث عن التوكنز بالنوع المحدد أولاً
             $tokens = FcmToken::whereIn('user_id', $userIds)
                 ->where('app_type', $appType)
-                ->where('is_active', true)
                 ->pluck('token')
                 ->toArray();
+            
+            // إذا لم يجد، يبحث عن أي توكن متاح لهؤلاء المستخدمين (للحيطة)
+            if (empty($tokens)) {
+                $tokens = FcmToken::whereIn('user_id', $userIds)
+                    ->pluck('token')
+                    ->toArray();
+                
+                if (!empty($tokens)) {
+                    Log::info('FirebaseCloudMessagingService: Found tokens using fallback (any app_type)', [
+                        'count' => count($tokens)
+                    ]);
+                }
+            }
 
-            Log::info('FirebaseCloudMessagingService: Token lookup result', [
-                'requested_users_count' => count($userIds),
-                'found_tokens_count' => count($tokens),
-                'app_type' => $appType,
-                'user_ids_sample' => array_slice($userIds, 0, 10)
+            Log::info('FirebaseCloudMessagingService: Final tokens found', [
+                'requested_users' => count($userIds),
+                'found_tokens' => count($tokens),
+                'app_type' => $appType
             ]);
 
             if (empty($tokens)) {
+                return 0;
+            }
+
+            return $this->sendToTokens($tokens, $title, $body, $data);
                 Log::info('FirebaseCloudMessagingService: No tokens found for users', [
                     'user_ids' => $userIds,
                     'app_type' => $appType,
