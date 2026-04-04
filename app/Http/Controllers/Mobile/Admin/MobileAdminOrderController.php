@@ -947,7 +947,7 @@ class MobileAdminOrderController extends Controller
             }
 
             // تحميل العلاقات
-            $query->with(['delegate', 'items.product.primaryImage', 'items.size', 'items.returnItems', 'confirmedBy']);
+            $query->with(['delegate', 'items.product.primaryImage', 'items.size', 'items.returnItems', 'confirmedBy', 'alwaseetShipment']);
 
             $orders = $query->latest('created_at')
                 ->paginate($perPage)
@@ -973,6 +973,7 @@ class MobileAdminOrderController extends Controller
                         'name' => $order->confirmedBy->name,
                     ] : null,
                     'created_at' => $order->created_at->toIso8601String(),
+                    'alwaseet_shipment' => $order->alwaseetShipment,
                     'items_count' => $order->items->count(),
                     'items_with_remaining' => $order->items->filter(function ($item) {
                         return $item->remaining_quantity > 0;
