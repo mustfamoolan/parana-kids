@@ -75,7 +75,7 @@ class MobileAdminAlWaseetController extends Controller
                 $baseQuery = Order::query();
 
                 // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-                if ($user->isSupplier()) {
+                if ($user->isSupplier() || $user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                     if (!empty($accessibleWarehouseIds)) {
                         $baseQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
@@ -216,7 +216,7 @@ class MobileAdminAlWaseetController extends Controller
         $query = Order::query();
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             if (!empty($accessibleWarehouseIds)) {
                 $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
@@ -317,7 +317,7 @@ class MobileAdminAlWaseetController extends Controller
         $query = Order::where('id', $id);
 
         // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             if (!empty($accessibleWarehouseIds)) {
                 $query->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {

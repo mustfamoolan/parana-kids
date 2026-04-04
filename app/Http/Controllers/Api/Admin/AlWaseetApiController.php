@@ -668,12 +668,12 @@ class AlWaseetApiController extends Controller
     public function deleteOrder(Request $request, Order $order)
     {
         $user = Auth::user();
-        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
             return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
         }
 
         // Security Check for Suppliers
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             $orderHasAccessibleItems = DB::table('order_items')
                 ->join('products', 'order_items.product_id', '=', 'products.id')
@@ -705,7 +705,7 @@ class AlWaseetApiController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
             $warehouses = $user->warehouses;
         } else {
             $warehouses = Warehouse::all();
@@ -834,7 +834,7 @@ class AlWaseetApiController extends Controller
             $query = Order::query();
 
             // Re-apply same base security/filters for counts
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
@@ -904,14 +904,14 @@ class AlWaseetApiController extends Controller
     public function updateOrderFields(Request $request, $id)
     {
         $user = Auth::user();
-        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
             return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
         }
 
         $order = Order::findOrFail($id);
 
         // Security Check for Suppliers
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             $orderHasAccessibleItems = DB::table('order_items')
                 ->join('products', 'order_items.product_id', '=', 'products.id')

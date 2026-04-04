@@ -141,7 +141,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('status', 'pending');
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -230,7 +230,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('status', 'confirmed');
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -320,7 +320,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::query();
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -416,7 +416,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('id', $id);
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -505,7 +505,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('id', $id);
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -546,7 +546,7 @@ class MobileAdminOrderController extends Controller
             $productsQuery = Product::with(['sizes', 'primaryImage']);
 
             // للمجهز: فقط منتجات المخازن المسموح له بها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $warehouseIds = $user->warehouses()->pluck('warehouses.id');
                 $productsQuery->whereIn('warehouse_id', $warehouseIds);
             }
@@ -645,7 +645,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('id', $id);
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -1370,7 +1370,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('id', $id);
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -1501,7 +1501,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::where('id', $id);
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier()) {
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -1678,7 +1678,7 @@ class MobileAdminOrderController extends Controller
                     }
 
                     // فلتر صلاحيات المجهز
-                    if ($user->isSupplier()) {
+                    if ($user->isSupplier() || $user->isPrivateSupplier()) {
                         $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                         if (!in_array($item->product->warehouse_id, $accessibleWarehouseIds)) {
                             return false;
@@ -1820,7 +1820,7 @@ class MobileAdminOrderController extends Controller
                     }
 
                     // فلتر صلاحيات المجهز
-                    if ($user->isSupplier()) {
+                    if ($user->isSupplier() || $user->isPrivateSupplier()) {
                         $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
                         if (!in_array($item->product->warehouse_id, $accessibleWarehouseIds)) {
                             continue;
@@ -2432,8 +2432,8 @@ class MobileAdminOrderController extends Controller
     {
         $user = Auth::user();
 
-        // التحقق من أن المستخدم مدير
-        if (!$user || !$user->isAdmin()) {
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
             return response()->json([
                 'success' => false,
                 'message' => 'غير مصرح للقيام بهذا الإجراء.',
@@ -2446,7 +2446,30 @@ class MobileAdminOrderController extends Controller
         ]);
 
         try {
-            $order = Order::findOrFail($id);
+            // جلب الطلب مع مراعاة الصلاحيات
+            $query = Order::where('id', $id);
+
+            // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
+                $accessibleWarehouseIds = $this->getAccessibleWarehouses()->pluck('id')->toArray();
+                if (!empty($accessibleWarehouseIds)) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
+
+            $order = $query->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الطلب غير موجود أو ليس لديك صلاحية لحذفه',
+                    'error_code' => 'NOT_FOUND',
+                ], 404);
+            }
             
             // التحقق من أن الطلب يمكن حذفه (pending أو confirmed خلال مدة 5 ساعات)
             if (!in_array($order->status, ['pending', 'confirmed'])) {
@@ -2535,22 +2558,37 @@ class MobileAdminOrderController extends Controller
     {
         $user = Auth::user();
 
-        // التحقق من أن المستخدم مدير
-        if (!$user || !$user->isAdmin()) {
+        // التحقق من أن المستخدم مدير أو مجهز
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier())) {
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح. يجب أن تكون مديراً للقيام بهذا الإجراء.',
+                'message' => 'غير مصرح. يجب أن تكون مديراً أو مجهزاً للقيام بهذا الإجراء.',
                 'error_code' => 'FORBIDDEN',
             ], 403);
         }
 
         try {
-            $order = Order::withTrashed()->find($id);
+            // جلب الطلب مع مراعاة الصلاحيات
+            $query = Order::withTrashed()->where('id', $id);
+
+            // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
+                $accessibleWarehouseIds = $this->getAccessibleWarehouses()->pluck('id')->toArray();
+                if (!empty($accessibleWarehouseIds)) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
+
+            $order = $query->first();
 
             if (!$order) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'الطلب غير موجود.',
+                    'message' => 'الطلب غير موجود أو ليس لديك صلاحية لحذفه نهائياً',
                     'error_code' => 'NOT_FOUND',
                 ], 404);
             }
