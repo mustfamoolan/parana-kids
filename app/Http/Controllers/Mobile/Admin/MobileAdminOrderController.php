@@ -140,19 +140,25 @@ class MobileAdminOrderController extends Controller
             // Base query - فرض حالة pending دائماً
             $query = Order::where('status', 'pending');
 
-            // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier()) {
-                    $query->where('supplier_id', $user->id);
-                } elseif ($user->isPrivateSupplier()) {
-                    $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                    if (!empty($accessibleWarehouseIds)) {
-                        $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                            $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                        });
-                    } else {
-                        $query->whereRaw('1 = 0');
-                    }
+            // للمجهز: عرض الطلبات الموجهة له حصراً، أو الطلبات غير الموجهة التي تتبع مخازنه
+            if ($user->isSupplier()) {
+                $query->where(function($q) use ($user) {
+                    $q->where('supplier_id', $user->id)
+                      ->orWhere(function($sq) use ($user) {
+                          $sq->whereNull('supplier_id')
+                             ->whereHas('items.product', function ($pq) use ($user) {
+                                 $pq->whereIn('warehouse_id', $user->warehouses->pluck('id'));
+                             });
+                      });
+                });
+            } elseif ($user->isPrivateSupplier()) {
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                if (!empty($accessibleWarehouseIds)) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
                 }
             }
 
@@ -233,19 +239,25 @@ class MobileAdminOrderController extends Controller
             // Base query - فرض حالة confirmed دائماً
             $query = Order::where('status', 'confirmed');
 
-            // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier()) {
-                    $query->where('supplier_id', $user->id);
-                } elseif ($user->isPrivateSupplier()) {
-                    $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                    if (!empty($accessibleWarehouseIds)) {
-                        $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                            $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                        });
-                    } else {
-                        $query->whereRaw('1 = 0');
-                    }
+            // للمجهز والمورد: تصفية حسب الصلاحية (المنطق المختلط)
+            if ($user->isSupplier()) {
+                $query->where(function($q) use ($user) {
+                    $q->where('supplier_id', $user->id)
+                      ->orWhere(function($sq) use ($user) {
+                          $sq->whereNull('supplier_id')
+                             ->whereHas('items.product', function ($pq) use ($user) {
+                                 $pq->whereIn('warehouse_id', $user->warehouses->pluck('id'));
+                             });
+                      });
+                });
+            } elseif ($user->isPrivateSupplier()) {
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                if (!empty($accessibleWarehouseIds)) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
                 }
             }
 

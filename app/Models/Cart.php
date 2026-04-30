@@ -22,6 +22,7 @@ class Cart extends Model
         'customer_address',
         'customer_social_link',
         'notes',
+        'supplier_id',
     ];
 
     protected $casts = [

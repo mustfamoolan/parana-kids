@@ -28,7 +28,14 @@ class OrderPolicy
         }
 
         if ($user->isSupplier()) {
-            return $order->supplier_id == $user->id;
+            if ($order->supplier_id) {
+                return $order->supplier_id == $user->id;
+            }
+            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
         }
 
         if ($user->isPrivateSupplier()) {
@@ -59,7 +66,14 @@ class OrderPolicy
         }
 
         if ($user->isSupplier()) {
-            return $order->supplier_id == $user->id;
+            if ($order->supplier_id) {
+                return $order->supplier_id == $user->id;
+            }
+            // Fallback
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
         }
 
         if ($user->isPrivateSupplier()) {
@@ -84,7 +98,14 @@ class OrderPolicy
 
         // Supplier يمكنه تجهيز طلباته فقط
         if ($user->isSupplier()) {
-            return $order->supplier_id == $user->id;
+            if ($order->supplier_id) {
+                return $order->supplier_id == $user->id;
+            }
+            // Fallback
+            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
+            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouse_id', $warehouseIds);
+            })->exists();
         }
 
         if ($user->isPrivateSupplier()) {
@@ -107,8 +128,14 @@ class OrderPolicy
         }
 
         if ($user->isSupplier()) {
-            // المجهز يمكنه حذف طلباته فقط
-            return $order->supplier_id == $user->id;
+            if ($order->supplier_id) {
+                return $order->supplier_id == $user->id;
+            }
+            // Fallback
+            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
+            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouse_id', $warehouseIds);
+            })->exists();
         }
 
         if ($user->isPrivateSupplier()) {
