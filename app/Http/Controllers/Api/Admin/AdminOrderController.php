@@ -45,19 +45,25 @@ class AdminOrderController extends Controller
         try {
             $query = Order::query();
 
-            // Permissions: Suppliers only see their assigned orders (or all if observer)
-            if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier()) {
-                    $query->where('supplier_id', $user->id);
-                } elseif ($user->isPrivateSupplier()) {
-                    $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                    if (!empty($accessibleWarehouseIds)) {
-                        $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                            $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                        });
-                    } else {
-                        $query->whereRaw('1 = 0');
-                    }
+            // Permissions: Suppliers see their assigned orders OR unassigned orders from their warehouses
+            if ($user->isSupplier()) {
+                $query->where(function($q) use ($user) {
+                    $q->where('supplier_id', $user->id)
+                      ->orWhere(function($sq) use ($user) {
+                          $sq->whereNull('supplier_id')
+                             ->whereHas('items.product', function ($pq) use ($user) {
+                                 $pq->whereIn('warehouse_id', $user->warehouses->pluck('id'));
+                             });
+                      });
+                });
+            } elseif ($user->isPrivateSupplier()) {
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                if (!empty($accessibleWarehouseIds)) {
+                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
                 }
             }
 
