@@ -315,6 +315,7 @@ class OrderController extends Controller
                 'notes' => $request->notes,
                 'status' => 'pending', // غير مقيد
                 'total_amount' => $cart->total_amount,
+                'supplier_id' => $cart->supplier_id, // نقل المجهز المختار من السلة للطلب
             ]);
 
             // نسخ منتجات السلة إلى الطلب
@@ -719,7 +720,9 @@ class OrderController extends Controller
      */
     public function start()
     {
-        return view('delegate.orders.start');
+        // جلب قائمة المجهزين والمديرين
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+        return view('delegate.orders.start', compact('suppliers'));
     }
 
     /**
@@ -790,6 +793,7 @@ class OrderController extends Controller
             'customer_address' => 'required|string',
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
+            'supplier_id' => 'required|exists:users,id',
         ], [
             'customer_phone.digits' => 'رقم الهاتف يجب أن يكون بالضبط 11 رقم',
             'customer_phone2.digits' => 'رقم الهاتف الثاني يجب أن يكون بالضبط 11 رقم',
@@ -821,6 +825,7 @@ class OrderController extends Controller
             'customer_address' => $request->customer_address,
             'customer_social_link' => $request->customer_social_link,
             'notes' => $request->notes,
+            'supplier_id' => $request->supplier_id,
         ]);
 
         // حفظ cart_id فقط في session (رقم صغير لا يسبب مشاكل الكوكيز)

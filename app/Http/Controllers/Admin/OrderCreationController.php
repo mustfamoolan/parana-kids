@@ -31,7 +31,10 @@ class OrderCreationController extends Controller
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
-        return view('admin.orders.create.start');
+        // جلب قائمة المجهزين والمديرين
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+ 
+        return view('admin.orders.create.start', compact('suppliers'));
     }
 
     /**
@@ -107,6 +110,7 @@ class OrderCreationController extends Controller
             'customer_address' => 'required|string',
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
+            'supplier_id' => 'required|exists:users,id',
         ], [
             'customer_phone.digits' => 'رقم الهاتف يجب أن يكون بالضبط 11 رقم',
             'customer_phone2.digits' => 'رقم الهاتف الثاني يجب أن يكون بالضبط 11 رقم',
@@ -139,6 +143,7 @@ class OrderCreationController extends Controller
             'customer_address' => $request->customer_address,
             'customer_social_link' => $request->customer_social_link,
             'notes' => $request->notes,
+            'supplier_id' => $request->supplier_id,
         ]);
 
         // حفظ cart_id في session
@@ -198,6 +203,7 @@ class OrderCreationController extends Controller
                 'notes' => $cart->notes,
                 'status' => 'pending',
                 'total_amount' => $cart->total_amount,
+                'supplier_id' => $cart->supplier_id, // تحديد المجهز المختار
                 'confirmed_by' => auth()->id(), // المدير/المجهز هو الذي أنشأ الطلب
             ]);
 

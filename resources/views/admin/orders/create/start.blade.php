@@ -110,6 +110,23 @@
                         <span class="text-danger text-xs mt-1">{{ $message }}</span>
                     @enderror
                 </div>
+ 
+                <!-- اختيار المجهز -->
+                <div>
+                    <label for="supplier_id" class="font-semibold">توجيه الطلب إلى مجهز محدد <span class="text-danger">*</span></label>
+                    <select id="supplier_id" name="supplier_id" class="form-select" required>
+                        <option value="">اختر المجهز</option>
+                        @foreach($suppliers as $supplier)
+                            <option value="{{ $supplier->id }}" {{ old('supplier_id', auth()->user()->isSupplier() ? auth()->id() : '') == $supplier->id ? 'selected' : '' }}>
+                                {{ $supplier->name }} ({{ $supplier->role == 'admin' ? 'مدير' : 'مجهز' }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('supplier_id')
+                        <span class="text-danger text-xs mt-1">{{ $message }}</span>
+                    @enderror
+                    <p class="text-white-dark text-xs mt-1">سيتم تقييد رؤية هذا الطلب للمجهز المختار فقط بعد التجهيز.</p>
+                </div>
 
                 <!-- أزرار -->
                 <div class="flex gap-3 justify-end mt-6">
