@@ -149,6 +149,30 @@
                             <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
                         @enderror
                     </div>
+
+                    <!-- خيار مراقب (للمجهز فقط) -->
+                    <div x-show="selectedRole === 'supplier'" class="mt-4 flex items-center">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="is_observer" value="1" class="form-checkbox text-primary" {{ old('is_observer') ? 'checked' : '' }}>
+                            <span class="ml-2 rtl:mr-2">مراقب (يرى جميع الطلبات بدون تقييد بالمخازن)</span>
+                        </label>
+                    </div>
+
+                    <!-- المجهزون المقترحون (للمندوب فقط) -->
+                    <div x-show="selectedRole === 'delegate'" class="col-span-1 md:col-span-2 mt-4">
+                        <label for="suggested_suppliers" class="block text-sm font-medium mb-2">المجهزون المقترحون <span class="text-gray-500">(اختياري)</span></label>
+                        <select id="suggested_suppliers" name="suggested_suppliers[]" class="form-select" multiple style="min-height: 120px;">
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}" {{ (is_array(old('suggested_suppliers')) && in_array($supplier->id, old('suggested_suppliers'))) ? 'selected' : '' }}>
+                                    {{ $supplier->name }} ({{ $supplier->code }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="text-sm text-gray-500 mt-1">اضغط على Ctrl (أو Cmd) لاختيار أكثر من مجهز. إذا تم تحديد مجهز واحد، سيتم توجيه طلبات المندوب إليه تلقائياً.</div>
+                        @error('suggested_suppliers')
+                            <div class="text-red-500 text-sm mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
             </div>
 

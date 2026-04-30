@@ -47,6 +47,7 @@ class Order extends Model
         'alwaseet_delivery_time_note',
         'source',
         'customer_id',
+        'supplier_id',
     ];
 
     protected $casts = [
@@ -146,6 +147,11 @@ class Order extends Model
     public function delegate()
     {
         return $this->belongsTo(User::class, 'delegate_id');
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(User::class, 'supplier_id');
     }
 
     public function customer()

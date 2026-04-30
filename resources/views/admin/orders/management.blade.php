@@ -222,7 +222,7 @@
                         </div>
                         <div class="sm:w-48">
                             <select name="confirmed_by" class="form-select">
-                                <option value="">كل المجهزين والمديرين</option>
+                                <option value="">المقيد بواسطة (الكل)</option>
                                 @foreach($suppliers as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('confirmed_by') == $supplier->id ? 'selected' : '' }}>
                                         {{ $supplier->name }} ({{ $supplier->code }}) - {{ $supplier->role === 'admin' ? 'مدير' : 'مجهز' }}
@@ -230,6 +230,18 @@
                                 @endforeach
                             </select>
                         </div>
+                        @if(auth()->user()->isAdmin() || auth()->user()->is_observer)
+                        <div class="sm:w-48">
+                            <select name="supplier_id" class="form-select">
+                                <option value="">المجهز المسند إليه (الكل)</option>
+                                @foreach($suppliers->where('role', 'supplier') as $supplier)
+                                    <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
+                                        {{ $supplier->name }} ({{ $supplier->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
                         <div class="sm:w-48">
                             @php
                                 $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();

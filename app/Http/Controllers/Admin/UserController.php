@@ -49,7 +49,8 @@ class UserController extends Controller
         $this->authorize('create', User::class);
         $warehouses = Warehouse::all();
         $privateWarehouses = PrivateWarehouse::all();
-        return view('admin.users.create', compact('warehouses', 'privateWarehouses'));
+        $suppliers = User::where('role', 'supplier')->get();
+        return view('admin.users.create', compact('warehouses', 'privateWarehouses', 'suppliers'));
     }
 
     /**
@@ -85,8 +86,16 @@ class UserController extends Controller
             $rules['email'] = 'email|unique:users,email';
         }
 
+        if ($request->role === 'delegate') {
+            $rules['suggested_suppliers'] = 'nullable|array';
+            $rules['suggested_suppliers.*'] = 'exists:users,id';
+        }
+
         $validated = $request->validate($rules);
         $validated['password'] = Hash::make($validated['password']);
+        
+        // تعيين is_observer
+        $validated['is_observer'] = $request->role === 'supplier' && $request->has('is_observer');
 
         // تعيين phone و email كـ null إذا لم يتم إرسالهما
         if (!$request->filled('phone')) {
@@ -108,6 +117,11 @@ class UserController extends Controller
             if ($request->role === 'private_supplier' && $request->filled('private_warehouse_id')) {
                 $user->update(['private_warehouse_id' => $request->private_warehouse_id]);
             }
+            
+            // ربط المجهزين المقترحين للمندوب
+            if ($request->role === 'delegate' && $request->filled('suggested_suppliers')) {
+                $user->suggestedSuppliers()->sync($request->suggested_suppliers);
+            }
         });
 
         return redirect()->route('admin.users.index')
@@ -122,7 +136,8 @@ class UserController extends Controller
         $this->authorize('update', $user);
         $warehouses = Warehouse::all();
         $privateWarehouses = PrivateWarehouse::all();
-        return view('admin.users.edit', compact('user', 'warehouses', 'privateWarehouses'));
+        $suppliers = User::where('role', 'supplier')->get();
+        return view('admin.users.edit', compact('user', 'warehouses', 'privateWarehouses', 'suppliers'));
     }
 
     /**
@@ -162,6 +177,11 @@ class UserController extends Controller
             $rules['password'] = 'string|min:6';
         }
 
+        if ($request->role === 'delegate') {
+            $rules['suggested_suppliers'] = 'nullable|array';
+            $rules['suggested_suppliers.*'] = 'exists:users,id';
+        }
+
         $validated = $request->validate($rules);
 
         if ($request->filled('password')) {
@@ -177,6 +197,8 @@ class UserController extends Controller
         if (!$request->filled('email')) {
             $validated['email'] = null;
         }
+
+        $validated['is_observer'] = $request->role === 'supplier' && $request->has('is_observer');
 
         DB::transaction(function() use ($user, $validated, $request) {
             $user->update($validated);
@@ -195,6 +217,13 @@ class UserController extends Controller
             } else {
                 // إزالة المخزن الخاص إذا لم يكن المستخدم مورد
                 $user->update(['private_warehouse_id' => null]);
+            }
+
+            // تحديث المجهزين المقترحين للمندوب
+            if ($request->role === 'delegate') {
+                $user->suggestedSuppliers()->sync($request->suggested_suppliers ?? []);
+            } else {
+                $user->suggestedSuppliers()->sync([]);
             }
         });
 

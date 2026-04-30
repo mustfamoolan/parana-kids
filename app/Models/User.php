@@ -29,6 +29,7 @@ class User extends Authenticatable
         'profile_image',
         'telegram_chat_id',
         'google_id',
+        'is_observer',
     ];
 
     /**
@@ -113,6 +114,24 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Warehouse::class, 'warehouse_user')
                     ->withPivot('can_manage')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the suggested suppliers for this delegate
+     */
+    public function suggestedSuppliers()
+    {
+        return $this->belongsToMany(User::class, 'delegate_supplier', 'delegate_id', 'supplier_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the delegates assigned to this supplier
+     */
+    public function delegates()
+    {
+        return $this->belongsToMany(User::class, 'delegate_supplier', 'supplier_id', 'delegate_id')
                     ->withTimestamps();
     }
 

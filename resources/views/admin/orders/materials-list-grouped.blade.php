@@ -17,6 +17,7 @@
                         'date_to' => request('date_to'),
                         'time_from' => request('time_from'),
                         'time_to' => request('time_to'),
+                        'supplier_id' => request('supplier_id'),
                         'status' => $status !== 'pending' ? $status : null,
                     ]);
                     // back_route و back_params للعودة إلى صفحة materials-list-grouped
@@ -33,6 +34,7 @@
                         'date_to' => request('date_to'),
                         'time_from' => request('time_from'),
                         'time_to' => request('time_to'),
+                        'supplier_id' => request('supplier_id'),
                     ]);
                 @endphp
                 <a href="{{ route($backRouteForOrders, $backParamsForOrders) }}" class="btn btn-outline-secondary">

@@ -45,15 +45,19 @@ class AdminOrderController extends Controller
         try {
             $query = Order::query();
 
-            // Permissions: Suppliers only see orders with products from their warehouses
-            if ($user->isSupplier()) {
-                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                    });
-                } else {
-                    $query->whereRaw('1 = 0');
+            // Permissions: Suppliers only see their assigned orders (or all if observer)
+            if ($user->isSupplier() || $user->isPrivateSupplier()) {
+                if ($user->isSupplier() && !$user->is_observer) {
+                    $query->where('supplier_id', $user->id);
+                } elseif ($user->isPrivateSupplier()) {
+                    $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                    if (!empty($accessibleWarehouseIds)) {
+                        $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                            $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                        });
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
                 }
             }
 
@@ -108,7 +112,7 @@ class AdminOrderController extends Controller
             $warehouses = Warehouse::all();
         }
 
-        $suppliers = User::whereIn('role', ['admin', 'supplier'])->get(['id', 'name', 'code', 'role']);
+        $suppliers = User::where('role', 'supplier')->get(['id', 'name', 'code', 'role']);
         $delegates = User::where('role', 'delegate')->get(['id', 'name', 'code']);
 
         return response()->json([
@@ -170,6 +174,8 @@ class AdminOrderController extends Controller
             $query->where('size_reviewed', $request->size_reviewed);
         if ($request->filled('message_confirmed'))
             $query->where('message_confirmed', $request->message_confirmed);
+        if ($request->filled('supplier_id'))
+            $query->where('supplier_id', $request->supplier_id);
 
         // Date range
         if ($request->filled('date_from'))

@@ -17,6 +17,7 @@
                         'date_to' => request('date_to'),
                         'time_from' => request('time_from'),
                         'time_to' => request('time_to'),
+                        'supplier_id' => request('supplier_id'),
                         'status' => $status !== 'pending' ? $status : null,
                     ]);
                 @endphp
@@ -122,6 +123,7 @@
                                                 'date_to' => request('date_to'),
                                                 'time_from' => request('time_from'),
                                                 'time_to' => request('time_to'),
+                                                'supplier_id' => request('supplier_id'),
                                                 'status' => request('status'),
                                             ]))),
                                         ];
@@ -147,6 +149,7 @@
                                             'date_to' => request('date_to'),
                                             'time_from' => request('time_from'),
                                             'time_to' => request('time_to'),
+                                            'supplier_id' => request('supplier_id'),
                                             'status' => request('status'),
                                         ])));
                                     @endphp

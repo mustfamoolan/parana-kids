@@ -50,12 +50,8 @@ class OrderController extends Controller
         $query = Order::query();
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
 
         // فلتر الحالة
@@ -95,6 +91,11 @@ class OrderController extends Controller
         // فلتر المجهز (الطلبات التي قيدها المجهز)
         if ($request->filled('confirmed_by')) {
             $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المجهز الموجه له الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر المندوب (الطلبات التي أنشأها المندوب)
@@ -325,19 +326,15 @@ class OrderController extends Controller
         }
 
         // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
-        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+        $suppliers = \App\Models\User::where('role', 'supplier')->get();
         $delegates = \App\Models\User::where('role', 'delegate')->get();
 
         // Base query - فرض حالة pending دائماً
         $query = Order::where('status', 'pending');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
 
         // فلتر المخزن
@@ -350,6 +347,11 @@ class OrderController extends Controller
         // فلتر المجهز (الطلبات التي قيدها المجهز) - لا ينطبق على pending لكن نتركه للتوافق
         if ($request->filled('confirmed_by')) {
             $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المجهز الموجه له الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر المندوب (الطلبات التي أنشأها المندوب)
@@ -543,19 +545,15 @@ class OrderController extends Controller
         }
 
         // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
-        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+        $suppliers = \App\Models\User::where('role', 'supplier')->get();
         $delegates = \App\Models\User::where('role', 'delegate')->get();
 
         // Base query - فرض حالة confirmed دائماً
         $query = Order::where('status', 'confirmed');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
 
         // فلتر المخزن
@@ -568,6 +566,11 @@ class OrderController extends Controller
         // فلتر المجهز (الطلبات التي قيدها المجهز)
         if ($request->filled('confirmed_by')) {
             $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المجهز الموجه له الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر المندوب (الطلبات التي أنشأها المندوب)
@@ -821,13 +824,9 @@ class OrderController extends Controller
         $query = Order::query();
 
         // فلتر الصلاحيات
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
-
         // فلتر الحالة (pending بشكل افتراضي)
         if ($request->filled('status')) {
             if ($request->status === 'deleted') {
@@ -929,13 +928,9 @@ class OrderController extends Controller
                 }
 
                 // فلتر صلاحيات المجهز
-                if (Auth::user()->isSupplier()) {
-                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                    if (!in_array($item->product->warehouse_id, $accessibleWarehouseIds)) {
-                        return false;
-                    }
+                if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+                    // no filter
                 }
-
                 return true;
             });
         }
@@ -959,13 +954,9 @@ class OrderController extends Controller
         $query = Order::query();
 
         // فلتر الصلاحيات
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
-
         // فلتر الحالة (pending بشكل افتراضي)
         if ($request->filled('status')) {
             if ($request->status === 'deleted') {
@@ -1068,11 +1059,8 @@ class OrderController extends Controller
                 }
 
                 // فلتر صلاحيات المجهز
-                if (Auth::user()->isSupplier()) {
-                    $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                    if (!in_array($item->product->warehouse_id, $accessibleWarehouseIds)) {
-                        continue; // تجاهل المنتجات من مخازن ليس لديه صلاحية عليها
-                    }
+                if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+                    // no filter
                 }
 
                 // استخدام كود المنتج كمفتاح للتجميع
@@ -1134,12 +1122,8 @@ class OrderController extends Controller
         $query = Order::where('status', 'pending');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
 
         return $query->with([
@@ -1182,10 +1166,7 @@ class OrderController extends Controller
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $hasAccessibleItem = $order->items()->whereHas('product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
+            $hasAccessibleItem = Auth::user()->is_observer || $order->supplier_id == Auth::id();
 
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
@@ -1592,10 +1573,7 @@ class OrderController extends Controller
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $hasAccessibleItem = $order->items()->whereHas('product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
+            $hasAccessibleItem = Auth::user()->is_observer || $order->supplier_id == Auth::id();
 
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
@@ -2092,12 +2070,8 @@ class OrderController extends Controller
         $query = Order::where('status', 'cancelled');
 
         // للمجهز: عرض الطلبات من مخازنه فقط
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
 
         // فلاتر البحث
@@ -2175,12 +2149,8 @@ class OrderController extends Controller
         $query = Order::where('status', 'exchanged');
 
         // للمجهز: عرض الطلبات من مخازنه فقط
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            });
+        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+            $query->where('supplier_id', Auth::id());
         }
 
         // فلاتر البحث

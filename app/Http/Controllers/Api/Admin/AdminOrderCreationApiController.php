@@ -374,11 +374,16 @@ class AdminOrderCreationApiController extends Controller
             return response()->json(['success' => false, 'message' => 'السلة فارغة أو غير موجودة.'], 422);
         }
 
+        $request->validate([
+            'supplier_id' => 'nullable|exists:users,id',
+        ]);
+
         try {
-            $order = DB::transaction(function () use ($cart) {
+            $order = DB::transaction(function () use ($cart, $request) {
                 $order = Order::create([
                     'cart_id' => $cart->id,
                     'delegate_id' => auth()->id(),
+                    'supplier_id' => $request->supplier_id,
                     'customer_name' => $cart->customer_name,
                     'customer_phone' => $cart->customer_phone,
                     'customer_phone2' => $cart->customer_phone2,

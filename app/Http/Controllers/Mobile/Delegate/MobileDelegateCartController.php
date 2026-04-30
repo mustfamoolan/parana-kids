@@ -108,11 +108,14 @@ class MobileDelegateCartController extends Controller
                 ->latest()
                 ->first();
 
+            $suggestedSuppliers = $user->suggestedSuppliers()->select('users.id', 'users.name', 'users.code')->get();
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم بدء الطلب بنجاح',
                 'data' => [
                     'cart' => $this->formatCartData($cart),
+                    'suggested_suppliers' => $suggestedSuppliers,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -182,10 +185,13 @@ class MobileDelegateCartController extends Controller
             ], 403);
         }
 
+        $suggestedSuppliers = $user->suggestedSuppliers()->select('users.id', 'users.name', 'users.code')->get();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'cart' => $this->formatCartData($cart),
+                'suggested_suppliers' => $suggestedSuppliers,
             ],
         ]);
     }
@@ -503,6 +509,7 @@ class MobileDelegateCartController extends Controller
 
         $request->validate([
             'cart_id' => 'required|exists:carts,id',
+            'supplier_id' => 'nullable|exists:users,id',
         ]);
 
         // استخدام lockForUpdate() لمنع التكرار
@@ -560,13 +567,14 @@ class MobileDelegateCartController extends Controller
 
         try {
             // إنشاء الطلب
-            $order = DB::transaction(function () use ($cart) {
+            $order = DB::transaction(function () use ($cart, $request) {
                 // تحديث حالة السلة أولاً لمنع التكرار
                 $cart->update(['status' => 'completed']);
 
                 $order = Order::create([
                     'cart_id' => $cart->id,
                     'delegate_id' => $cart->delegate_id,
+                    'supplier_id' => $request->supplier_id,
                     'customer_name' => $cart->customer_name,
                     'customer_phone' => $cart->customer_phone,
                     'customer_phone2' => $cart->customer_phone2,
