@@ -1208,7 +1208,17 @@ class OrderController extends Controller
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
-            $hasAccessibleItem = $order->supplier_id == Auth::id();
+            $hasAccessibleItem = false;
+            if ($order->supplier_id) {
+                $hasAccessibleItem = $order->supplier_id == Auth::id();
+            } else {
+                // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
+                $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+                $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                    $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                })->exists();
+            }
+
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
             }
@@ -1622,7 +1632,17 @@ class OrderController extends Controller
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
-            $hasAccessibleItem = $order->supplier_id == Auth::id();
+            $hasAccessibleItem = false;
+            if ($order->supplier_id) {
+                $hasAccessibleItem = $order->supplier_id == Auth::id();
+            } else {
+                // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
+                $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+                $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                    $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                })->exists();
+            }
+
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
             }

@@ -69,7 +69,7 @@ class OrderPolicy
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback
+            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
@@ -101,17 +101,17 @@ class OrderPolicy
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
+            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
         if ($user->isPrivateSupplier()) {
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
@@ -131,26 +131,26 @@ class OrderPolicy
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
+            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
         if ($user->isPrivateSupplier()) {
             // المورد يمكنه حذف الطلبات من مخازنه فقط
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
         if ($user->isDelegate()) {
             // المندوب يمكنه حذف الطلبات من مخازنه المخصصة فقط
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
             })->exists();
         }
 
