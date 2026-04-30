@@ -1131,9 +1131,14 @@ class OrderController extends Controller
     {
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // للمجهز والمورد: تصفية حسب الصلاحية
         if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
+        } elseif (Auth::user()->isPrivateSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
         }
 
         return $query->with([
@@ -1603,8 +1608,8 @@ class OrderController extends Controller
         // جلب المنتجات حسب صلاحيات المستخدم
         $productsQuery = Product::with(['sizes', 'primaryImage']);
 
-        // للمجهز: فقط منتجات المخازن المسموح له بها
-        if (Auth::user()->isSupplier()) {
+        // للمجهز والمورد: فقط منتجات المخازن المسموح له بها
+        if (Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) {
             $warehouseIds = Auth::user()->warehouses()->pluck('warehouses.id');
             $productsQuery->whereIn('warehouse_id', $warehouseIds);
         }
