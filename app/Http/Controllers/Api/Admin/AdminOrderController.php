@@ -35,7 +35,7 @@ class AdminOrderController extends Controller
         $user = Auth::user();
 
         // Security check
-        if (!$user || (!$user->isAdmin() && !$user->isSupplier())) {
+        if (!$user || (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier() && !$user->isObserver())) {
             return response()->json([
                 'success' => false,
                 'message' => 'غير مصرح.',
@@ -45,26 +45,21 @@ class AdminOrderController extends Controller
         try {
             $query = Order::query();
 
-            // Permissions: Suppliers see their assigned orders OR unassigned orders from their warehouses
-            if ($user->isSupplier()) {
-                $query->where(function($q) use ($user) {
-                    $q->where('supplier_id', $user->id)
-                      ->orWhere(function($sq) use ($user) {
-                          $sq->whereNull('supplier_id')
-                             ->whereHas('items.product', function ($pq) use ($user) {
-                                 $pq->whereIn('warehouse_id', $user->warehouses->pluck('id'));
-                             });
-                      });
-                });
-            } elseif ($user->isPrivateSupplier()) {
+            // للمجهز والمورد: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
+            // المراقب والمدير يرى كل شيء
+            if (($user->isSupplier() || $user->isPrivateSupplier()) && !$user->isObserver()) {
                 $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-                if (!empty($accessibleWarehouseIds)) {
-                    $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                        $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                $query->where(function($q) use ($user, $accessibleWarehouseIds) {
+                    // 1. الطلبات المسندة إليه صراحة
+                    $q->where('supplier_id', $user->id)
+                    // 2. أو الطلبات غير المسندة والتي تتبع مخازنه
+                    ->orWhere(function($sq) use ($accessibleWarehouseIds) {
+                        $sq->whereNull('supplier_id')
+                           ->whereHas('items.product', function ($pq) use ($accessibleWarehouseIds) {
+                                 $pq->whereIn('warehouse_id', $accessibleWarehouseIds);
+                            });
                     });
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+                });
             }
 
             // Apply Filters (Same as d:\flutter\br\parana-kids\app\Http\Controllers\Admin\OrderController.php)

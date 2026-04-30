@@ -23,22 +23,17 @@ class OrderPolicy
      */
     public function view(User $user, Order $order): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isObserver()) {
             return true;
         }
 
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
+            // منطق هجين: إذا كان مسنداً لمجهز، المجهز المسند إليه فقط يراه
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
-            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
-        }
-
-        if ($user->isPrivateSupplier()) {
+            
+            // إذا لم يكن مسنداً لمجهز، نعتمد على صلاحية المخازن
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
@@ -61,22 +56,17 @@ class OrderPolicy
      */
     public function update(User $user, Order $order): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isObserver()) {
             return true;
         }
 
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
+            // منطق هجين: إذا كان مسنداً لمجهز، المجهز المسند إليه فقط يراه
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
-            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
-        }
-
-        if ($user->isPrivateSupplier()) {
+            
+            // إذا لم يكن مسنداً لمجهز، نعتمد على صلاحية المخازن
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
@@ -91,24 +81,17 @@ class OrderPolicy
      */
     public function process(User $user, Order $order): bool
     {
-        // Admin يمكنه تجهيز أي طلب
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isObserver()) {
             return true;
         }
 
-        // Supplier يمكنه تجهيز طلباته فقط
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
+            // منطق هجين: إذا كان مسنداً لمجهز، المجهز المسند إليه فقط يراه
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
-            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
-        }
-
-        if ($user->isPrivateSupplier()) {
+            
+            // إذا لم يكن مسنداً لمجهز، نعتمد على صلاحية المخازن
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
@@ -123,23 +106,17 @@ class OrderPolicy
      */
     public function delete(User $user, Order $order): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isObserver()) {
             return true;
         }
 
-        if ($user->isSupplier()) {
+        if ($user->isSupplier() || $user->isPrivateSupplier()) {
+            // منطق هجين: إذا كان مسنداً لمجهز، المجهز المسند إليه فقط يراه
             if ($order->supplier_id) {
                 return $order->supplier_id == $user->id;
             }
-            // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
-            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
-        }
-
-        if ($user->isPrivateSupplier()) {
-            // المورد يمكنه حذف الطلبات من مخازنه فقط
+            
+            // إذا لم يكن مسنداً لمجهز، نعتمد على صلاحية المخازن
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
             return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);

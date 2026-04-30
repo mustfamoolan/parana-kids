@@ -49,22 +49,22 @@ class OrderController extends Controller
         // Base query
         $query = Order::query();
 
-        // للمجهز: عرض الطلبات الموجهة له حصراً، أو الطلبات غير الموجهة التي تتبع مخازنه
-        if (Auth::user()->isSupplier()) {
+        // للمجهز والمورد: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
+        // المراقب والمدير يرى كل شيء
+        if ((Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) && !Auth::user()->isObserver()) {
             $user = Auth::user();
-            $query->where(function($q) use ($user) {
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+
+            $query->where(function($q) use ($user, $accessibleWarehouseIds) {
+                // 1. الطلبات المسندة إليه صراحة
                 $q->where('supplier_id', $user->id)
-                  ->orWhere(function($sq) use ($user) {
-                      $sq->whereNull('supplier_id')
-                         ->whereHas('items.product', function ($pq) use ($user) {
-                             $pq->whereIn('warehouse_id', $user->warehouses->pluck('id'));
-                         });
-                  });
-            });
-        } elseif (Auth::user()->isPrivateSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                // 2. أو الطلبات غير المسندة والتي تتبع مخازنه
+                ->orWhere(function($sq) use ($accessibleWarehouseIds) {
+                    $sq->whereNull('supplier_id')
+                       ->whereHas('items.product', function ($pq) use ($accessibleWarehouseIds) {
+                             $pq->whereIn('warehouse_id', $accessibleWarehouseIds);
+                        });
+                });
             });
         }
 

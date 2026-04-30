@@ -1844,8 +1844,9 @@ class AlWaseetController extends Controller
         // Base query - فرض حالة pending دائماً
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
-        if (Auth::user()->isSupplier()) {
+        // للمجهز والمورد: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
+        // المراقب والمدير يرى كل شيء
+        if ((Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) && !Auth::user()->isObserver()) {
             $user = Auth::user();
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
 
@@ -3262,8 +3263,9 @@ class AlWaseetController extends Controller
         // Base query - نفس منطق printAndUploadOrders
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
-        if (Auth::user()->isSupplier()) {
+        // للمجهز والمورد: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
+        // المراقب والمدير يرى كل شيء
+        if ((Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) && !Auth::user()->isObserver()) {
             $user = Auth::user();
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
 
@@ -3488,8 +3490,9 @@ class AlWaseetController extends Controller
         // Base query - نفس منطق printAndUploadOrders
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
-        if (Auth::user()->isSupplier()) {
+        // للمجهز والمورد: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
+        // المراقب والمدير يرى كل شيء
+        if ((Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) && !Auth::user()->isObserver()) {
             $user = Auth::user();
             $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
 
