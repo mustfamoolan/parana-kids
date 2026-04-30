@@ -720,9 +720,7 @@ class OrderController extends Controller
      */
     public function start()
     {
-        // جلب قائمة المجهزين والمديرين
-        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
-        return view('delegate.orders.start', compact('suppliers'));
+        return view('delegate.orders.start');
     }
 
     /**
@@ -793,7 +791,6 @@ class OrderController extends Controller
             'customer_address' => 'required|string',
             'customer_social_link' => 'required|string|max:255',
             'notes' => 'nullable|string',
-            'supplier_id' => 'required|exists:users,id',
         ], [
             'customer_phone.digits' => 'رقم الهاتف يجب أن يكون بالضبط 11 رقم',
             'customer_phone2.digits' => 'رقم الهاتف الثاني يجب أن يكون بالضبط 11 رقم',
@@ -825,7 +822,6 @@ class OrderController extends Controller
             'customer_address' => $request->customer_address,
             'customer_social_link' => $request->customer_social_link,
             'notes' => $request->notes,
-            'supplier_id' => $request->supplier_id,
         ]);
 
         // حفظ cart_id فقط في session (رقم صغير لا يسبب مشاكل الكوكيز)
@@ -905,6 +901,21 @@ class OrderController extends Controller
                            ->with('error', 'بيانات الزبون غير موجودة. يرجى إنشاء طلب جديد');
         }
 
+        // التحقق من المجهز
+        $suggestedSuppliers = auth()->user()->suggestedSuppliers;
+        $supplierId = null;
+
+        if ($suggestedSuppliers->count() === 1) {
+            $supplierId = $suggestedSuppliers->first()->id;
+        } else {
+            $request->validate([
+                'supplier_id' => 'required|exists:users,id'
+            ], [
+                'supplier_id.required' => 'يرجى اختيار المجهز لإرسال الطلب'
+            ]);
+            $supplierId = $request->supplier_id;
+        }
+
         // التحقق من عدم وجود طلب موجود بالفعل من هذه السلة
         $existingOrder = Order::where('cart_id', $cart->id)->first();
         if ($existingOrder) {
@@ -914,7 +925,7 @@ class OrderController extends Controller
         }
 
         // إنشاء الطلب
-        $order = DB::transaction(function() use ($cart) {
+        $order = DB::transaction(function() use ($cart, $supplierId) {
             // تحديث حالة السلة أولاً لمنع التكرار
             $cart->update(['status' => 'completed']);
 
@@ -929,6 +940,7 @@ class OrderController extends Controller
                 'notes' => $cart->notes,
                 'status' => 'pending',
                 'total_amount' => $cart->total_amount,
+                'supplier_id' => $supplierId,
             ]);
 
             // نسخ المنتجات وخصم المخزون

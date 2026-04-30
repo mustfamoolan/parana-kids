@@ -154,6 +154,26 @@
                     </div>
                 </div>
 
+                <!-- اختيار المجهز -->
+                <div class="panel mb-5 border-2 border-primary">
+                    <h5 class="font-bold text-lg mb-4 text-primary">توجيه الطلب</h5>
+                    <div>
+                        <label for="supplier_id" class="font-semibold block mb-2">اختر المجهز <span class="text-danger">*</span></label>
+                        <select id="supplier_id" name="supplier_id" class="form-select" required>
+                            <option value="">-- اختر المجهز --</option>
+                            @php
+                                $allSuppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+                            @endphp
+                            @foreach($allSuppliers as $supplier)
+                                <option value="{{ $supplier->id }}" {{ (auth()->user()->isSupplier() && auth()->id() == $supplier->id) ? 'selected' : '' }}>
+                                    {{ $supplier->name }} ({{ $supplier->role == 'admin' ? 'مدير' : 'مجهز' }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-500 mt-2">يجب اختيار مجهز واحد لإرسال الطلب إليه.</p>
+                    </div>
+                </div>
+
                 <!-- Action Buttons -->
                 <div class="flex gap-3 justify-end mt-5 pt-5 border-t">
                     <a href="{{ route('admin.products.index') }}" class="btn btn-outline-primary">
@@ -278,6 +298,13 @@
         }
 
         function submitOrder() {
+            const supplierId = document.getElementById('supplier_id')?.value;
+
+            if (!supplierId) {
+                Swal.fire('خطأ', 'يرجى اختيار المجهز أولاً', 'error');
+                return;
+            }
+
             // نموذج مخفي لإرسال الطلب
             const form = document.createElement('form');
             form.method = 'POST';
@@ -288,6 +315,12 @@
             csrfToken.name = '_token';
             csrfToken.value = '{{ csrf_token() }}';
             form.appendChild(csrfToken);
+
+            const supplierInput = document.createElement('input');
+            supplierInput.type = 'hidden';
+            supplierInput.name = 'supplier_id';
+            supplierInput.value = supplierId;
+            form.appendChild(supplierInput);
 
             document.body.appendChild(form);
             form.submit();

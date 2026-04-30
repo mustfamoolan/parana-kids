@@ -307,29 +307,48 @@
                         </div>
                     </div>
 
-                    <!-- Notes -->
-                    @if(!empty($customerData['notes']))
-                        <div class="mb-5">
-                            <h6 class="font-bold text-lg mb-2">ملاحظات:</h6>
-                            <p class="text-gray-700 dark:text-gray-300">{{ $customerData['notes'] }}</p>
+                    <form method="POST" action="{{ route('admin.orders.create.submit') }}" id="confirmOrderForm">
+                        @csrf
+                        <!-- اختيار المجهز -->
+                        <div class="mb-5 panel border-2 border-primary">
+                            <h6 class="font-bold text-lg mb-3 text-primary">توجيه الطلب</h6>
+                            <div class="space-y-2">
+                                <label for="supplier_id_confirm" class="font-semibold block text-sm">اختر المجهز <span class="text-danger">*</span></label>
+                                <select id="supplier_id_confirm" name="supplier_id" class="form-select" required>
+                                    <option value="">-- اختر المجهز --</option>
+                                    @php
+                                        $allSuppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
+                                    @endphp
+                                    @foreach($allSuppliers as $supplier)
+                                        <option value="{{ $supplier->id }}" {{ (auth()->user()->isSupplier() && auth()->id() == $supplier->id) ? 'selected' : '' }}>
+                                            {{ $supplier->name }} ({{ $supplier->role == 'admin' ? 'مدير' : 'مجهز' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
-                    @endif
 
-                    <!-- Footer Buttons -->
-                    <div class="flex gap-3 justify-end mt-6 pt-4 border-t">
-                        <button type="button" onclick="closeConfirmModal()" class="btn btn-outline-secondary">
-                            رجوع
-                        </button>
-                        <form method="POST" action="{{ route('admin.orders.create.submit') }}" id="confirmOrderForm">
-                            @csrf
+                        <!-- Notes -->
+                        @if(!empty($customerData['notes']))
+                            <div class="mb-5">
+                                <h6 class="font-bold text-lg mb-2">ملاحظات:</h6>
+                                <p class="text-gray-700 dark:text-gray-300">{{ $customerData['notes'] }}</p>
+                            </div>
+                        @endif
+
+                        <!-- Footer Buttons -->
+                        <div class="flex gap-3 justify-end mt-6 pt-4 border-t">
+                            <button type="button" onclick="closeConfirmModal()" class="btn btn-outline-secondary">
+                                رجوع
+                            </button>
                             <button type="submit" class="btn btn-success btn-lg">
                                 <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                 </svg>
                                 تأكيد وإرسال
                             </button>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
