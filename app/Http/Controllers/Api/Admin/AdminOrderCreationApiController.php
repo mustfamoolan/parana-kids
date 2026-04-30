@@ -149,11 +149,14 @@ class AdminOrderCreationApiController extends Controller
             ['id' => 'accessories', 'name' => 'إكسسوارات'],
         ];
 
+        $suppliers = \App\Models\User::where('role', 'supplier')->select('id', 'name')->get();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'warehouses' => $warehouses,
                 'types' => $types,
+                'suppliers' => $suppliers,
             ],
         ]);
     }
