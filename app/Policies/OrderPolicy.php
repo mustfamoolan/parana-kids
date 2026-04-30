@@ -15,7 +15,7 @@ class OrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin() || $user->isSupplier();
+        return $user->isAdmin() || $user->isSupplier() || $user->isPrivateSupplier();
     }
 
     /**
@@ -29,6 +29,13 @@ class OrderPolicy
 
         if ($user->isSupplier()) {
             return $order->supplier_id == $user->id;
+        }
+
+        if ($user->isPrivateSupplier()) {
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
         }
 
         return false;
@@ -55,6 +62,13 @@ class OrderPolicy
             return $order->supplier_id == $user->id;
         }
 
+        if ($user->isPrivateSupplier()) {
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
+        }
+
         return false;
     }
 
@@ -73,6 +87,13 @@ class OrderPolicy
             return $order->supplier_id == $user->id;
         }
 
+        if ($user->isPrivateSupplier()) {
+            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
+            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouse_id', $warehouseIds);
+            })->exists();
+        }
+
         return false;
     }
 
@@ -88,6 +109,14 @@ class OrderPolicy
         if ($user->isSupplier()) {
             // المجهز يمكنه حذف طلباته فقط
             return $order->supplier_id == $user->id;
+        }
+
+        if ($user->isPrivateSupplier()) {
+            // المورد يمكنه حذف الطلبات من مخازنه فقط
+            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
+            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
+                $q->whereIn('warehouse_id', $warehouseIds);
+            })->exists();
         }
 
         if ($user->isDelegate()) {
