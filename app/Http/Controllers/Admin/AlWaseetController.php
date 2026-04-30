@@ -1844,23 +1844,26 @@ class AlWaseetController extends Controller
         // Base query - فرض حالة pending دائماً
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        // استخدام whereIn بدلاً من whereHas لتحسين الأداء بشكل جذري (10-100 مرة أسرع)
+        // للمجهز: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
         if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $user = Auth::user();
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
 
-            if (!empty($accessibleWarehouseIds)) {
-                $query->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
-                    $subQuery->select('order_id')
-                        ->from('order_items')
-                        ->join('products', 'order_items.product_id', '=', 'products.id')
-                        ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
-                        ->distinct();
+            $query->where(function($q) use ($user, $accessibleWarehouseIds) {
+                // 1. الطلبات المسندة إليه صراحة
+                $q->where('supplier_id', $user->id)
+                // 2. أو الطلبات غير المسندة والتي تتبع مخازنه
+                ->orWhere(function($sq) use ($accessibleWarehouseIds) {
+                    $sq->whereNull('supplier_id')
+                       ->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
+                            $subQuery->select('order_id')
+                                ->from('order_items')
+                                ->join('products', 'order_items.product_id', '=', 'products.id')
+                                ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
+                                ->distinct();
+                        });
                 });
-            } else {
-                // إذا لم يكن لديه مخازن، لا توجد طلبات
-                $query->whereRaw('1 = 0');
-            }
+            });
         }
 
         // فلتر المخزن - استخدام whereIn بدلاً من whereHas لتحسين الأداء
@@ -1877,6 +1880,11 @@ class AlWaseetController extends Controller
         // فلتر المجهز (الطلبات التي قيدها المجهز) - لا ينطبق على pending لكن نتركه للتوافق
         if ($request->filled('confirmed_by')) {
             $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المجهز الموجه إليه الطلب (supplier_id) - جديد للمدير والمراقب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر المندوب (الطلبات التي أنشأها المندوب)
@@ -3254,11 +3262,19 @@ class AlWaseetController extends Controller
         // Base query - نفس منطق printAndUploadOrders
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // للمجهز: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
         if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            $user = Auth::user();
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+
+            $query->where(function($q) use ($user, $accessibleWarehouseIds) {
+                $q->where('supplier_id', $user->id)
+                ->orWhere(function($sq) use ($accessibleWarehouseIds) {
+                    $sq->whereNull('supplier_id')
+                       ->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                            $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                        });
+                });
             });
         }
 
@@ -3272,6 +3288,11 @@ class AlWaseetController extends Controller
         // فلتر المجهز
         if ($request->filled('confirmed_by')) {
             $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المجهز الموجه إليه الطلب (supplier_id)
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر المندوب
@@ -3467,11 +3488,19 @@ class AlWaseetController extends Controller
         // Base query - نفس منطق printAndUploadOrders
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // للمجهز: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
         if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            $user = Auth::user();
+            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+
+            $query->where(function($q) use ($user, $accessibleWarehouseIds) {
+                $q->where('supplier_id', $user->id)
+                ->orWhere(function($sq) use ($accessibleWarehouseIds) {
+                    $sq->whereNull('supplier_id')
+                       ->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                            $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                        });
+                });
             });
         }
 
@@ -3485,6 +3514,11 @@ class AlWaseetController extends Controller
         // فلتر المجهز
         if ($request->filled('confirmed_by')) {
             $query->where('confirmed_by', $request->confirmed_by);
+        }
+
+        // فلتر المجهز الموجه إليه الطلب (supplier_id)
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر المندوب

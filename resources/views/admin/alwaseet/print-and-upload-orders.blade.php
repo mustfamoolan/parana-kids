@@ -46,6 +46,7 @@
                     'hours_filter' => request('hours_filter'),
                     'alwaseet_sent' => request('alwaseet_sent'),
                     'alwaseet_complete' => request('alwaseet_complete'),
+                    'supplier_id' => request('supplier_id'),
                 ])) }}" class="btn btn-success">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
@@ -66,6 +67,7 @@
                     'hours_filter' => request('hours_filter'),
                     'alwaseet_sent' => request('alwaseet_sent'),
                     'alwaseet_complete' => request('alwaseet_complete'),
+                    'supplier_id' => request('supplier_id'),
                 ])) }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
@@ -215,6 +217,18 @@
                                 <option value="incomplete" {{ request('alwaseet_complete') === 'incomplete' ? 'selected' : '' }}>غير مكتمل البيانات</option>
                             </select>
                         </div>
+                        @if(auth()->user()->isAdmin() || auth()->user()->isObserver())
+                            <div class="sm:w-48">
+                                <select name="supplier_id" id="supplierIdFilterPending" class="form-select">
+                                    <option value="">كل المجهزين الموجهة لهم</option>
+                                    @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
+                                            {{ $supplier->name }} ({{ $supplier->code }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
                     </div>
 
                     <!-- الصف الثالث: التاريخ -->
@@ -926,6 +940,7 @@
                 { id: 'messageConfirmedFilterPending', key: 'selectedMessageConfirmed_alwaseet_print_upload', param: 'message_confirmed' },
                 { id: 'alwaseetSentFilter', key: 'selectedAlwaseetSent_alwaseet_print_upload', param: 'alwaseet_sent' },
                 { id: 'alwaseetCompleteFilter', key: 'selectedAlwaseetComplete_alwaseet_print_upload', param: 'alwaseet_complete' },
+                { id: 'supplierIdFilterPending', key: 'selectedSupplierId_alwaseet_print_upload', param: 'supplier_id' },
                 { id: 'dateFromFilterPending', key: 'selectedDateFrom_alwaseet_print_upload', param: 'date_from' },
                 { id: 'dateToFilterPending', key: 'selectedDateTo_alwaseet_print_upload', param: 'date_to' },
                 { id: 'timeFromFilterPending', key: 'selectedTimeFrom_alwaseet_print_upload', param: 'time_from' },

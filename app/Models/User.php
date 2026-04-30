@@ -108,6 +108,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is observer
+     */
+    public function isObserver()
+    {
+        return (bool) $this->is_observer;
+    }
+
+    /**
      * Get all warehouses this user has access to
      */
     public function warehouses()

@@ -21,6 +21,7 @@
                         'time_to' => request('time_to'),
                         'alwaseet_sent' => request('alwaseet_sent'),
                         'alwaseet_complete' => request('alwaseet_complete'),
+                        'supplier_id' => request('supplier_id'),
                     ]);
                 @endphp
                 <a href="{{ route($backRouteForButton, $backParams) }}" class="btn btn-outline-secondary">
