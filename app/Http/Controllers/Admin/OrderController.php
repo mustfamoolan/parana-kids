@@ -1182,7 +1182,14 @@ class OrderController extends Controller
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
             $hasAccessibleItem = $order->supplier_id == Auth::id();
-
+            if (!$hasAccessibleItem) {
+                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
+            }
+        } elseif (Auth::user()->isPrivateSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
             }
@@ -1335,7 +1342,7 @@ class OrderController extends Controller
             return \App\Models\Warehouse::all();
         }
 
-        if (Auth::user()->isSupplier()) {
+        if (Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) {
             return Auth::user()->warehouses;
         }
 
@@ -1589,7 +1596,14 @@ class OrderController extends Controller
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
             $hasAccessibleItem = $order->supplier_id == Auth::id();
-
+            if (!$hasAccessibleItem) {
+                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
+            }
+        } elseif (Auth::user()->isPrivateSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            })->exists();
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
             }
