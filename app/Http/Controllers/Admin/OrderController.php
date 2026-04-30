@@ -36,7 +36,7 @@ class OrderController extends Controller
         $this->authorize('viewAny', Order::class);
 
         // جلب قائمة المخازن حسب الصلاحيات
-        if (Auth::user()->isSupplier()) {
+        if (Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) {
             $warehouses = Auth::user()->warehouses;
         } else {
             $warehouses = \App\Models\Warehouse::all();
@@ -49,9 +49,14 @@ class OrderController extends Controller
         // Base query
         $query = Order::query();
 
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // للمجهز: عرض الطلبات الموجهة له حصراً، وللمورد: عرض طلبات مخازنه
         if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
+        } elseif (Auth::user()->isPrivateSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
         }
 
         // فلتر الحالة
@@ -332,9 +337,14 @@ class OrderController extends Controller
         // Base query - فرض حالة pending دائماً
         $query = Order::where('status', 'pending');
 
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // للمجهز: عرض الطلبات الموجهة له حصراً، وللمورد: عرض طلبات مخازنه
         if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
+        } elseif (Auth::user()->isPrivateSupplier()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
+            $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            });
         }
 
         // فلتر المخزن
