@@ -28,12 +28,7 @@ class OrderPolicy
         }
 
         if ($user->isSupplier()) {
-            // التحقق من أن المجهز له صلاحية الوصول لمخازن المنتجات في هذا الطلب
-            // استخدام نفس المنطق المستخدم في management page
-            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
+            return $order->supplier_id == $user->id;
         }
 
         return false;
@@ -57,11 +52,7 @@ class OrderPolicy
         }
 
         if ($user->isSupplier()) {
-            // نفس منطق view
-            $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
-            return $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
+            return $order->supplier_id == $user->id;
         }
 
         return false;
@@ -77,12 +68,9 @@ class OrderPolicy
             return true;
         }
 
-        // Supplier يمكنه تجهيز الطلبات من مخازنه فقط
+        // Supplier يمكنه تجهيز طلباته فقط
         if ($user->isSupplier()) {
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
-            })->exists();
+            return $order->supplier_id == $user->id;
         }
 
         return false;
@@ -98,11 +86,8 @@ class OrderPolicy
         }
 
         if ($user->isSupplier()) {
-            // المجهز يمكنه حذف الطلبات من مخازنه فقط
-            $warehouseIds = $user->warehouses()->pluck('warehouse_id');
-            return $order->items()->whereHas('product', function($q) use ($warehouseIds) {
-                $q->whereIn('warehouse_id', $warehouseIds);
-            })->exists();
+            // المجهز يمكنه حذف طلباته فقط
+            return $order->supplier_id == $user->id;
         }
 
         if ($user->isDelegate()) {

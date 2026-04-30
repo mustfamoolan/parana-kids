@@ -142,7 +142,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -235,7 +235,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -329,7 +329,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -429,7 +429,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -522,7 +522,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -666,7 +666,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -918,11 +918,15 @@ class MobileAdminOrderController extends Controller
                 });
 
             // تطبيق فلاتر الصلاحيات
-            $warehouses = $this->getAccessibleWarehouses();
-            if ($warehouses->isNotEmpty()) {
-                $query->whereHas('items.product', function ($q) use ($warehouses) {
-                    $q->whereIn('warehouse_id', $warehouses->pluck('id'));
-                });
+            if ($user->isSupplier()) {
+                $query->where('supplier_id', $user->id);
+            } elseif ($user->isPrivateSupplier()) {
+                $warehouses = $this->getAccessibleWarehouses();
+                if ($warehouses->isNotEmpty()) {
+                    $query->whereHas('items.product', function ($q) use ($warehouses) {
+                        $q->whereIn('warehouse_id', $warehouses->pluck('id'));
+                    });
+                }
             }
 
             // فلتر المندوب
@@ -1069,18 +1073,28 @@ class MobileAdminOrderController extends Controller
             }
 
             // التحقق من الصلاحيات
-            $warehouses = $this->getAccessibleWarehouses();
-            if ($warehouses->isNotEmpty()) {
-                $hasAccess = $order->items()->whereHas('product', function ($q) use ($warehouses) {
-                    $q->whereIn('warehouse_id', $warehouses->pluck('id'));
-                })->exists();
-
-                if (!$hasAccess) {
+            if ($user->isSupplier()) {
+                if ($order->supplier_id != $user->id) {
                     return response()->json([
                         'success' => false,
                         'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
                         'error_code' => 'FORBIDDEN',
                     ], 403);
+                }
+            } elseif ($user->isPrivateSupplier()) {
+                $warehouses = $this->getAccessibleWarehouses();
+                if ($warehouses->isNotEmpty()) {
+                    $hasAccess = $order->items()->whereHas('product', function ($q) use ($warehouses) {
+                        $q->whereIn('warehouse_id', $warehouses->pluck('id'));
+                    })->exists();
+
+                    if (!$hasAccess) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                            'error_code' => 'FORBIDDEN',
+                        ], 403);
+                    }
                 }
             }
 
@@ -1189,18 +1203,28 @@ class MobileAdminOrderController extends Controller
             }
 
             // التحقق من الصلاحيات
-            $warehouses = $this->getAccessibleWarehouses();
-            if ($warehouses->isNotEmpty()) {
-                $hasAccess = $order->items()->whereHas('product', function ($q) use ($warehouses) {
-                    $q->whereIn('warehouse_id', $warehouses->pluck('id'));
-                })->exists();
-
-                if (!$hasAccess) {
+            if ($user->isSupplier()) {
+                if ($order->supplier_id != $user->id) {
                     return response()->json([
                         'success' => false,
                         'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
                         'error_code' => 'FORBIDDEN',
                     ], 403);
+                }
+            } elseif ($user->isPrivateSupplier()) {
+                $warehouses = $this->getAccessibleWarehouses();
+                if ($warehouses->isNotEmpty()) {
+                    $hasAccess = $order->items()->whereHas('product', function ($q) use ($warehouses) {
+                        $q->whereIn('warehouse_id', $warehouses->pluck('id'));
+                    })->exists();
+
+                    if (!$hasAccess) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'ليس لديك صلاحية للوصول إلى هذا الطلب',
+                            'error_code' => 'FORBIDDEN',
+                        ], 403);
+                    }
                 }
             }
 
@@ -1396,7 +1420,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -1531,7 +1555,7 @@ class MobileAdminOrderController extends Controller
 
             // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
@@ -1668,7 +1692,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::query();
 
             // فلتر الصلاحيات
-            if ($user->isSupplier() && !$user->is_observer) {
+            if ($user->isSupplier()) {
                 $query->where('supplier_id', $user->id);
             }
 
@@ -1806,7 +1830,7 @@ class MobileAdminOrderController extends Controller
             $query = Order::query();
 
             // فلتر الصلاحيات
-            if ($user->isSupplier() && !$user->is_observer) {
+            if ($user->isSupplier()) {
                 $query->where('supplier_id', $user->id);
             }
 
@@ -2476,8 +2500,10 @@ class MobileAdminOrderController extends Controller
             // جلب الطلب مع مراعاة الصلاحيات
             $query = Order::where('id', $id);
 
-            // للمجهز: التحقق من أن الطلب يحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if ($user->isSupplier() || $user->isPrivateSupplier()) {
+            // للمجهز: التحقق من أن الطلب يخصه
+            if ($user->isSupplier()) {
+                $query->where('supplier_id', $user->id);
+            } elseif ($user->isPrivateSupplier()) {
                 $accessibleWarehouseIds = $this->getAccessibleWarehouses()->pluck('id')->toArray();
                 if (!empty($accessibleWarehouseIds)) {
                     $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {

@@ -47,7 +47,7 @@ class AdminOrderController extends Controller
 
             // Permissions: Suppliers only see their assigned orders (or all if observer)
             if ($user->isSupplier() || $user->isPrivateSupplier()) {
-                if ($user->isSupplier() && !$user->is_observer) {
+                if ($user->isSupplier()) {
                     $query->where('supplier_id', $user->id);
                 } elseif ($user->isPrivateSupplier()) {
                     $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();

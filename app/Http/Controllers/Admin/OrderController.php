@@ -50,7 +50,7 @@ class OrderController extends Controller
         $query = Order::query();
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
 
@@ -333,7 +333,7 @@ class OrderController extends Controller
         $query = Order::where('status', 'pending');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
 
@@ -552,7 +552,7 @@ class OrderController extends Controller
         $query = Order::where('status', 'confirmed');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
 
@@ -824,7 +824,7 @@ class OrderController extends Controller
         $query = Order::query();
 
         // فلتر الصلاحيات
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
         // فلتر الحالة (pending بشكل افتراضي)
@@ -928,7 +928,7 @@ class OrderController extends Controller
                 }
 
                 // فلتر صلاحيات المجهز
-                if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+                if (Auth::user()->isSupplier()) {
                     // no filter
                 }
                 return true;
@@ -954,7 +954,7 @@ class OrderController extends Controller
         $query = Order::query();
 
         // فلتر الصلاحيات
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
         // فلتر الحالة (pending بشكل افتراضي)
@@ -1059,7 +1059,7 @@ class OrderController extends Controller
                 }
 
                 // فلتر صلاحيات المجهز
-                if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+                if (Auth::user()->isSupplier()) {
                     // no filter
                 }
 
@@ -1122,7 +1122,7 @@ class OrderController extends Controller
         $query = Order::where('status', 'pending');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
 
@@ -1166,7 +1166,7 @@ class OrderController extends Controller
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
-            $hasAccessibleItem = Auth::user()->is_observer || $order->supplier_id == Auth::id();
+            $hasAccessibleItem = $order->supplier_id == Auth::id();
 
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
@@ -1573,7 +1573,7 @@ class OrderController extends Controller
         // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
         // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
         if (Auth::user()->isSupplier()) {
-            $hasAccessibleItem = Auth::user()->is_observer || $order->supplier_id == Auth::id();
+            $hasAccessibleItem = $order->supplier_id == Auth::id();
 
             if (!$hasAccessibleItem) {
                 abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
@@ -2070,7 +2070,7 @@ class OrderController extends Controller
         $query = Order::where('status', 'cancelled');
 
         // للمجهز: عرض الطلبات من مخازنه فقط
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
 
@@ -2149,7 +2149,7 @@ class OrderController extends Controller
         $query = Order::where('status', 'exchanged');
 
         // للمجهز: عرض الطلبات من مخازنه فقط
-        if (Auth::user()->isSupplier() && !Auth::user()->is_observer) {
+        if (Auth::user()->isSupplier()) {
             $query->where('supplier_id', Auth::id());
         }
 
