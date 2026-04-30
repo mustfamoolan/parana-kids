@@ -1205,33 +1205,6 @@ class OrderController extends Controller
                 ->withErrors(['order' => 'لا يمكن تجهيز الطلبات المقيدة']);
         }
 
-        // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
-        // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
-        if (Auth::user()->isSupplier()) {
-            $hasAccessibleItem = false;
-            if ($order->supplier_id) {
-                $hasAccessibleItem = $order->supplier_id == Auth::id();
-            } else {
-                // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
-                $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                    $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                })->exists();
-            }
-
-            if (!$hasAccessibleItem) {
-                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
-            }
-        } elseif (Auth::user()->isPrivateSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
-            if (!$hasAccessibleItem) {
-                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
-            }
-        }
-
         // تحميل العلاقات - عرض جميع items بدون فلترة
         // (إذا كان المجهز لديه صلاحية على مخزن واحد على الأقل، يعرض جميع items)
         $order->load(['items.product.primaryImage', 'items.product.warehouse', 'items.size', 'delegate']);
@@ -1627,33 +1600,6 @@ class OrderController extends Controller
         // السماح بالتعديل للطلبات pending أو المقيدة خلال 5 ساعات
         if ($order->status !== 'pending' && !$order->canBeEdited()) {
             return back()->withErrors(['error' => 'لا يمكن تعديل هذا الطلب (مر أكثر من 5 ساعات على التقييد)']);
-        }
-
-        // للمجهز: التحقق من أن الطلب يحتوي على منتج واحد على الأقل من مخزن لديه صلاحية عليه
-        // (يتم التحقق في OrderPolicy، لكن نضيف تحقق إضافي هنا للتأكيد)
-        if (Auth::user()->isSupplier()) {
-            $hasAccessibleItem = false;
-            if ($order->supplier_id) {
-                $hasAccessibleItem = $order->supplier_id == Auth::id();
-            } else {
-                // Fallback: إذا لم يتم اختيار مجهز، نعتمد على صلاحية المخزن
-                $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                    $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                })->exists();
-            }
-
-            if (!$hasAccessibleItem) {
-                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
-            }
-        } elseif (Auth::user()->isPrivateSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $hasAccessibleItem = $order->items()->whereHas('product', function($q) use ($accessibleWarehouseIds) {
-                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-            })->exists();
-            if (!$hasAccessibleItem) {
-                abort(403, 'ليس لديك صلاحية للوصول إلى هذا الطلب');
-            }
         }
 
         // تحميل العلاقات - عرض جميع items بدون فلترة
@@ -2477,8 +2423,8 @@ class OrderController extends Controller
      */
     public function updateReviewStatus(Request $request, Order $order)
     {
-        // التحقق من أن المستخدم هو المدير أو المجهز
-        if (!auth()->user()->isAdminOrSupplier()) {
+        // التحقق من أن المستخدم هو المدير أو المجهز أو المراقب
+        if (!auth()->user()->isAdminOrSupplier() && !auth()->user()->isObserver()) {
             abort(403);
         }
 

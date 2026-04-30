@@ -1600,8 +1600,8 @@ class AlWaseetController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        // جلب قائمة المخازن حسب الصلاحيات
-        if (Auth::user()->isSupplier()) {
+        // جلب قائمة المخازن حسب الصلاحيات (المراقب والمدير يرى الكل)
+        if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
             $warehouses = Auth::user()->warehouses;
         } else {
             $warehouses = \App\Models\Warehouse::all();
@@ -1615,7 +1615,8 @@ class AlWaseetController extends Controller
         $query = Order::where('status', 'pending');
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
+        // المراقب والمدير يرى كل شيء
+        if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
             $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
@@ -1830,8 +1831,8 @@ class AlWaseetController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        // جلب قائمة المخازن حسب الصلاحيات
-        if (Auth::user()->isSupplier()) {
+        // جلب قائمة المخازن حسب الصلاحيات (المراقب والمدير يرى الكل)
+        if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
             $warehouses = Auth::user()->warehouses;
         } else {
             $warehouses = \App\Models\Warehouse::all();
@@ -2201,8 +2202,8 @@ class AlWaseetController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        // جلب قائمة المخازن حسب الصلاحيات
-        if (Auth::user()->isSupplier()) {
+        // جلب قائمة المخازن حسب الصلاحيات (المراقب والمدير يرى الكل)
+        if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
             $warehouses = Auth::user()->warehouses;
         } else {
             $warehouses = \App\Models\Warehouse::all();
@@ -2216,7 +2217,8 @@ class AlWaseetController extends Controller
         $query = Order::query();
 
         // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-        if (Auth::user()->isSupplier()) {
+        // المراقب والمدير يرى كل شيء
+        if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
             $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
 
             if (!empty($accessibleWarehouseIds)) {
@@ -3142,7 +3144,8 @@ class AlWaseetController extends Controller
             $query = Order::where('status', 'pending');
 
             // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            if (Auth::user()->isSupplier()) {
+            // المراقب والمدير يرى كل شيء
+            if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
                 $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
                 $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
                     $q->whereIn('warehouse_id', $accessibleWarehouseIds);

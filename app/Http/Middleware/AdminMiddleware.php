@@ -23,8 +23,8 @@ class AdminMiddleware
 
         $user = Auth::user();
 
-        // السماح للمدير والمجهز والمورد بالوصول
-        if (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier()) {
+        // السماح للمدير والمجهز والمورد والمراقب بالوصول
+        if (!$user->isAdmin() && !$user->isSupplier() && !$user->isPrivateSupplier() && !$user->isObserver()) {
             abort(403, 'غير مصرح لك بالوصول إلى هذه الصفحة.');
         }
 
