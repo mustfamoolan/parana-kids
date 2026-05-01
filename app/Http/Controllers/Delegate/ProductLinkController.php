@@ -46,6 +46,7 @@ class ProductLinkController extends Controller
             'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'size_name' => 'nullable|string|max:50',
             'has_discount' => 'nullable|boolean',
+            'filters' => 'nullable|string', // JSON string from web
         ]);
 
         // التحقق من أن المندوب لديه صلاحية الوصول للمخزن المحدد
@@ -58,6 +59,7 @@ class ProductLinkController extends Controller
             'gender_type' => $request->gender_type,
             'size_name' => $request->size_name,
             'has_discount' => $request->has('has_discount') ? (bool)$request->has_discount : false,
+            'filters' => $request->filters ? json_decode($request->filters, true) : null,
             'created_by' => Auth::id(),
         ]);
 

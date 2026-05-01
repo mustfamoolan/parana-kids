@@ -50,17 +50,32 @@
                                 </div>
                             </div>
 
-                            <!-- المخزن -->
-                            <div>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">المخزن:</span>
-                                <div class="font-semibold text-sm">
-                                    @if($link->warehouse_id)
-                                        {{ $link->warehouse->name }}
-                                    @else
-                                        <span class="badge badge-outline-info">كل المخازن</span>
-                                    @endif
-                                </div>
-                            </div>
+                             <!-- المخزن / الفلاتر -->
+                             <div>
+                                 <span class="text-xs text-gray-500 dark:text-gray-400">التفاصيل:</span>
+                                 <div class="space-y-1 mt-1">
+                                     @if($link->filters && count($link->filters) > 0)
+                                         @foreach($link->filters as $filter)
+                                             <div class="text-[11px] bg-gray-50 dark:bg-gray-800 p-1.5 rounded border border-gray-100 dark:border-gray-700">
+                                                 <div class="font-bold text-primary">{{ $filter['warehouse_name'] ?? 'مخزن' }}</div>
+                                                 <div class="flex flex-wrap gap-1 mt-1">
+                                                     @foreach($filter['sizes'] ?? [] as $size)
+                                                         <span class="px-1 bg-white dark:bg-gray-700 border rounded text-[9px]">{{ $size }}</span>
+                                                     @endforeach
+                                                 </div>
+                                             </div>
+                                         @endforeach
+                                     @else
+                                         <div class="font-semibold text-sm">
+                                             @if($link->warehouse_id)
+                                                 {{ $link->warehouse->name }}
+                                             @else
+                                                 <span class="badge badge-outline-info text-xs">كل المخازن</span>
+                                             @endif
+                                         </div>
+                                     @endif
+                                 </div>
+                             </div>
 
                             <!-- النوع -->
                             @if($link->gender_type)

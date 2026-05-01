@@ -53,6 +53,7 @@ class ProductLinkController extends Controller
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'size_name' => 'nullable|string|max:50',
+            'filters' => 'nullable|string', // JSON string from web
         ]);
 
         // التحقق من صلاحية الوصول للمخزن (إذا كان محدداً)
@@ -66,6 +67,7 @@ class ProductLinkController extends Controller
             'warehouse_id' => $request->warehouse_id ?: null,
             'gender_type' => $request->gender_type,
             'size_name' => $request->size_name,
+            'filters' => $request->filters ? json_decode($request->filters, true) : null,
             'created_by' => Auth::id(),
         ]);
 
