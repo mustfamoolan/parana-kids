@@ -24,8 +24,12 @@
                                         $q->where('warehouse_id', request('warehouse_id'));
                                     });
                                 }
+                                // فلتر المجهز الموجه له الطلب
+                                if (request()->filled('supplier_id')) {
+                                    $confirmedQuery->where('supplier_id', request('supplier_id'));
+                                }
                                 $confirmedCount = $confirmedQuery->count();
-                            @endphp
+@endphp
                             <p class="text-xl font-bold text-success">{{ $confirmedCount }}</p>
                         </div>
                         <div class="p-2 bg-success/10 rounded-lg">
@@ -116,6 +120,18 @@
                                 @endforeach
                             </select>
                         </div>
+                        @if(auth()->user()->isAdmin() || auth()->user()->is_observer)
+                        <div class="sm:w-48">
+                            <select name="supplier_id" class="form-select">
+                                <option value="">المجهز المسند إليه (الكل)</option>
+                                @foreach($suppliers->where('role', 'supplier') as $supplier)
+                                    <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
+                                        {{ $supplier->name }} ({{ $supplier->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
                         <div class="sm:w-48">
                             @php
                                 $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();
@@ -186,7 +202,7 @@
                                 </svg>
                                 بحث
                             </button>
-                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('hours_ago') || request('warehouse_id') || request('confirmed_by') || request('delegate_id'))
+                            @if(request('search') || request('date_from') || request('date_to') || request('time_from') || request('time_to') || request('hours_ago') || request('warehouse_id') || request('confirmed_by') || request('delegate_id') || request('supplier_id'))
                                 <a href="{{ route('admin.orders.confirmed') }}" class="btn btn-outline-secondary">
                                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

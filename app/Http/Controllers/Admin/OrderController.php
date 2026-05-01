@@ -272,6 +272,11 @@ class OrderController extends Controller
                     $query->where('created_at', '>=', $hoursAgo);
                 }
 
+                // فلتر المجهز الموجه له الطلب
+                if ($request->filled('supplier_id')) {
+                    $query->where('supplier_id', $request->supplier_id);
+                }
+
                 return $query;
             };
 
@@ -340,7 +345,7 @@ class OrderController extends Controller
         }
 
         // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
-        $suppliers = \App\Models\User::where('role', 'supplier')->get();
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
         $delegates = \App\Models\User::where('role', 'delegate')->get();
 
         // Base query - فرض حالة pending دائماً
@@ -515,6 +520,11 @@ class OrderController extends Controller
                     }
                 }
 
+                // فلتر المجهز الموجه له الطلب
+                if ($request->filled('supplier_id')) {
+                    $query->where('supplier_id', $request->supplier_id);
+                }
+
                 return $query;
             };
 
@@ -573,7 +583,7 @@ class OrderController extends Controller
         }
 
         // جلب قائمة المجهزين (المديرين والمجهزين) والمندوبين للفلترة
-        $suppliers = \App\Models\User::where('role', 'supplier')->get();
+        $suppliers = \App\Models\User::whereIn('role', ['admin', 'supplier'])->get();
         $delegates = \App\Models\User::where('role', 'delegate')->get();
 
         // Base query - فرض حالة confirmed دائماً
@@ -733,6 +743,11 @@ class OrderController extends Controller
                     if ($hoursAgo > 0) {
                         $query->where('confirmed_at', '>=', now()->subHours($hoursAgo));
                     }
+                }
+
+                // فلتر المجهز الموجه له الطلب
+                if ($request->filled('supplier_id')) {
+                    $query->where('supplier_id', $request->supplier_id);
                 }
 
                 return $query;
