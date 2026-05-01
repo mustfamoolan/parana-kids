@@ -88,32 +88,36 @@
         .delay-1 { animation-delay: 0.1s; }
         .delay-2 { animation-delay: 0.2s; }
         .delay-3 { animation-delay: 0.3s; }
+
+        .text-shadow-premium {
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body class="antialiased">
     <!-- Header -->
-    <header class="sticky top-0 z-50 glass shadow-sm py-4">
+    <header class="sticky top-0 z-50 glass shadow-md py-4">
         <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
+                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/40">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-xl font-black text-gray-800 dark:text-white tracking-tight">Paraná Kids</h1>
-                    <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Premium Collection</p>
+                    <h1 class="text-xl font-black text-gray-900 dark:text-white tracking-tight">Paraná Kids</h1>
+                    <p class="text-[10px] text-gray-600 dark:text-gray-400 uppercase tracking-widest font-bold">Premium Collection</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
                 <div class="hidden sm:flex flex-col items-end">
-                    <span class="text-[10px] text-gray-400 font-bold">الرابط متاح لـ</span>
-                    <span class="text-xs font-bold text-primary">{{ $productLink->expires_at->diffForHumans() }}</span>
+                    <span class="text-[10px] text-gray-700 dark:text-gray-300 font-bold">الرابط متاح لـ</span>
+                    <span class="text-xs font-black text-primary">{{ $productLink->expires_at->diffForHumans() }}</span>
                 </div>
-                <div class="w-px h-8 bg-gray-200 dark:bg-gray-800 mx-2 hidden sm:block"></div>
-                <button onclick="window.location.reload()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <div class="w-px h-8 bg-gray-300 dark:bg-gray-700 mx-2 hidden sm:block"></div>
+                <button onclick="window.location.reload()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+                    <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 </button>
             </div>
         </div>
@@ -129,7 +133,7 @@
                         <!-- Size Section Header -->
                         <section class="mb-12 animate-fade-in">
                             <div class="relative mb-8">
-                                <div class="bg-gradient-to-r from-primary to-secondary rounded-2xl shadow-xl p-6 overflow-hidden">
+                                <div class="bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] dark:from-[#1b2e4b] dark:to-[#0e1726] rounded-2xl shadow-xl p-6 overflow-hidden">
                                     <div class="absolute top-0 left-0 w-full h-full opacity-10">
                                         <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                                             <path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path>
@@ -139,16 +143,16 @@
                                     <div class="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
                                         <div class="flex items-center gap-5">
                                             <div class="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
-                                                <span class="text-3xl font-black text-white">{{ $sizeName }}</span>
+                                                <span class="text-3xl font-black text-white text-shadow-premium">{{ $sizeName }}</span>
                                             </div>
                                             <div>
-                                                <h2 class="text-2xl font-black text-white">القياس: {{ $sizeName }}</h2>
-                                                <p class="text-white/70 text-sm font-medium">مجموعة مختارة من {{ $products->count() }} قطع مميزة</p>
+                                                <h2 class="text-2xl font-black text-white text-shadow-premium">القياس: {{ $sizeName }}</h2>
+                                                <p class="text-white/90 text-sm font-bold">مجموعة مختارة من {{ $products->count() }} قطع مميزة</p>
                                             </div>
                                         </div>
                                         
                                         <div class="flex items-center gap-2">
-                                            <span class="px-4 py-2 bg-black/20 backdrop-blur-md rounded-full text-[10px] font-bold text-white border border-white/10">
+                                            <span class="px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black text-white border border-white/30 text-shadow-premium">
                                                 متوفر الآن
                                             </span>
                                         </div>
