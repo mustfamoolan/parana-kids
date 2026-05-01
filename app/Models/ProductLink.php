@@ -18,6 +18,12 @@ class ProductLink extends Model
         'size_name',
         'has_discount',
         'created_by',
+        'filters',
+    ];
+
+    protected $casts = [
+        'filters' => 'array',
+        'has_discount' => 'boolean',
     ];
 
     protected static function boot()

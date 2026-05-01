@@ -30,7 +30,10 @@ class SettingController extends Controller
         $dashboardBannerEnabled = Setting::getValue('dashboard_banner_enabled', '0') === '1';
         $dashboardBannerText = Setting::getValue('dashboard_banner_text', '');
 
-        return view('admin.settings.index', compact('deliveryFee', 'profitMargin', 'alwaseetMerchantNotes', 'bannerEnabled', 'bannerTitle', 'bannerText', 'bannerImage', 'bannerIcon', 'dashboardBannerEnabled', 'dashboardBannerText'));
+        // مدة صلاحية روابط المنتجات
+        $productLinkDuration = Setting::getValue('app_product_link_duration', 2);
+
+        return view('admin.settings.index', compact('deliveryFee', 'profitMargin', 'alwaseetMerchantNotes', 'bannerEnabled', 'bannerTitle', 'bannerText', 'bannerImage', 'bannerIcon', 'dashboardBannerEnabled', 'dashboardBannerText', 'productLinkDuration'));
     }
 
     /**
@@ -42,6 +45,7 @@ class SettingController extends Controller
             'delivery_fee' => 'required|numeric|min:0',
             'profit_margin' => 'nullable|numeric|min:0',
             'alwaseet_merchant_notes' => 'nullable|string|max:1000',
+            'product_link_duration' => 'required|integer|min:1|max:168',
         ]);
 
         Setting::setValue('delivery_fee', $request->delivery_fee, 'سعر التوصيل بالدينار العراقي');
@@ -53,6 +57,8 @@ class SettingController extends Controller
         }
 
         Setting::setValue('alwaseet_merchant_notes', $request->alwaseet_merchant_notes ?? '', 'ملاحظة التاجر للواسط');
+
+        Setting::setValue('app_product_link_duration', $request->product_link_duration, 'مدة صلاحية روابط المنتجات بالساعات');
 
         return redirect()->route('admin.settings.index')
                         ->with('success', 'تم تحديث الإعدادات بنجاح');

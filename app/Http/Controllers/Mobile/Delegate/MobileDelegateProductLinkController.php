@@ -91,6 +91,9 @@ class MobileDelegateProductLinkController extends Controller
             'gender_type' => 'nullable|in:boys,girls,accessories,boys_girls',
             'size_name' => 'nullable|string|max:50',
             'has_discount' => 'nullable|boolean',
+            'filters' => 'nullable|array',
+            'filters.*.warehouse_id' => 'required|exists:warehouses,id',
+            'filters.*.sizes' => 'required|array',
         ], [
             'warehouse_id.exists' => 'المخزن المحدد غير موجود',
             'gender_type.in' => 'نوع المنتج غير صحيح',
@@ -121,6 +124,7 @@ class MobileDelegateProductLinkController extends Controller
             'gender_type' => $request->gender_type,
             'size_name' => $request->size_name,
             'has_discount' => $request->has('has_discount') ? (bool)$request->has_discount : false,
+            'filters' => $request->filters,
             'created_by' => $user->id,
         ]);
 

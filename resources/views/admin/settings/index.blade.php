@@ -199,6 +199,20 @@
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <!-- إعدادات روابط عرض المواد (Product Links Settings) -->
+                    <div class="mb-5">
+                        <label for="product_link_duration" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            مدة صلاحية روابط عرض المواد (بالساعات)
+                        </label>
+                        <div class="flex items-center max-w-xs">
+                            <input type="number" id="product_link_duration" name="product_link_duration" value="{{ old('product_link_duration', $productLinkDuration) }}" class="form-input ltr:rounded-r-none rtl:rounded-l-none" min="1" max="168" required>
+                            <span class="bg-[#eee] flex items-center justify-center px-3 border border-l-0 border-white-light dark:border-[#17263c] dark:bg-[#1b2e4b] ltr:rounded-r-md rtl:rounded-l-md font-semibold">ساعة</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">
+                            حدد مدة صلاحية الروابط التي ينشئها المدير أو المندوب لمشاركتها مع الزبائن. القيمة الافتراضية هي 2 ساعة (الحد الأقصى 168 ساعة).
+                        </p>
+                    </div>
                 </div>
 
                 <!-- أزرار الإجراء -->

@@ -139,22 +139,6 @@
                 </div>
                 <hr class="my-6 border-white-light dark:border-dark" />
 
-                <!-- 5. إعدادات روابط المنتجات (Product Links Settings) -->
-                <div class="mb-5">
-                    <h6 class="text-lg font-semibold mb-4 text-primary">⑤ إعدادات روابط عرض المواد</h6>
-                    <p class="text-sm text-gray-500 mb-4">
-                        حدد مدة صلاحية الروابط التي ينشئها المدير أو المندوب لمشاركتها مع الزبائن. بعد انتهاء هذه المدة، سيظهر للزبون أن الرابط غير متاح.
-                    </p>
-
-                    <div class="max-w-xs">
-                        <label for="product_link_duration" class="font-semibold mb-2 block">مدة صلاحية الرابط (بالساعات)</label>
-                        <div class="flex items-center">
-                            <input type="number" id="product_link_duration" name="product_link_duration" value="{{ old('product_link_duration', $productLinkDuration) }}" class="form-input ltr:rounded-r-none rtl:rounded-l-none" min="1" max="168" required>
-                            <span class="bg-[#eee] flex items-center justify-center px-3 border border-l-0 border-white-light dark:border-[#17263c] dark:bg-[#1b2e4b] ltr:rounded-r-md rtl:rounded-l-md font-semibold">ساعة</span>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-2">القيمة الافتراضية هي 2 ساعة. (الحد الأقصى أسبوع واحد / 168 ساعة)</p>
-                    </div>
-                </div>
 
                 <div class="mt-8 flex justify-end">
                     <button type="submit" class="btn btn-primary w-full sm:w-auto">

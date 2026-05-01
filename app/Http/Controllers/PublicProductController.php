@@ -24,79 +24,117 @@ class PublicProductController extends Controller
             abort(404, 'الرابط منتهي الصلاحية');
         }
 
-        // Base query: منتجات المخزن المحدد (أو المخازن المخصصة للمستخدم إذا كان null)
-        $productsQuery = Product::where('is_hidden', false)
-            ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
+        // استخدام الفلاتر الجديدة إذا كانت موجودة
+        $filters = $productLink->filters;
+        $groupedProducts = [];
 
-        if ($productLink->warehouse_id) {
-            // إذا كان هناك مخزن محدد، عرض المنتجات من ذلك المخزن فقط
-            $productsQuery->where('warehouse_id', $productLink->warehouse_id);
+        if ($filters && is_array($filters) && count($filters) > 0) {
+            // منطق الفلاتر المتعددة
+            $warehouseIds = collect($filters)->pluck('warehouse_id')->unique()->toArray();
+            
+            $baseQuery = Product::where('is_hidden', false)
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
+
+            // فلتر النوع (إذا كان موجوداً في الرابط الأصلي)
+            if ($productLink->gender_type) {
+                if ($productLink->gender_type == 'boys') {
+                    $baseQuery->whereIn('gender_type', ['boys', 'boys_girls']);
+                } elseif ($productLink->gender_type == 'girls') {
+                    $baseQuery->whereIn('gender_type', ['girls', 'boys_girls']);
+                } else {
+                    $baseQuery->where('gender_type', $productLink->gender_type);
+                }
+            }
+
+            $allProducts = $baseQuery->get();
+
+            // فلتر المنتجات المخفضة (إذا كان محددًا)
+            if ($productLink->has_discount) {
+                $allProducts = $allProducts->filter(function($product) {
+                    return $product->hasActiveDiscount();
+                });
+            }
+
+            // تجميع المنتجات حسب القياسات المحددة في الفلاتر
+            foreach ($filters as $filter) {
+                $whId = $filter['warehouse_id'];
+                $whSizes = $filter['sizes'] ?? [];
+
+                foreach ($whSizes as $sizeName) {
+                    if (!isset($groupedProducts[$sizeName])) {
+                        $groupedProducts[$sizeName] = collect();
+                    }
+
+                    $sizeProducts = $allProducts->where('warehouse_id', $whId)
+                        ->filter(function($product) use ($sizeName) {
+                            return $product->sizes()
+                                ->where('size_name', $sizeName)
+                                ->where('quantity', '>', 0)
+                                ->exists();
+                        });
+                    
+                    // دمج المنتجات (تجنب التكرار لنفس القياس إذا كان هناك منطق مخازن متقاطع، رغم أنه نادراً هنا)
+                    foreach ($sizeProducts as $sp) {
+                        if (!$groupedProducts[$sizeName]->contains('id', $sp->id)) {
+                            $groupedProducts[$sizeName]->push($sp);
+                        }
+                    }
+                }
+            }
+
+            // ترتيب القياسات أبجدياً
+            ksort($groupedProducts);
+
         } else {
-            // إذا لم يكن هناك مخزن محدد، نتعامل مع كل نوع مستخدم بشكل مختلف
-            $creator = $productLink->creator;
+            // المنطق القديم (رابط واحد لمخزن واحد وقياس واحد)
+            $productsQuery = Product::where('is_hidden', false)
+                ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
 
-            if ($creator->isAdmin()) {
-                // المدير: عرض جميع المنتجات من جميع المخازن (لا نضيف فلتر)
-                // لا نضيف أي whereIn هنا
-            } elseif ($creator->isSupplier()) {
-                // المجهز: عرض المنتجات من مخازن المجهز فقط
-                $userWarehouseIds = $creator->warehouses()->pluck('warehouse_id');
-                if ($userWarehouseIds->count() > 0) {
-                    $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
-                } else {
-                    // إذا لم يكن لدى المجهز مخازن، لا نعرض أي منتجات
-                    $productsQuery->whereRaw('1 = 0'); // استعلام فارغ
-                }
+            if ($productLink->warehouse_id) {
+                $productsQuery->where('warehouse_id', $productLink->warehouse_id);
             } else {
-                // المندوب: عرض المنتجات من مخازن المندوب فقط
-                $userWarehouseIds = $creator->warehouses()->pluck('warehouse_id');
-                if ($userWarehouseIds->count() > 0) {
+                $creator = $productLink->creator;
+                if (!$creator->isAdmin()) {
+                    $userWarehouseIds = $creator->warehouses()->pluck('warehouse_id');
                     $productsQuery->whereIn('warehouse_id', $userWarehouseIds);
-                } else {
-                    // إذا لم يكن لدى المندوب مخازن، لا نعرض أي منتجات
-                    $productsQuery->whereRaw('1 = 0'); // استعلام فارغ
                 }
+            }
+
+            if ($productLink->gender_type) {
+                if ($productLink->gender_type == 'boys') {
+                    $productsQuery->whereIn('gender_type', ['boys', 'boys_girls']);
+                } elseif ($productLink->gender_type == 'girls') {
+                    $productsQuery->whereIn('gender_type', ['girls', 'boys_girls']);
+                } else {
+                    $productsQuery->where('gender_type', $productLink->gender_type);
+                }
+            }
+
+            $products = $productsQuery->get();
+
+            if ($productLink->has_discount) {
+                $products = $products->filter(function($product) {
+                    return $product->hasActiveDiscount();
+                });
+            }
+
+            if ($productLink->size_name) {
+                $products = $products->filter(function($product) use ($productLink) {
+                    return $product->sizes()
+                        ->where('size_name', $productLink->size_name)
+                        ->where('quantity', '>', 0)
+                        ->exists();
+                });
+                $groupedProducts[$productLink->size_name] = $products;
+            } else {
+                $products = $products->filter(function($product) {
+                    return $product->sizes()->sum('quantity') > 0;
+                });
+                $groupedProducts['الكل'] = $products;
             }
         }
 
-        // فلتر النوع (مع دعم boys_girls)
-        if ($productLink->gender_type) {
-            if ($productLink->gender_type == 'boys') {
-                // عرض "ولادي" و "ولادي بناتي"
-                $productsQuery->whereIn('gender_type', ['boys', 'boys_girls']);
-            } elseif ($productLink->gender_type == 'girls') {
-                // عرض "بناتي" و "ولادي بناتي"
-                $productsQuery->whereIn('gender_type', ['girls', 'boys_girls']);
-            } else {
-                // عرض النوع المحدد فقط (boys_girls أو accessories)
-                $productsQuery->where('gender_type', $productLink->gender_type);
-            }
-        }
-
-        $products = $productsQuery->get();
-
-        // فلتر المنتجات المخفضة (إذا كان محددًا)
-        if ($productLink->has_discount) {
-            $products = $products->filter(function($product) {
-                return $product->hasActiveDiscount();
-            });
-        }
-
-        // فلتر القياس (إذا كان محددًا)
-        if ($productLink->size_name) {
-            $products = $products->filter(function($product) use ($productLink) {
-                return $product->sizes()
-                    ->where('size_name', $productLink->size_name)
-                    ->where('quantity', '>', 0)
-                    ->exists();
-            });
-        } else {
-            // إذا لم يكن القياس محددًا، نعرض فقط المنتجات التي لديها كمية متاحة
-            $products = $products->filter(function($product) {
-                return $product->sizes()->sum('quantity') > 0;
-            });
-        }
-
-        return view('public.products.show', compact('products', 'productLink'));
+        return view('public.products.show', compact('groupedProducts', 'productLink'));
     }
 }
