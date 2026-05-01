@@ -287,7 +287,7 @@ class MobileAdminProductLinkController extends Controller
      */
     private function formatLinkData(ProductLink $link)
     {
-        $expiresAt = $link->created_at->copy()->addHours(2);
+        $expiresAt = $link->expires_at;
         $now = now();
         $remainingSeconds = max(0, $now->diffInSeconds($expiresAt, false));
 

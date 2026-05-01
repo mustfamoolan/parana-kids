@@ -43,6 +43,9 @@ class StoreAppSettingController extends Controller
             $customerAllowedWarehouses = [];
         }
 
+        // مدة صلاحية روابط المنتجات
+        $productLinkDuration = Setting::getValue('app_product_link_duration', 2);
+
         // جلب جميع المخازن
         $warehouses = Warehouse::all();
 
@@ -53,6 +56,7 @@ class StoreAppSettingController extends Controller
             'announcementSubtitle',
             'announcementImage',
             'customerAllowedWarehouses',
+            'productLinkDuration',
             'warehouses'
         ));
     }
@@ -81,6 +85,9 @@ class StoreAppSettingController extends Controller
             // Allow customers to see specific warehouses
             'customer_allowed_warehouses' => 'nullable|array',
             'customer_allowed_warehouses.*' => 'exists:warehouses,id',
+
+            // Product Link Duration
+            'product_link_duration' => 'required|integer|min:1|max:168', // Max 1 week
         ]);
 
         try {
@@ -139,6 +146,9 @@ class StoreAppSettingController extends Controller
             // Save allowed warehouses array as JSON
             $allowedWarehouses = $request->customer_allowed_warehouses ?? [];
             Setting::setValue('app_customer_allowed_warehouses', json_encode($allowedWarehouses), 'المخازن المسموحة لكل عملاء التطبيق');
+
+            // 5. حفظ مدة صلاحية روابط المنتجات
+            Setting::setValue('app_product_link_duration', $request->product_link_duration, 'مدة صلاحية روابط المنتجات بالساعات');
 
             return redirect()->route('admin.store-settings.index')->with('success', 'تم حفظ إعدادات التطبيق وتحديث الصور بنجاح!');
 

@@ -330,8 +330,8 @@ class MobileDelegateProductLinkController extends Controller
      */
     private function formatLinkData(ProductLink $link)
     {
-        // حساب وقت الانتهاء (2 ساعة من تاريخ الإنشاء)
-        $expiresAt = $link->created_at->copy()->addHours(2);
+        // حساب وقت الانتهاء من الإعدادات
+        $expiresAt = $link->expires_at;
         $now = now();
         $remainingSeconds = max(0, $now->diffInSeconds($expiresAt, false));
 

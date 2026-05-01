@@ -58,4 +58,21 @@ class ProductLink extends Model
     {
         return url('/p/' . $this->token);
     }
+
+    /**
+     * Get the expiration time for this link
+     */
+    public function getExpiresAtAttribute()
+    {
+        $duration = (int) Setting::getValue('app_product_link_duration', 2);
+        return $this->created_at->addHours($duration);
+    }
+
+    /**
+     * Check if the link is expired
+     */
+    public function isExpired()
+    {
+        return now()->gt($this->expires_at);
+    }
 }

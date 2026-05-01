@@ -20,6 +20,10 @@ class PublicProductController extends Controller
             abort(404, 'الرابط غير موجود أو تم حذفه');
         }
 
+        if ($productLink->isExpired()) {
+            abort(404, 'الرابط منتهي الصلاحية');
+        }
+
         // Base query: منتجات المخزن المحدد (أو المخازن المخصصة للمستخدم إذا كان null)
         $productsQuery = Product::where('is_hidden', false)
             ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
