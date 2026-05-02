@@ -23,6 +23,7 @@ class MobileDelegateOrderController extends Controller
      */
     public function index(Request $request)
     {
+        Log::info('MobileDelegateOrderController: Index request', $request->all());
         $user = Auth::user();
 
         // التحقق من أن المستخدم مندوب
@@ -193,6 +194,11 @@ class MobileDelegateOrderController extends Controller
                 $formattedOrders = $orders->map(function ($order) {
                     return $this->formatOrderListItem($order);
                 });
+
+                Log::info('MobileDelegateOrderController: Final SQL', [
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings()
+                ]);
 
                 return response()->json([
                     'success' => true,
