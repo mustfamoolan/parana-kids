@@ -318,12 +318,35 @@
                         </div>
                     @endif
 
+                    <!-- اختيار المجهز (يظهر فقط إذا كان هناك أكثر من مجهز مقترح) -->
+                    @php
+                        $suggestedSuppliers = auth()->user()->suggestedSuppliers;
+                    @endphp
+
+                    @if($suggestedSuppliers->count() > 1)
+                        <div class="panel mb-5 border-2 border-primary">
+                            <h5 class="font-bold text-lg mb-4 text-primary">توجيه الطلب إلى مجهز</h5>
+                            <div>
+                                <label for="supplier_id_confirm" class="font-semibold block mb-2">اختر المجهز <span class="text-danger">*</span></label>
+                                <select id="supplier_id_confirm" name="supplier_id" form="confirmOrderForm" class="form-select" required>
+                                    <option value="">-- اختر المجهز --</option>
+                                    @foreach($suggestedSuppliers as $supplier)
+                                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="text-xs text-gray-500 mt-2">يجب اختيار مجهز واحد لإرسال الطلب إليه.</p>
+                            </div>
+                        </div>
+                    @elseif($suggestedSuppliers->count() === 1)
+                        <input type="hidden" name="supplier_id" form="confirmOrderForm" value="{{ $suggestedSuppliers->first()->id }}">
+                    @endif
+
                     <!-- Footer Buttons -->
                     <div class="flex gap-3 justify-end mt-6 pt-4 border-t">
                         <button type="button" onclick="closeConfirmModal()" class="btn btn-outline-secondary">
                             رجوع
                         </button>
-                        <form method="POST" action="{{ route('delegate.orders.submit') }}" id="confirmOrderForm">
+                        <form method="POST" action="{{ route('delegate.orders.submit') }}" id="confirmOrderForm" onsubmit="return validateSupplierSelection()">
                             @csrf
                             <button type="submit" class="btn btn-success btn-lg">
                                 <svg class="w-5 h-5 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1058,6 +1081,22 @@
         function closeConfirmModal() {
             document.getElementById('confirmOrderModal').classList.add('hidden');
             document.body.style.overflow = '';
+        }
+
+        // دالة التحقق من اختيار المجهز قبل الإرسال
+        function validateSupplierSelection() {
+            const supplierSelect = document.getElementById('supplier_id_confirm');
+            if (supplierSelect && supplierSelect.hasAttribute('required') && !supplierSelect.value) {
+                Swal.fire({
+                    title: 'تنبيه',
+                    text: 'يرجى اختيار المجهز أولاً',
+                    icon: 'warning',
+                    confirmButtonText: 'موافق',
+                    confirmButtonColor: '#4361ee'
+                });
+                return false;
+            }
+            return true;
         }
 
         // ===== Cart Modal Functions =====
