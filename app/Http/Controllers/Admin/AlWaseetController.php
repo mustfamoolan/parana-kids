@@ -2020,6 +2020,50 @@ class AlWaseetController extends Controller
                     });
                 }
 
+                if ($request->filled('confirmed_by')) {
+                    $query->where('confirmed_by', $request->confirmed_by);
+                }
+
+                if ($request->filled('supplier_id')) {
+                    $query->where('supplier_id', $request->supplier_id);
+                }
+
+                if ($request->filled('delegate_id')) {
+                    $query->where('delegate_id', $request->delegate_id);
+                }
+
+                if ($request->filled('size_reviewed')) {
+                    $query->where('size_reviewed', $request->size_reviewed);
+                }
+
+                if ($request->filled('message_confirmed')) {
+                    $query->where('message_confirmed', $request->message_confirmed);
+                }
+
+                if ($request->filled('alwaseet_sent')) {
+                    if ($request->alwaseet_sent === 'sent') {
+                        $query->whereHas('alwaseetShipment');
+                    } elseif ($request->alwaseet_sent === 'not_sent') {
+                        $query->whereDoesntHave('alwaseetShipment');
+                    }
+                }
+
+                if ($request->filled('alwaseet_complete')) {
+                    if ($request->alwaseet_complete === 'complete') {
+                        $query->whereNotNull('alwaseet_city_id')
+                            ->whereNotNull('alwaseet_region_id')
+                            ->where('alwaseet_city_id', '!=', '')
+                            ->where('alwaseet_region_id', '!=', '');
+                    } elseif ($request->alwaseet_complete === 'incomplete') {
+                        $query->where(function ($q) {
+                            $q->whereNull('alwaseet_city_id')
+                                ->orWhere('alwaseet_city_id', '=', '')
+                                ->orWhereNull('alwaseet_region_id')
+                                ->orWhere('alwaseet_region_id', '=', '');
+                        });
+                    }
+                }
+
                 if ($request->filled('search')) {
                     $searchTerm = $request->search;
                     $query->where(function ($q) use ($searchTerm) {
