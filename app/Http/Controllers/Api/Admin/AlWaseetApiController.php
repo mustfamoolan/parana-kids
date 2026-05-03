@@ -221,6 +221,16 @@ class AlWaseetApiController extends Controller
 
             $sentOrdersCount = (clone $statsQuery)->whereHas('alwaseetShipment')->count();
 
+            // Calculate Total Amount and Total Profit
+            $totalAmount = (clone $statsQuery)->sum('total_amount');
+            $totalProfit = DB::table('order_items')
+                ->join('products', 'order_items.product_id', '=', 'products.id')
+                ->whereIn('order_items.order_id', (clone $statsQuery)->select('id'))
+                ->whereNotNull('products.purchase_price')
+                ->where('products.purchase_price', '>', 0)
+                ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
+                ->value('total_profit') ?? 0;
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -229,6 +239,8 @@ class AlWaseetApiController extends Controller
                     'totalPiecesCount' => $totalPiecesCount,
                     'totalItemsCount' => $totalItemsCount,
                     'sentOrdersCount' => $sentOrdersCount,
+                    'total_amount' => (float) $totalAmount,
+                    'total_profit' => (float) $totalProfit,
                     'pagination' => [
                         'total' => $orders->total(),
                         'per_page' => $orders->perPage(),
@@ -790,6 +802,9 @@ class AlWaseetApiController extends Controller
             $query->where('confirmed_by', $request->confirmed_by);
         if ($request->filled('delegate_id'))
             $query->where('delegate_id', $request->delegate_id);
+        if ($request->filled('supplier_id'))
+            $query->where('supplier_id', $request->supplier_id);
+        
         if (!$excludeStatusAndSearch && $request->filled('api_status_id')) {
             $query->whereHas('alwaseetShipment', function ($q) use ($request) {
                 $q->where('status_id', $request->api_status_id);
@@ -823,6 +838,7 @@ class AlWaseetApiController extends Controller
             'warehouse_id' => $request->warehouse_id,
             'confirmed_by' => $request->confirmed_by,
             'delegate_id' => $request->delegate_id,
+            'supplier_id' => $request->supplier_id,
             'date_from' => $request->date_from,
             'date_to' => $request->date_to,
             'user_id' => $user->id
