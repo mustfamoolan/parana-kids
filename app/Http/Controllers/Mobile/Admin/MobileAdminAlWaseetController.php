@@ -50,7 +50,8 @@ class MobileAdminAlWaseetController extends Controller
                          $request->filled('date_to') ||
                          $request->filled('time_from') ||
                          $request->filled('time_to') ||
-                         $request->filled('hours_ago');
+                         $request->filled('hours_ago') ||
+                         $request->filled('supplier_id');
 
             $filterParams = [
                 'user_id' => $user->id,
@@ -63,6 +64,7 @@ class MobileAdminAlWaseetController extends Controller
                 'time_from' => $request->time_from,
                 'time_to' => $request->time_to,
                 'hours_ago' => $request->hours_ago,
+                'supplier_id' => $request->supplier_id,
             ];
             $cacheKey = 'admin_status_cards_' . md5(json_encode($filterParams));
             $cacheDuration = $hasFilters ? now()->addMinutes(2) : now()->addMinutes(10);
@@ -387,6 +389,11 @@ class MobileAdminAlWaseetController extends Controller
         // فلتر المندوب
         if ($request->filled('delegate_id')) {
             $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // فلتر المجهز المسند إليه الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر حسب التاريخ

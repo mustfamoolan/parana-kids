@@ -1992,6 +1992,11 @@ class MobileAdminOrderController extends Controller
             $query->where('delegate_id', $request->delegate_id);
         }
 
+        // فلتر المجهز المسند إليه الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
         // فلتر حالة التدقيق
         if ($request->filled('size_reviewed')) {
             $query->where('size_reviewed', $request->size_reviewed);
@@ -2101,6 +2106,11 @@ class MobileAdminOrderController extends Controller
         // فلتر المندوب
         if ($request->filled('delegate_id')) {
             $query->where('delegate_id', $request->delegate_id);
+        }
+
+        // فلتر المجهز المسند إليه الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
         }
 
         // فلتر حالة التدقيق
