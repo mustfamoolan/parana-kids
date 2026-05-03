@@ -2183,12 +2183,12 @@ class AlWaseetController extends Controller
             }
         }
 
-        // حساب عدد الطلبات غير المقيدة (pending) - نفس الفلاتر - استخدام whereIn لتحسين الأداء
-        $pendingCount = 0;
-        if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            $pendingCountQuery = Order::where('status', 'pending');
+        // حساب عدد الطلبات غير المقيدة (pending) - تطبيق جميع الفلاتر
+        $pendingCountQuery = Order::where('status', 'pending');
 
+        // للمجهز والمورد غير المديرين: تطبيق فلاتر الأساسية
+        if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
+            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
             if (!empty($accessibleWarehouseIds)) {
                 $pendingCountQuery->whereIn('id', function ($subQuery) use ($accessibleWarehouseIds) {
                     $subQuery->select('order_id')
@@ -2200,10 +2200,9 @@ class AlWaseetController extends Controller
             } else {
                 $pendingCountQuery->whereRaw('1 = 0');
             }
-        } else {
-            $pendingCountQuery = Order::where('status', 'pending');
         }
 
+        // تطبيق فلاتر الطلب من الواجهة
         if ($request->filled('warehouse_id')) {
             $pendingCountQuery->whereIn('id', function ($subQuery) use ($request) {
                 $subQuery->select('order_id')
@@ -2213,6 +2212,72 @@ class AlWaseetController extends Controller
                     ->distinct();
             });
         }
+        if ($request->filled('confirmed_by')) {
+            $pendingCountQuery->where('confirmed_by', $request->confirmed_by);
+        }
+        if ($request->filled('supplier_id')) {
+            $pendingCountQuery->where('supplier_id', $request->supplier_id);
+        }
+        if ($request->filled('delegate_id')) {
+            $pendingCountQuery->where('delegate_id', $request->delegate_id);
+        }
+        if ($request->filled('size_reviewed')) {
+            $pendingCountQuery->where('size_reviewed', $request->size_reviewed);
+        }
+        if ($request->filled('message_confirmed')) {
+            $pendingCountQuery->where('message_confirmed', $request->message_confirmed);
+        }
+        if ($request->filled('alwaseet_sent')) {
+            if ($request->alwaseet_sent === 'sent') {
+                $pendingCountQuery->whereHas('alwaseetShipment');
+            } elseif ($request->alwaseet_sent === 'not_sent') {
+                $pendingCountQuery->whereDoesntHave('alwaseetShipment');
+            }
+        }
+        if ($request->filled('alwaseet_complete')) {
+            if ($request->alwaseet_complete === 'complete') {
+                $pendingCountQuery->whereNotNull('alwaseet_city_id')
+                    ->whereNotNull('alwaseet_region_id')
+                    ->where('alwaseet_city_id', '!=', '')
+                    ->where('alwaseet_region_id', '!=', '');
+            } elseif ($request->alwaseet_complete === 'incomplete') {
+                $pendingCountQuery->where(function ($q) {
+                    $q->whereNull('alwaseet_city_id')
+                        ->orWhere('alwaseet_city_id', '=', '')
+                        ->orWhereNull('alwaseet_region_id')
+                        ->orWhere('alwaseet_region_id', '=', '');
+                });
+            }
+        }
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $pendingCountQuery->where(function ($q) use ($searchTerm) {
+                $q->where('order_number', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%");
+            });
+        }
+        if ($request->filled('date_from')) {
+            $pendingCountQuery->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $pendingCountQuery->whereDate('created_at', '<=', $request->date_to);
+        }
+        if ($request->filled('time_from')) {
+            $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+            $pendingCountQuery->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+        }
+        if ($request->filled('time_to')) {
+            $dateTo = $request->date_to ?? now()->format('Y-m-d');
+            $pendingCountQuery->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+        }
+        if ($request->filled('hours_filter')) {
+            $hoursAgo = now()->subHours($request->hours_filter);
+            $pendingCountQuery->where('created_at', '>=', $hoursAgo);
+        }
+
         $pendingCount = $pendingCountQuery->count();
 
         // لا حاجة لجلب بيانات API - نستخدم البيانات المحفوظة في قاعدة البيانات

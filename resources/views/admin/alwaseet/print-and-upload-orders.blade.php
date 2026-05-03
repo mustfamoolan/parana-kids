@@ -1679,6 +1679,73 @@
             });
             @endforeach
         });
+
+        // منطق حفظ الفلاتر في localStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            const filters = [
+                { id: 'searchFilterPending', key: 'selectedSearch_alwaseet_print' },
+                { id: 'warehouseFilterPending', key: 'selectedWarehouse_alwaseet_print' },
+                { id: 'confirmedByFilterPending', key: 'selectedConfirmedBy_alwaseet_print' },
+                { id: 'delegateIdFilterPending', key: 'selectedDelegate_alwaseet_print' },
+                { id: 'sizeReviewedFilterPending', key: 'selectedSizeReviewed_alwaseet_print' },
+                { id: 'messageConfirmedFilterPending', key: 'selectedMessageConfirmed_alwaseet_print' },
+                { id: 'alwaseetSentFilter', key: 'selectedAlwaseetSent_alwaseet_print' },
+                { id: 'alwaseetCompleteFilter', key: 'selectedAlwaseetComplete_alwaseet_print' },
+                { id: 'supplierIdFilterPending', key: 'selectedSupplierId_alwaseet_print' },
+                { id: 'dateFromFilterPending', key: 'selectedDateFrom_alwaseet_print' },
+                { id: 'dateToFilterPending', key: 'selectedDateTo_alwaseet_print' },
+                { id: 'timeFromFilterPending', key: 'selectedTimeFrom_alwaseet_print' },
+                { id: 'timeToFilterPending', key: 'selectedTimeTo_alwaseet_print' },
+                { id: 'hoursFilterPending', key: 'selectedHours_alwaseet_print' }
+            ];
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = ['search', 'warehouse_id', 'confirmed_by', 'delegate_id', 'size_reviewed', 'message_confirmed', 'alwaseet_sent', 'alwaseet_complete', 'supplier_id', 'date_from', 'date_to', 'time_from', 'time_to', 'hours_filter'].some(param => urlParams.has(param));
+
+            if (hasUrlParams) {
+                filters.forEach(filter => {
+                    const element = document.getElementById(filter.id);
+                    if (element) {
+                        localStorage.setItem(filter.key, element.value);
+                    }
+                });
+            } else {
+                let shouldRedirect = false;
+                filters.forEach(filter => {
+                    const savedValue = localStorage.getItem(filter.key);
+                    const element = document.getElementById(filter.id);
+                    if (savedValue && element && !element.value) {
+                        element.value = savedValue;
+                        shouldRedirect = true;
+                    }
+                });
+
+                if (shouldRedirect) {
+                    const form = document.querySelector('form');
+                    if (form) form.submit();
+                }
+            }
+
+            // تحديث localStorage عند تغيير أي فلتر يدوياً
+            filters.forEach(filter => {
+                const element = document.getElementById(filter.id);
+                if (element) {
+                    element.addEventListener('change', function() {
+                        localStorage.setItem(filter.key, this.value);
+                    });
+                }
+            });
+
+            // مسح localStorage عند الضغط على زر مسح الفلتر
+            const clearBtn = document.getElementById('clearFiltersBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function(e) {
+                    filters.forEach(filter => {
+                        localStorage.removeItem(filter.key);
+                    });
+                });
+            }
+        });
     </script>
 
 </x-layout.admin>
