@@ -229,7 +229,7 @@
                             </select>
                         </div>
                         <div class="sm:w-48">
-                            <select name="confirmed_by" class="form-select">
+                            <select name="confirmed_by" id="confirmedByFilterManagement" class="form-select">
                                 <option value="">المقيد بواسطة (الكل)</option>
                                 @foreach($suppliers as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('confirmed_by') == $supplier->id ? 'selected' : '' }}>
@@ -240,7 +240,7 @@
                         </div>
                         @if(auth()->user()->isAdmin() || auth()->user()->is_observer)
                         <div class="sm:w-48">
-                            <select name="supplier_id" class="form-select">
+                            <select name="supplier_id" id="supplierIdFilterManagement" class="form-select">
                                 <option value="">المجهز المسند إليه (الكل)</option>
                                 @foreach($suppliers->where('role', 'supplier') as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
@@ -254,7 +254,7 @@
                             @php
                                 $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();
                             @endphp
-                            <select name="delegate_id" class="form-select">
+                            <select name="delegate_id" id="delegateIdFilterManagement" class="form-select">
                                 <option value="">كل المندوبين والمديرين والمجهزين</option>
                                 @foreach($orderCreators as $creator)
                                     <option value="{{ $creator->id }}" {{ request('delegate_id') == $creator->id ? 'selected' : '' }}>
@@ -684,28 +684,60 @@
     <script>
         // Local Storage للمخزن
         document.addEventListener('DOMContentLoaded', function() {
-            const warehouseFilter = document.getElementById('warehouseFilterManagement');
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+                                urlParams.has('delegate_id') || urlParams.has('date_from') || urlParams.has('date_to') ||
+                                urlParams.has('supplier_id') || urlParams.has('status');
 
-            if (warehouseFilter) {
-                // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const savedWarehouse = localStorage.getItem('selectedWarehouse_management');
+            // قائمة الفلاتر مع مفاتيح localStorage
+            const filters = [
+                { id: 'warehouseFilterManagement', key: 'selectedWarehouse_management', param: 'warehouse_id' },
+                { id: 'confirmedByFilterManagement', key: 'selectedConfirmedBy_management', param: 'confirmed_by' },
+                { id: 'delegateIdFilterManagement', key: 'selectedDelegateId_management', param: 'delegate_id' },
+                { id: 'supplierIdFilterManagement', key: 'selectedSupplierId_management', param: 'supplier_id' }
+            ];
 
-                // لا نقوم بتطبيق الفلتر تلقائياً إلا إذا لم تكن هناك معاملات في URL
-                if (savedWarehouse && !warehouseFilter.value && !urlParams.has('warehouse_id') && !urlParams.has('search') && !urlParams.has('status') && !urlParams.has('confirmed_by') && !urlParams.has('delegate_id') && !urlParams.has('date_from') && !urlParams.has('date_to')) {
-                    warehouseFilter.value = savedWarehouse;
-                    // لا نقوم بإرسال الفورم تلقائياً لتجنب reload لانهائي
-                    // المستخدم يمكنه الضغط على زر البحث إذا رغب
-                }
+            let hasSavedFilters = false;
+            const savedParams = new URLSearchParams();
 
-                // حفظ الفلتر في Local Storage عند التغيير
-                warehouseFilter.addEventListener('change', function() {
-                    if (this.value) {
-                        localStorage.setItem('selectedWarehouse_management', this.value);
-                    } else {
-                        localStorage.removeItem('selectedWarehouse_management');
+            filters.forEach(filter => {
+                const element = document.getElementById(filter.id);
+                if (element) {
+                    // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
+                    if (!hasUrlParams) {
+                        const savedValue = localStorage.getItem(filter.key);
+                        if (savedValue) {
+                            element.value = savedValue;
+                            savedParams.append(filter.param, savedValue);
+                            hasSavedFilters = true;
+                        }
                     }
-                });
+
+                    // حفظ الفلتر في Local Storage عند التغيير
+                    element.addEventListener('change', function() {
+                        if (this.value) {
+                            localStorage.setItem(filter.key, this.value);
+                        } else {
+                            localStorage.removeItem(filter.key);
+                        }
+                    });
+                }
+            });
+
+            // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL
+            if (!hasUrlParams && hasSavedFilters && savedParams.toString()) {
+                const form = document.querySelector('form[action*="orders/management"]');
+                if (form) {
+                    // إضافة الفلاتر المحفوظة إلى النموذج
+                    savedParams.forEach((value, key) => {
+                        const existingInput = form.querySelector(`[name="${key}"]`);
+                        if (existingInput) {
+                            existingInput.value = value;
+                        }
+                    });
+                    // إرسال النموذج تلقائياً
+                    form.submit();
+                }
             }
         });
 

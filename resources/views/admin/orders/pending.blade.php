@@ -165,7 +165,7 @@
                         </div>
                         @if(auth()->user()->isAdmin() || auth()->user()->is_observer)
                         <div class="sm:w-48">
-                            <select name="supplier_id" class="form-select">
+                            <select name="supplier_id" id="supplierIdFilterPending" class="form-select">
                                 <option value="">المجهز المسند إليه (الكل)</option>
                                 @foreach($suppliers->where('role', 'supplier') as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
@@ -527,7 +527,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
                                 urlParams.has('delegate_id') || urlParams.has('size_reviewed') || urlParams.has('message_confirmed') ||
-                                urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to');
+                                urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') ||
+                                urlParams.has('supplier_id');
 
             // قائمة الفلاتر مع مفاتيح localStorage
             const filters = [
@@ -540,7 +541,8 @@
                 { id: 'dateFromFilterPending', key: 'selectedDateFrom_pending', param: 'date_from' },
                 { id: 'dateToFilterPending', key: 'selectedDateTo_pending', param: 'date_to' },
                 { id: 'timeFromFilterPending', key: 'selectedTimeFrom_pending', param: 'time_from' },
-                { id: 'timeToFilterPending', key: 'selectedTimeTo_pending', param: 'time_to' }
+                { id: 'timeToFilterPending', key: 'selectedTimeTo_pending', param: 'time_to' },
+                { id: 'supplierIdFilterPending', key: 'selectedSupplierId_pending', param: 'supplier_id' }
             ];
 
             let hasSavedFilters = false;

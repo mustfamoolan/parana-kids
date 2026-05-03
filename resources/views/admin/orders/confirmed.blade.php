@@ -111,7 +111,7 @@
                             </select>
                         </div>
                         <div class="sm:w-48">
-                            <select name="confirmed_by" class="form-select">
+                            <select name="confirmed_by" id="confirmedByFilterConfirmed" class="form-select">
                                 <option value="">كل المجهزين والمديرين</option>
                                 @foreach($suppliers as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('confirmed_by') == $supplier->id ? 'selected' : '' }}>
@@ -122,7 +122,7 @@
                         </div>
                         @if(auth()->user()->isAdmin() || auth()->user()->is_observer)
                         <div class="sm:w-48">
-                            <select name="supplier_id" class="form-select">
+                            <select name="supplier_id" id="supplierIdFilterConfirmed" class="form-select">
                                 <option value="">المجهز المسند إليه (الكل)</option>
                                 @foreach($suppliers->where('role', 'supplier') as $supplier)
                                     <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
@@ -136,7 +136,7 @@
                             @php
                                 $orderCreators = \App\Models\User::whereIn('role', ['delegate', 'admin', 'supplier'])->orderBy('role')->orderBy('name')->get();
                             @endphp
-                            <select name="delegate_id" class="form-select">
+                            <select name="delegate_id" id="delegateIdFilterConfirmed" class="form-select">
                                 <option value="">كل المندوبين والمديرين والمجهزين</option>
                                 @foreach($orderCreators as $creator)
                                     <option value="{{ $creator->id }}" {{ request('delegate_id') == $creator->id ? 'selected' : '' }}>
@@ -435,28 +435,63 @@
     </div>
 
     <script>
-        // Local Storage للمخزن
+        // Local Storage لجميع الفلاتر
         document.addEventListener('DOMContentLoaded', function() {
-            const warehouseFilter = document.getElementById('warehouseFilterConfirmed');
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+                                urlParams.has('delegate_id') || urlParams.has('date_from') || urlParams.has('date_to') ||
+                                urlParams.has('time_from') || urlParams.has('time_to') || urlParams.has('hours_ago') ||
+                                urlParams.has('supplier_id');
 
-            if (warehouseFilter) {
-                // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const savedWarehouse = localStorage.getItem('selectedWarehouse_confirmed');
+            // قائمة الفلاتر مع مفاتيح localStorage
+            const filters = [
+                { id: 'warehouseFilterConfirmed', key: 'selectedWarehouse_confirmed', param: 'warehouse_id' },
+                { id: 'confirmedByFilterConfirmed', key: 'selectedConfirmedBy_confirmed', param: 'confirmed_by' },
+                { id: 'delegateIdFilterConfirmed', key: 'selectedDelegateId_confirmed', param: 'delegate_id' },
+                { id: 'supplierIdFilterConfirmed', key: 'selectedSupplierId_confirmed', param: 'supplier_id' }
+            ];
 
-                // لا نقوم بتطبيق الفلتر تلقائياً إلا إذا لم تكن هناك معاملات في URL
-                if (savedWarehouse && !warehouseFilter.value && !urlParams.has('warehouse_id') && !urlParams.has('search') && !urlParams.has('confirmed_by') && !urlParams.has('delegate_id') && !urlParams.has('date_from') && !urlParams.has('date_to')) {
-                    warehouseFilter.value = savedWarehouse;
-                }
+            let hasSavedFilters = false;
+            const savedParams = new URLSearchParams();
 
-                // حفظ الفلتر في Local Storage عند التغيير
-                warehouseFilter.addEventListener('change', function() {
-                    if (this.value) {
-                        localStorage.setItem('selectedWarehouse_confirmed', this.value);
-                    } else {
-                        localStorage.removeItem('selectedWarehouse_confirmed');
+            filters.forEach(filter => {
+                const element = document.getElementById(filter.id);
+                if (element) {
+                    // استرجاع الفلتر من Local Storage عند التحميل فقط إذا لم تكن هناك معاملات في URL
+                    if (!hasUrlParams) {
+                        const savedValue = localStorage.getItem(filter.key);
+                        if (savedValue) {
+                            element.value = savedValue;
+                            savedParams.append(filter.param, savedValue);
+                            hasSavedFilters = true;
+                        }
                     }
-                });
+
+                    // حفظ الفلتر في Local Storage عند التغيير
+                    element.addEventListener('change', function() {
+                        if (this.value) {
+                            localStorage.setItem(filter.key, this.value);
+                        } else {
+                            localStorage.removeItem(filter.key);
+                        }
+                    });
+                }
+            });
+
+            // تطبيق الفلاتر المحفوظة تلقائياً إذا كانت موجودة ولم تكن هناك معاملات في URL
+            if (!hasUrlParams && hasSavedFilters && savedParams.toString()) {
+                const form = document.querySelector('form[action*="orders/confirmed"]');
+                if (form) {
+                    // إضافة الفلاتر المحفوظة إلى النموذج
+                    savedParams.forEach((value, key) => {
+                        const existingInput = form.querySelector(`[name="${key}"]`);
+                        if (existingInput) {
+                            existingInput.value = value;
+                        }
+                    });
+                    // إرسال النموذج تلقائياً
+                    form.submit();
+                }
             }
         });
     </script>

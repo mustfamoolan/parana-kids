@@ -928,7 +928,7 @@
             const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
                                 urlParams.has('delegate_id') || urlParams.has('size_reviewed') || urlParams.has('message_confirmed') ||
                                 urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') ||
-                                urlParams.has('alwaseet_sent') || urlParams.has('alwaseet_complete');
+                                urlParams.has('alwaseet_sent') || urlParams.has('alwaseet_complete') || urlParams.has('supplier_id');
 
             // قائمة الفلاتر مع مفاتيح localStorage
             const filters = [

@@ -2299,6 +2299,11 @@ class AlWaseetController extends Controller
             $query->where('delegate_id', $request->delegate_id);
         }
 
+        // فلتر المجهز المسند إليه الطلب
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
         // البحث في الطلبات
         if ($request->filled('search')) {
             $searchTerm = $request->search;
@@ -2602,6 +2607,11 @@ class AlWaseetController extends Controller
                     $baseQuery->where('delegate_id', $request->delegate_id);
                 }
 
+                // فلتر المجهز المسند إليه الطلب
+                if ($request->filled('supplier_id')) {
+                    $baseQuery->where('supplier_id', $request->supplier_id);
+                }
+
                 // فلتر حسب التاريخ - تطبيق على تاريخ تقييد الطلب
                 if ($request->filled('date_from')) {
                     $baseQuery->whereDate('created_at', '>=', $request->date_from);
@@ -2673,6 +2683,7 @@ class AlWaseetController extends Controller
             // التحقق من وجود أي فلتر (إذا كان هناك فلتر، يجب إعادة الحساب دائماً)
             $hasFilters = $request->filled('warehouse_id') ||
                 $request->filled('confirmed_by') ||
+                $request->filled('supplier_id') ||
                 $request->filled('delegate_id') ||
                 $request->filled('date_from') ||
                 $request->filled('date_to') ||
@@ -2686,6 +2697,7 @@ class AlWaseetController extends Controller
                 $filterParams = [
                     'warehouse_id' => $request->warehouse_id,
                     'confirmed_by' => $request->confirmed_by,
+                    'supplier_id' => $request->supplier_id,
                     'delegate_id' => $request->delegate_id,
                     'date_from' => $request->date_from,
                     'date_to' => $request->date_to,
