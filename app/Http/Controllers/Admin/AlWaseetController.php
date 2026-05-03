@@ -2531,7 +2531,8 @@ class AlWaseetController extends Controller
                 $request->filled('date_to') ||
                 $request->filled('time_from') ||
                 $request->filled('time_to') ||
-                $request->filled('hours_ago');
+                $request->filled('hours_ago') ||
+                $request->filled('supplier_id');
 
             // إنشاء مفتاح Cache فريد بناءً على الفلاتر المطبقة
             if ($hasFilters || Auth::user()->isSupplier()) {
@@ -2545,6 +2546,7 @@ class AlWaseetController extends Controller
                     'time_from' => $request->time_from,
                     'time_to' => $request->time_to,
                     'hours_ago' => $request->hours_ago,
+                    'supplier_id' => $request->supplier_id,
                     'supplier_role' => Auth::user()->isSupplier() ? Auth::user()->id : null,
                 ];
                 $cacheKey = 'admin_status_counts_' . md5(json_encode($filterParams));
@@ -2763,6 +2765,11 @@ class AlWaseetController extends Controller
                 // فلتر المندوب
                 if ($request->filled('delegate_id')) {
                     $baseQuery->where('delegate_id', $request->delegate_id);
+                }
+
+                // فلتر المجهز المسند إليه الطلب
+                if ($request->filled('supplier_id')) {
+                    $baseQuery->where('supplier_id', $request->supplier_id);
                 }
 
                 // فلتر حسب التاريخ - تطبيق على تاريخ تقييد الطلب
