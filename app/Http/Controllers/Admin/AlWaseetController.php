@@ -3618,8 +3618,13 @@ class AlWaseetController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        // Base query - نفس منطق printAndUploadOrders
-        $query = Order::where('status', 'pending');
+        // Base query
+        $status = $request->input('order_status', 'pending');
+        $query = Order::query();
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
 
         // للمجهز والمورد: عرض الطلبات المسندة إليه حصراً OR الطلبات غير المسندة التي تتبع مخازنه
         // المراقب والمدير يرى كل شيء
@@ -3735,6 +3740,22 @@ class AlWaseetController extends Controller
             $dateTo = $request->date_to ?? now()->format('Y-m-d');
             $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
         }
+
+        // فلتر حسب الساعات (قبل ساعتين، 4، 6، 8... حتى 30 ساعة)
+        if ($request->filled('hours_ago')) {
+            $hoursAgo = (int) $request->hours_ago;
+            if ($hoursAgo > 0) {
+                $query->where('created_at', '>=', now()->subHours($hoursAgo));
+            }
+        }
+
+        // فلتر حسب حالة API
+        if ($request->filled('api_status_id')) {
+            $query->whereHas('alwaseetShipment', function ($q) use ($request) {
+                $q->where('status_id', $request->api_status_id);
+            });
+        }
+
 
         $orders = $query->with([
             'delegate',

@@ -4,8 +4,16 @@
             <h5 class="text-lg font-semibold dark:text-white-light">قائمة المواد المطلوبة (مرتبة حسب الكود)</h5>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 @php
-                    // Route للعودة من زر العودة في أعلى الصفحة (يعود إلى print-and-upload-orders)
-                    $backRouteForButton = 'admin.alwaseet.print-and-upload-orders';
+                    // تحديد مسار العودة ديناميكياً
+                    $from = request('from');
+                    if ($from === 'track-orders') {
+                        $backRouteForButton = 'admin.alwaseet.track-orders';
+                    } elseif ($from === 'orders-confirmed') {
+                        $backRouteForButton = 'admin.orders.confirmed';
+                    } else {
+                        $backRouteForButton = 'admin.alwaseet.print-and-upload-orders';
+                    }
+                    
                     // Route للعودة من صفحة التعديل (يعود إلى materials-list-grouped)
                     $backRouteForEdit = 'admin.alwaseet.materials-list-grouped';
                     $backParams = array_filter([
@@ -22,6 +30,10 @@
                         'alwaseet_sent' => request('alwaseet_sent'),
                         'alwaseet_complete' => request('alwaseet_complete'),
                         'supplier_id' => request('supplier_id'),
+                        'api_status_id' => request('api_status_id'),
+                        'hours_ago' => request('hours_ago'),
+                        'order_status' => request('order_status'),
+                        'from' => request('from'),
                     ]);
                 @endphp
                 <a href="{{ route($backRouteForButton, $backParams) }}" class="btn btn-outline-secondary">
@@ -164,7 +176,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
                 <h6 class="text-lg font-semibold dark:text-white-light mb-2">لا توجد مواد مطلوبة</h6>
-                <p class="text-gray-500 dark:text-gray-400 mb-4">لا توجد طلبات غير مقيدة حالياً</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-4">لا توجد طلبات تطابق الفلاتر الحالية</p>
                 <a href="{{ route($backRouteForButton, $backParams) }}" class="btn btn-primary">
                     <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
