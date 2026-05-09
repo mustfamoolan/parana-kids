@@ -595,6 +595,7 @@ class ProductController extends Controller
             'keep_images' => 'nullable|array',
             'keep_images.*' => 'exists:product_images,id',
             'sizes' => 'required|array|min:1',
+            'sizes.*.id' => 'nullable|integer|exists:product_sizes,id',
             'sizes.*.size_name' => 'required|string|max:50',
             'sizes.*.quantity' => 'required|integer|min:0',
             'images' => 'nullable|array',
