@@ -371,6 +371,7 @@
                 <div id="sizesContainer">
                     @foreach($product->sizes as $index => $size)
                         <div class="size-row grid grid-cols-1 gap-5 lg:grid-cols-2 mb-4">
+                            <input type="hidden" name="sizes[{{ $index }}][id]" value="{{ $size->id }}">
                             <div>
                                 <label class="mb-3 block text-sm font-medium text-black dark:text-white">
                                     اسم القياس <span class="text-danger">*</span>

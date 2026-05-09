@@ -636,18 +636,20 @@ class ProductController extends Controller
 
             $product->update($updateData);
 
-            // حفظ القياسات القديمة لمقارنتها (مع استخدام trim لتفادي مشاكل المسافات الزائدة)
-            $oldSizes = $product->sizes->keyBy(fn($item) => trim($item->size_name));
-            $newSizes = collect($request->sizes)->keyBy(fn($item) => trim($item['size_name']));
-            $existingSizes = $product->sizes->keyBy(fn($item) => trim($item->size_name));
+            // حفظ القياسات الحالية للبحث السريع (بالـ ID وبالاسم)
+            $existingSizesById = $product->sizes->keyBy('id');
+            $existingSizesByName = $product->sizes->keyBy(fn($item) => trim($item->size_name));
+            
+            $requestSizes = collect($request->sizes);
+            $requestIds = $requestSizes->pluck('id')->filter()->toArray();
 
             // استخدام withoutEvents لتجنب إرسال إشعار لكل قياس (سنعتمد على إشعار تحديث المنتج)
-            \App\Models\ProductSize::withoutEvents(function () use ($oldSizes, $newSizes, $request, $product, &$existingSizes) {
-                // 1. حذف القياسات التي لم تعد موجودة
-                foreach ($oldSizes as $sizeName => $oldSize) {
-                    // نستخدم trim هنا أيضاً للمقارنة الدقيقة
-                    $trimmedName = trim($oldSize->size_name);
-                    if (!isset($newSizes[$trimmedName])) {
+            \App\Models\ProductSize::withoutEvents(function () use ($existingSizesById, $existingSizesByName, $requestSizes, $requestIds, $product) {
+                
+                // 1. حذف القياسات التي لم تعد موجودة في الطلب (بناءً على الـ ID)
+                foreach ($existingSizesById as $id => $oldSize) {
+                    if (!in_array($id, $requestIds)) {
+                        $sizeName = $oldSize->size_name;
                         try {
                             // تسجيل حركة الحذف
                             ProductMovement::record([
@@ -663,29 +665,36 @@ class ProductController extends Controller
                             $oldSize->delete();
                         } catch (\Exception $e) {
                             // إذا فشل الحذف بسبب وجود مراجع (مثل مرتجعات أو طلبات قديمة)
-                            // نصفر الكمية فقط لضمان عدم بيعه مرة أخرى مع الحفاظ على سلامة البيانات
                             $oldSize->update(['quantity' => 0]);
-                            
-                            Log::warning("Could not delete product size {$oldSize->id} ({$sizeName}) due to database constraints. Zeroed quantity instead. Error: " . $e->getMessage());
+                            Log::warning("Could not delete product size {$oldSize->id} ({$sizeName}) due to database constraints. Zeroed quantity instead.");
                         }
-                        unset($existingSizes[$sizeName]);
                     }
                 }
 
                 // 2. تحديث أو إضافة القياسات
-                foreach ($request->sizes as $sizeData) {
+                foreach ($requestSizes as $sizeData) {
+                    $size = null;
                     $oldQuantity = null;
-                    $trimmedSizeName = trim($sizeData['size_name']);
+                    $trimmedName = trim($sizeData['size_name']);
 
-                    if (isset($existingSizes[$trimmedSizeName])) {
-                        $size = $existingSizes[$trimmedSizeName];
+                    // محاولة البحث عن القياس: أولاً بالـ ID إذا وجد، ثم بالاسم كاحتياط
+                    if (isset($sizeData['id']) && isset($existingSizesById[$sizeData['id']])) {
+                        $size = $existingSizesById[$sizeData['id']];
+                    } elseif (isset($existingSizesByName[$trimmedName])) {
+                        $size = $existingSizesByName[$trimmedName];
+                    }
+
+                    if ($size) {
                         $oldQuantity = $size->quantity;
-                        $size->quantity = $sizeData['quantity'];
-                        $size->save();
+                        $size->update([
+                            'size_name' => $trimmedName,
+                            'quantity' => $sizeData['quantity']
+                        ]);
                     } else {
+                        // إنشاء قياس جديد
                         $size = \App\Models\ProductSize::create([
                             'product_id' => $product->id,
-                            'size_name' => $trimmedSizeName,
+                            'size_name' => $trimmedName,
                             'quantity' => $sizeData['quantity'],
                         ]);
                     }
@@ -702,7 +711,7 @@ class ProductController extends Controller
                             'movement_type' => $movementType,
                             'quantity' => $quantityDifference,
                             'balance_after' => $sizeData['quantity'],
-                            'notes' => ($quantityDifference > 0 ? "زيادة" : "نقص") . " كمية - المنتج: {$product->name} - القياس: {$trimmedSizeName} (" . ($quantityDifference > 0 ? "+" : "") . "{$quantityDifference})",
+                            'notes' => ($quantityDifference > 0 ? "زيادة" : "نقص") . " كمية - المنتج: {$product->name} - القياس: {$trimmedName} (" . ($quantityDifference > 0 ? "+" : "") . "{$quantityDifference})",
                         ]);
                     }
                 }
