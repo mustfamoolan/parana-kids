@@ -651,24 +651,18 @@ class ProductController extends Controller
                 foreach ($existingSizesById as $id => $oldSize) {
                     if (!in_array($id, $requestIds)) {
                         $sizeName = $oldSize->size_name;
-                        try {
-                            // تسجيل حركة الحذف
-                            ProductMovement::record([
-                                'product_id' => $product->id,
-                                'size_id' => $oldSize->id,
-                                'warehouse_id' => $product->warehouse_id,
-                                'movement_type' => 'delete',
-                                'quantity' => -$oldSize->quantity,
-                                'balance_after' => 0,
-                                'notes' => "حذف القياس - المنتج: {$product->name} - القياس: {$sizeName} (كان الرصيد: {$oldSize->quantity})",
-                            ]);
+                        // تسجيل حركة الحذف
+                        ProductMovement::record([
+                            'product_id' => $product->id,
+                            'size_id' => $oldSize->id,
+                            'warehouse_id' => $product->warehouse_id,
+                            'movement_type' => 'delete',
+                            'quantity' => -$oldSize->quantity,
+                            'balance_after' => 0,
+                            'notes' => "حذف القياس (Soft Delete) - المنتج: {$product->name} - القياس: {$sizeName} (كان الرصيد: {$oldSize->quantity})",
+                        ]);
 
-                            $oldSize->delete();
-                        } catch (\Exception $e) {
-                            // إذا فشل الحذف بسبب وجود مراجع (مثل مرتجعات أو طلبات قديمة)
-                            $oldSize->update(['quantity' => 0]);
-                            Log::warning("Could not delete product size {$oldSize->id} ({$sizeName}) due to database constraints. Zeroed quantity instead.");
-                        }
+                        $oldSize->delete(); // سيقوم الآن بالحذف الناعم
                     }
                 }
 
