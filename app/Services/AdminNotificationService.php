@@ -286,36 +286,40 @@ class AdminNotificationService
      */
     public function notifyWarehouseAction($warehouse, $action, $user = null)
     {
-        $userName = $user ? $user->name : 'المستخدم';
-        $actions = [
-            'created' => 'إنشاء مخزن جديد',
-            'updated' => 'تعديل مخزن',
-            'deleted' => 'حذف مخزن',
-        ];
-        
-        $actionText = $actions[$action] ?? 'عملية على المخزن';
-        $title = $actionText . ': ' . $warehouse->name;
-        $body = "قام {$userName} بـ " . mb_strtolower($actionText);
+        try {
+            $userName = $user ? $user->name : 'المستخدم';
+            $actions = [
+                'created' => 'إنشاء مخزن جديد',
+                'updated' => 'تعديل مخزن',
+                'deleted' => 'حذف مخزن',
+            ];
+            
+            $actionText = $actions[$action] ?? 'عملية على المخزن';
+            $title = $actionText . ': ' . $warehouse->name;
+            $body = "قام {$userName} بـ " . mb_strtolower($actionText);
 
-        $data = [
-            'type' => 'warehouse_action',
-            'warehouse_id' => (string) $warehouse->id,
-            'warehouse_name' => $warehouse->name,
-            'action' => $action,
-            'screen' => 'warehouses_list',
-        ];
+            $data = [
+                'type' => 'warehouse_action',
+                'warehouse_id' => (string) $warehouse->id,
+                'warehouse_name' => $warehouse->name,
+                'action' => $action,
+                'screen' => 'warehouses_list',
+            ];
 
-        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
-        foreach ($adminIds as $adminId) {
-            Notification::create([
-                'user_id' => $adminId,
-                'type' => 'warehouse_' . $action,
-                'title' => $title,
-                'message' => $body,
-                'data' => $data,
-            ]);
+            $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+            foreach ($adminIds as $adminId) {
+                Notification::create([
+                    'user_id' => $adminId,
+                    'type' => 'warehouse_' . $action,
+                    'title' => $title,
+                    'message' => $body,
+                    'data' => $data,
+                ]);
+            }
+            $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
+        } catch (\Exception $e) {
+            Log::error("AdminNotificationService: Warehouse action notify failed: " . $e->getMessage());
         }
-        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
@@ -323,36 +327,40 @@ class AdminNotificationService
      */
     public function notifyProductAction($product, $action, $user = null)
     {
-        $userName = $user ? $user->name : 'المستخدم';
-        $actions = [
-            'created' => 'إضافة منتج جديد',
-            'updated' => 'تعديل منتج',
-            'deleted' => 'حذف منتج',
-        ];
-        
-        $actionText = $actions[$action] ?? 'عملية على المنتج';
-        $title = $actionText . ': ' . $product->name;
-        $body = "قام {$userName} بـ " . mb_strtolower($actionText);
+        try {
+            $userName = $user ? $user->name : 'المستخدم';
+            $actions = [
+                'created' => 'إضافة منتج جديد',
+                'updated' => 'تعديل منتج',
+                'deleted' => 'حذف منتج',
+            ];
+            
+            $actionText = $actions[$action] ?? 'عملية على المنتج';
+            $title = $actionText . ': ' . $product->name;
+            $body = "قام {$userName} بـ " . mb_strtolower($actionText);
 
-        $data = [
-            'type' => 'product_action',
-            'product_id' => (string) $product->id,
-            'product_name' => $product->name,
-            'action' => $action,
-            'screen' => 'product_details',
-        ];
+            $data = [
+                'type' => 'product_action',
+                'product_id' => (string) $product->id,
+                'product_name' => $product->name,
+                'action' => $action,
+                'screen' => 'product_details',
+            ];
 
-        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
-        foreach ($adminIds as $adminId) {
-            Notification::create([
-                'user_id' => $adminId,
-                'type' => 'product_' . $action,
-                'title' => $title,
-                'message' => $body,
-                'data' => $data,
-            ]);
+            $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+            foreach ($adminIds as $adminId) {
+                Notification::create([
+                    'user_id' => $adminId,
+                    'type' => 'product_' . $action,
+                    'title' => $title,
+                    'message' => $body,
+                    'data' => $data,
+                ]);
+            }
+            $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
+        } catch (\Exception $e) {
+            Log::error("AdminNotificationService: Product action notify failed: " . $e->getMessage());
         }
-        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**
@@ -360,40 +368,44 @@ class AdminNotificationService
      */
     public function notifyProductSizeAction($productSize, $action, $user = null)
     {
-        $userName = $user ? $user->name : 'المستخدم';
-        $productName = $productSize->product ? $productSize->product->name : 'منتج غير معروف';
-        
-        $actions = [
-            'created' => 'إضافة قياس جديد',
-            'updated' => 'تعديل كمية/قياس',
-            'deleted' => 'حذف قياس',
-        ];
-        
-        $actionText = $actions[$action] ?? 'عملية على القياس';
-        $title = "{$actionText}: {$productName}";
-        $body = "قام {$userName} بـ " . mb_strtolower($actionText) . " ({$productSize->size_name}) - الكمية: {$productSize->quantity}";
+        try {
+            $userName = $user ? $user->name : 'المستخدم';
+            $productName = $productSize->product ? $productSize->product->name : 'منتج غير معروف';
+            
+            $actions = [
+                'created' => 'إضافة قياس جديد',
+                'updated' => 'تعديل كمية/قياس',
+                'deleted' => 'حذف قياس',
+            ];
+            
+            $actionText = $actions[$action] ?? 'عملية على القياس';
+            $title = "{$actionText}: {$productName}";
+            $body = "قام {$userName} بـ " . mb_strtolower($actionText) . " ({$productSize->size_name}) - الكمية: {$productSize->quantity}";
 
-        $data = [
-            'type' => 'product_size_action',
-            'product_id' => (string) $productSize->product_id,
-            'size_id' => (string) $productSize->id,
-            'size_name' => $productSize->size_name,
-            'quantity' => (string) $productSize->quantity,
-            'action' => $action,
-            'screen' => 'product_details',
-        ];
+            $data = [
+                'type' => 'product_size_action',
+                'product_id' => (string) $productSize->product_id,
+                'size_id' => (string) $productSize->id,
+                'size_name' => $productSize->size_name,
+                'quantity' => (string) $productSize->quantity,
+                'action' => $action,
+                'screen' => 'product_details',
+            ];
 
-        $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
-        foreach ($adminIds as $adminId) {
-            Notification::create([
-                'user_id' => $adminId,
-                'type' => 'product_size_' . $action,
-                'title' => $title,
-                'message' => $body,
-                'data' => $data,
-            ]);
+            $adminIds = User::where('role', 'admin')->pluck('id')->toArray();
+            foreach ($adminIds as $adminId) {
+                Notification::create([
+                    'user_id' => $adminId,
+                    'type' => 'product_size_' . $action,
+                    'title' => $title,
+                    'message' => $body,
+                    'data' => $data,
+                ]);
+            }
+            $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
+        } catch (\Exception $e) {
+            Log::error("AdminNotificationService: Product size action notify failed: " . $e->getMessage());
         }
-        $this->fcmService->sendToUsers($adminIds, $title, $body, $data, 'admin_mobile');
     }
 
     /**

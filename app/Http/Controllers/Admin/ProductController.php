@@ -601,228 +601,168 @@ class ProductController extends Controller
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
-        // استخدام الكود كاسم افتراضي إذا لم يتم إدخال اسم
-        $productName = $request->name ?: $request->code;
+        DB::beginTransaction();
 
-        // تحويل تواريخ التخفيض إلى UTC إذا كانت موجودة
-        $discountStartDate = $request->discount_start_date
-            ? \Carbon\Carbon::parse($request->discount_start_date, 'Asia/Baghdad')->setTimezone('UTC')
-            : null;
-        $discountEndDate = $request->discount_end_date
-            ? \Carbon\Carbon::parse($request->discount_end_date, 'Asia/Baghdad')->setTimezone('UTC')
-            : null;
+        try {
+            // استخدام الكود كاسم افتراضي إذا لم يتم إدخال اسم
+            $productName = $request->name ?: $request->code;
 
-        $updateData = [
-            'name' => $productName,
-            'code' => $request->code,
-            'gender_type' => $request->gender_type,
-            'selling_price' => $request->selling_price,
-            'description' => $request->description,
-            'link_1688' => $request->link_1688,
-        ];
+            // تحويل تواريخ التخفيض إلى UTC إذا كانت موجودة
+            $discountStartDate = $request->discount_start_date
+                ? \Carbon\Carbon::parse($request->discount_start_date, 'Asia/Baghdad')->setTimezone('UTC')
+                : null;
+            $discountEndDate = $request->discount_end_date
+                ? \Carbon\Carbon::parse($request->discount_end_date, 'Asia/Baghdad')->setTimezone('UTC')
+                : null;
 
-        // فقط المدير يمكنه تعديل سعر الشراء والحجب والتخفيض
-        if (auth()->user()->isAdmin()) {
-            $updateData['purchase_price'] = $request->purchase_price;
-            $updateData['is_hidden'] = $request->has('is_hidden') ? (bool)$request->is_hidden : false;
-            $updateData['discount_type'] = $request->discount_type ?? 'none';
-            $updateData['discount_value'] = $request->discount_value;
-            $updateData['discount_start_date'] = $discountStartDate;
-            $updateData['discount_end_date'] = $discountEndDate;
-        }
+            $updateData = [
+                'name' => $productName,
+                'code' => $request->code,
+                'gender_type' => $request->gender_type,
+                'selling_price' => $request->selling_price,
+                'description' => $request->description,
+                'link_1688' => $request->link_1688,
+            ];
 
-        $product->update($updateData);
-
-        // حفظ القياسات القديمة لمقارنتها
-        $oldSizes = $product->sizes->keyBy('size_name');
-        $newSizes = collect($request->sizes)->keyBy('size_name');
-
-        // حفظ القياسات الموجودة قبل أي تعديل (للاستخدام لاحقاً)
-        $existingSizes = $product->sizes->keyBy('size_name');
-
-        // تسجيل القياسات المحذوفة قبل الحذف (فقط إذا لم تعد موجودة في القياسات الجديدة)
-        foreach ($oldSizes as $sizeName => $oldSize) {
-            if (!isset($newSizes[$sizeName])) {
-                // حذف القياس فقط إذا لم يعد موجوداً في القائمة الجديدة
-                ProductMovement::record([
-                    'product_id' => $product->id,
-                    'size_id' => $oldSize->id,
-                    'warehouse_id' => $product->warehouse_id,
-                    'movement_type' => 'delete',
-                    'quantity' => -$oldSize->quantity,
-                    'balance_after' => 0,
-                    'notes' => "حذف القياس - المنتج: {$product->name} - القياس: {$sizeName} (كان الرصيد: {$oldSize->quantity})",
-                ]);
-                // حذف القياس فقط إذا لم يعد موجوداً في القائمة الجديدة
-                $oldSize->delete();
-                // إزالة من existingSizes أيضاً
-                unset($existingSizes[$sizeName]);
-            }
-        }
-
-        // Update sizes - تحديث القياسات الموجودة بدلاً من حذفها وإنشاء قياسات جديدة
-        // هذا يحافظ على size_id في order_items
-        foreach ($request->sizes as $sizeData) {
-            $oldQuantity = null;
-
-            if (isset($existingSizes[$sizeData['size_name']])) {
-                // تحديث القياس الموجود (حتى لو كانت الكمية 0، نحافظ على size_id)
-                $size = $existingSizes[$sizeData['size_name']];
-                $oldQuantity = $size->quantity; // حفظ الكمية القديمة قبل التحديث
-                $size->quantity = $sizeData['quantity'];
-                $size->save();
-            } else {
-                // إنشاء قياس جديد
-                $size = ProductSize::create([
-                    'product_id' => $product->id,
-                    'size_name' => $sizeData['size_name'],
-                    'quantity' => $sizeData['quantity'],
-                ]);
+            // فقط المدير يمكنه تعديل سعر الشراء والحجب والتخفيض
+            if (auth()->user()->isAdmin()) {
+                $updateData['purchase_price'] = $request->purchase_price;
+                $updateData['is_hidden'] = $request->has('is_hidden') ? (bool)$request->is_hidden : false;
+                $updateData['discount_type'] = $request->discount_type ?? 'none';
+                $updateData['discount_value'] = $request->discount_value;
+                $updateData['discount_start_date'] = $discountStartDate;
+                $updateData['discount_end_date'] = $discountEndDate;
             }
 
-            // تسجيل حركة التعديل عند تغيير الكمية
-            if ($oldQuantity !== null) {
-                // القياس موجود، حساب الفرق من الكمية القديمة المحفوظة
-                $quantityDifference = $sizeData['quantity'] - $oldQuantity;
+            $product->update($updateData);
 
-                // تسجيل الحركة فقط إذا تغيرت الكمية
-                if ($quantityDifference > 0) {
-                    // زيادة الكمية
-                    ProductMovement::record([
-                        'product_id' => $product->id,
-                        'size_id' => $size->id,
-                        'warehouse_id' => $product->warehouse_id,
-                        'movement_type' => 'increase',
-                        'quantity' => $quantityDifference,
-                        'balance_after' => $sizeData['quantity'],
-                        'notes' => "زيادة كمية - المنتج: {$product->name} - القياس: {$sizeData['size_name']} (+{$quantityDifference})",
-                    ]);
-                } elseif ($quantityDifference < 0) {
-                    // نقص الكمية
-                    ProductMovement::record([
-                        'product_id' => $product->id,
-                        'size_id' => $size->id,
-                        'warehouse_id' => $product->warehouse_id,
-                        'movement_type' => 'decrease',
-                        'quantity' => $quantityDifference,
-                        'balance_after' => $sizeData['quantity'],
-                        'notes' => "نقص كمية - المنتج: {$product->name} - القياس: {$sizeData['size_name']} ({$quantityDifference})",
-                    ]);
+            // حفظ القياسات القديمة لمقارنتها
+            $oldSizes = $product->sizes->keyBy('size_name');
+            $newSizes = collect($request->sizes)->keyBy('size_name');
+            $existingSizes = $product->sizes->keyBy('size_name');
+
+            // استخدام withoutEvents لتجنب إرسال إشعار لكل قياس (سنعتمد على إشعار تحديث المنتج)
+            \App\Models\ProductSize::withoutEvents(function () use ($oldSizes, $newSizes, $request, $product, &$existingSizes) {
+                // 1. حذف القياسات التي لم تعد موجودة
+                foreach ($oldSizes as $sizeName => $oldSize) {
+                    if (!isset($newSizes[$sizeName])) {
+                        ProductMovement::record([
+                            'product_id' => $product->id,
+                            'size_id' => $oldSize->id,
+                            'warehouse_id' => $product->warehouse_id,
+                            'movement_type' => 'delete',
+                            'quantity' => -$oldSize->quantity,
+                            'balance_after' => 0,
+                            'notes' => "حذف القياس - المنتج: {$product->name} - القياس: {$sizeName} (كان الرصيد: {$oldSize->quantity})",
+                        ]);
+                        $oldSize->delete();
+                        unset($existingSizes[$sizeName]);
+                    }
                 }
-            } else {
-                // إذا كان القياس جديد، سجله كإضافة
-                ProductMovement::record([
-                    'product_id' => $product->id,
-                    'size_id' => $size->id,
-                    'warehouse_id' => $product->warehouse_id,
-                    'movement_type' => 'add',
-                    'quantity' => $sizeData['quantity'],
-                    'balance_after' => $sizeData['quantity'],
-                    'notes' => "إضافة قياس جديد - المنتج: {$product->name} - القياس: {$sizeData['size_name']}",
-                ]);
-            }
-        }
 
-        // معالجة الصور
-        // حذف الصور التي لم يتم الاحتفاظ بها
-        $keepImageIds = $request->keep_images ?? [];
-        foreach ($product->images as $oldImage) {
-            if (!in_array($oldImage->id, $keepImageIds)) {
-                Storage::disk('public')->delete($oldImage->image_path);
-                $oldImage->delete();
-            }
-        }
-
-        // إعادة تعيين primary للصورة الأولى المتبقية
-        $remainingImages = $product->images()->get();
-        if ($remainingImages->count() > 0) {
-            $remainingImages->each(function($img) { $img->update(['is_primary' => false]); });
-            $remainingImages->first()->update(['is_primary' => true]);
-        }
-
-        // حساب عدد الصور الحالية
-        $imageIndex = $remainingImages->count();
-
-        // رفع صور جديدة من الملفات
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                try {
-                    // التأكد من وجود المجلد قبل الحفظ باستخدام Storage facade
-                    if (!Storage::disk('public')->exists('products')) {
-                        Storage::disk('public')->makeDirectory('products');
+                // 2. تحديث أو إضافة القياسات
+                foreach ($request->sizes as $sizeData) {
+                    $oldQuantity = null;
+                    if (isset($existingSizes[$sizeData['size_name']])) {
+                        $size = $existingSizes[$sizeData['size_name']];
+                        $oldQuantity = $size->quantity;
+                        $size->quantity = $sizeData['quantity'];
+                        $size->save();
+                    } else {
+                        $size = \App\Models\ProductSize::create([
+                            'product_id' => $product->id,
+                            'size_name' => $sizeData['size_name'],
+                            'quantity' => $sizeData['quantity'],
+                        ]);
                     }
 
-                    $path = $image->store('products', 'public');
+                    $quantityDifference = $oldQuantity !== null ? $sizeData['quantity'] - $oldQuantity : $sizeData['quantity'];
+                    if ($quantityDifference != 0) {
+                        $movementType = $quantityDifference > 0 ? 'increase' : 'decrease';
+                        if ($oldQuantity === null) $movementType = 'add';
+                        
+                        ProductMovement::record([
+                            'product_id' => $product->id,
+                            'size_id' => $size->id,
+                            'warehouse_id' => $product->warehouse_id,
+                            'movement_type' => $movementType,
+                            'quantity' => $quantityDifference,
+                            'balance_after' => $sizeData['quantity'],
+                            'notes' => ($quantityDifference > 0 ? "زيادة" : "نقص") . " كمية - المنتج: {$product->name} - القياس: {$sizeData['size_name']} (" . ($quantityDifference > 0 ? "+" : "") . "{$quantityDifference})",
+                        ]);
+                    }
+                }
+            });
 
+            // معالجة الصور
+            $keepImageIds = $request->keep_images ?? [];
+            foreach ($product->images as $oldImage) {
+                if (!in_array($oldImage->id, $keepImageIds)) {
+                    Storage::disk('public')->delete($oldImage->image_path);
+                    $oldImage->delete();
+                }
+            }
+
+            $remainingImages = $product->images()->get();
+            if ($remainingImages->count() > 0) {
+                $remainingImages->each(function($img) { $img->update(['is_primary' => false]); });
+                $remainingImages->first()->update(['is_primary' => true]);
+            }
+            $imageIndex = $remainingImages->count();
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('products', 'public');
                     ProductImage::create([
                         'product_id' => $product->id,
                         'image_path' => $path,
                         'is_primary' => $imageIndex === 0,
                     ]);
                     $imageIndex++;
-                } catch (\Exception $e) {
-                    Log::error('Failed to upload product image: ' . $e->getMessage());
-                    return back()->withErrors(['images' => 'فشل رفع الصورة: ' . $e->getMessage()])->withInput();
                 }
             }
-        }
 
-        // تحميل صور من URLs
-        if ($request->filled('image_urls')) {
-            foreach ($request->image_urls as $imageUrl) {
-                if (empty($imageUrl)) continue;
-
-                try {
-                    $imageContent = file_get_contents($imageUrl);
-
-                    if ($imageContent !== false) {
-                        $extension = pathinfo(parse_url($imageUrl, PHP_URL_PATH), PATHINFO_EXTENSION);
-                        if (empty($extension) || !in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
-                            $extension = 'jpg';
+            if ($request->filled('image_urls')) {
+                foreach ($request->image_urls as $imageUrl) {
+                    if (empty($imageUrl)) continue;
+                    try {
+                        $imageContent = file_get_contents($imageUrl);
+                        if ($imageContent !== false) {
+                            $extension = pathinfo(parse_url($imageUrl, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
+                            $filename = 'product_' . time() . '_' . uniqid() . '.' . $extension;
+                            $path = 'products/' . $filename;
+                            Storage::disk('public')->put($path, $imageContent);
+                            ProductImage::create([
+                                'product_id' => $product->id,
+                                'image_path' => $path,
+                                'is_primary' => $imageIndex === 0,
+                            ]);
+                            $imageIndex++;
                         }
-
-                        $filename = 'product_' . time() . '_' . uniqid() . '.' . $extension;
-                        $path = 'products/' . $filename;
-
-                        Storage::disk('public')->put($path, $imageContent);
-
-                        ProductImage::create([
-                            'product_id' => $product->id,
-                            'image_path' => $path,
-                            'is_primary' => $imageIndex === 0,
-                        ]);
-                        $imageIndex++;
+                    } catch (\Exception $e) {
+                        Log::error("Failed to download image from URL: " . $imageUrl);
                     }
-                } catch (\Exception $e) {
-                    // تجاهل الخطأ والاستمرار
                 }
             }
-        }
 
-        // التحقق من وجود back_url وإذا كان موجوداً، نعيد التوجيه إليه (نفس منطق OrderController)
-        $backUrl = $request->input('back_url');
-        if ($backUrl) {
-            $backUrl = urldecode($backUrl);
-            $parsed = parse_url($backUrl);
-            $currentHost = $request->getHost();
+            DB::commit();
 
-            // التحقق من أن back_url من نفس النطاق (Security check)
-            if (isset($parsed['host']) && $parsed['host'] !== $currentHost) {
-                $backUrl = null;
+            $backUrl = $request->input('back_url');
+            if ($backUrl) {
+                $backUrl = urldecode($backUrl);
+                $backUrl = preg_replace('/#.*$/', '', $backUrl);
+                $backUrl .= '#product-' . $product->id;
+                return redirect($backUrl)->with('success', 'تم تحديث المنتج بنجاح');
             }
-        }
 
-        // إذا كان back_url موجوداً وصحيحاً، نعيد التوجيه إليه مع إضافة #product-{id} للانتقال مباشرة إلى المنتج
-        if ($backUrl) {
-            // إضافة #product-{id} إلى URL للانتقال مباشرة إلى المنتج
-            // إزالة أي hash موجود مسبقاً وإضافة hash جديد
-            $backUrl = preg_replace('/#.*$/', '', $backUrl);
-            $backUrl .= '#product-' . $product->id;
-            return redirect($backUrl)->with('success', 'تم تحديث المنتج بنجاح');
-        }
+            return redirect()->route('admin.warehouses.products.show', [$warehouse, $product])
+                            ->with('success', 'تم تحديث المنتج بنجاح');
 
-        return redirect()->route('admin.warehouses.products.show', [$warehouse, $product])
-                        ->with('success', 'تم تحديث المنتج بنجاح');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Product update failed: " . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'حدث خطأ أثناء التحديث: ' . $e->getMessage());
+        }
     }
 
     /**
