@@ -20,6 +20,7 @@ class MobileAdminSettingController extends Controller
                 'delivery_fee' => Setting::getDeliveryFee(),
                 'profit_margin' => Setting::getProfitMargin(),
                 'alwaseet_merchant_notes' => Setting::getValue('alwaseet_merchant_notes', ''),
+                'product_link_duration' => (int) Setting::getValue('app_product_link_duration', 2),
 
                 // Floating Banner
                 'floating_banner_enabled' => Setting::getValue('floating_banner_enabled', '0') === '1',
@@ -55,12 +56,14 @@ class MobileAdminSettingController extends Controller
             'delivery_fee' => 'required|numeric|min:0',
             'profit_margin' => 'nullable|numeric|min:0',
             'alwaseet_merchant_notes' => 'nullable|string|max:1000',
+            'product_link_duration' => 'required|integer|min:1|max:168',
         ]);
 
         try {
             Setting::setValue('delivery_fee', $request->delivery_fee, 'سعر التوصيل بالدينار العراقي');
             Setting::setValue('profit_margin', $request->profit_margin ?? 0, 'ربح الفروقات بالدينار العراقي');
             Setting::setValue('alwaseet_merchant_notes', $request->alwaseet_merchant_notes ?? '', 'ملاحظة التاجر للواسط');
+            Setting::setValue('app_product_link_duration', $request->product_link_duration, 'مدة صلاحية روابط المنتجات بالساعات');
 
             return response()->json([
                 'success' => true,
