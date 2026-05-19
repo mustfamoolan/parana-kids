@@ -334,3 +334,17 @@ Route::prefix('admin/phone-book')->middleware('auth.pwa')->group(function () {
     Route::delete('/{contact}', [\App\Http\Controllers\Mobile\Admin\MobileAdminPhoneBookController::class, 'deleteContact']);
 });
 
+// APIs الفواتير للمخازن الخاصة للمدير والمورد (تحتاج token)
+Route::prefix('admin/invoices')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'store']);
+    Route::delete('/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'destroy']);
+
+    // المنتجات الخاصة بالفواتير
+    Route::get('/products', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'getProducts']);
+    Route::post('/products', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'storeProduct']);
+    Route::put('/products/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'updateProduct']);
+    Route::delete('/products/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminInvoiceController::class, 'destroyProduct']);
+});
+
+
