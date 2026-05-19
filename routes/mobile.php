@@ -243,6 +243,14 @@ Route::prefix('admin/bulk-exchange-returns')->middleware('auth.pwa')->group(func
     Route::get('/search-products', [MobileAdminBulkExchangeReturnController::class, 'searchProducts']);
     Route::post('/', [MobileAdminBulkExchangeReturnController::class, 'returnProducts']);
 });
+// APIs المخازن الخاصة للمدير (تحتاج token)
+Route::prefix('admin/private-warehouses')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminPrivateWarehouseController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminPrivateWarehouseController::class, 'store']);
+    Route::put('/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminPrivateWarehouseController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Mobile\Admin\MobileAdminPrivateWarehouseController::class, 'destroy']);
+});
+
 // APIs المستودعات للمدير والمجهز (تحتاج token)
 Route::prefix('admin/warehouses')->middleware('auth.pwa')->group(function () {
     Route::get('/', [MobileAdminWarehouseController::class, 'index']);
