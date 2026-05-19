@@ -47,7 +47,7 @@ class MobileAdminUserController extends Controller
             }
 
             $perPage = $request->input('per_page', 20);
-            $users = $query->with('warehouses', 'privateWarehouse')->latest()->paginate($perPage);
+            $users = $query->with('warehouses', 'privateWarehouse', 'suggestedSuppliers')->latest()->paginate($perPage);
 
             // تنسيق البيانات لتناسب الـ UserModel في الفلاتر
             $users->getCollection()->transform(function ($user) {
@@ -112,6 +112,9 @@ class MobileAdminUserController extends Controller
             'code' => 'required_if:role,supplier,delegate,private_supplier|nullable|string|unique:users,code',
             'warehouses' => 'nullable|array',
             'private_warehouse_id' => 'nullable|exists:private_warehouses,id',
+            'is_observer' => 'nullable|boolean',
+            'suggested_suppliers' => 'nullable|array',
+            'suggested_suppliers.*' => 'exists:users,id',
         ]);
 
         try {
@@ -125,6 +128,7 @@ class MobileAdminUserController extends Controller
                     'code' => $request->code,
                     'page_name' => $request->page_name,
                     'private_warehouse_id' => $request->role === 'private_supplier' ? $request->private_warehouse_id : null,
+                    'is_observer' => $request->role === 'supplier' && $request->is_observer,
                 ]);
 
                 // ربط المخازن للمجهزين والمندوبين
@@ -132,10 +136,15 @@ class MobileAdminUserController extends Controller
                     $user->warehouses()->attach($request->warehouses);
                 }
 
+                // ربط المجهزين المقترحين للمندوب
+                if ($request->role === 'delegate' && $request->filled('suggested_suppliers')) {
+                    $user->suggestedSuppliers()->sync($request->suggested_suppliers);
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'تم إضافة المستخدم بنجاح',
-                    'data' => $this->formatUser($user->load('warehouses', 'privateWarehouse')),
+                    'data' => $this->formatUser($user->load('warehouses', 'privateWarehouse', 'suggestedSuppliers')),
                 ]);
             });
         } catch (\Exception $e) {
@@ -174,6 +183,9 @@ class MobileAdminUserController extends Controller
             'code' => 'required_if:role,supplier,delegate,private_supplier|nullable|string|unique:users,code,' . $id,
             'warehouses' => 'nullable|array',
             'private_warehouse_id' => 'nullable|exists:private_warehouses,id',
+            'is_observer' => 'nullable|boolean',
+            'suggested_suppliers' => 'nullable|array',
+            'suggested_suppliers.*' => 'exists:users,id',
         ]);
 
         try {
@@ -185,6 +197,7 @@ class MobileAdminUserController extends Controller
                     'role' => $request->role,
                     'code' => $request->code,
                     'page_name' => $request->page_name,
+                    'is_observer' => $request->role === 'supplier' && $request->is_observer,
                 ];
 
                 if ($request->filled('password')) {
@@ -206,10 +219,17 @@ class MobileAdminUserController extends Controller
                     $user->warehouses()->sync([]);
                 }
 
+                // تحديث المجهزين المقترحين للمندوب
+                if ($request->role === 'delegate') {
+                    $user->suggestedSuppliers()->sync($request->suggested_suppliers ?? []);
+                } else {
+                    $user->suggestedSuppliers()->sync([]);
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'تم تحديث بيانات المستخدم بنجاح',
-                    'data' => $this->formatUser($user->load('warehouses', 'privateWarehouse')),
+                    'data' => $this->formatUser($user->load('warehouses', 'privateWarehouse', 'suggestedSuppliers')),
                 ]);
             });
         } catch (\Exception $e) {
@@ -274,6 +294,14 @@ class MobileAdminUserController extends Controller
             'profile_image' => $user->profile_image,
             'profile_image_url' => $user->getProfileImageUrl(),
             'private_warehouse_id' => $user->private_warehouse_id,
+            'is_observer' => (bool)$user->is_observer,
+            'suggested_suppliers' => $user->suggestedSuppliers ? $user->suggestedSuppliers->map(function($s) {
+                return [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'code' => $s->code,
+                ];
+            }) : [],
             'warehouses' => $user->warehouses->map(function($w) {
                 return [
                     'id' => $w->id,
