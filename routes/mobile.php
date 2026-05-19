@@ -316,3 +316,13 @@ Route::prefix('admin/notifications')->middleware('auth.pwa')->group(function () 
     Route::post('/mark-all-read', [MobileAdminNotificationController::class, 'markAllAsRead']);
     Route::delete('/unregister-token', [MobileAdminNotificationController::class, 'unregisterToken']);
 });
+
+// APIs دفتر التلفونات للمدير والمجهز (تحتاج token)
+Route::prefix('admin/phone-book')->middleware('auth.pwa')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminPhoneBookController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Mobile\Admin\MobileAdminPhoneBookController::class, 'store']);
+    Route::post('/{contact}/add-phone', [\App\Http\Controllers\Mobile\Admin\MobileAdminPhoneBookController::class, 'addPhone']);
+    Route::delete('/phone/{phoneNumber}', [\App\Http\Controllers\Mobile\Admin\MobileAdminPhoneBookController::class, 'deletePhone']);
+    Route::delete('/{contact}', [\App\Http\Controllers\Mobile\Admin\MobileAdminPhoneBookController::class, 'deleteContact']);
+});
+
