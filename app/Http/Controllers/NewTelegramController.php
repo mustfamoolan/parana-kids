@@ -199,6 +199,87 @@ class NewTelegramController extends Controller
                 return;
             }
 
+            // Extract and process any GENERATE_LINK tags in the response
+            if (preg_match_all('/\[GENERATE_LINK:\s*([^\]]+)\]/i', $aiText, $matches)) {
+                foreach ($matches[0] as $index => $fullMatch) {
+                    $jsonContent = trim($matches[1][$index]);
+                    
+                    // Attempt to decode the JSON parameters
+                    $data = json_decode($jsonContent, true);
+                    
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        Log::warning('Failed to decode GENERATE_LINK JSON in telegram bot response: ' . $jsonContent . ' Error: ' . json_last_error_msg());
+                        // Try fallback regex-based parsing for safety
+                        $data = [];
+                        if (preg_match('/"warehouse_name"\s*:\s*([^,}]+)/i', $jsonContent, $wMatch)) {
+                            $data['warehouse_name'] = trim($wMatch[1], '"\' ');
+                        }
+                        if (preg_match('/"gender_type"\s*:\s*([^,}]+)/i', $jsonContent, $gMatch)) {
+                            $data['gender_type'] = trim($gMatch[1], '"\' ');
+                        }
+                        if (preg_match('/"size_name"\s*:\s*([^,}]+)/i', $jsonContent, $sMatch)) {
+                            $data['size_name'] = trim($sMatch[1], '"\' ');
+                        }
+                        if (preg_match('/"has_discount"\s*:\s*([^,}]+)/i', $jsonContent, $dMatch)) {
+                            $data['has_discount'] = filter_var(trim($dMatch[1], '"\' '), FILTER_VALIDATE_BOOLEAN);
+                        }
+                    }
+
+                    $warehouseId = null;
+                    $warehouseName = $data['warehouse_name'] ?? null;
+                    if (!empty($warehouseName) && $warehouseName !== 'null') {
+                        $warehouse = \App\Models\Warehouse::where('name', 'like', '%' . $warehouseName . '%')->first();
+                        if ($warehouse) {
+                            $warehouseId = $warehouse->id;
+                        }
+                    }
+
+                    $genderType = $data['gender_type'] ?? null;
+                    if ($genderType === 'null' || !in_array($genderType, ['boys', 'girls', 'accessories', 'boys_girls'])) {
+                        $genderType = null;
+                    }
+
+                    $sizeName = $data['size_name'] ?? null;
+                    if ($sizeName === 'null') {
+                        $sizeName = null;
+                    }
+
+                    $hasDiscount = filter_var($data['has_discount'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                    // Find a default creator (admin role) to prevent DB constraint failure
+                    $adminUser = \App\Models\User::where('role', 'admin')->first() ?? \App\Models\User::first();
+                    $creatorId = $adminUser ? $adminUser->id : 1;
+
+                    try {
+                        $productLink = \App\Models\ProductLink::create([
+                            'warehouse_id' => $warehouseId,
+                            'gender_type' => $genderType,
+                            'size_name' => $sizeName,
+                            'has_discount' => $hasDiscount,
+                            'created_by' => $creatorId,
+                        ]);
+
+                        $linkUrl = $productLink->full_url;
+                        $aiText = str_replace($fullMatch, $linkUrl, $aiText);
+                        
+                        Log::info('Successfully generated smart product link for Telegram user', [
+                            'warehouse_id' => $warehouseId,
+                            'gender_type' => $genderType,
+                            'size_name' => $sizeName,
+                            'has_discount' => $hasDiscount,
+                            'token' => $productLink->token,
+                            'url' => $linkUrl
+                        ]);
+                    } catch (\Exception $ex) {
+                        Log::error('Failed to create ProductLink from Telegram bot: ' . $ex->getMessage(), [
+                            'trace' => $ex->getTraceAsString()
+                        ]);
+                        // Replace the tag with standard homepage or catalog URL as fallback
+                        $aiText = str_replace($fullMatch, url('/'), $aiText);
+                    }
+                }
+            }
+
             // Append model response to history
             $history[] = [
                 'role' => 'model',
