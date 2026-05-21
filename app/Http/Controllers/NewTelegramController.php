@@ -117,9 +117,9 @@ class NewTelegramController extends Controller
         }
 
         try {
-            // Call Gemini 1.5 Flash API
+            // Call Gemini 2.5 Flash API
             $response = Http::timeout(15)->post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}",
                 $requestPayload
             );
 
