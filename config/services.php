@@ -51,4 +51,9 @@ return [
         'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
     ],
 
+    'telegram_new' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN_NEW'),
+        'webhook_url' => env('TELEGRAM_WEBHOOK_URL_NEW'),
+    ],
+
 ];

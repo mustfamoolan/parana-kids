@@ -327,4 +327,59 @@ class User extends Authenticatable
     {
         return $this->telegramChats()->pluck('chat_id')->toArray();
     }
+
+    /**
+     * Get all telegram chats for this user (New Bot)
+     */
+    public function telegramNewChats()
+    {
+        return $this->hasMany(UserNewTelegramChat::class);
+    }
+
+    /**
+     * Check if user is linked to the new Telegram bot
+     */
+    public function isLinkedToNewTelegram()
+    {
+        return $this->telegramNewChats()->exists();
+    }
+
+    /**
+     * Check if specific chat_id is linked to this user for the new bot
+     */
+    public function isNewChatIdLinked($chatId)
+    {
+        return $this->telegramNewChats()->where('chat_id', $chatId)->exists();
+    }
+
+    /**
+     * Link user to the new Telegram bot chat
+     */
+    public function linkToNewTelegram($chatId, $deviceName = null)
+    {
+        UserNewTelegramChat::updateOrCreate(
+            ['user_id' => $this->id, 'chat_id' => $chatId],
+            ['device_name' => $deviceName, 'linked_at' => now()]
+        );
+    }
+
+    /**
+     * Unlink specific new telegram chat
+     */
+    public function unlinkFromNewTelegram($chatId = null)
+    {
+        if ($chatId) {
+            $this->telegramNewChats()->where('chat_id', $chatId)->delete();
+        } else {
+            $this->telegramNewChats()->delete();
+        }
+    }
+
+    /**
+     * Get all chat IDs for the new bot for this user
+     */
+    public function getNewTelegramChatIds()
+    {
+        return $this->telegramNewChats()->pluck('chat_id')->toArray();
+    }
 }

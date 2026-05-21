@@ -697,6 +697,9 @@ Route::get('/api/check-auth', function () {
 // Telegram webhook route
 Route::post('/telegram/webhook', [App\Http\Controllers\TelegramController::class, 'webhook'])->name('telegram.webhook');
 
+// New Telegram webhook route
+Route::post('/telegram/webhook-new', [App\Http\Controllers\NewTelegramController::class, 'webhook'])->name('telegram.webhook_new');
+
 // Handle missing or empty Nunito font files - return 204 (No Content) to prevent timeout
 Route::get('/assets/fonts/nunito/{filename}', function ($filename) {
     $filePath = public_path("assets/fonts/nunito/{$filename}");
