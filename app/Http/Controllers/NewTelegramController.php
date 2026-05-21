@@ -175,9 +175,9 @@ class NewTelegramController extends Controller
         }
 
         try {
-            // Call Gemini 1.5 Flash API (using 1.5-flash to get 1,500 requests/day instead of the 20 requests/day limit on 2.5-flash free tier)
+            // Call Gemini 2.5 Flash API
             $response = Http::timeout(15)->post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}",
                 $requestPayload
             );
 
@@ -288,26 +288,13 @@ class NewTelegramController extends Controller
             return Cache::remember('telegram_product_catalog_context', 180, function () {
                 // Retrieve all non-hidden products with sizes and warehouse info, selecting only required columns to boost performance
                 $products = \App\Models\Product::where('is_hidden', false)
-                    ->select([
-                        'id',
-                        'code',
-                        'name',
-                        'selling_price',
-                        'discount_type',
-                        'discount_value',
-                        'discount_start_date',
-                        'discount_end_date',
-                        'warehouse_id'
-                    ])
+                    ->select(['id', 'code', 'name', 'price', 'effective_price', 'primary_image_url', 'warehouse_id'])
                     ->with([
                         'sizes' => function($query) {
                             $query->select(['id', 'product_id', 'size_name', 'quantity']);
                         },
                         'warehouse' => function($query) {
                             $query->select(['id', 'name']);
-                        },
-                        'primaryImage' => function($query) {
-                            $query->select(['id', 'product_id', 'image_url', 'is_primary']);
                         }
                     ])
                     ->get();
