@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Telegram\Bot\Api;
+use Telegram\Bot\FileUpload\InputFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
 
@@ -104,9 +105,10 @@ class NewTelegramService
         }
 
         try {
+            // First try sending with the requested formatting
             $this->telegram->sendPhoto([
                 'chat_id' => $chatId,
-                'photo' => $photoUrl,
+                'photo' => InputFile::create($photoUrl),
                 'caption' => $caption,
                 'parse_mode' => $parseMode,
             ]);
@@ -121,7 +123,7 @@ class NewTelegramService
                 // Fallback: send with plain text caption (no markdown)
                 $this->telegram->sendPhoto([
                     'chat_id' => $chatId,
-                    'photo' => $photoUrl,
+                    'photo' => InputFile::create($photoUrl),
                     'caption' => $caption,
                 ]);
                 return true;
@@ -132,12 +134,12 @@ class NewTelegramService
                 ]);
                 
                 // Fallback to sending just the text message if photo sending failed completely
+                // If the caption looks like "here is the photo", let's adjust it so it's not confusing
                 $fallbackMessage = $caption;
                 if (!empty($caption) && preg_match('/(صورة|تفضل|هاي)/u', $caption)) {
                     if (mb_strlen($caption) < 50) {
                         $fallbackMessage = "عذراً عيني، واجهت مشكلة بتحميل صورة المنتج حالياً. 🌸";
                     } else {
-                        // If it's a longer message containing details, replace the typical intro prefix
                         $fallbackMessage = preg_replace(
                             '/^(تفضل|هلا|صار|من عيوني)[^:]*:\s*/u',
                             'عذراً عيني، واجهت مشكلة بتحميل الصورة، بس تفاصيل المنتج هي: ',
