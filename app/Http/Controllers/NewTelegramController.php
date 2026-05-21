@@ -29,7 +29,17 @@ class NewTelegramController extends Controller
 
             // Handle message
             if (isset($update['message'])) {
-                $this->handleMessage($update['message']);
+                if (function_exists('fastcgi_finish_request')) {
+                    // Send response and close connection to Telegram immediately to prevent timeout/retries
+                    response()->json(['ok' => true])->send();
+                    fastcgi_finish_request();
+                    
+                    // Process message in the background
+                    $this->handleMessage($update['message']);
+                    return response()->json(['ok' => true]);
+                } else {
+                    $this->handleMessage($update['message']);
+                }
             }
 
             return response()->json(['ok' => true]);
@@ -38,6 +48,11 @@ class NewTelegramController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
+            // If headers have already been sent due to early finish, don't try to send a JSON error response
+            if (headers_sent()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()]);
+            }
 
             return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
         }
@@ -270,34 +285,44 @@ class NewTelegramController extends Controller
     protected function getProductCatalogContext()
     {
         try {
-            // Retrieve all non-hidden products with sizes and warehouse info
-            $products = \App\Models\Product::where('is_hidden', false)
-                ->with(['sizes', 'warehouse'])
-                ->get();
+            return Cache::remember('telegram_product_catalog_context', 180, function () {
+                // Retrieve all non-hidden products with sizes and warehouse info, selecting only required columns to boost performance
+                $products = \App\Models\Product::where('is_hidden', false)
+                    ->select(['id', 'code', 'name', 'price', 'effective_price', 'primary_image_url', 'warehouse_id'])
+                    ->with([
+                        'sizes' => function($query) {
+                            $query->select(['id', 'product_id', 'size_name', 'quantity']);
+                        },
+                        'warehouse' => function($query) {
+                            $query->select(['id', 'name']);
+                        }
+                    ])
+                    ->get();
 
-            if ($products->isEmpty()) {
-                return "لا توجد منتجات متوفرة حالياً في المتجر.";
-            }
-
-            $context = "كود|اسم|سعر|قسم|قياسات(كمية)|رابط_الصورة\n";
-            foreach ($products as $product) {
-                $effectivePrice = round($product->effective_price);
-                $department = $product->warehouse ? $product->warehouse->name : 'غير محدد';
-                
-                // Get available sizes (quantity > 0) in format Size1(qty1),Size2(qty2)
-                $sizesList = [];
-                foreach ($product->sizes as $size) {
-                    if ($size->quantity > 0) {
-                        $sizesList[] = "{$size->size_name}({$size->quantity})";
-                    }
+                if ($products->isEmpty()) {
+                    return "لا توجد منتجات متوفرة حالياً في المتجر.";
                 }
-                $sizesStr = empty($sizesList) ? 'نفدت' : implode(',', $sizesList);
-                $imageUrl = $product->primary_image_url ?: 'لا يوجد';
-                
-                $context .= "{$product->code}|{$product->name}|{$effectivePrice}|{$department}|{$sizesStr}|{$imageUrl}\n";
-            }
 
-            return trim($context);
+                $context = "كود|اسم|سعر|قسم|قياسات(كمية)|رابط_الصورة\n";
+                foreach ($products as $product) {
+                    $effectivePrice = round($product->effective_price);
+                    $department = $product->warehouse ? $product->warehouse->name : 'غير محدد';
+                    
+                    // Get available sizes (quantity > 0) in format Size1(qty1),Size2(qty2)
+                    $sizesList = [];
+                    foreach ($product->sizes as $size) {
+                        if ($size->quantity > 0) {
+                            $sizesList[] = "{$size->size_name}({$size->quantity})";
+                        }
+                    }
+                    $sizesStr = empty($sizesList) ? 'نفدت' : implode(',', $sizesList);
+                    $imageUrl = $product->primary_image_url ?: 'لا يوجد';
+                    
+                    $context .= "{$product->code}|{$product->name}|{$effectivePrice}|{$department}|{$sizesStr}|{$imageUrl}\n";
+                }
+
+                return trim($context);
+            });
         } catch (\Exception $e) {
             Log::error('Error generating product catalog context: ' . $e->getMessage());
             return "";
