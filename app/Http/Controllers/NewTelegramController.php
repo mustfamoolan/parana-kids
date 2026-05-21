@@ -65,15 +65,31 @@ class NewTelegramController extends Controller
     {
         $chatId = $message['chat']['id'];
         $text = trim($message['text'] ?? '');
+        $messageId = $message['message_id'] ?? null;
 
         // If the message is empty or doesn't have text, do nothing
         if (empty($text)) {
             return;
         }
 
+        // Deduplicate messages to prevent handling duplicate Telegram webhooks
+        if ($messageId) {
+            $lockKey = "tg_msg_processed_{$messageId}";
+            if (Cache::has($lockKey)) {
+                Log::info('Duplicate Telegram message received, skipping processing', [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                    'text' => $text,
+                ]);
+                return;
+            }
+            Cache::put($lockKey, true, now()->addMinutes(5));
+        }
+
         Log::info('New Telegram message received', [
             'chat_id' => $chatId,
             'text' => $text,
+            'message_id' => $messageId,
         ]);
 
         // Send "typing..." status indicator on Telegram to make the experience smooth
@@ -175,9 +191,9 @@ class NewTelegramController extends Controller
         }
 
         try {
-            // Call Gemini 2.5 Flash Lite API (using 2.5-flash-lite to get 1,500 requests/day instead of the 20 requests/day limit on 2.5-flash free tier)
+            // Call Gemini 1.5 Flash API (using 1.5-flash to get 1,500 requests/day instead of the 20 requests/day limit on 2.5-flash/flash-lite free tier)
             $response = Http::timeout(15)->post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={$apiKey}",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
                 $requestPayload
             );
 
