@@ -56,4 +56,8 @@ return [
         'webhook_url' => env('TELEGRAM_WEBHOOK_URL_NEW'),
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+    ],
+
 ];

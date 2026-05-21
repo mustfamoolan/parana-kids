@@ -2,27 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Setting;
-use App\Models\FcmToken;
-use App\Models\UserNewTelegramChat;
 use App\Services\NewTelegramService;
-use App\Services\FirebaseCloudMessagingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
-use Telegram\Bot\Api;
 
 class NewTelegramController extends Controller
 {
     protected $telegramService;
-    protected $fcmService;
 
-    public function __construct(NewTelegramService $telegramService, FirebaseCloudMessagingService $fcmService)
+    public function __construct(NewTelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
-        $this->fcmService = $fcmService;
     }
 
     /**
@@ -58,339 +50,122 @@ class NewTelegramController extends Controller
     {
         $chatId = $message['chat']['id'];
         $text = trim($message['text'] ?? '');
-        $from = $message['from'] ?? [];
+
+        // If the message is empty or doesn't have text, do nothing
+        if (empty($text)) {
+            return;
+        }
 
         Log::info('New Telegram message received', [
             'chat_id' => $chatId,
             'text' => $text,
-            'from' => $from,
         ]);
 
-        // Handle developer login - Step 1
-        if ($text === 'moolan') {
-            Cache::put("telegram_new_dev_link_{$chatId}", 'pending_password', now()->addMinutes(5));
-            $this->sendMessage($chatId, "🔐 أهلاً بك أيها المطور.\n\nيرجى إرسال كلمة المرور لتفعيل استلام التقارير للبوت الجديد:");
-            return;
-        }
+        // Send "typing..." status indicator on Telegram to make the experience smooth
+        $this->telegramService->sendTypingAction($chatId);
 
-        // Handle developer login - Step 2 (Password)
-        if (Cache::get("telegram_new_dev_link_{$chatId}") === 'pending_password') {
-            if ($text === '12345678') {
-                Cache::forget("telegram_new_dev_link_{$chatId}");
-                $devChatIds = json_decode(Setting::getValue('developer_telegram_new_chat_ids', '[]'), true);
-                if (!in_array($chatId, $devChatIds)) {
-                    $devChatIds[] = $chatId;
-                    Setting::setValue('developer_telegram_new_chat_ids', json_encode($devChatIds), 'معرفات تليكرام للبوت الجديد للمطورين لاستلام اللوكات');
-                }
-                $this->sendMessage($chatId, "✅ تم تفعيل حساب المطور للبوت الجديد بنجاح!\n\nستصلك الآن جميع تقارير (Logs) إشعارات الفايربيس مباشرة هنا.\n\nيمكنك إرسال <b>test</b> أو <b>تجربة</b> لإرسال إشعار تجريبي لهاتفك.");
-            } else {
-                $this->sendMessage($chatId, "❌ كلمة المرور خاطئة.");
-            }
-            return;
-        }
-
-        // Handle developer command: test
-        if (str_starts_with($text, 'test') || str_starts_with($text, 'تجربة')) {
-            $devChatIds = json_decode(Setting::getValue('developer_telegram_new_chat_ids', '[]'), true);
-            if (in_array($chatId, $devChatIds)) {
-                $this->handleDeveloperTestCommand($chatId, $text);
-                return;
-            }
-        }
-
-        // Handle /start command
-        if ($text === '/start') {
-            $this->handleStartCommand($chatId, $from);
-            return;
-        }
-
-        // Handle /unlink command
-        if ($text === '/unlink') {
-            $this->handleUnlinkCommand($chatId);
-            return;
-        }
-
-        // Check if user is in password verification step
-        $pendingLink = Cache::get("telegram_new_link_{$chatId}");
-        if ($pendingLink) {
-            $this->handlePasswordVerification($chatId, $text, $pendingLink, $from);
-            return;
-        }
-
-        // Handle phone number or code for linking (accepts alphanumeric codes)
-        if (preg_match('/^(\+?\d{10,15})$/', $text) || preg_match('/^[A-Za-z0-9]{3,20}$/', $text)) {
-            $this->handleLinkRequest($chatId, $text);
-            return;
-        }
-
-        // Unknown command
-        $this->sendMessage($chatId, "❌ أمر غير معروف. يرجى إرسال /start للبدء.");
+        // Call Gemini API and reply
+        $this->askGeminiAndReply($chatId, $text);
     }
 
     /**
-     * Handle /start command
+     * Retrieve chat history, call Gemini API, update history, and send response back to user
      */
-    protected function handleStartCommand($chatId, $from)
+    protected function askGeminiAndReply($chatId, $userText)
     {
-        // Check if this chat_id is already linked to any user
-        $linkedChat = \App\Models\UserNewTelegramChat::where('chat_id', $chatId)->first();
+        $apiKey = config('services.gemini.api_key');
+        
+        // Read system instruction from file
+        $instructionPath = storage_path('app/gemini_instruction.txt');
+        $systemInstruction = '';
+        if (file_exists($instructionPath)) {
+            $systemInstruction = trim(file_get_contents($instructionPath));
+        }
 
-        if ($linkedChat) {
-            $user = $linkedChat->user;
-            $this->sendMessage(
-                $chatId,
-                "✅ مرحباً {$user->name}!\n\nأنت مربوط بالفعل بحسابك في النظام (عبر البوت الجديد).\n\nيمكنك إلغاء الربط من هذا الجهاز بإرسال /unlink"
-            );
+        if (empty($apiKey)) {
+            Log::error('Gemini API key is not configured.');
+            $this->telegramService->sendMessage($chatId, 'عذراً، نظام الذكاء الاصطناعي غير متاح حالياً.');
             return;
         }
 
-        // Clear any pending link
-        Cache::forget("telegram_new_link_{$chatId}");
+        // Cache key for the conversation history
+        $cacheKey = "gemini_chat_{$chatId}";
 
-        // Ask for phone number or code
-        $message = "👋 مرحباً بك في بوت إشعارات الطلبات الجديد!\n\n";
-        $message .= "لربط حسابك، يرجى إرسال:\n";
-        $message .= "📱 رقم هاتفك المسجل في النظام\n";
-        $message .= "أو\n";
-        $message .= "🔢 الكود الخاص بك\n\n";
-        $message .= "مثال:\n";
-        $message .= "• 07901234567 (رقم الهاتف)\n";
-        $message .= "• SUP999 (الكود)";
+        // Retrieve existing history from cache (default to empty array)
+        // History structure: array of ['role' => 'user'|'model', 'parts' => [['text' => '...']]]
+        $history = Cache::get($cacheKey, []);
 
-        $this->sendMessage($chatId, $message);
-    }
+        // Append the new user message
+        $history[] = [
+            'role' => 'user',
+            'parts' => [
+                ['text' => $userText]
+            ]
+        ];
 
-    /**
-     * Handle link request (phone or code) - Step 1
-     */
-    protected function handleLinkRequest($chatId, $identifier)
-    {
-        // Try to find user by phone (exact match first)
-        $user = User::where('phone', $identifier)->first();
+        // Format system instruction according to Gemini 1.5 API structure if set
+        $requestPayload = [
+            'contents' => $history
+        ];
 
-        // If not found, try by code (exact match)
-        if (!$user) {
-            $user = User::where('code', $identifier)->first();
+        if (!empty($systemInstruction)) {
+            $requestPayload['systemInstruction'] = [
+                'parts' => [
+                    ['text' => $systemInstruction]
+                ]
+            ];
         }
 
-        // If still not found, try partial phone match
-        if (!$user && preg_match('/^\d+$/', $identifier)) {
-            $user = User::where('phone', 'like', '%' . $identifier)->first();
-        }
-
-        if (!$user) {
-            $this->sendMessage(
-                $chatId,
-                "❌ لم يتم العثور على حساب بهذا الرقم أو الكود.\n\nيرجى التحقق من البيانات والمحاولة مرة أخرى.\n\nأو إرسال /start للبدء من جديد."
-            );
-            return;
-        }
-
-        // Check if user is admin, supplier, or delegate
-        if (!in_array($user->role, ['admin', 'supplier', 'delegate', 'private_supplier'])) {
-            $this->sendMessage(
-                $chatId,
-                "❌ هذا الحساب ليس لديه صلاحية لاستقبال إشعارات الطلبات.\n\nفقط المديرين والمجهزين والمندوبين يمكنهم ربط حساباتهم."
-            );
-            return;
-        }
-
-        // Check if this specific chat_id is already linked to this user
-        if ($user->isNewChatIdLinked($chatId)) {
-            $this->sendMessage(
-                $chatId,
-                "✅ هذا الجهاز مربوط بالفعل بحسابك.\n\nلا حاجة للربط مرة أخرى."
-            );
-            return;
-        }
-
-        // Save pending link info in cache (expires in 5 minutes)
-        Cache::put("telegram_new_link_{$chatId}", [
-            'user_id' => $user->id,
-            'identifier' => $identifier,
-        ], now()->addMinutes(5));
-
-        // Ask for password
-        $this->sendMessage(
-            $chatId,
-            "✅ تم العثور على الحساب: {$user->name}\n\n🔐 يرجى إرسال كلمة المرور للتحقق:\n\n(ستنتهي العملية بعد 5 دقائق)"
-        );
-    }
-
-    /**
-     * Handle password verification - Step 2
-     */
-    protected function handlePasswordVerification($chatId, $password, $pendingLink, $from = [])
-    {
-        $user = User::find($pendingLink['user_id']);
-
-        if (!$user) {
-            Cache::forget("telegram_new_link_{$chatId}");
-            $this->sendMessage(
-                $chatId,
-                "❌ حدث خطأ. يرجى إرسال /start للبدء من جديد."
-            );
-            return;
-        }
-
-        // Verify password
-        if (!Hash::check($password, $user->password)) {
-            $this->sendMessage(
-                $chatId,
-                "❌ كلمة المرور غير صحيحة.\n\nيرجى المحاولة مرة أخرى أو إرسال /start للبدء من جديد."
-            );
-            return;
-        }
-
-        // Password is correct, link the user
-        Cache::forget("telegram_new_link_{$chatId}");
-
-        // Get device name from Telegram user info (optional)
-        $deviceName = null;
-        if (isset($from['first_name'])) {
-            $deviceName = $from['first_name'];
-            if (isset($from['last_name'])) {
-                $deviceName .= ' ' . $from['last_name'];
-            }
-        }
-
-        $user->linkToNewTelegram($chatId, $deviceName);
-
-        // عد الأجهزة المربوطة
-        $devicesCount = $user->telegramNewChats()->count();
-
-        $this->sendMessage(
-            $chatId,
-            "✅ تم ربط حسابك بالبوت الجديد بنجاح!\n\nمرحباً {$user->name}!\n\n📱 عدد الأجهزة المربوطة بالبوت الجديد: {$devicesCount}\n\nستصلك إشعارات الطلبات الجديدة تلقائياً على جميع أجهزتك المربوطة بالبوت الجديد.\n\nيمكنك إلغاء ربط هذا الجهاز بإرسال /unlink"
-        );
-
-        Log::info('User linked to New Telegram Bot', [
-            'user_id' => $user->id,
-            'chat_id' => $chatId,
-            'device_name' => $deviceName,
-            'total_devices' => $devicesCount,
-        ]);
-    }
-
-    /**
-     * Handle /unlink command
-     */
-    protected function handleUnlinkCommand($chatId)
-    {
-        $linkedChat = \App\Models\UserNewTelegramChat::where('chat_id', $chatId)->first();
-
-        if (!$linkedChat) {
-            $this->sendMessage($chatId, "❌ هذا الجهاز غير مربوط بالبوت الجديد.");
-            return;
-        }
-
-        $user = $linkedChat->user;
-        $user->unlinkFromNewTelegram($chatId);
-
-        $remainingDevices = $user->telegramNewChats()->count();
-
-        $message = "✅ تم إلغاء ربط هذا الجهاز بالبوت الجديد بنجاح.\n\n";
-        if ($remainingDevices > 0) {
-            $message .= "📱 لا تزال لديك {$remainingDevices} أجهزة أخرى مربوطة تستقبل الإشعارات من البوت الجديد.\n\n";
-        } else {
-            $message .= "لن تصلك إشعارات بعد الآن من البوت الجديد.\n\n";
-        }
-        $message .= "يمكنك إعادة ربط هذا الجهاز بإرسال /start";
-
-        $this->sendMessage($chatId, $message);
-
-        Log::info('User unlinked from New Telegram Bot', [
-            'user_id' => $user->id,
-            'chat_id' => $chatId,
-            'remaining_devices' => $remainingDevices,
-        ]);
-    }
-
-    /**
-     * Handle test FCM command for developers
-     */
-    protected function handleDeveloperTestCommand($chatId, $text)
-    {
-        // التحقق إذا كان المطور حدد رقم مستخدم معين: test 123
-        $parts = explode(' ', trim($text));
-        $targetUserId = null;
-        if (isset($parts[1]) && is_numeric($parts[1])) {
-            $targetUserId = $parts[1];
-        }
-
-        if ($targetUserId) {
-            $user = User::find($targetUserId);
-            if (!$user) {
-                $this->sendMessage($chatId, "❌ لم نجد مستخدم بالرقم: <code>{$targetUserId}</code>");
-                return;
-            }
-        } else {
-            // البحث عن أي مستخدم مربوط بهذا الـ Chat ID لإرسال التجربة لهاتفه
-            $linkedChat = UserNewTelegramChat::where('chat_id', $chatId)->first();
-            
-            if (!$linkedChat) {
-                $this->sendMessage($chatId, "⚠️ لا يمكنني معرفة أي هاتف هو هاتفك لأنك لم تربط حسابك (العادي) بالبوت بعد.\n\n<b>أمامك خياران:</b>\n1. اربط حسابك (أرسل رقم هاتفك ثم الباسورد) لكي تستلم الإشعار على هاتفك الشخصي.\n2. أرسل <code>test [user_id]</code> لتجربة الإرسال لمسخدم معين (مثلاً: <code>test 1</code>).");
-                return;
-            }
-            $user = $linkedChat->user;
-        }
-
-        $this->sendMessage($chatId, "⏳ جاري محاولة إرسال إشعار (Push) للمستخدم: <b>{$user->name}</b> (ID: {$user->id})...");
-
-        // محاولة الإرسال لجميع أنواع التطبيقات الممكنة للمستخدم
-        $appTypes = ['delegate_mobile', 'admin_mobile'];
-        $foundTokens = false;
-
-        foreach ($appTypes as $appType) {
-            $tokensExist = FcmToken::where('user_id', $user->id)
-                ->where('app_type', $appType)
-                ->where('is_active', true)
-                ->exists();
-            
-            if ($tokensExist) {
-                $foundTokens = true;
-                $this->sendMessage($chatId, "🚀 جاري التجربة على تطبيق: <code>{$appType}</code>");
-                $this->fcmService->sendToUser($user->id, "إشعار تجريبي مطور", "إذا وصلك هذا يعني أن الـ FCM يعمل بنجاح ✅", [
-                    'type' => 'test',
-                    'screen' => 'home'
-                ], $appType);
-            }
-        }
-
-        if (!$foundTokens) {
-            $this->sendMessage($chatId, "❌ لم نجد أي توكنات نشطة لهذا المستخدم في النظام.\n\nيجب أن يكون المستخدم قد فتح التطبيق الموبابل وسجل دخول مؤخراً.");
-        }
-    }
-
-    /**
-     * Send message via Telegram API
-     */
-    protected function sendMessage($chatId, $text)
-    {
         try {
-            $botToken = config('services.telegram_new.bot_token');
+            // Call Gemini 1.5 Flash API
+            $response = Http::timeout(15)->post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
+                $requestPayload
+            );
 
-            if (empty($botToken)) {
-                Log::error('NewTelegramController: BOT_TOKEN not configured');
-                return false;
+            if ($response->failed()) {
+                Log::error('Gemini API request failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                $this->telegramService->sendMessage($chatId, 'صار عندي خلل بسيط بالاتصال، يرجى المحاولة مرة ثانية.');
+                return;
             }
 
-            $telegram = new Api($botToken);
+            $result = $response->json();
+            $aiText = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
-            $telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => $text,
-                'parse_mode' => 'HTML',
-            ]);
+            if (empty($aiText)) {
+                Log::warning('Gemini API returned an empty text response.');
+                $this->telegramService->sendMessage($chatId, 'ما گدرت أفهم الرسالة بشكل صحيح، تكدر تعيدها؟');
+                return;
+            }
 
-            return true;
+            // Append model response to history
+            $history[] = [
+                'role' => 'model',
+                'parts' => [
+                    ['text' => $aiText]
+                ]
+            ];
+
+            // Limit conversation history in cache to last 12 turns (6 user, 6 model turns) to prevent reaching token limits
+            if (count($history) > 12) {
+                $history = array_slice($history, -12);
+            }
+
+            // Save history back to cache for 30 minutes
+            Cache::put($cacheKey, $history, now()->addMinutes(30));
+
+            // Send response back via Telegram bot (NewTelegramService handles fallback if Markdown parsing fails)
+            $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
+
         } catch (\Exception $e) {
-            Log::error('NewTelegramController: Failed to send message', [
-                'chat_id' => $chatId,
+            Log::error('Error calling Gemini API or sending message', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-
-            return false;
+            $this->telegramService->sendMessage($chatId, 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.');
         }
     }
 }

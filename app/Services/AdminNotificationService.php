@@ -127,59 +127,6 @@ class AdminNotificationService
                 Log::error("AdminNotificationService: Telegram failed: " . $e->getMessage());
             }
 
-            // 3b. Send New Telegram Alerts (البوت الجديد)
-            try {
-                $newBotToken = config('services.telegram_new.bot_token');
-                if (!empty($newBotToken)) {
-                    $newTelegramService = app(NewTelegramService::class);
-                    $uniqueNewChatIds = [];
-
-                    $telegramRecipientIds = $recipientIds;
-                    if ($order->delegate_id && !in_array($order->delegate_id, $telegramRecipientIds)) {
-                        $telegramRecipientIds[] = $order->delegate_id;
-                    }
-
-                    $recipientsWithNewTelegram = User::whereIn('id', $telegramRecipientIds)
-                        ->whereHas('telegramNewChats')
-                        ->with('telegramNewChats')
-                        ->get();
-
-                    foreach ($recipientsWithNewTelegram as $recipient) {
-                        foreach ($recipient->telegramNewChats as $chat) {
-                            if ($chat->chat_id && !in_array($chat->chat_id, $uniqueNewChatIds)) {
-                                $uniqueNewChatIds[] = $chat->chat_id;
-                            }
-                        }
-                    }
-
-                    foreach ($uniqueNewChatIds as $chatId) {
-                        try {
-                            if ($type === 'order_created') {
-                                $newTelegramService->sendOrderNotification($chatId, $order);
-                            } elseif (in_array($type, ['order_status_changed', 'alwaseet_status_changed'])) {
-                                $order->loadMissing('alwaseetShipment');
-                                $statusText = $data['new_status_text'] ?? null;
-                                $newTelegramService->sendOrderStatusNotification($chatId, $order->alwaseetShipment, $order, $statusText);
-                            } elseif ($type === 'order_deleted') {
-                                $newTelegramService->sendOrderDeletedNotification($chatId, $order);
-                            } elseif ($type === 'order_updated') {
-                                if ($order->status === 'confirmed') {
-                                    $newTelegramService->sendOrderRestrictedNotification($chatId, $order);
-                                } else {
-                                    $newTelegramService->sendOrderUpdatedNotification($chatId, $order);
-                                }
-                            } else {
-                                $newTelegramService->sendOrderNotification($chatId, $order);
-                            }
-                        } catch (\Exception $e) {
-                            Log::error("AdminNotificationService: New Telegram failed for chat {$chatId}: " . $e->getMessage());
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::error("AdminNotificationService: New Telegram failed: " . $e->getMessage());
-            }
-
             // 4. Create SweetAlerts (for web/app popups)
             try {
                 $sweetAlertService = app(SweetAlertService::class);
