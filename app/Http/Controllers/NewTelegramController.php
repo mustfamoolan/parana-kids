@@ -175,9 +175,9 @@ class NewTelegramController extends Controller
         }
 
         try {
-            // Call Gemini 1.5 Flash API (using 1.5-flash to get 1,500 requests/day instead of the 20 requests/day limit on 2.5-flash free tier)
+            // Call Gemini 2.5 Flash Lite API (using 2.5-flash-lite to get 1,500 requests/day instead of the 20 requests/day limit on 2.5-flash free tier)
             $response = Http::timeout(15)->post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={$apiKey}",
                 $requestPayload
             );
 
@@ -307,7 +307,7 @@ class NewTelegramController extends Controller
                             $query->select(['id', 'name']);
                         },
                         'primaryImage' => function($query) {
-                            $query->select(['id', 'product_id', 'image_url', 'is_primary']);
+                            $query->select(['id', 'product_id', 'image_path', 'is_primary']);
                         }
                     ])
                     ->get();
