@@ -1,3 +1,4 @@
 *
 !public/
 !.gitignore
+!gemini_instruction.txt

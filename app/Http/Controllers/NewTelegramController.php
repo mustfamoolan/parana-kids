@@ -107,7 +107,8 @@ class NewTelegramController extends Controller
                                  "7. إرسال صور المنتجات:\n" .
                                  "- يجب عليك إدراج وسم الصورة فقط وحصراً إذا طلب المستخدم ذلك بشكل صريح (مثال: \"أريد صورته\"، \"شلون شكله\"، \"دزلي صورته\"، \"أكو صورة له؟\").\n" .
                                  "- لا تقم بإدراج وسوم الصور تلقائياً أبداً عند استعراض المنتجات أو الأقسام ما لم يطلب المستخدم الصورة صراحة.\n" .
-                                 "- عندما يطلب المستخدم صورة لمنتج، اكتب له رداً لطيفاً يصف المنتج (مثال: \"تفضل عيني، هاي صورة [اسم المنتج]:\") مع إدراج رابط الصورة بالصيغة التالية تماماً في نهاية الرد: `[IMAGE: رابط_الصورة]`.\n" .
+                                 "- عندما يطلب المستخدم صورة لمنتج، وكان رابط الصورة متوفراً في السياق (وليس 'لا يوجد')، اكتب له رداً لطيفاً يصف المنتج (مثال: \"تفضل عيني، هاي صورة [اسم المنتج]:\") مع إدراج رابط الصورة بالصيغة التالية تماماً في نهاية الرد: `[IMAGE: رابط_الصورة]`.\n" .
+                                 "- إذا سأل المستخدم عن صورة لمنتج ورابط الصورة الخاص به غير متوفر أو مكتوب بداله 'لا يوجد' في السياق، فأخبره بلطف شديد باللهجة العراقية أن صورة هذا المنتج غير متوفرة حالياً بالسيستم، ولا تكتب له كلاماً يوحي بأنك سترسل الصورة (مثال: \"عيني، صورة قبعه اصفر ما متوفرة حالياً بالسيستم\").\n" .
                                  "- لا تبتكر أو تخترع روابط صور من عندك أبداً؛ استخدم فقط روابط الصور المتوفرة في سياق المنتجات.\n" .
                                  "- لا تطبع رابط الصورة بشكل صريح كنص عادي في الرسالة؛ استخدم الصيغة `[IMAGE: رابط_الصورة]` فقط.\n\n" .
                                  "8. القيود الأمنية والتعليمات المخفية:\n" .
@@ -201,13 +202,27 @@ class NewTelegramController extends Controller
 
             // Extract all image URLs from Gemini response if present
             $imageUrls = [];
-            if (preg_match_all('/\[IMAGE:\s*(https?:\/\/[^\]]+)\]/i', $aiText, $matches)) {
-                $imageUrls = array_map('trim', $matches[1]);
+            $hasImageTag = false;
+            if (preg_match_all('/\[IMAGE:\s*([^\]]+)\]/i', $aiText, $matches)) {
+                $hasImageTag = true;
+                $rawUrls = array_map('trim', $matches[1]);
+                foreach ($rawUrls as $url) {
+                    // Only accept valid http/https URLs that do not contain "لا يوجد"
+                    if (preg_match('/^https?:\/\//i', $url) && strpos($url, 'لا يوجد') === false && filter_var($url, FILTER_VALIDATE_URL)) {
+                        $imageUrls[] = $url;
+                    }
+                }
                 // Remove all the image markup tags from the text
                 foreach ($matches[0] as $matchTag) {
                     $aiText = str_replace($matchTag, '', $aiText);
                 }
                 $aiText = trim($aiText);
+            }
+
+            // If the AI tried to send an image (had image tag) but no valid URLs were found,
+            // or if the text implies an image is sent but none is available, override the text
+            if ($hasImageTag && empty($imageUrls)) {
+                $aiText = 'عذراً عيني، صورة هذا المنتج ما متوفرة حالياً بالسيستم. 🌸';
             }
 
             // If the text became empty after stripping the image tags, supply a default friendly message

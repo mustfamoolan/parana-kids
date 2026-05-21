@@ -132,7 +132,20 @@ class NewTelegramService
                 ]);
                 
                 // Fallback to sending just the text message if photo sending failed completely
-                return $this->sendMessage($chatId, $caption);
+                $fallbackMessage = $caption;
+                if (!empty($caption) && preg_match('/(صورة|تفضل|هاي)/u', $caption)) {
+                    if (mb_strlen($caption) < 50) {
+                        $fallbackMessage = "عذراً عيني، واجهت مشكلة بتحميل صورة المنتج حالياً. 🌸";
+                    } else {
+                        // If it's a longer message containing details, replace the typical intro prefix
+                        $fallbackMessage = preg_replace(
+                            '/^(تفضل|هلا|صار|من عيوني)[^:]*:\s*/u',
+                            'عذراً عيني، واجهت مشكلة بتحميل الصورة، بس تفاصيل المنتج هي: ',
+                            $caption
+                        );
+                    }
+                }
+                return $this->sendMessage($chatId, $fallbackMessage);
             }
         }
     }
