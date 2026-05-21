@@ -197,23 +197,37 @@ class NewTelegramController extends Controller
             // Save history back to cache for 30 minutes
             Cache::put($cacheKey, $history, now()->addMinutes(30));
 
-            // Extract image URL from Gemini response if present
-            $imageUrl = null;
-            if (preg_match('/\[IMAGE:\s*(https?:\/\/[^\]]+)\]/i', $aiText, $matches)) {
-                $imageUrl = trim($matches[1]);
-                // Remove the image markup tag from the text
-                $aiText = trim(str_replace($matches[0], '', $aiText));
+            // Extract all image URLs from Gemini response if present
+            $imageUrls = [];
+            if (preg_match_all('/\[IMAGE:\s*(https?:\/\/[^\]]+)\]/i', $aiText, $matches)) {
+                $imageUrls = array_map('trim', $matches[1]);
+                // Remove all the image markup tags from the text
+                foreach ($matches[0] as $matchTag) {
+                    $aiText = str_replace($matchTag, '', $aiText);
+                }
+                $aiText = trim($aiText);
             }
 
             // Send response back via Telegram bot
-            if ($imageUrl) {
-                // If the text is short enough to be a caption (limit is 1024 chars), send it as photo caption
-                if (mb_strlen($aiText) <= 1000) {
-                    $this->telegramService->sendPhoto($chatId, $imageUrl, $aiText, 'Markdown');
+            if (!empty($imageUrls)) {
+                if (count($imageUrls) === 1) {
+                    $imageUrl = $imageUrls[0];
+                    // If the text is short enough to be a caption (limit is 1024 chars), send it as photo caption
+                    if (mb_strlen($aiText) <= 1000) {
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, $aiText, 'Markdown');
+                    } else {
+                        // Send photo first, then send the long text as a separate message
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة المنتج المطلوبة:', 'Markdown');
+                        $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
+                    }
                 } else {
-                    // Send photo first, then send the long text as a separate message
-                    $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة المنتج المطلوبة:', 'Markdown');
+                    // Send the text description first
                     $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
+                    
+                    // Then send each photo
+                    foreach ($imageUrls as $imageUrl) {
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة لمنتج متوفر:', 'Markdown');
+                    }
                 }
             } else {
                 $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
