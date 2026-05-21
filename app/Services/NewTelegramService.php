@@ -6,6 +6,7 @@ use Telegram\Bot\Api;
 use Telegram\Bot\FileUpload\InputFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 
 class NewTelegramService
 {
@@ -99,56 +100,65 @@ class NewTelegramService
      */
     public function sendPhoto($chatId, $photoUrl, $caption = '', $parseMode = 'Markdown')
     {
-        if (!$this->telegram) {
-            Log::warning('NewTelegramService: Telegram API not initialized');
+        $botToken = Config::get('services.telegram_new.bot_token');
+
+        if (empty($botToken)) {
+            Log::warning('NewTelegramService: BOT_TOKEN not configured for sendPhoto');
             return false;
         }
 
         try {
-            // First try sending with the requested formatting
-            $this->telegram->sendPhoto([
+            // Send direct HTTP post request to bypass SDK remote stream/validation issues
+            $response = Http::timeout(15)->post("https://api.telegram.org/bot{$botToken}/sendPhoto", [
                 'chat_id' => $chatId,
-                'photo' => InputFile::create($photoUrl),
+                'photo' => $photoUrl,
                 'caption' => $caption,
                 'parse_mode' => $parseMode,
             ]);
-            return true;
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            Log::warning('NewTelegramService: Direct sendPhoto failed with formatting, trying plain text caption', [
+                'chat_id' => $chatId,
+                'status' => $response->status(),
+                'error' => $response->body(),
+            ]);
+            
+            // Fallback: send with plain text caption (no markdown)
+            $responseFallback = Http::timeout(15)->post("https://api.telegram.org/bot{$botToken}/sendPhoto", [
+                'chat_id' => $chatId,
+                'photo' => $photoUrl,
+                'caption' => $caption,
+            ]);
+
+            if ($responseFallback->successful()) {
+                return true;
+            }
+
+            throw new \Exception('Telegram API returned error: ' . $responseFallback->body());
         } catch (\Exception $e) {
-            Log::warning('NewTelegramService: Failed sending formatted photo caption, trying plain text', [
+            Log::error('NewTelegramService: Global send photo failed, sending message instead', [
                 'chat_id' => $chatId,
                 'error' => $e->getMessage(),
             ]);
             
-            try {
-                // Fallback: send with plain text caption (no markdown)
-                $this->telegram->sendPhoto([
-                    'chat_id' => $chatId,
-                    'photo' => InputFile::create($photoUrl),
-                    'caption' => $caption,
-                ]);
-                return true;
-            } catch (\Exception $eFallback) {
-                Log::error('NewTelegramService: Global send photo failed, sending message instead', [
-                    'chat_id' => $chatId,
-                    'error' => $eFallback->getMessage(),
-                ]);
-                
-                // Fallback to sending just the text message if photo sending failed completely
-                // If the caption looks like "here is the photo", let's adjust it so it's not confusing
-                $fallbackMessage = $caption;
-                if (!empty($caption) && preg_match('/(صورة|تفضل|هاي)/u', $caption)) {
-                    if (mb_strlen($caption) < 50) {
-                        $fallbackMessage = "عذراً عيني، واجهت مشكلة بتحميل صورة المنتج حالياً. 🌸";
-                    } else {
-                        $fallbackMessage = preg_replace(
-                            '/^(تفضل|هلا|صار|من عيوني)[^:]*:\s*/u',
-                            'عذراً عيني، واجهت مشكلة بتحميل الصورة، بس تفاصيل المنتج هي: ',
-                            $caption
-                        );
-                    }
+            // Fallback to sending just the text message if photo sending failed completely
+            // If the caption looks like "here is the photo", let's adjust it so it's not confusing
+            $fallbackMessage = $caption;
+            if (!empty($caption) && preg_match('/(صورة|تفضل|هاي)/u', $caption)) {
+                if (mb_strlen($caption) < 50) {
+                    $fallbackMessage = "عذراً عيني، واجهت مشكلة بتحميل صورة المنتج حالياً. 🌸";
+                } else {
+                    $fallbackMessage = preg_replace(
+                        '/^(تفضل|هلا|صار|من عيوني)[^:]*:\s*/u',
+                        'عذراً عيني، واجهت مشكلة بتحميل الصورة، بس تفاصيل المنتج هي: ',
+                        $caption
+                    );
                 }
-                return $this->sendMessage($chatId, $fallbackMessage);
             }
+            return $this->sendMessage($chatId, $fallbackMessage);
         }
     }
 }
