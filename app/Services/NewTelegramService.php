@@ -131,9 +131,8 @@ class NewTelegramService
                     'error' => $eFallback->getMessage(),
                 ]);
                 
-                // Fallback to sending just the text message and the link if photo sending failed completely
-                $textMessage = $caption . "\n\nرابط الصورة: " . $photoUrl;
-                return $this->sendMessage($chatId, $textMessage);
+                // Fallback to sending just the text message if photo sending failed completely
+                return $this->sendMessage($chatId, $caption);
             }
         }
     }
