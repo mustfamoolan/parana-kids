@@ -849,7 +849,7 @@ class MobileAdminOrderController extends Controller
                 $totalAmount = 0;
                 foreach ($request->items as $itemData) {
                     $product = Product::findOrFail($itemData['product_id']);
-                    $subtotal = $product->selling_price * $itemData['quantity'];
+                    $subtotal = $product->effective_price * $itemData['quantity'];
                     $totalAmount += $subtotal;
 
                     OrderItem::create([
@@ -858,7 +858,7 @@ class MobileAdminOrderController extends Controller
                         'size_id' => $itemData['size_id'],
                         'size_name' => ProductSize::find($itemData['size_id'])->size_name ?? null,
                         'quantity' => $itemData['quantity'],
-                        'unit_price' => $product->selling_price,
+                        'unit_price' => $product->effective_price,
                         'subtotal' => $subtotal,
                         'product_name' => $product->name,
                         'product_code' => $product->code,

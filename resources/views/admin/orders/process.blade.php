@@ -373,7 +373,7 @@
                         'id' => $product->id,
                         'name' => $product->name,
                         'code' => $product->code,
-                        'selling_price' => $product->selling_price,
+                        'selling_price' => $product->effective_price,
                         'primary_image' => $product->primaryImage ? $product->primaryImage->image_url : '/assets/images/no-image.png',
                         'sizes' => $product->sizes->map(function($size) {
                             return [

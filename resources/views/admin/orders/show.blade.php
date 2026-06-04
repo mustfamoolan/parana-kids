@@ -475,11 +475,11 @@
                             <div class="grid grid-cols-2 gap-2 text-sm border-t pt-3">
                                 <div class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
                                     <span class="text-xs text-gray-500 dark:text-gray-400">سعر الوحدة (مباشر)</span>
-                                    <div class="font-medium">{{ number_format(optional($item->product)->selling_price ?? $item->unit_price, 0) }} دينار</div>
+                                    <div class="font-medium">{{ number_format(optional($item->product)->effective_price ?? $item->unit_price, 0) }} دينار</div>
                                 </div>
                                 <div class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
                                     <span class="text-xs text-gray-500 dark:text-gray-400">الإجمالي (مباشر)</span>
-                                    @php $liveSubtotal = (optional($item->product)->selling_price ?? $item->unit_price) * $item->quantity; @endphp
+                                    @php $liveSubtotal = (optional($item->product)->effective_price ?? $item->unit_price) * $item->quantity; @endphp
                                     <div class="font-bold text-success">{{ number_format($liveSubtotal, 0) }} دينار</div>
                                 </div>
                                 <div class="col-span-2 bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
@@ -526,7 +526,7 @@
                 return [
                     'product_name' => $item->product_name ?? optional($item->product)->name ?? $item->product_code,
                     'product_code' => $item->product_code,
-                    'unit_price' => $item->unit_price
+                    'unit_price' => optional($item->product)->effective_price ?? $item->unit_price
                 ];
             })),
             totalAmount: {{ $order->total_amount }}
