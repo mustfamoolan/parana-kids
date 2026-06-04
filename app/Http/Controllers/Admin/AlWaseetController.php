@@ -3075,9 +3075,12 @@ class AlWaseetController extends Controller
                 ], 500);
             }
 
-            // حساب السعر الكلي (يجب حسابه قبل بناء نوع البضاعة)
+            // حساب السعر الكلي بشكل ديناميكي لضمان تطبيق الخصم (إن وجد)
             $deliveryFee = Setting::getDeliveryFee();
-            $totalPrice = $order->total_amount + $deliveryFee;
+            $calculatedItemsTotal = $order->items->sum(function($item) {
+                return ($item->product ? $item->product->effective_price : ($item->unit_price ?? 0)) * $item->quantity;
+            });
+            $totalPrice = $calculatedItemsTotal + $deliveryFee;
 
             // تنسيق نوع البضاعة بشكل كامل (مثل process page - بدون النص الثابت)
             $productParts = $order->items->map(function ($item) {
@@ -3093,7 +3096,7 @@ class AlWaseetController extends Controller
                     return '';
                 }
 
-                $unitPrice = $item->unit_price ?? 0;
+                $unitPrice = $item->product ? $item->product->effective_price : ($item->unit_price ?? 0);
                 $quantity = $item->quantity ?? 0;
 
                 // تنسيق: اسم المنتج سعر السعر العدد الكمية
