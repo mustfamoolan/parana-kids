@@ -53,7 +53,39 @@ class CustomerProductApiController extends Controller
             });
         }
 
-        // c. Check availability (Total stock > 0)
+        // c. Filter by Has Discount (Individual or Warehouse Promotion)
+        if ($request->filled('has_discount') && $request->has_discount == '1') {
+            $query->where(function($q) {
+                // 1. Individual product active discount
+                $q->where(function($prodQ) {
+                    $prodQ->whereNotNull('discount_type')
+                          ->where('discount_type', '!=', 'none')
+                          ->whereNotNull('discount_value')
+                          ->where(function($dateQ) {
+                              $dateQ->where(function($noDates) {
+                                  $noDates->whereNull('discount_start_date')
+                                          ->whereNull('discount_end_date');
+                              })->orWhere(function($withDates) {
+                                  $withDates->where(function($startDate) {
+                                      $startDate->whereNull('discount_start_date')
+                                                ->orWhere('discount_start_date', '<=', now());
+                                  })->where(function($endDate) {
+                                      $endDate->whereNull('discount_end_date')
+                                              ->orWhere('discount_end_date', '>=', now());
+                                  });
+                              });
+                          });
+                })
+                // 2. Or Warehouse has active promotion
+                ->orWhereHas('warehouse.promotions', function($promoQ) {
+                    $promoQ->where('start_date', '<=', now())
+                           ->where('end_date', '>=', now())
+                           ->where('is_active', true);
+                });
+            });
+        }
+
+        // d. Check availability (Total stock > 0)
         $query->whereHas('sizes', function($q) {
             $q->where('quantity', '>', 0);
         });
