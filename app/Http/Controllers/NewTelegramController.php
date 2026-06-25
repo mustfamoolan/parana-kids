@@ -92,6 +92,25 @@ class NewTelegramController extends Controller
             'message_id' => $messageId,
         ]);
 
+        // Handle /start command directly with the keyboard WebApp button
+        if ($text === '/start') {
+            $welcome = "هلا بيك عيوني بـ **بارانا كيدز**! 🧸✨\n\nتگدر تتصفح المتجر وتشوف الملابس والقياسات المتوفرة مباشرة من زر فتح المتجر بالأسفل 👇";
+            $keyboard = json_encode([
+                'keyboard' => [
+                    [
+                        [
+                            'text' => '🛍️ تصفح المتجر',
+                            'web_app' => ['url' => 'https://paranakids.com']
+                        ]
+                    ]
+                ],
+                'resize_keyboard' => true,
+                'persistent' => true
+            ]);
+            $this->telegramService->sendMessage($chatId, $welcome, 'Markdown', $keyboard);
+            return;
+        }
+
         // Send "typing..." status indicator on Telegram to make the experience smooth
         $this->telegramService->sendTypingAction($chatId);
 
@@ -342,29 +361,43 @@ class NewTelegramController extends Controller
                 $aiText = 'تفضل عيوني، هاي صورة المنتج المطلوبة:';
             }
 
+            // Define persistent WebApp keyboard
+            $keyboard = json_encode([
+                'keyboard' => [
+                    [
+                        [
+                            'text' => '🛍️ تصفح المتجر',
+                            'web_app' => ['url' => 'https://paranakids.com']
+                        ]
+                    ]
+                ],
+                'resize_keyboard' => true,
+                'persistent' => true
+            ]);
+
             // Send response back via Telegram bot
             if (!empty($imageUrls)) {
                 if (count($imageUrls) === 1) {
                     $imageUrl = $imageUrls[0];
                     // If the text is short enough to be a caption (limit is 1024 chars), send it as photo caption
                     if (mb_strlen($aiText) <= 1000) {
-                        $this->telegramService->sendPhoto($chatId, $imageUrl, $aiText, 'Markdown');
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, $aiText, 'Markdown', $keyboard);
                     } else {
                         // Send photo first, then send the long text as a separate message
-                        $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة المنتج المطلوبة:', 'Markdown');
-                        $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة المنتج المطلوبة:', 'Markdown', $keyboard);
+                        $this->telegramService->sendMessage($chatId, $aiText, 'Markdown', $keyboard);
                     }
                 } else {
                     // Send the text description first
-                    $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
+                    $this->telegramService->sendMessage($chatId, $aiText, 'Markdown', $keyboard);
                     
                     // Then send each photo
                     foreach ($imageUrls as $imageUrl) {
-                        $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة لمنتج متوفر:', 'Markdown');
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة لمنتج متوفر:', 'Markdown', $keyboard);
                     }
                 }
             } else {
-                $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
+                $this->telegramService->sendMessage($chatId, $aiText, 'Markdown', $keyboard);
             }
 
         } catch (\Exception $e) {
@@ -372,7 +405,20 @@ class NewTelegramController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            $this->telegramService->sendMessage($chatId, 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.');
+            
+            $keyboard = json_encode([
+                'keyboard' => [
+                    [
+                        [
+                            'text' => '🛍️ تصفح المتجر',
+                            'web_app' => ['url' => 'https://paranakids.com']
+                        ]
+                    ]
+                ],
+                'resize_keyboard' => true,
+                'persistent' => true
+            ]);
+            $this->telegramService->sendMessage($chatId, 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.', 'Markdown', $keyboard);
         }
     }
 
