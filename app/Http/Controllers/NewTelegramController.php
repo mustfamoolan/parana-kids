@@ -342,35 +342,21 @@ class NewTelegramController extends Controller
                 $aiText = 'تفضل عيوني، هاي صورة المنتج المطلوبة:';
             }
 
-            // Construct a floating Inline WebApp Button pointing to the storefront
-            $replyMarkup = json_encode([
-                'inline_keyboard' => [
-                    [
-                        [
-                            'text' => '🛍️ فتح المتجر الإلكتروني',
-                            'web_app' => [
-                                'url' => 'https://paranakids.com/'
-                            ]
-                        ]
-                    ]
-                ]
-            ]);
-
             // Send response back via Telegram bot
             if (!empty($imageUrls)) {
                 if (count($imageUrls) === 1) {
                     $imageUrl = $imageUrls[0];
                     // If the text is short enough to be a caption (limit is 1024 chars), send it as photo caption
                     if (mb_strlen($aiText) <= 1000) {
-                        $this->telegramService->sendPhoto($chatId, $imageUrl, $aiText, 'Markdown', $replyMarkup);
+                        $this->telegramService->sendPhoto($chatId, $imageUrl, $aiText, 'Markdown');
                     } else {
                         // Send photo first, then send the long text as a separate message
                         $this->telegramService->sendPhoto($chatId, $imageUrl, 'صورة المنتج المطلوبة:', 'Markdown');
-                        $this->telegramService->sendMessage($chatId, $aiText, 'Markdown', $replyMarkup);
+                        $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
                     }
                 } else {
                     // Send the text description first
-                    $this->telegramService->sendMessage($chatId, $aiText, 'Markdown', $replyMarkup);
+                    $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
                     
                     // Then send each photo
                     foreach ($imageUrls as $imageUrl) {
@@ -378,7 +364,7 @@ class NewTelegramController extends Controller
                     }
                 }
             } else {
-                $this->telegramService->sendMessage($chatId, $aiText, 'Markdown', $replyMarkup);
+                $this->telegramService->sendMessage($chatId, $aiText, 'Markdown');
             }
 
         } catch (\Exception $e) {
