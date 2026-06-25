@@ -30,10 +30,7 @@ class NewTelegramService
         }
     }
 
-    /**
-     * Send message to a specific chat with formatting and fallback
-     */
-    public function sendMessage($chatId, $message, $parseMode = 'Markdown')
+    public function sendMessage($chatId, $message, $parseMode = 'Markdown', $replyMarkup = null)
     {
         if (!$this->telegram) {
             Log::warning('NewTelegramService: Telegram API not initialized');
@@ -41,12 +38,17 @@ class NewTelegramService
         }
 
         try {
-            // First try sending with the requested formatting
-            $this->telegram->sendMessage([
+            $params = [
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
-            ]);
+            ];
+
+            if ($replyMarkup) {
+                $params['reply_markup'] = $replyMarkup;
+            }
+
+            $this->telegram->sendMessage($params);
             return true;
         } catch (\Exception $e) {
             Log::warning('NewTelegramService: Failed sending formatted message, trying plain text', [
@@ -55,11 +57,16 @@ class NewTelegramService
             ]);
             
             try {
-                // Fallback: send as raw text if markdown parsing failed
-                $this->telegram->sendMessage([
+                $params = [
                     'chat_id' => $chatId,
                     'text' => $message,
-                ]);
+                ];
+
+                if ($replyMarkup) {
+                    $params['reply_markup'] = $replyMarkup;
+                }
+
+                $this->telegram->sendMessage($params);
                 return true;
             } catch (\Exception $eFallback) {
                 Log::error('NewTelegramService: Global send message failed', [
@@ -95,10 +102,7 @@ class NewTelegramService
         }
     }
 
-    /**
-     * Send a photo to a specific chat with optional caption and fallback
-     */
-    public function sendPhoto($chatId, $photoUrl, $caption = '', $parseMode = 'Markdown')
+    public function sendPhoto($chatId, $photoUrl, $caption = '', $parseMode = 'Markdown', $replyMarkup = null)
     {
         $botToken = Config::get('services.telegram_new.bot_token');
 
@@ -108,13 +112,19 @@ class NewTelegramService
         }
 
         try {
-            // Send direct HTTP post request to bypass SDK remote stream/validation issues
-            $response = Http::timeout(15)->post("https://api.telegram.org/bot{$botToken}/sendPhoto", [
+            $params = [
                 'chat_id' => $chatId,
                 'photo' => $photoUrl,
                 'caption' => $caption,
                 'parse_mode' => $parseMode,
-            ]);
+            ];
+
+            if ($replyMarkup) {
+                $params['reply_markup'] = $replyMarkup;
+            }
+
+            // Send direct HTTP post request to bypass SDK remote stream/validation issues
+            $response = Http::timeout(15)->post("https://api.telegram.org/bot{$botToken}/sendPhoto", $params);
 
             if ($response->successful()) {
                 return true;
@@ -127,11 +137,17 @@ class NewTelegramService
             ]);
             
             // Fallback: send with plain text caption (no markdown)
-            $responseFallback = Http::timeout(15)->post("https://api.telegram.org/bot{$botToken}/sendPhoto", [
+            $fallbackParams = [
                 'chat_id' => $chatId,
                 'photo' => $photoUrl,
                 'caption' => $caption,
-            ]);
+            ];
+
+            if ($replyMarkup) {
+                $fallbackParams['reply_markup'] = $replyMarkup;
+            }
+
+            $responseFallback = Http::timeout(15)->post("https://api.telegram.org/bot{$botToken}/sendPhoto", $fallbackParams);
 
             if ($responseFallback->successful()) {
                 return true;
@@ -158,7 +174,7 @@ class NewTelegramService
                     );
                 }
             }
-            return $this->sendMessage($chatId, $fallbackMessage);
+            return $this->sendMessage($chatId, $fallbackMessage, 'Markdown', $replyMarkup);
         }
     }
 }
