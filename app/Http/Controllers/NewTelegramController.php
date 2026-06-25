@@ -94,18 +94,16 @@ class NewTelegramController extends Controller
 
         // Handle /start command directly with the keyboard WebApp button
         if ($text === '/start') {
-            $welcome = "هلا بيك عيوني بـ **بارانا كيدز**! 🧸✨\n\nتگدر تتصفح المتجر وتشوف الملابس والقياسات المتوفرة مباشرة من زر فتح المتجر بالأسفل 👇";
+            $welcome = "هلا بيك عيوني بـ **بارانا كيدز**! 🧸✨\n\nتگدر تتصفح المتجر وتشوف الملابس والقياسات المتوفرة مباشرة من زر فتح المتجر 🛍️👇";
             $keyboard = json_encode([
-                'keyboard' => [
+                'inline_keyboard' => [
                     [
                         [
                             'text' => '🛍️ تصفح المتجر',
                             'web_app' => ['url' => 'https://paranakids.com']
                         ]
                     ]
-                ],
-                'resize_keyboard' => true,
-                'persistent' => true
+                ]
             ]);
             $this->telegramService->sendMessage($chatId, $welcome, 'Markdown', $keyboard);
             return;
@@ -363,16 +361,14 @@ class NewTelegramController extends Controller
 
             // Define persistent WebApp keyboard
             $keyboard = json_encode([
-                'keyboard' => [
+                'inline_keyboard' => [
                     [
                         [
                             'text' => '🛍️ تصفح المتجر',
                             'web_app' => ['url' => 'https://paranakids.com']
                         ]
                     ]
-                ],
-                'resize_keyboard' => true,
-                'persistent' => true
+                ]
             ]);
 
             // Send response back via Telegram bot
@@ -407,16 +403,14 @@ class NewTelegramController extends Controller
             ]);
             
             $keyboard = json_encode([
-                'keyboard' => [
+                'inline_keyboard' => [
                     [
                         [
                             'text' => '🛍️ تصفح المتجر',
                             'web_app' => ['url' => 'https://paranakids.com']
                         ]
                     ]
-                ],
-                'resize_keyboard' => true,
-                'persistent' => true
+                ]
             ]);
             $this->telegramService->sendMessage($chatId, 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.', 'Markdown', $keyboard);
         }
