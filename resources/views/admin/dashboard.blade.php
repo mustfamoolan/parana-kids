@@ -6,6 +6,7 @@
         <!-- قسم اختيار المخازن (مربعات اختيار لتصفية كاردات الإحصائيات) -->
         @if(isset($warehouses) && count($warehouses) > 0)
         <form method="GET" action="{{ route('admin.dashboard') }}" id="dashboardWarehouseForm" class="mb-6">
+            <input type="hidden" name="filtered" value="1">
             <div class="panel bg-gray-50 dark:bg-[#0e1726] p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <span class="text-sm font-bold text-black dark:text-white-light flex items-center gap-1.5">
@@ -32,12 +33,11 @@
                 </div>
                 <div class="flex flex-wrap gap-3" id="dashboardWarehouseCheckboxesContainer">
                     @php
-                        $hasWarehouseIdsFilter = request()->has('warehouse_ids');
                         $selectedWarehouseIds = $selectedWarehouseIds ?? [];
                     @endphp
                     @foreach($warehouses as $warehouse)
                         @php
-                            $isChecked = !$hasWarehouseIdsFilter || in_array($warehouse->id, $selectedWarehouseIds);
+                            $isChecked = in_array($warehouse->id, $selectedWarehouseIds);
                         @endphp
                         <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
                             <input
@@ -457,7 +457,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const hasUrlParams = urlParams.has('warehouse_ids');
+            const hasUrlParams = urlParams.has('warehouse_ids[]') || urlParams.has('warehouse_ids') || urlParams.has('filtered');
 
             if (!hasUrlParams) {
                 const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_global')
@@ -466,11 +466,12 @@
                 if (savedWarehouseIdsStr) {
                     try {
                         const savedIds = JSON.parse(savedWarehouseIdsStr);
-                        if (Array.isArray(savedIds)) {
+                        if (Array.isArray(savedIds) && savedIds.length > 0) {
                             const savedParams = new URLSearchParams();
                             savedIds.forEach(id => {
                                 savedParams.append('warehouse_ids[]', id);
                             });
+                            savedParams.append('filtered', '1');
                             if (savedParams.toString()) {
                                 window.location.href = '{{ route('admin.dashboard') }}?' + savedParams.toString();
                             }

@@ -34,9 +34,9 @@ class DashboardController extends Controller
 
         $accessibleWarehouseIds = $warehouses->pluck('id')->toArray();
 
-        $hasWarehouseIdsFilter = $request->has('warehouse_ids');
+        $hasWarehouseIdsFilter = $request->has('warehouse_ids') || $request->has('filtered');
         if ($hasWarehouseIdsFilter) {
-            $selectedWarehouseIds = array_map('intval', (array) $request->warehouse_ids);
+            $selectedWarehouseIds = array_map('intval', (array) $request->input('warehouse_ids', []));
             $selectedWarehouseIds = array_values(array_intersect($selectedWarehouseIds, $accessibleWarehouseIds));
         } else {
             $selectedWarehouseIds = $accessibleWarehouseIds;
