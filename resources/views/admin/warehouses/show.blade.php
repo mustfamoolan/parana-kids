@@ -562,25 +562,29 @@
             card.setAttribute('data-qty', p.total_quantity || 0);
 
             card.innerHTML = `
-                <!-- Checkbox overlay -->
-                <label class="absolute top-3 left-3 z-10 cursor-pointer flex items-center justify-center p-1 bg-white/90 dark:bg-gray-800/90 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:scale-110 transition-transform">
-                    <input type="checkbox" class="product-checkbox form-checkbox text-primary w-6 h-6 rounded cursor-pointer"
-                        data-id="${p.id}"
-                        data-selling="${p.effective_price}"
-                        data-purchase="${p.purchase_price || 0}"
-                        data-qty="${p.total_quantity || 0}"
-                        ${checked ? 'checked' : ''}
-                        onchange="onProductCheck(this)">
-                </label>
-                <div class="flex items-center gap-3 mb-3 pl-10">
-                    ${imgHtml}
-                    <div class="flex-1 min-w-0">
-                        <div class="font-semibold text-sm truncate">${escHtml(p.name)}</div>
-                        <div class="text-xs text-gray-500">#${p.id}</div>
-                        <div class="mt-1 flex items-center gap-2 flex-wrap">
-                            <span class="badge badge-outline-primary text-xs">${escHtml(p.code)}</span>
-                            ${hiddenBadge}${discountBadge}
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        ${imgHtml}
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-sm truncate">${escHtml(p.name)}</div>
+                            <div class="text-xs text-gray-500">#${p.id}</div>
+                            <div class="mt-1 flex items-center gap-2 flex-wrap">
+                                <span class="badge badge-outline-primary text-xs">${escHtml(p.code)}</span>
+                                ${hiddenBadge}${discountBadge}
+                            </div>
                         </div>
+                    </div>
+                    <!-- Checkbox on the opposite side of image -->
+                    <div class="flex-shrink-0 pt-0.5">
+                        <label class="cursor-pointer flex items-center justify-center p-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-primary/20 rounded-lg shadow-sm border border-gray-300 dark:border-gray-600 transition-colors">
+                            <input type="checkbox" class="product-checkbox form-checkbox text-primary w-6 h-6 rounded cursor-pointer"
+                                data-id="${p.id}"
+                                data-selling="${p.effective_price}"
+                                data-purchase="${p.purchase_price || 0}"
+                                data-qty="${p.total_quantity || 0}"
+                                ${checked ? 'checked' : ''}
+                                onchange="onProductCheck(this)">
+                        </label>
                     </div>
                 </div>
                 <div class="space-y-2">
