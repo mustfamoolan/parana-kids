@@ -33,7 +33,16 @@
                                     });
                                 }
                                 // فلتر المخزن
-                                if (request()->filled('warehouse_id')) {
+                                if (request()->has('warehouse_ids')) {
+                                    $selectedWarehouseIds = array_filter((array) request('warehouse_ids'));
+                                    if (!empty($selectedWarehouseIds)) {
+                                        $pendingQuery->whereHas('items.product', function ($q) use ($selectedWarehouseIds) {
+                                            $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                                        });
+                                    } else {
+                                        $pendingQuery->whereRaw('1 = 0');
+                                    }
+                                } elseif (request()->filled('warehouse_id')) {
                                     $pendingQuery->whereHas('items.product', function($q) {
                                         $q->where('warehouse_id', request('warehouse_id'));
                                     });
