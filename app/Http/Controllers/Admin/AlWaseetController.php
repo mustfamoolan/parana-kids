@@ -3327,7 +3327,15 @@ class AlWaseetController extends Controller
      */
     public function printAllOrders(Request $request)
     {
-        $this->authorize('viewAny', Order::class);
+        // التحقق من الصلاحية مع إرجاع JSON في حالة الفشل
+        try {
+            $this->authorize('viewAny', Order::class);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بهذه العملية',
+            ], 403);
+        }
 
         try {
             // استخدام نفس الفلاتر من printAndUploadOrders

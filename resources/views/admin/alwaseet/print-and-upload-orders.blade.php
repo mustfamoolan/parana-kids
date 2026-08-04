@@ -1545,9 +1545,17 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'فشل طباعة الطلبات');
-                    });
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        return response.json().then(data => {
+                            throw new Error(data.message || 'فشل طباعة الطلبات');
+                        });
+                    } else {
+                        return response.text().then(text => {
+                            console.error('Server error response:', text.substring(0, 500));
+                            throw new Error('فشل طباعة الطلبات - الرجاء المحاولة مرة أخرى (كود: ' + response.status + ')');
+                        });
+                    }
                 }
                 return response.blob();
             })
