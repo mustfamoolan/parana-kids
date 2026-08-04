@@ -170,15 +170,14 @@
 
                         @if($unavailableSizes->count() > 0)
                             @if(isset($searchedSize) && !empty($searchedSize))
-                                <!-- إذا كان البحث بالقياس وغير متوفر، أظهر رسالة واضحة -->
+                                {{-- إذا كان البحث بالقياس وغير متوفر، أظهر رسالة واضحة --}}
                                 @foreach($unavailableSizes as $size)
                                     <span class="text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-2 py-1 rounded font-semibold">
                                         {{ $size->size_name }} - غير متوفر
                                     </span>
                                 @endforeach
-                            @else
-                                <span class="text-xs text-red-500 font-medium">{{ $unavailableSizes->count() }} غير متوفر</span>
                             @endif
+                            {{-- القياسات ذات الكمية 0 لا تظهر خارج وضع البحث --}}
                         @endif
 
                         @if($availableSizes->count() == 0 && $unavailableSizes->count() == 0 && isset($searchedSize))

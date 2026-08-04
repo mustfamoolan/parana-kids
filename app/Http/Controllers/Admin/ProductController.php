@@ -39,9 +39,13 @@ class ProductController extends Controller
             $warehouses = Auth::user()->warehouses()->orderBy('name')->get();
         }
 
-        // بناء الاستعلام الأساسي (استبعاد المنتجات المحجوبة)
+        // بناء الاستعلام الأساسي (استبعاد المنتجات المحجوبة + استبعاد المنتجات التي قيمتها 0)
         $query = Product::whereIn('warehouse_id', $warehouseIds)
                         ->where('is_hidden', false)
+                        ->whereHas('sizes', function($q) {
+                            // فقط المنتجات التي تملك قياساً واحداً على الأقل بكمية > 0
+                            $q->where('quantity', '>', 0);
+                        })
                         ->with(['primaryImage', 'images', 'sizes', 'warehouse.activePromotion']);
 
         // فلتر التخفيض
