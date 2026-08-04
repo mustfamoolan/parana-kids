@@ -65,23 +65,11 @@
                         class="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-[#1a2744] hover:bg-[#243560] text-white shadow-xl hover:shadow-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105 active:scale-95 border-4 border-[#1a2744] group"
                         title="انقر لمسح الباركود بالكاميرا"
                     >
-                        <!-- أيقونة باركود حقيقية SVG -->
-                        <svg class="w-14 h-14 sm:w-18 sm:h-18 group-hover:scale-110 transition-transform" viewBox="0 0 100 100" fill="white" xmlns="http://www.w3.org/2000/svg">
-                            <!-- أعمدة باركود -->
-                            <rect x="5"  y="10" width="6"  height="60" rx="1"/>
-                            <rect x="15" y="10" width="3"  height="60" rx="1"/>
-                            <rect x="22" y="10" width="7"  height="60" rx="1"/>
-                            <rect x="33" y="10" width="3"  height="60" rx="1"/>
-                            <rect x="40" y="10" width="5"  height="60" rx="1"/>
-                            <rect x="49" y="10" width="8"  height="60" rx="1"/>
-                            <rect x="61" y="10" width="3"  height="60" rx="1"/>
-                            <rect x="68" y="10" width="6"  height="60" rx="1"/>
-                            <rect x="78" y="10" width="4"  height="60" rx="1"/>
-                            <rect x="86" y="10" width="9"  height="60" rx="1"/>
-                            <!-- إطار الزوايا -->
-                            <path d="M5 78 L5 90 L17 90" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M83 78 L83 90 L95 90" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <img
+                            src="{{ asset('assets/images/qr.png') }}"
+                            alt="مسح باركود"
+                            class="w-16 h-16 sm:w-20 sm:h-20 object-contain group-hover:scale-110 transition-transform"
+                        >
                         <span class="text-xs sm:text-sm font-bold tracking-wide">مسح باركود</span>
                     </button>
                 </div>
