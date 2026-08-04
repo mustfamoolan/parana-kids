@@ -94,8 +94,9 @@ class UserController extends Controller
         $validated = $request->validate($rules);
         $validated['password'] = Hash::make($validated['password']);
         
-        // تعيين is_observer
+        // تعيين is_observer و can_set_purchase_price (للمجهز فقط)
         $validated['is_observer'] = $request->role === 'supplier' && $request->has('is_observer');
+        $validated['can_set_purchase_price'] = $request->role === 'supplier' && $request->has('can_set_purchase_price');
 
         // تعيين phone و email كـ null إذا لم يتم إرسالهما
         if (!$request->filled('phone')) {
@@ -199,6 +200,7 @@ class UserController extends Controller
         }
 
         $validated['is_observer'] = $request->role === 'supplier' && $request->has('is_observer');
+        $validated['can_set_purchase_price'] = $request->role === 'supplier' && $request->has('can_set_purchase_price');
 
         DB::transaction(function() use ($user, $validated, $request) {
             $user->update($validated);

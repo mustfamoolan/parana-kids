@@ -442,7 +442,7 @@
                                 </div>
                             </div>
                             <div class="space-y-2">
-                                @if(auth()->user()->isAdmin())
+                                @if(auth()->user()->canSetPurchasePrice())
                                     <div>
                                         <span class="text-xs text-gray-500 dark:text-gray-400">سعر الشراء:</span>
                                         <div>

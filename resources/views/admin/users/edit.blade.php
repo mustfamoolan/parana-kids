@@ -159,6 +159,14 @@
                         </label>
                     </div>
 
+                    <!-- صلاحية كتابة سعر الشراء (للمجهز فقط) -->
+                    <div x-show="selectedRole === 'supplier'" class="mt-4 flex items-center">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="can_set_purchase_price" value="1" class="form-checkbox text-primary" {{ old('can_set_purchase_price', $user->can_set_purchase_price) ? 'checked' : '' }}>
+                            <span class="ml-2 rtl:mr-2">صلاحية كتابة وتعديل سعر الشراء للمنتجات</span>
+                        </label>
+                    </div>
+
                     <!-- المجهزون المقترحون (للمندوب فقط) -->
                     <div x-show="selectedRole === 'delegate'" class="col-span-1 md:col-span-2 mt-4">
                         <label for="suggested_suppliers" class="block text-sm font-medium mb-2">المجهزون المقترحون <span class="text-gray-500">(اختياري)</span></label>

@@ -320,7 +320,7 @@ class ProductController extends Controller
             'name' => $productName,
             'code' => $request->code,
             'gender_type' => $request->gender_type,
-            'purchase_price' => $request->purchase_price,
+            'purchase_price' => auth()->user()->canSetPurchasePrice() ? $request->purchase_price : null,
             'selling_price' => $request->selling_price,
             'description' => $request->description,
             'link_1688' => $request->link_1688,
@@ -625,9 +625,13 @@ class ProductController extends Controller
                 'link_1688' => $request->link_1688,
             ];
 
-            // فقط المدير يمكنه تعديل سعر الشراء والحجب والتخفيض
-            if (auth()->user()->isAdmin()) {
+            // تعديل سعر الشراء إذا كان لدى المستخدم الصلاحية (المدير أو المجهز المصرح له)
+            if (auth()->user()->canSetPurchasePrice()) {
                 $updateData['purchase_price'] = $request->purchase_price;
+            }
+
+            // فقط المدير يمكنه تعديل الحجب والتخفيض
+            if (auth()->user()->isAdmin()) {
                 $updateData['is_hidden'] = $request->has('is_hidden') ? (bool)$request->is_hidden : false;
                 $updateData['discount_type'] = $request->discount_type ?? 'none';
                 $updateData['discount_value'] = $request->discount_value;

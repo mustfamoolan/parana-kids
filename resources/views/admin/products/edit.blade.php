@@ -123,7 +123,7 @@
                         @enderror
                     </div>
 
-                    @if(auth()->user()->isAdmin())
+                    @if(auth()->user()->canSetPurchasePrice())
                         <div>
                             <label for="purchase_price" class="mb-3 block text-sm font-medium text-black dark:text-white">
                                 سعر الشراء (دينار عراقي)

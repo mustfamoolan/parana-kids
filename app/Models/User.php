@@ -30,6 +30,7 @@ class User extends Authenticatable
         'telegram_chat_id',
         'google_id',
         'is_observer',
+        'can_set_purchase_price',
     ];
 
     /**
@@ -49,6 +50,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_observer' => 'boolean',
+        'can_set_purchase_price' => 'boolean',
     ];
 
     /**
@@ -57,6 +60,20 @@ class User extends Authenticatable
     public function isAdmin()
     {
         return $this->role === 'admin';
+    }
+
+    /**
+     * Check if user can set/edit purchase price (Admin or Supplier with permission)
+     */
+    public function canSetPurchasePrice(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+        if ($this->isSupplier()) {
+            return (bool) $this->can_set_purchase_price;
+        }
+        return false;
     }
 
     /**
