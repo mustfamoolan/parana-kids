@@ -34,7 +34,7 @@ class PublicProductController extends Controller
             
             $baseQuery = Product::where('is_hidden', false)
                 ->whereIn('warehouse_id', $warehouseIds)
-                ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
+                ->with(['primaryImage', 'images', 'sizes', 'warehouse.activePromotion']);
 
             // فلتر النوع (إذا كان موجوداً في الرابط الأصلي)
             if ($productLink->gender_type) {
@@ -89,7 +89,7 @@ class PublicProductController extends Controller
         } else {
             // المنطق القديم (رابط واحد لمخزن واحد وقياس واحد)
             $productsQuery = Product::where('is_hidden', false)
-                ->with(['primaryImage', 'sizes', 'warehouse.activePromotion']);
+                ->with(['primaryImage', 'images', 'sizes', 'warehouse.activePromotion']);
 
             if ($productLink->warehouse_id) {
                 $productsQuery->where('warehouse_id', $productLink->warehouse_id);
