@@ -434,7 +434,9 @@
         function saveDashboardWarehouseCheckboxes() {
             const checkedCBs = document.querySelectorAll('.dashboard-warehouse-checkbox:checked');
             const ids = Array.from(checkedCBs).map(cb => cb.value);
+            localStorage.setItem('selectedWarehouseIds_global', JSON.stringify(ids));
             localStorage.setItem('selectedWarehouseIds_admin_dashboard', JSON.stringify(ids));
+            localStorage.setItem('selectedWarehouseIds_alwaseet_print_upload', JSON.stringify(ids));
         }
 
         function onDashboardWarehouseChange() {
@@ -458,7 +460,9 @@
             const hasUrlParams = urlParams.has('warehouse_ids');
 
             if (!hasUrlParams) {
-                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_admin_dashboard');
+                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_global')
+                                          || localStorage.getItem('selectedWarehouseIds_admin_dashboard')
+                                          || localStorage.getItem('selectedWarehouseIds_alwaseet_print_upload');
                 if (savedWarehouseIdsStr) {
                     try {
                         const savedIds = JSON.parse(savedWarehouseIdsStr);

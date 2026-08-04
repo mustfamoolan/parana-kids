@@ -203,6 +203,56 @@
             <!-- فلتر وبحث -->
             <div class="mb-5">
                 <form method="GET" action="{{ route('admin.orders.management') }}" class="space-y-4">
+                    <!-- قسم اختيار المخازن (مربعات اختيار فوق البحث) -->
+                    @if(isset($warehouses) && count($warehouses) > 0)
+                    <div class="panel bg-gray-50 dark:bg-[#0e1726] p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <span class="text-sm font-bold text-black dark:text-white-light flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                                المخازن المصرح بها (اختر مخزن واحد أو أكثر):
+                            </span>
+                            <div class="flex items-center gap-3 text-xs">
+                                <button type="button" onclick="selectAllWarehousesManagement(true)" class="text-primary dark:text-primary-light hover:underline font-semibold flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    تحديد الكل
+                                </button>
+                                <span class="text-gray-300 dark:text-gray-600">|</span>
+                                <button type="button" onclick="selectAllWarehousesManagement(false)" class="text-danger dark:text-danger-light hover:underline font-semibold flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                    إلغاء التحديد
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-3" id="warehouseCheckboxesContainerManagement">
+                            @php
+                                $hasWarehouseIdsFilter = request()->has('warehouse_ids');
+                                $selectedWarehouseIds = $hasWarehouseIdsFilter ? (array) request('warehouse_ids', []) : [];
+                            @endphp
+                            @foreach($warehouses as $warehouse)
+                                @php
+                                    $isChecked = !$hasWarehouseIdsFilter || in_array($warehouse->id, $selectedWarehouseIds);
+                                @endphp
+                                <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        name="warehouse_ids[]"
+                                        value="{{ $warehouse->id }}"
+                                        class="form-checkbox text-primary warehouse-checkbox-management"
+                                        {{ $isChecked ? 'checked' : '' }}
+                                    >
+                                    <span class="text-sm font-medium text-black dark:text-white-light">{{ $warehouse->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+
                     <!-- الصف الأول: البحث والحالة -->
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="flex-1">
@@ -216,18 +266,8 @@
                         </div>
                     </div>
 
-                    <!-- الصف الثاني: المخزن والمجهز والمندوب -->
+                    <!-- الصف الثاني: المجهز والمندوب والحالات -->
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <div class="sm:w-48">
-                            <select name="warehouse_id" class="form-select" id="warehouseFilterManagement">
-                                <option value="">كل المخازن</option>
-                                @foreach($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
-                                        {{ $warehouse->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
                         <div class="sm:w-48">
                             <select name="confirmed_by" id="confirmedByFilterManagement" class="form-select">
                                 <option value="">المقيد بواسطة (الكل)</option>
@@ -1006,4 +1046,54 @@
             }
         }
     </style>
+
+    <script>
+        function saveManagementWarehouseCheckboxes() {
+            const checkedCBs = document.querySelectorAll('.warehouse-checkbox-management:checked');
+            const ids = Array.from(checkedCBs).map(cb => cb.value);
+            localStorage.setItem('selectedWarehouseIds_global', JSON.stringify(ids));
+            localStorage.setItem('selectedWarehouseIds_admin_dashboard', JSON.stringify(ids));
+            localStorage.setItem('selectedWarehouseIds_alwaseet_print_upload', JSON.stringify(ids));
+        }
+
+        function selectAllWarehousesManagement(select) {
+            const checkboxes = document.querySelectorAll('.warehouse-checkbox-management');
+            checkboxes.forEach(cb => {
+                cb.checked = select;
+            });
+            saveManagementWarehouseCheckboxes();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('warehouse_ids') || urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+                                urlParams.has('delegate_id') || urlParams.has('status') || urlParams.has('date_from') || urlParams.has('date_to');
+
+            document.querySelectorAll('.warehouse-checkbox-management').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    saveManagementWarehouseCheckboxes();
+                });
+            });
+
+            if (!hasUrlParams) {
+                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_global')
+                                          || localStorage.getItem('selectedWarehouseIds_admin_dashboard')
+                                          || localStorage.getItem('selectedWarehouseIds_alwaseet_print_upload');
+                if (savedWarehouseIdsStr) {
+                    try {
+                        const savedIds = JSON.parse(savedWarehouseIdsStr);
+                        if (Array.isArray(savedIds)) {
+                            const savedParams = new URLSearchParams();
+                            savedIds.forEach(id => {
+                                savedParams.append('warehouse_ids[]', id);
+                            });
+                            if (savedParams.toString()) {
+                                window.location.href = '{{ route('admin.orders.management') }}?' + savedParams.toString();
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+        });
+    </script>
 </x-layout.admin>

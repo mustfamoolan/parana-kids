@@ -965,7 +965,9 @@
         function saveWarehouseCheckboxes() {
             const checkedCBs = document.querySelectorAll('.warehouse-checkbox:checked');
             const ids = Array.from(checkedCBs).map(cb => cb.value);
+            localStorage.setItem('selectedWarehouseIds_global', JSON.stringify(ids));
             localStorage.setItem('selectedWarehouseIds_alwaseet_print_upload', JSON.stringify(ids));
+            localStorage.setItem('selectedWarehouseIds_admin_dashboard', JSON.stringify(ids));
         }
 
         function selectAllWarehouses(select) {
@@ -1012,7 +1014,9 @@
 
             // استرجاع فلاتر المخازن من localStorage إذا لم تكن هناك معاملات في URL
             if (!hasUrlParams) {
-                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_alwaseet_print_upload');
+                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_global')
+                                          || localStorage.getItem('selectedWarehouseIds_alwaseet_print_upload')
+                                          || localStorage.getItem('selectedWarehouseIds_admin_dashboard');
                 if (savedWarehouseIdsStr) {
                     try {
                         const savedIds = JSON.parse(savedWarehouseIdsStr);
