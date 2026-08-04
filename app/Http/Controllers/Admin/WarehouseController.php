@@ -519,7 +519,12 @@ class WarehouseController extends Controller
                 // 12. حذف تخفيضات المخزن
                 DB::table('warehouse_promotions')->where('warehouse_id', $warehouse->id)->delete();
 
-                // 13. حذف استثمارات المخزن
+                // 13. حذف مصاريف المخزن
+                if (DB::getSchemaBuilder()->hasTable('expenses')) {
+                    DB::table('expenses')->where('warehouse_id', $warehouse->id)->delete();
+                }
+
+                // 14. حذف استثمارات المخزن
                 if (DB::getSchemaBuilder()->hasTable('investments')) {
                     DB::table('investments')
                         ->where('investment_type', 'warehouse')
@@ -527,15 +532,15 @@ class WarehouseController extends Controller
                         ->delete();
                 }
 
-                // 14. حذف سجلات أرباح المخزن
+                // 15. حذف سجلات أرباح المخزن
                 if (DB::getSchemaBuilder()->hasTable('profit_records')) {
                     DB::table('profit_records')->where('warehouse_id', $warehouse->id)->delete();
                 }
 
-                // 15. فصل المستخدمين المرتبطين (pivot table)
+                // 16. فصل المستخدمين المرتبطين (pivot table)
                 $warehouse->users()->detach();
 
-                // 16. حذف المخزن نفسه
+                // 17. حذف المخزن نفسه
                 $warehouse->delete();
             });
 
