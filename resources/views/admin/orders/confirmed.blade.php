@@ -502,7 +502,7 @@
         // Local Storage لجميع الفلاتر
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const hasUrlParams = urlParams.has('warehouse_ids') || urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+            const hasUrlParams = urlParams.has('warehouse_ids[]') || urlParams.has('warehouse_ids') || urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
                                 urlParams.has('delegate_id') || urlParams.has('date_from') || urlParams.has('date_to') ||
                                 urlParams.has('time_from') || urlParams.has('time_to') || urlParams.has('hours_ago') ||
                                 urlParams.has('supplier_id');
@@ -520,7 +520,7 @@
                 if (savedWarehouseIdsStr) {
                     try {
                         const savedIds = JSON.parse(savedWarehouseIdsStr);
-                        if (Array.isArray(savedIds)) {
+                        if (Array.isArray(savedIds) && savedIds.length > 0) {
                             const savedParams = new URLSearchParams();
                             savedIds.forEach(id => {
                                 savedParams.append('warehouse_ids[]', id);
