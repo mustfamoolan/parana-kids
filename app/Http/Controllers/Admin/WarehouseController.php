@@ -480,7 +480,7 @@ class WarehouseController extends Controller
 
                         if ($ordersToDelete->isNotEmpty()) {
                             DB::table('alwaseet_shipments')->whereIn('order_id', $ordersToDelete)->delete();
-                            DB::table('order_partial_returns')->whereIn('order_id', $ordersToDelete)->delete();
+                            DB::table('return_items')->whereIn('order_id', $ordersToDelete)->delete();
                             DB::table('orders')->whereIn('id', $ordersToDelete)->delete();
                         }
                     }
