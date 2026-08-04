@@ -1868,8 +1868,21 @@ class AlWaseetController extends Controller
             });
         }
 
-        // فلتر المخزن - استخدام whereIn بدلاً من whereHas لتحسين الأداء
-        if ($request->filled('warehouse_id')) {
+        // فلتر المخزن (دعم التحديد المتعدد عبر warehouse_ids)
+        if ($request->has('warehouse_ids')) {
+            $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+            if (!empty($selectedWarehouseIds)) {
+                $query->whereIn('id', function ($subQuery) use ($selectedWarehouseIds) {
+                    $subQuery->select('order_id')
+                        ->from('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('products.warehouse_id', $selectedWarehouseIds)
+                        ->distinct();
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->filled('warehouse_id')) {
             $query->whereIn('id', function ($subQuery) use ($request) {
                 $subQuery->select('order_id')
                     ->from('order_items')
@@ -2010,7 +2023,20 @@ class AlWaseetController extends Controller
                     });
                 }
 
-                if ($request->filled('warehouse_id')) {
+                if ($request->has('warehouse_ids')) {
+                    $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+                    if (!empty($selectedWarehouseIds)) {
+                        $query->whereIn('id', function ($subQuery) use ($selectedWarehouseIds) {
+                            $subQuery->select('order_id')
+                                ->from('order_items')
+                                ->join('products', 'order_items.product_id', '=', 'products.id')
+                                ->whereIn('products.warehouse_id', $selectedWarehouseIds)
+                                ->distinct();
+                        });
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
+                } elseif ($request->filled('warehouse_id')) {
                     $query->whereIn('id', function ($subQuery) use ($request) {
                         $subQuery->select('order_id')
                             ->from('order_items')
@@ -2203,7 +2229,20 @@ class AlWaseetController extends Controller
         }
 
         // تطبيق فلاتر الطلب من الواجهة
-        if ($request->filled('warehouse_id')) {
+        if ($request->has('warehouse_ids')) {
+            $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+            if (!empty($selectedWarehouseIds)) {
+                $pendingCountQuery->whereIn('id', function ($subQuery) use ($selectedWarehouseIds) {
+                    $subQuery->select('order_id')
+                        ->from('order_items')
+                        ->join('products', 'order_items.product_id', '=', 'products.id')
+                        ->whereIn('products.warehouse_id', $selectedWarehouseIds)
+                        ->distinct();
+                });
+            } else {
+                $pendingCountQuery->whereRaw('1 = 0');
+            }
+        } elseif ($request->filled('warehouse_id')) {
             $pendingCountQuery->whereIn('id', function ($subQuery) use ($request) {
                 $subQuery->select('order_id')
                     ->from('order_items')
@@ -3415,7 +3454,16 @@ class AlWaseetController extends Controller
         }
 
         // فلتر المخزن
-        if ($request->filled('warehouse_id')) {
+        if ($request->has('warehouse_ids')) {
+            $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+            if (!empty($selectedWarehouseIds)) {
+                $query->whereHas('items.product', function ($q) use ($selectedWarehouseIds) {
+                    $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->filled('warehouse_id')) {
             $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });

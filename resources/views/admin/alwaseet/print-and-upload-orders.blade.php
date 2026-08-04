@@ -34,6 +34,7 @@
                 @endif
                 <a href="{{ route('admin.alwaseet.materials-list', array_filter([
                     'warehouse_id' => request('warehouse_id'),
+                    'warehouse_ids' => request('warehouse_ids'),
                     'search' => request('search'),
                     'confirmed_by' => request('confirmed_by'),
                     'delegate_id' => request('delegate_id'),
@@ -55,6 +56,7 @@
                 </a>
                 <a href="{{ route('admin.alwaseet.materials-list-grouped', array_filter([
                     'warehouse_id' => request('warehouse_id'),
+                    'warehouse_ids' => request('warehouse_ids'),
                     'search' => request('search'),
                     'confirmed_by' => request('confirmed_by'),
                     'delegate_id' => request('delegate_id'),
@@ -138,6 +140,54 @@
             <!-- فلتر وبحث -->
             <div class="mb-5">
                 <form method="GET" action="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="space-y-4">
+                    <!-- قسم اختيار المخازن (مربعات اختيار فوق البحث) -->
+                    <div class="panel bg-gray-50/50 dark:bg-gray-800/30 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <span class="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                                المخازن المصرح بها (اختر مخزن واحد أو أكثر):
+                            </span>
+                            <div class="flex items-center gap-3 text-xs">
+                                <button type="button" onclick="selectAllWarehouses(true)" class="text-primary hover:underline font-semibold flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    تحديد الكل
+                                </button>
+                                <span class="text-gray-300">|</span>
+                                <button type="button" onclick="selectAllWarehouses(false)" class="text-danger hover:underline font-semibold flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                    إلغاء التحديد
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-3" id="warehouseCheckboxesContainer">
+                            @php
+                                $hasWarehouseIdsFilter = request()->has('warehouse_ids');
+                                $selectedWarehouseIds = $hasWarehouseIdsFilter ? (array) request('warehouse_ids', []) : [];
+                            @endphp
+                            @foreach($warehouses as $warehouse)
+                                @php
+                                    $isChecked = !$hasWarehouseIdsFilter || in_array($warehouse->id, $selectedWarehouseIds);
+                                @endphp
+                                <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        name="warehouse_ids[]"
+                                        value="{{ $warehouse->id }}"
+                                        class="form-checkbox text-primary warehouse-checkbox"
+                                        {{ $isChecked ? 'checked' : '' }}
+                                    >
+                                    <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $warehouse->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
                     <!-- الصف الأول: البحث -->
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="flex-1">
@@ -152,18 +202,8 @@
                         </div>
                     </div>
 
-                    <!-- الصف الثاني: المخزن والمجهز والمندوب -->
+                    <!-- الصف الثاني: المجهز والمندوب والحالات -->
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <div class="sm:w-48">
-                            <select name="warehouse_id" class="form-select" id="warehouseFilterPending">
-                                <option value="">كل المخازن</option>
-                                @foreach($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ request('warehouse_id') == $warehouse->id ? 'selected' : '' }}>
-                                        {{ $warehouse->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
                         <div class="sm:w-48">
                             <select name="confirmed_by" id="confirmedByFilterPending" class="form-select">
                                 <option value="">كل المجهزين والمديرين</option>
@@ -922,17 +962,23 @@
     </div>
 
     <script>
+        function selectAllWarehouses(select) {
+            const checkboxes = document.querySelectorAll('.warehouse-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = select;
+            });
+        }
+
         // Local Storage لجميع الفلاتر
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const hasUrlParams = urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+            const hasUrlParams = urlParams.has('warehouse_ids') || urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
                                 urlParams.has('delegate_id') || urlParams.has('size_reviewed') || urlParams.has('message_confirmed') ||
                                 urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') ||
                                 urlParams.has('alwaseet_sent') || urlParams.has('alwaseet_complete') || urlParams.has('supplier_id');
 
             // قائمة الفلاتر مع مفاتيح localStorage
             const filters = [
-                { id: 'warehouseFilterPending', key: 'selectedWarehouse_alwaseet_print_upload', param: 'warehouse_id' },
                 { id: 'searchFilterPending', key: 'selectedSearch_alwaseet_print_upload', param: 'search' },
                 { id: 'confirmedByFilterPending', key: 'selectedConfirmedBy_alwaseet_print_upload', param: 'confirmed_by' },
                 { id: 'delegateIdFilterPending', key: 'selectedDelegateId_alwaseet_print_upload', param: 'delegate_id' },
