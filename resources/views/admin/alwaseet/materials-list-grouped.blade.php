@@ -18,6 +18,7 @@
                     $backRouteForEdit = 'admin.alwaseet.materials-list-grouped';
                     $backParams = array_filter([
                         'warehouse_id' => request('warehouse_id'),
+                        'warehouse_ids' => request('warehouse_ids'),
                         'search' => request('search'),
                         'confirmed_by' => request('confirmed_by'),
                         'delegate_id' => request('delegate_id'),

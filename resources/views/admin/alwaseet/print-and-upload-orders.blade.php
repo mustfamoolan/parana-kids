@@ -962,11 +962,18 @@
     </div>
 
     <script>
+        function saveWarehouseCheckboxes() {
+            const checkedCBs = document.querySelectorAll('.warehouse-checkbox:checked');
+            const ids = Array.from(checkedCBs).map(cb => cb.value);
+            localStorage.setItem('selectedWarehouseIds_alwaseet_print_upload', JSON.stringify(ids));
+        }
+
         function selectAllWarehouses(select) {
             const checkboxes = document.querySelectorAll('.warehouse-checkbox');
             checkboxes.forEach(cb => {
                 cb.checked = select;
             });
+            saveWarehouseCheckboxes();
         }
 
         // Local Storage لجميع الفلاتر
@@ -976,6 +983,13 @@
                                 urlParams.has('delegate_id') || urlParams.has('size_reviewed') || urlParams.has('message_confirmed') ||
                                 urlParams.has('date_from') || urlParams.has('date_to') || urlParams.has('time_from') || urlParams.has('time_to') ||
                                 urlParams.has('alwaseet_sent') || urlParams.has('alwaseet_complete') || urlParams.has('supplier_id');
+
+            // تسجيل التغيير في مربعات اختيار المخازن
+            document.querySelectorAll('.warehouse-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    saveWarehouseCheckboxes();
+                });
+            });
 
             // قائمة الفلاتر مع مفاتيح localStorage
             const filters = [
@@ -995,6 +1009,25 @@
 
             let hasSavedFilters = false;
             const savedParams = new URLSearchParams();
+
+            // استرجاع فلاتر المخازن من localStorage إذا لم تكن هناك معاملات في URL
+            if (!hasUrlParams) {
+                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_alwaseet_print_upload');
+                if (savedWarehouseIdsStr) {
+                    try {
+                        const savedIds = JSON.parse(savedWarehouseIdsStr);
+                        if (Array.isArray(savedIds)) {
+                            document.querySelectorAll('.warehouse-checkbox').forEach(cb => {
+                                cb.checked = savedIds.includes(cb.value);
+                            });
+                            savedIds.forEach(id => {
+                                savedParams.append('warehouse_ids[]', id);
+                            });
+                            hasSavedFilters = true;
+                        }
+                    } catch (e) {}
+                }
+            }
 
             filters.forEach(filter => {
                 const element = document.getElementById(filter.id);
@@ -1025,15 +1058,8 @@
             if (!hasUrlParams && hasSavedFilters && savedParams.toString()) {
                 const form = document.querySelector('form[action*="print-and-upload-orders"]');
                 if (form) {
-                    // إضافة الفلاتر المحفوظة إلى النموذج
-                    savedParams.forEach((value, key) => {
-                        const existingInput = form.querySelector(`[name="${key}"]`);
-                        if (existingInput) {
-                            existingInput.value = value;
-                        }
-                    });
-                    // إرسال النموذج تلقائياً
-                    form.submit();
+                    // إرسال النموذج تلقائياً بالمعاملات المحفوظة
+                    window.location.href = '{{ route('admin.alwaseet.print-and-upload-orders') }}?' + savedParams.toString();
                 }
             }
 
@@ -1053,6 +1079,8 @@
                             element.value = '';
                         }
                     });
+
+                    localStorage.removeItem('selectedWarehouseIds_alwaseet_print_upload');
 
                     // الانتقال إلى الصفحة بدون parameters
                     window.location.href = '{{ route('admin.alwaseet.print-and-upload-orders') }}';

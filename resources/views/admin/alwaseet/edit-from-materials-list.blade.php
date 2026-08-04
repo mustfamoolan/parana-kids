@@ -23,7 +23,13 @@
         <form method="POST" action="{{ route('admin.alwaseet.materials-list.orders.update', $order) }}">
             @csrf
             @foreach($backParams as $key => $value)
-                @if($value)
+                @if(is_array($value))
+                    @foreach($value as $subVal)
+                        @if($subVal)
+                            <input type="hidden" name="{{ $key }}[]" value="{{ $subVal }}">
+                        @endif
+                    @endforeach
+                @elseif($value)
                     <input type="hidden" name="{{ $key }}" value="{{ $value }}">
                 @endif
             @endforeach
