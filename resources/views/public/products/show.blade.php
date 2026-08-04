@@ -271,47 +271,29 @@
         }
         #imageModal .modal-close:hover { background: rgba(255,255,255,0.2); }
 
-        /* Grid responsive */
+        /* Grid responsive: Single Column on Mobile for Maximum Clarity */
         .products-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
         }
         @media (min-width: 640px) {
-            .products-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+            .products-grid { 
+                grid-template-columns: repeat(2, 1fr) !important; 
+                gap: 20px !important; 
+            }
         }
         @media (min-width: 900px) {
-            .products-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+            .products-grid { 
+                grid-template-columns: repeat(3, 1fr) !important; 
+                gap: 24px !important; 
+            }
         }
         @media (min-width: 1200px) {
-            .products-grid { grid-template-columns: repeat(4, 1fr); gap: 28px; }
-        }
-        /* YouTube Video Button Style */
-        .yt-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
-            color: #ffffff;
-            font-weight: 800;
-            font-size: 0.8rem;
-            padding: 8px 14px;
-            border-radius: 999px;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .yt-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(255, 0, 0, 0.4);
-            background: linear-gradient(135deg, #ff1a1a 0%, #e60000 100%);
-        }
-        .yt-btn:active {
-            transform: translateY(0);
+            .products-grid { 
+                grid-template-columns: repeat(4, 1fr) !important; 
+                gap: 28px !important; 
+            }
         }
 
         /* Video Modal Overlay - Shorts (9:16 Vertical Ratio) */
