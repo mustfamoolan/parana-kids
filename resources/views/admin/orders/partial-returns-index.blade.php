@@ -58,17 +58,31 @@
                 @endif
 
                 <!-- زر الباركود المربع فوق البحث وتحت الجيك بوكس -->
-                <div class="flex items-center justify-center py-2">
+                <div class="flex items-center justify-center py-3">
                     <button
                         type="button"
                         onclick="openBarcodeScannerModal()"
-                        class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary via-blue-600 to-indigo-700 hover:from-primary-dark hover:to-indigo-800 text-white shadow-lg hover:shadow-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 transform active:scale-95 border-2 border-white dark:border-gray-800 group"
+                        class="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-[#1a2744] hover:bg-[#243560] text-white shadow-xl hover:shadow-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105 active:scale-95 border-4 border-[#1a2744] group"
                         title="انقر لمسح الباركود بالكاميرا"
                     >
-                        <svg class="w-8 h-8 sm:w-10 sm:h-10 group-hover:scale-110 transition-transform animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"></path>
+                        <!-- أيقونة باركود حقيقية SVG -->
+                        <svg class="w-14 h-14 sm:w-18 sm:h-18 group-hover:scale-110 transition-transform" viewBox="0 0 100 100" fill="white" xmlns="http://www.w3.org/2000/svg">
+                            <!-- أعمدة باركود -->
+                            <rect x="5"  y="10" width="6"  height="60" rx="1"/>
+                            <rect x="15" y="10" width="3"  height="60" rx="1"/>
+                            <rect x="22" y="10" width="7"  height="60" rx="1"/>
+                            <rect x="33" y="10" width="3"  height="60" rx="1"/>
+                            <rect x="40" y="10" width="5"  height="60" rx="1"/>
+                            <rect x="49" y="10" width="8"  height="60" rx="1"/>
+                            <rect x="61" y="10" width="3"  height="60" rx="1"/>
+                            <rect x="68" y="10" width="6"  height="60" rx="1"/>
+                            <rect x="78" y="10" width="4"  height="60" rx="1"/>
+                            <rect x="86" y="10" width="9"  height="60" rx="1"/>
+                            <!-- إطار الزوايا -->
+                            <path d="M5 78 L5 90 L17 90" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M83 78 L83 90 L95 90" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                        <span class="text-[10px] sm:text-xs font-bold tracking-tight">مسح باركود</span>
+                        <span class="text-xs sm:text-sm font-bold tracking-wide">مسح باركود</span>
                     </button>
                 </div>
 
