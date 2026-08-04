@@ -141,23 +141,23 @@
             <div class="mb-5">
                 <form method="GET" action="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="space-y-4">
                     <!-- قسم اختيار المخازن (مربعات اختيار فوق البحث) -->
-                    <div class="panel bg-gray-50/50 dark:bg-gray-800/30 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div class="panel bg-gray-50 dark:bg-[#0e1726] p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-                            <span class="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                            <span class="text-sm font-bold text-black dark:text-white-light flex items-center gap-1.5">
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                                 </svg>
                                 المخازن المصرح بها (اختر مخزن واحد أو أكثر):
                             </span>
                             <div class="flex items-center gap-3 text-xs">
-                                <button type="button" onclick="selectAllWarehouses(true)" class="text-primary hover:underline font-semibold flex items-center gap-1">
+                                <button type="button" onclick="selectAllWarehouses(true)" class="text-primary dark:text-primary-light hover:underline font-semibold flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
                                     تحديد الكل
                                 </button>
-                                <span class="text-gray-300">|</span>
-                                <button type="button" onclick="selectAllWarehouses(false)" class="text-danger hover:underline font-semibold flex items-center gap-1">
+                                <span class="text-gray-300 dark:text-gray-600">|</span>
+                                <button type="button" onclick="selectAllWarehouses(false)" class="text-danger dark:text-danger-light hover:underline font-semibold flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
@@ -174,7 +174,7 @@
                                 @php
                                     $isChecked = !$hasWarehouseIdsFilter || in_array($warehouse->id, $selectedWarehouseIds);
                                 @endphp
-                                <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
+                                <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
                                     <input
                                         type="checkbox"
                                         name="warehouse_ids[]"
@@ -182,7 +182,7 @@
                                         class="form-checkbox text-primary warehouse-checkbox"
                                         {{ $isChecked ? 'checked' : '' }}
                                     >
-                                    <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $warehouse->name }}</span>
+                                    <span class="text-sm font-medium text-black dark:text-white-light">{{ $warehouse->name }}</span>
                                 </label>
                             @endforeach
                         </div>
