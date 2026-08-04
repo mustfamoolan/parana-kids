@@ -300,7 +300,7 @@
 
             <!-- البحث والفلترة -->
             <form method="GET" action="{{ route('admin.warehouses.show', $warehouse) }}" class="mb-5">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
                     <!-- حقل البحث -->
                     <div>
                         <label for="search" class="block text-sm font-medium mb-2">البحث</label>
@@ -358,6 +358,34 @@
                         </select>
                     </div>
 
+                    <!-- فلتر ترتيب تاريخ إضافة المواد -->
+                    <div>
+                        <label for="sort_date" class="block text-sm font-medium mb-2">تاريخ المواد</label>
+                        <select
+                            id="sort_date"
+                            name="sort_date"
+                            class="form-select w-full"
+                        >
+                            <option value="">الكل (الافتراضي)</option>
+                            <option value="asc" {{ ($sortDateFilter ?? '') === 'asc' ? 'selected' : '' }}>الأقدم للمواد (تصاعدي)</option>
+                            <option value="desc" {{ ($sortDateFilter ?? '') === 'desc' ? 'selected' : '' }}>الأحدث للمواد (تنازلي)</option>
+                        </select>
+                    </div>
+
+                    <!-- فلتر ترتيب عدد المواد / الكمية -->
+                    <div>
+                        <label for="sort_quantity" class="block text-sm font-medium mb-2">عدد المواد</label>
+                        <select
+                            id="sort_quantity"
+                            name="sort_quantity"
+                            class="form-select w-full"
+                        >
+                            <option value="">الكل (بدون ترتيب كمية)</option>
+                            <option value="asc" {{ ($sortQuantityFilter ?? '') === 'asc' ? 'selected' : '' }}>تصاعدي (الأقل كمية)</option>
+                            <option value="desc" {{ ($sortQuantityFilter ?? '') === 'desc' ? 'selected' : '' }}>تنازلي (الأكثر كمية)</option>
+                        </select>
+                    </div>
+
                     <!-- أزرار البحث والمسح -->
                     <div class="flex items-end gap-2">
                         <button type="submit" class="btn btn-primary flex-1">
@@ -366,7 +394,7 @@
                             </svg>
                             بحث
                         </button>
-                        @if($searchTerm || $genderTypeFilter || $isHiddenFilter || $hasDiscountFilter)
+                        @if($searchTerm || $genderTypeFilter || $isHiddenFilter || $hasDiscountFilter || $sortDateFilter || $sortQuantityFilter)
                             <a href="{{ route('admin.warehouses.show', $warehouse) }}" class="btn btn-outline-secondary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

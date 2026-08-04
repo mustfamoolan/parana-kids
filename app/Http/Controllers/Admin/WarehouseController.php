@@ -115,7 +115,9 @@ class WarehouseController extends Controller
         $this->authorize('view', $warehouse);
 
         // بناء الاستعلام للمنتجات
-        $productsQuery = $warehouse->products()->with(['images', 'primaryImage', 'sizes', 'creator', 'warehouse.activePromotion']);
+        $productsQuery = $warehouse->products()
+            ->withSum('sizes', 'quantity')
+            ->with(['images', 'primaryImage', 'sizes', 'creator', 'warehouse.activePromotion']);
 
         // فلتر حسب النوع (gender_type)
         if ($request->filled('gender_type')) {
@@ -183,6 +185,23 @@ class WarehouseController extends Controller
             });
         }
 
+        // فلتر الترتيب حسب تاريخ المواد (الأقدم / الأحدث)
+        $sortDateFilter = $request->get('sort_date', '');
+        if (in_array($sortDateFilter, ['asc', 'desc'])) {
+            $productsQuery->orderBy('products.created_at', $sortDateFilter);
+        }
+
+        // فلتر الترتيب حسب عدد المواد / الكمية (تصاعدي / تنازلي)
+        $sortQuantityFilter = $request->get('sort_quantity', '');
+        if (in_array($sortQuantityFilter, ['asc', 'desc'])) {
+            $productsQuery->orderBy('sizes_sum_quantity', $sortQuantityFilter);
+        }
+
+        // الترتيب الافتراضي إذا لم يتم تحديد أي ترتيب آخر
+        if (!$sortDateFilter && !$sortQuantityFilter) {
+            $productsQuery->latest('products.id');
+        }
+
         // حساب الإحصائيات قبل pagination (بناءً على جميع المنتجات المفلترة)
         $allFilteredProducts = (clone $productsQuery)->get();
         $totalPieces = $allFilteredProducts->sum(function($product) {
@@ -216,6 +235,8 @@ class WarehouseController extends Controller
         $genderTypeFilter = $request->get('gender_type', '');
         $isHiddenFilter = $request->get('is_hidden', '');
         $hasDiscountFilter = $request->get('has_discount', '');
+        $sortDateFilter = $request->get('sort_date', '');
+        $sortQuantityFilter = $request->get('sort_quantity', '');
 
         // جلب التخفيض النشط
         $activePromotion = $warehouse->getCurrentActivePromotion();
@@ -272,7 +293,7 @@ class WarehouseController extends Controller
             $ownerProfit = $totalWarehouseProfit - $totalInvestorProfit;
         }
 
-        return view('admin.warehouses.show', compact('warehouse', 'products', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden', 'investments', 'warehouseProfits', 'totalWarehouseProfit', 'totalInvestorProfit', 'ownerProfit'));
+        return view('admin.warehouses.show', compact('warehouse', 'products', 'totalSellingPrice', 'totalPurchasePrice', 'totalPieces', 'searchTerm', 'genderTypeFilter', 'isHiddenFilter', 'hasDiscountFilter', 'sortDateFilter', 'sortQuantityFilter', 'activePromotion', 'productsWithDiscount', 'productsWithoutDiscount', 'productsHidden', 'productsNotHidden', 'investments', 'warehouseProfits', 'totalWarehouseProfit', 'totalInvestorProfit', 'ownerProfit'));
     }
 
     /**
