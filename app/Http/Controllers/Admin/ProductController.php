@@ -295,8 +295,8 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'link_1688' => 'nullable|url|max:500',
+            'youtube_url' => 'nullable|url|max:500',
             'is_hidden' => 'nullable|boolean',
-            'discount_type' => 'nullable|in:none,amount,percentage',
             'discount_value' => 'nullable|numeric|min:0|required_if:discount_type,amount,percentage',
             'discount_start_date' => 'nullable|date|required_with:discount_end_date',
             'discount_end_date' => 'nullable|date|after_or_equal:discount_start_date|required_with:discount_start_date',
@@ -329,6 +329,7 @@ class ProductController extends Controller
             'selling_price' => $request->selling_price,
             'description' => $request->description,
             'link_1688' => $request->link_1688,
+            'youtube_url' => $request->youtube_url,
             'is_hidden' => $request->has('is_hidden') && auth()->user()->isAdmin() ? (bool)$request->is_hidden : false,
             'discount_type' => $request->discount_type ?? 'none',
             'discount_value' => $request->discount_value,
@@ -590,8 +591,8 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'link_1688' => 'nullable|url|max:500',
+            'youtube_url' => 'nullable|url|max:500',
             'is_hidden' => 'nullable|boolean',
-            'discount_type' => 'nullable|in:none,amount,percentage',
             'discount_value' => 'nullable|numeric|min:0|required_if:discount_type,amount,percentage',
             'discount_start_date' => 'nullable|date|required_with:discount_end_date',
             'discount_end_date' => 'nullable|date|after_or_equal:discount_start_date|required_with:discount_start_date',
@@ -628,6 +629,7 @@ class ProductController extends Controller
                 'selling_price' => $request->selling_price,
                 'description' => $request->description,
                 'link_1688' => $request->link_1688,
+                'youtube_url' => $request->youtube_url,
             ];
 
             // تعديل سعر الشراء إذا كان لدى المستخدم الصلاحية (المدير أو المجهز المصرح له)

@@ -263,6 +263,77 @@
         @media (min-width: 1200px) {
             .products-grid { grid-template-columns: repeat(4, 1fr); gap: 28px; }
         }
+        /* YouTube Video Button Style */
+        .yt-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 0.8rem;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .yt-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(255, 0, 0, 0.4);
+            background: linear-gradient(135deg, #ff1a1a 0%, #e60000 100%);
+        }
+        .yt-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Video Modal Overlay */
+        #videoModal {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            backdrop-filter: blur(12px);
+        }
+        #videoModal.open { display: flex; }
+        #videoModal .modal-video-wrap {
+            max-width: min(90vw, 800px);
+            width: 100%;
+            position: relative;
+        }
+        #videoModal iframe {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border-radius: 1.5rem;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: block;
+        }
+        #videoModal .modal-title {
+            color: #fff;
+            text-align: center;
+            font-weight: 900;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+        }
+        #videoModal .modal-close {
+            position: absolute;
+            top: -44px; left: 0;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.1);
+            border: none; border-radius: 50%;
+            color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        #videoModal .modal-close:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body class="antialiased">
@@ -350,6 +421,7 @@
                                         }
                                         $imageCount = $allImages->count();
                                         $sliderId = 'slider-' . $product->id . '-' . $sizeName . '-' . $idx;
+                                        $youtubeId = $product->getYoutubeEmbedId();
                                     @endphp
 
                                     <div class="product-card bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
@@ -469,6 +541,23 @@
                                                     📸 {{ $imageCount }} صور · انقر للتكبير
                                                 </p>
                                             @endif
+
+                                            <!-- YouTube Video Button -->
+                                            @if($youtubeId)
+                                                <button
+                                                    onclick="openVideoModal('{{ $youtubeId }}', '{{ addslashes($product->name) }}')"
+                                                    class="yt-btn w-full mt-3"
+                                                    aria-label="شاهد فيديو المنتج"
+                                                >
+                                                    <span class="yt-icon">
+                                                        <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                                                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                                        </svg>
+                                                    </span>
+                                                    <span class="yt-text">شاهد الفيديو</span>
+                                                    <span class="yt-pulse"></span>
+                                                </button>
+                                            @endif
                                         </div>
 
                                     </div>
@@ -511,6 +600,19 @@
         </div>
     </div>
 
+    <!-- Video Modal -->
+    <div id="videoModal" onclick="closeVideoModal()">
+        <div class="modal-video-wrap" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeVideoModal()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+            <iframe id="modalVideoIframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <p id="modalVideoTitle" class="modal-title"></p>
+        </div>
+    </div>
+
     <script>
         /* ========== IMAGE MODAL ========== */
         function openModal(url, title) {
@@ -524,7 +626,27 @@
             document.getElementById('imageModal').classList.remove('open');
             document.body.style.overflow = '';
         }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+        /* ========== VIDEO MODAL ========== */
+        function openVideoModal(youtubeId, title) {
+            if (!youtubeId) return;
+            document.getElementById('modalVideoIframe').src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
+            document.getElementById('modalVideoTitle').textContent = title;
+            document.getElementById('videoModal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeVideoModal() {
+            document.getElementById('modalVideoIframe').src = '';
+            document.getElementById('videoModal').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', e => { 
+            if (e.key === 'Escape') {
+                closeModal();
+                closeVideoModal();
+            }
+        });
 
         /* ========== SLIDER LOGIC ========== */
         // Track current index for each slider

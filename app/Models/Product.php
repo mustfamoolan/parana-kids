@@ -18,6 +18,7 @@ class Product extends Model
         'selling_price',
         'description',
         'link_1688',
+        'youtube_url',
         'created_by',
         'is_hidden',
         'discount_type',
@@ -117,6 +118,39 @@ class Product extends Model
     public function profitRecords()
     {
         return $this->hasMany(ProfitRecord::class);
+    }
+
+    /**
+     * Extract YouTube video embed ID from any YouTube URL format
+     * Supports: youtu.be, youtube.com/watch, youtube.com/shorts, youtube.com/embed
+     */
+    public function getYoutubeEmbedId(): ?string
+    {
+        if (!$this->youtube_url) return null;
+
+        $url = trim($this->youtube_url);
+
+        // youtu.be/VIDEO_ID
+        if (preg_match('/youtu\.be\/([\w-]{11})/i', $url, $m)) {
+            return $m[1];
+        }
+
+        // youtube.com/shorts/VIDEO_ID
+        if (preg_match('/youtube\.com\/shorts\/([\w-]{11})/i', $url, $m)) {
+            return $m[1];
+        }
+
+        // youtube.com/embed/VIDEO_ID
+        if (preg_match('/youtube\.com\/embed\/([\w-]{11})/i', $url, $m)) {
+            return $m[1];
+        }
+
+        // youtube.com/watch?v=VIDEO_ID
+        if (preg_match('/[?&]v=([\w-]{11})/i', $url, $m)) {
+            return $m[1];
+        }
+
+        return null;
     }
 
     /**

@@ -192,6 +192,20 @@
                             </div>
                         @endif
 
+                        @if($product->getYoutubeEmbedId())
+                            <div class="border-t pt-4">
+                                <span class="text-gray-500 dark:text-gray-400 block mb-3 font-semibold">فيديو المنتج (يوتيوب):</span>
+                                <div class="relative rounded-xl overflow-hidden bg-black w-full" style="aspect-ratio: 16/9;">
+                                    <iframe src="https://www.youtube.com/embed/{{ $product->getYoutubeEmbedId() }}"
+                                            class="w-full h-full"
+                                            frameborder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowfullscreen>
+                                    </iframe>
+                                </div>
+                            </div>
+                        @endif
+
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">المخزن:</span>
                             <span class="font-medium text-black dark:text-white-light">{{ $product->warehouse->name }}</span>

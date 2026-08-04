@@ -189,7 +189,46 @@
                         <div class="mt-1 text-danger">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <!-- رابط فيديو يوتيوب -->
+                <div class="mt-5">
+                    <label for="youtube_url" class="mb-3 block text-sm font-medium text-black dark:text-white">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-danger" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                            رابط فيديو يوتيوب (اختياري)
+                        </span>
+                    </label>
+                    <input
+                        type="url"
+                        id="youtube_url"
+                        name="youtube_url"
+                        value="{{ old('youtube_url') }}"
+                        class="form-input @error('youtube_url') border-danger @enderror"
+                        placeholder="https://www.youtube.com/watch?v=... أو https://youtu.be/..."
+                        oninput="previewYoutube(this.value)"
+                    >
+                    @error('youtube_url')
+                        <div class="mt-1 text-danger">{{ $message }}</div>
+                    @enderror
+                    <!-- Preview -->
+                    <div id="youtube-preview" class="mt-3 hidden">
+                        <div class="relative rounded-xl overflow-hidden bg-black" style="aspect-ratio:16/9; max-width:480px;">
+                            <iframe id="youtube-iframe"
+                                src=""
+                                class="w-full h-full"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                        <p class="text-xs text-success mt-1 font-bold">✓ تم التعرف على الفيديو بنجاح</p>
+                    </div>
+                    <div id="youtube-error" class="mt-1 text-danger text-xs hidden">❌ رابط يوتيوب غير صحيح</div>
+                </div>
             </div>
+
 
             <!-- صور المنتج (متعددة) -->
             <div class="panel">
@@ -688,6 +727,48 @@
         if (sellingPriceInput) {
             addZerosToPrice(sellingPriceInput);
         }
+
+        // ====== YouTube Preview ======
+        function extractYoutubeId(url) {
+            if (!url) return null;
+            url = url.trim();
+            let m;
+            if ((m = url.match(/youtu\.be\/([\w-]{11})/i))) return m[1];
+            if ((m = url.match(/youtube\.com\/shorts\/([\w-]{11})/i))) return m[1];
+            if ((m = url.match(/youtube\.com\/embed\/([\w-]{11})/i))) return m[1];
+            if ((m = url.match(/[?&]v=([\w-]{11})/i))) return m[1];
+            return null;
+        }
+
+        function previewYoutube(url) {
+            const preview = document.getElementById('youtube-preview');
+            const iframe = document.getElementById('youtube-iframe');
+            const errorDiv = document.getElementById('youtube-error');
+            if (!preview || !iframe) return;
+
+            const id = extractYoutubeId(url);
+            if (id) {
+                iframe.src = `https://www.youtube.com/embed/${id}`;
+                preview.classList.remove('hidden');
+                errorDiv.classList.add('hidden');
+            } else if (url.length > 10) {
+                preview.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+                iframe.src = '';
+            } else {
+                preview.classList.add('hidden');
+                errorDiv.classList.add('hidden');
+                iframe.src = '';
+            }
+        }
+
+        // تشغيل preview إذا كانت هناك قيمة محفوظة (عند old() بعد validation error)
+        document.addEventListener('DOMContentLoaded', function() {
+            const youtubeInput = document.getElementById('youtube_url');
+            if (youtubeInput && youtubeInput.value) {
+                previewYoutube(youtubeInput.value);
+            }
+        });
     </script>
 
     <style>
