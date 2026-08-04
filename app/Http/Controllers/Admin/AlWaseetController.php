@@ -2137,13 +2137,23 @@ class AlWaseetController extends Controller
 
             $pendingOrderIds = $pendingQuery->pluck('id');
             if ($pendingOrderIds->count() > 0) {
-                $pendingTotalAmount = DB::table('order_items')
-                    ->whereIn('order_id', $pendingOrderIds)
-                    ->sum('subtotal') ?? 0;
-
-                $pendingProfitAmount = DB::table('order_items')
+                // بناء استعلام مشترك مع فلتر المخزن على مستوى الأيتمز
+                $pendingItemsQuery = DB::table('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
-                    ->whereIn('order_items.order_id', $pendingOrderIds)
+                    ->whereIn('order_items.order_id', $pendingOrderIds);
+
+                if ($request->has('warehouse_ids')) {
+                    $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+                    if (!empty($selectedWarehouseIds)) {
+                        $pendingItemsQuery->whereIn('products.warehouse_id', $selectedWarehouseIds);
+                    }
+                } elseif ($request->filled('warehouse_id')) {
+                    $pendingItemsQuery->where('products.warehouse_id', $request->warehouse_id);
+                }
+
+                $pendingTotalAmount = (clone $pendingItemsQuery)->sum('order_items.subtotal') ?? 0;
+
+                $pendingProfitAmount = (clone $pendingItemsQuery)
                     ->selectRaw('SUM((order_items.unit_price - COALESCE(products.purchase_price, 0)) * order_items.quantity) as total_profit')
                     ->value('total_profit') ?? 0;
             }
@@ -2154,13 +2164,23 @@ class AlWaseetController extends Controller
 
             $confirmedOrderIds = $confirmedQuery->pluck('id');
             if ($confirmedOrderIds->count() > 0) {
-                $confirmedTotalAmount = DB::table('order_items')
-                    ->whereIn('order_id', $confirmedOrderIds)
-                    ->sum('subtotal') ?? 0;
-
-                $confirmedProfitAmount = DB::table('order_items')
+                // بناء استعلام مشترك مع فلتر المخزن على مستوى الأيتمز
+                $confirmedItemsQuery = DB::table('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
-                    ->whereIn('order_items.order_id', $confirmedOrderIds)
+                    ->whereIn('order_items.order_id', $confirmedOrderIds);
+
+                if ($request->has('warehouse_ids')) {
+                    $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+                    if (!empty($selectedWarehouseIds)) {
+                        $confirmedItemsQuery->whereIn('products.warehouse_id', $selectedWarehouseIds);
+                    }
+                } elseif ($request->filled('warehouse_id')) {
+                    $confirmedItemsQuery->where('products.warehouse_id', $request->warehouse_id);
+                }
+
+                $confirmedTotalAmount = (clone $confirmedItemsQuery)->sum('order_items.subtotal') ?? 0;
+
+                $confirmedProfitAmount = (clone $confirmedItemsQuery)
                     ->whereNotNull('products.purchase_price')
                     ->where('products.purchase_price', '>', 0)
                     ->selectRaw('SUM((order_items.unit_price - products.purchase_price) * order_items.quantity) as total_profit')
