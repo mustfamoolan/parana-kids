@@ -948,7 +948,16 @@ class OrderController extends Controller
         }
 
         // فلتر المخزن
-        if ($request->filled('warehouse_id')) {
+        if ($request->has('warehouse_ids')) {
+            $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+            if (!empty($selectedWarehouseIds)) {
+                $query->whereHas('items.product', function ($q) use ($selectedWarehouseIds) {
+                    $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->filled('warehouse_id')) {
             $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });
@@ -1078,7 +1087,16 @@ class OrderController extends Controller
         }
 
         // فلتر المخزن
-        if ($request->filled('warehouse_id')) {
+        if ($request->has('warehouse_ids')) {
+            $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+            if (!empty($selectedWarehouseIds)) {
+                $query->whereHas('items.product', function ($q) use ($selectedWarehouseIds) {
+                    $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->filled('warehouse_id')) {
             $query->whereHas('items.product', function ($q) use ($request) {
                 $q->where('warehouse_id', $request->warehouse_id);
             });

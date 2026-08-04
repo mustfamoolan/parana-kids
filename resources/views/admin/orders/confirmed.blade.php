@@ -491,12 +491,20 @@
             localStorage.setItem('selectedWarehouseIds_alwaseet_print_upload', JSON.stringify(ids));
         }
 
+        function onConfirmedWarehouseChange() {
+            saveConfirmedWarehouseCheckboxes();
+            const form = document.querySelector('form[action*="orders/confirmed"]') || document.querySelector('form[action*="orders"]');
+            if (form) {
+                form.submit();
+            }
+        }
+
         function selectAllWarehousesConfirmed(select) {
             const checkboxes = document.querySelectorAll('.warehouse-checkbox-confirmed');
             checkboxes.forEach(cb => {
                 cb.checked = select;
             });
-            saveConfirmedWarehouseCheckboxes();
+            onConfirmedWarehouseChange();
         }
 
         // Local Storage لجميع الفلاتر
@@ -509,7 +517,7 @@
 
             document.querySelectorAll('.warehouse-checkbox-confirmed').forEach(cb => {
                 cb.addEventListener('change', function() {
-                    saveConfirmedWarehouseCheckboxes();
+                    onConfirmedWarehouseChange();
                 });
             });
 

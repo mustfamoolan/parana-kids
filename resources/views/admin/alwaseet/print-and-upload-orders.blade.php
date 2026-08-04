@@ -970,12 +970,20 @@
             localStorage.setItem('selectedWarehouseIds_admin_dashboard', JSON.stringify(ids));
         }
 
+        function onWarehouseCheckboxChange() {
+            saveWarehouseCheckboxes();
+            const form = document.querySelector('form[action*="print-and-upload-orders"]');
+            if (form) {
+                form.submit();
+            }
+        }
+
         function selectAllWarehouses(select) {
             const checkboxes = document.querySelectorAll('.warehouse-checkbox');
             checkboxes.forEach(cb => {
                 cb.checked = select;
             });
-            saveWarehouseCheckboxes();
+            onWarehouseCheckboxChange();
         }
 
         // Local Storage لجميع الفلاتر
@@ -989,7 +997,7 @@
             // تسجيل التغيير في مربعات اختيار المخازن
             document.querySelectorAll('.warehouse-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
-                    saveWarehouseCheckboxes();
+                    onWarehouseCheckboxChange();
                 });
             });
 
