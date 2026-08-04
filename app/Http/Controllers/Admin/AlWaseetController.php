@@ -3338,49 +3338,151 @@ class AlWaseetController extends Controller
         }
 
         try {
-            // استخدام نفس الفلاتر من printAndUploadOrders
+            // نفس الاستعلام الأساسي كما في printAndUploadOrders
             $query = Order::where('status', 'pending');
 
-            // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-            // المراقب والمدير يرى كل شيء
-            if (Auth::user()->isSupplier() && !Auth::user()->isObserver()) {
-                $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-                $query->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
-                    $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+            // صلاحيات المجهز
+            if ((Auth::user()->isSupplier() || Auth::user()->isPrivateSupplier()) && !Auth::user()->isObserver()) {
+                $user = Auth::user();
+                $accessibleWarehouseIds = $user->warehouses->pluck('id')->toArray();
+                $query->where(function ($q) use ($user, $accessibleWarehouseIds) {
+                    $q->where('supplier_id', $user->id)
+                      ->orWhere(function ($sq) use ($accessibleWarehouseIds) {
+                          $sq->whereNull('supplier_id')
+                             ->whereHas('items.product', function ($q) use ($accessibleWarehouseIds) {
+                                 $q->whereIn('warehouse_id', $accessibleWarehouseIds);
+                             });
+                      });
                 });
             }
 
-            // تطبيق نفس الفلاتر من request
-            if ($request->filled('warehouse_id')) {
+            // ─── نفس فلاتر الصفحة الرئيسية ───
+
+            // فلتر المخازن المتعددة (warehouse_ids[])
+            if ($request->has('warehouse_ids')) {
+                $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+                if (!empty($selectedWarehouseIds)) {
+                    $query->whereHas('items.product', function ($q) use ($selectedWarehouseIds) {
+                        $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                    });
+                } else {
+                    // لا توجد مخازن محددة = لا طلبات
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'لا توجد مخازن محددة في الفلتر',
+                    ], 400);
+                }
+            } elseif ($request->filled('warehouse_id')) {
                 $query->whereHas('items.product', function ($q) use ($request) {
                     $q->where('warehouse_id', $request->warehouse_id);
                 });
             }
 
+            // فلتر المجهز المؤكد
+            if ($request->filled('confirmed_by')) {
+                $query->where('confirmed_by', $request->confirmed_by);
+            }
+
+            // فلتر المجهز الموجه إليه الطلب
+            if ($request->filled('supplier_id')) {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+
+            // فلتر المندوب
             if ($request->filled('delegate_id')) {
                 $query->where('delegate_id', $request->delegate_id);
             }
 
+            // فلتر حالة التدقيق
+            if ($request->filled('size_reviewed')) {
+                $query->where('size_reviewed', $request->size_reviewed);
+            }
+
+            // فلتر حالة الرسالة
+            if ($request->filled('message_confirmed')) {
+                $query->where('message_confirmed', $request->message_confirmed);
+            }
+
+            // فلتر حالة الإرسال للواسط
+            if ($request->filled('alwaseet_sent')) {
+                if ($request->alwaseet_sent === 'sent') {
+                    $query->whereHas('alwaseetShipment');
+                } elseif ($request->alwaseet_sent === 'not_sent') {
+                    $query->whereDoesntHave('alwaseetShipment');
+                }
+            }
+
+            // فلتر اكتمال البيانات
+            if ($request->filled('alwaseet_complete')) {
+                if ($request->alwaseet_complete === 'complete') {
+                    $query->whereNotNull('alwaseet_city_id')
+                          ->whereNotNull('alwaseet_region_id')
+                          ->where('alwaseet_city_id', '!=', '')
+                          ->where('alwaseet_region_id', '!=', '');
+                } elseif ($request->alwaseet_complete === 'incomplete') {
+                    $query->where(function ($q) {
+                        $q->whereNull('alwaseet_city_id')
+                          ->orWhere('alwaseet_city_id', '=', '')
+                          ->orWhereNull('alwaseet_region_id')
+                          ->orWhere('alwaseet_region_id', '=', '');
+                    });
+                }
+            }
+
+            // فلتر البحث
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
                 $query->where(function ($q) use ($searchTerm) {
                     $q->where('order_number', 'like', "%{$searchTerm}%")
-                        ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                        ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
-                        ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
-                        ->orWhere('customer_address', 'like', "%{$searchTerm}%")
-                        ->orWhere('delivery_code', 'like', "%{$searchTerm}%");
+                      ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                      ->orWhere('customer_address', 'like', "%{$searchTerm}%")
+                      ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
+                      ->orWhereHas('delegate', function ($dq) use ($searchTerm) {
+                          $dq->where('name', 'like', "%{$searchTerm}%");
+                      })
+                      ->orWhereHas('items.product', function ($pq) use ($searchTerm) {
+                          $pq->where('name', 'like', "%{$searchTerm}%")
+                             ->orWhere('code', 'like', "%{$searchTerm}%");
+                      });
                 });
             }
 
-            // جلب الطلبات مع shipments
+            // فلتر التاريخ
+            if ($request->filled('date_from')) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
+
+            // فلتر الوقت
+            if ($request->filled('time_from')) {
+                $dateFrom = $request->date_from ?? now()->format('Y-m-d');
+                $query->where('created_at', '>=', $dateFrom . ' ' . $request->time_from . ':00');
+            }
+            if ($request->filled('time_to')) {
+                $dateTo = $request->date_to ?? now()->format('Y-m-d');
+                $query->where('created_at', '<=', $dateTo . ' ' . $request->time_to . ':00');
+            }
+
+            // فلتر آخر X ساعة
+            if ($request->filled('hours_filter')) {
+                $hours = (int) $request->hours_filter;
+                if ($hours > 0) {
+                    $query->where('created_at', '>=', now()->subHours($hours));
+                }
+            }
+
+            // جلب الطلبات مع shipments فقط
             $orders = $query->with('alwaseetShipment')->get();
 
-            // جمع qr_links من الطلبات المرسلة
+            // جمع qr_links من الطلبات التي لديها shipment وqr_link
             $qrLinks = [];
             foreach ($orders as $order) {
                 $shipment = $order->alwaseetShipment;
-                if ($shipment && !empty($shipment->qr_link)) {
+                if ($shipment && !empty(trim($shipment->qr_link))) {
                     $qrLinks[] = $shipment->qr_link;
                 }
             }
@@ -3388,7 +3490,7 @@ class AlWaseetController extends Controller
             if (empty($qrLinks)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'لا توجد طلبات مرسلة لديها PDFs للطباعة',
+                    'message' => 'لا توجد طلبات مرسلة لديها PDFs للطباعة ضمن الفلتر الحالي',
                 ], 400);
             }
 
@@ -3402,6 +3504,7 @@ class AlWaseetController extends Controller
                 ->header('Content-Length', strlen($mergedPdf))
                 ->header('Cache-Control', 'private, max-age=0, must-revalidate')
                 ->header('Pragma', 'public');
+
         } catch (\Exception $e) {
             Log::error('AlWaseetController: Print all orders failed', [
                 'error' => $e->getMessage(),
