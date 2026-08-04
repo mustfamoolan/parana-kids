@@ -4,19 +4,108 @@
             <h5 class="text-lg font-semibold dark:text-white-light">إرجاع جزئي - الطلبات المقيدة</h5>
         </div>
 
+        <!-- زر مسح الباركود الكبير العائم/المميز فوق البحث -->
+        <div class="mb-5 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 p-4 rounded-2xl border border-blue-200 dark:border-blue-800/40 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3 text-right">
+                <div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h6 class="text-base font-bold text-black dark:text-white">مسح كود الوسيط بالكاميرا</h6>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">وجه كاميرا الهاتف نحو باركود الشحنة للبحث الفوري عن الطلب</p>
+                </div>
+            </div>
+            <button
+                type="button"
+                onclick="openBarcodeScannerModal()"
+                class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-primary to-blue-600 hover:from-primary-dark hover:to-blue-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95"
+            >
+                <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span class="text-base">فتح الكاميرا ومسح الباركود</span>
+            </button>
+        </div>
+
         <!-- فلتر وبحث -->
         <div class="mb-5">
-            <form method="GET" action="{{ route('admin.orders.partial-returns.index') }}" class="space-y-4">
+            <form method="GET" action="{{ route('admin.orders.partial-returns.index') }}" id="partialReturnsFilterForm" class="space-y-4">
+                <!-- قسم اختيار المخازن (مربعات اختيار فوق البحث) -->
+                @if(isset($warehouses) && count($warehouses) > 0)
+                <div class="panel bg-gray-50 dark:bg-[#0e1726] p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <span class="text-sm font-bold text-black dark:text-white-light flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            المخازن المصرح بها (اختر مخزن واحد أو أكثر):
+                        </span>
+                        <div class="flex items-center gap-3 text-xs">
+                            <button type="button" onclick="selectAllWarehousesPartial(true)" class="text-primary dark:text-primary-light hover:underline font-semibold flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                تحديد الكل
+                            </button>
+                            <span class="text-gray-300 dark:text-gray-600">|</span>
+                            <button type="button" onclick="selectAllWarehousesPartial(false)" class="text-danger dark:text-danger-light hover:underline font-semibold flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                                إلغاء التحديد
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3" id="warehouseCheckboxesContainerPartial">
+                        @php
+                            $hasWarehouseIdsFilter = request()->has('warehouse_ids');
+                            $selectedWarehouseIds = $hasWarehouseIdsFilter ? (array) request('warehouse_ids', []) : [];
+                        @endphp
+                        @foreach($warehouses as $warehouse)
+                            @php
+                                $isChecked = !$hasWarehouseIdsFilter || in_array($warehouse->id, $selectedWarehouseIds);
+                            @endphp
+                            <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
+                                <input
+                                    type="checkbox"
+                                    name="warehouse_ids[]"
+                                    value="{{ $warehouse->id }}"
+                                    class="form-checkbox text-primary warehouse-checkbox-partial"
+                                    {{ $isChecked ? 'checked' : '' }}
+                                >
+                                <span class="text-sm font-medium text-black dark:text-white-light">{{ $warehouse->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
                 <!-- الصف الأول: البحث -->
                 <div class="flex flex-col sm:flex-row gap-4">
-                    <div class="flex-1">
+                    <div class="flex-1 relative">
                         <input
                             type="text"
                             name="search"
-                            class="form-input"
-                            placeholder="ابحث برقم الطلب، اسم الزبون، رقم الهاتف، كود الوسيط، اسم المندوب، أو اسم المجهز (مطابقة تامة)..."
+                            id="partial-returns-search-input"
+                            class="form-input ltr:pr-10 rtl:pl-10"
+                            placeholder="ابحث برقم الطلب، اسم الزبون، رقم الهاتف، كود الوسيط، اسم المندوب، أو اسم المجهز..."
                             value="{{ request('search') }}"
                         >
+                        @if(request('search'))
+                            <button
+                                type="button"
+                                onclick="document.getElementById('partial-returns-search-input').value=''; this.closest('form').submit();"
+                                class="absolute top-1/2 -translate-y-1/2 ltr:right-3 rtl:left-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                title="إلغاء البحث"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        @endif
                     </div>
                 </div>
 
@@ -70,7 +159,7 @@
                             </svg>
                             بحث
                         </button>
-                        @if(request()->hasAny(['search', 'date_from', 'date_to', 'delegate_id', 'confirmed_by']))
+                        @if(request()->hasAny(['search', 'date_from', 'date_to', 'delegate_id', 'confirmed_by', 'warehouse_ids']))
                             <a href="{{ route('admin.orders.partial-returns.index') }}" class="btn btn-outline-secondary">
                                 <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -84,7 +173,7 @@
         </div>
 
         <!-- نتائج البحث -->
-        @if(request()->hasAny(['search', 'date_from', 'date_to', 'delegate_id', 'confirmed_by']))
+        @if(request()->hasAny(['search', 'date_from', 'date_to', 'delegate_id', 'confirmed_by', 'warehouse_ids']))
             <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <div class="flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,7 +240,7 @@
                                 @endif
                                 @if($order->delivery_code)
                                 <div class="flex items-center gap-2 mt-1">
-                                    <p class="text-sm text-gray-500">كود الوسيط: <span class="font-medium">{{ $order->delivery_code }}</span></p>
+                                    <p class="text-sm text-gray-500">كود الوسيط: <span class="font-medium text-primary font-mono text-base">{{ $order->delivery_code }}</span></p>
                                     <button
                                         type="button"
                                         onclick="copyDeliveryCode('{{ $order->delivery_code }}', 'delivery')"
@@ -222,37 +311,290 @@
         @endif
     </div>
 
+    <!-- Modal الكاميرا والماسح الضوئي للباركود -->
+    <div id="barcodeScannerModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="relative w-full max-w-lg bg-white dark:bg-[#0e1726] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transform transition-all">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1b2e4b]">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-black dark:text-white">مسح كود الوسيط (الباركود)</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">وجه الكاميرا نحو باركود ملصق الشحنة</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeBarcodeScannerModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 flex flex-col items-center justify-center">
+                <!-- حالة الكاميرا -->
+                <div id="scanner-status" class="w-full text-center mb-3 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 py-2 px-3 rounded-lg flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+                    <span>جاري تشغيل الكاميرا...</span>
+                </div>
+
+                <!-- حاوية الفيديو والكاميرا -->
+                <div id="reader-container" class="w-full relative bg-black rounded-xl overflow-hidden min-h-[280px] flex items-center justify-center border-2 border-primary shadow-inner">
+                    <div id="reader" class="w-full"></div>
+                </div>
+
+                <!-- خيار الإدخال اليدوي احتياطاً -->
+                <div class="w-full mt-4">
+                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">أو أدخل كود الوسيط يدوياً:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="manual-barcode-input" class="form-input text-center font-mono text-lg tracking-wider" placeholder="مثال: W-10293">
+                        <button type="button" onclick="submitManualBarcode()" class="btn btn-primary">بحث</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1b2e4b] flex justify-end gap-2">
+                <button type="button" onclick="closeBarcodeScannerModal()" class="btn btn-secondary w-full sm:w-auto">
+                    إغلاق الكاميرا
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مكتبة html5-qrcode لمسح الباركود عبر الكاميرا -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
     <script>
-        function copyDeliveryCode(text, type = '') {
-            // تحديد نوع الرسالة
-            let successMessage = 'تم النسخ بنجاح!';
-            let errorMessage = 'فشل في النسخ';
+        // --- قسم إدارة فلاتر المخازن والـ LocalStorage ---
+        function savePartialWarehouseCheckboxes() {
+            const checkedCBs = document.querySelectorAll('.warehouse-checkbox-partial:checked');
+            const ids = Array.from(checkedCBs).map(cb => cb.value);
+            localStorage.setItem('selectedWarehouseIds_global', JSON.stringify(ids));
+            localStorage.setItem('selectedWarehouseIds_admin_dashboard', JSON.stringify(ids));
+            localStorage.setItem('selectedWarehouseIds_alwaseet_print_upload', JSON.stringify(ids));
+        }
 
-            if (type === 'order') {
-                successMessage = 'تم نسخ رقم الطلب بنجاح!';
-                errorMessage = 'فشل في نسخ رقم الطلب';
-            } else if (type === 'delivery') {
-                successMessage = 'تم نسخ كود الوسيط بنجاح!';
-                errorMessage = 'فشل في نسخ كود الوسيط';
+        function onPartialWarehouseChange() {
+            savePartialWarehouseCheckboxes();
+            const form = document.getElementById('partialReturnsFilterForm');
+            if (form) {
+                form.submit();
             }
+        }
 
-            // إنشاء عنصر مؤقت
+        function selectAllWarehousesPartial(select) {
+            const checkboxes = document.querySelectorAll('.warehouse-checkbox-partial');
+            checkboxes.forEach(cb => {
+                cb.checked = select;
+            });
+            onPartialWarehouseChange();
+        }
+
+        // --- قسم الكاميرا والماسح الضوئي (Html5Qrcode) ---
+        let html5QrCode = null;
+        let isScanning = false;
+
+        function openBarcodeScannerModal() {
+            const modal = document.getElementById('barcodeScannerModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+
+            startBarcodeScanner();
+        }
+
+        function closeBarcodeScannerModal() {
+            stopBarcodeScanner();
+            const modal = document.getElementById('barcodeScannerModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function startBarcodeScanner() {
+            const statusEl = document.getElementById('scanner-status');
+            statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span> جاري فتح الكاميرا...`;
+
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    initScannerInstance();
+                }).catch(() => {
+                    initScannerInstance();
+                });
+            } else {
+                initScannerInstance();
+            }
+        }
+
+        function initScannerInstance() {
+            try {
+                html5QrCode = new Html5Qrcode("reader");
+                const config = {
+                    fps: 15,
+                    qrbox: { width: 280, height: 180 },
+                    aspectRatio: 1.333333
+                };
+
+                // إعطاء الأولوية للكاميرا الخلفية (environment)
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onBarcodeScannedSuccess,
+                    onBarcodeScannedError
+                ).then(() => {
+                    isScanning = true;
+                    const statusEl = document.getElementById('scanner-status');
+                    statusEl.className = "w-full text-center mb-3 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 py-2 px-3 rounded-lg flex items-center justify-center gap-2";
+                    statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> الكاميرا تعمل الآن، وجه الباركود داخل الإطار`;
+                }).catch(err => {
+                    console.warn("فشل فتح الكاميرا الخلفية، تجربة الكاميرا الافتراضية...", err);
+                    // تجربة البديل بأي كاميرا متوفرة
+                    html5QrCode.start(
+                        { facingMode: "user" },
+                        config,
+                        onBarcodeScannedSuccess,
+                        onBarcodeScannedError
+                    ).then(() => {
+                        isScanning = true;
+                        const statusEl = document.getElementById('scanner-status');
+                        statusEl.className = "w-full text-center mb-3 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 py-2 px-3 rounded-lg flex items-center justify-center gap-2";
+                        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> الكاميرا تعمل، وجه الباركود داخل الإطار`;
+                    }).catch(e => {
+                        console.error("فشل فتح أي كاميرا:", e);
+                        const statusEl = document.getElementById('scanner-status');
+                        statusEl.className = "w-full text-center mb-3 text-sm font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 py-2 px-3 rounded-lg flex items-center justify-center gap-2";
+                        statusEl.innerHTML = `تعذر الوصول للكاميرا (تأكد من إعطاء الصلاحية في المتصفح أو ادخل الكود يدوياً أدناه)`;
+                    });
+                });
+            } catch (e) {
+                console.error("خطأ في تشغيل مكتبة الباركود:", e);
+            }
+        }
+
+        function stopBarcodeScanner() {
+            if (html5QrCode && isScanning) {
+                html5QrCode.stop().then(() => {
+                    isScanning = false;
+                }).catch(err => {
+                    console.error("خطأ في إيقاف الكاميرا:", err);
+                });
+            }
+        }
+
+        // عند قراءة الباركود بنجاح
+        function onBarcodeScannedSuccess(decodedText, decodedResult) {
+            if (!decodedText) return;
+            const code = decodedText.trim();
+
+            // إصدار صوت تنبيه خفيف (Beep Sound)
+            playBeepSound();
+
+            // إيقاف الماسح وإغلاق النافذة
+            closeBarcodeScannerModal();
+
+            // وضع القيمة في مربع البحث وإرسال النموذج فورياً!
+            executeSearchByCode(code);
+        }
+
+        function onBarcodeScannedError(errorMessage) {
+            // تجاهل أخطاء عدم اكتشاف الباركود في الإطار أثناء المسح المستمر
+        }
+
+        function submitManualBarcode() {
+            const manualInput = document.getElementById('manual-barcode-input');
+            if (manualInput && manualInput.value.trim()) {
+                const code = manualInput.value.trim();
+                closeBarcodeScannerModal();
+                executeSearchByCode(code);
+            }
+        }
+
+        function executeSearchByCode(code) {
+            const searchInput = document.getElementById('partial-returns-search-input');
+            if (searchInput) {
+                searchInput.value = code;
+                const form = document.getElementById('partialReturnsFilterForm');
+                if (form) {
+                    form.submit();
+                }
+            }
+        }
+
+        // صوت النغمة التفاعلية عند القراءة الناجحة
+        function playBeepSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz (A5)
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {
+                console.log('Audio playback error:', e);
+            }
+        }
+
+        // --- تهيئة الصفحة والـ Local Storage ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('warehouse_ids[]') || urlParams.has('warehouse_ids') || urlParams.has('warehouse_id') || urlParams.has('search') || urlParams.has('confirmed_by') ||
+                                urlParams.has('delegate_id') || urlParams.has('date_from') || urlParams.has('date_to');
+
+            document.querySelectorAll('.warehouse-checkbox-partial').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    onPartialWarehouseChange();
+                });
+            });
+
+            if (!hasUrlParams) {
+                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_global')
+                                          || localStorage.getItem('selectedWarehouseIds_admin_dashboard')
+                                          || localStorage.getItem('selectedWarehouseIds_alwaseet_print_upload');
+                if (savedWarehouseIdsStr) {
+                    try {
+                        const savedIds = JSON.parse(savedWarehouseIdsStr);
+                        if (Array.isArray(savedIds) && savedIds.length > 0) {
+                            const savedParams = new URLSearchParams();
+                            savedIds.forEach(id => {
+                                savedParams.append('warehouse_ids[]', id);
+                            });
+                            if (savedParams.toString()) {
+                                window.location.href = '{{ route('admin.orders.partial-returns.index') }}?' + savedParams.toString();
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+        });
+
+        // نسخ كود الوسيط
+        function copyDeliveryCode(text, type = '') {
+            let successMessage = 'تم نسخ كود الوسيط بنجاح!';
+            let errorMessage = 'فشل في نسخ كود الوسيط';
+
             const textarea = document.createElement('textarea');
             textarea.value = text;
             textarea.style.position = 'fixed';
             textarea.style.opacity = '0';
             document.body.appendChild(textarea);
 
-            // تحديد النص ونسخه
             textarea.select();
-            textarea.setSelectionRange(0, 99999); // للجوال
+            textarea.setSelectionRange(0, 99999);
 
             try {
                 const successful = document.execCommand('copy');
                 document.body.removeChild(textarea);
 
                 if (successful) {
-                    // إظهار رسالة نجاح
                     if (typeof showNotification === 'function') {
                         showNotification(successMessage, 'success');
                     } else {
@@ -267,7 +609,6 @@
                 }
             } catch (err) {
                 document.body.removeChild(textarea);
-                // استخدام Clipboard API كبديل
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(text).then(() => {
                         if (typeof showNotification === 'function') {
@@ -282,12 +623,6 @@
                             alert(errorMessage);
                         }
                     });
-                } else {
-                    if (typeof showNotification === 'function') {
-                        showNotification(errorMessage, 'error');
-                    } else {
-                        alert(errorMessage);
-                    }
                 }
             }
         }

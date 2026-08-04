@@ -2560,11 +2560,50 @@ class OrderController extends Controller
      */
     public function partialReturnsIndex(Request $request)
     {
+        $this->authorize('viewAny', Order::class);
+
+        // جلب قائمة المخازن حسب الصلاحيات
+        if (Auth::user()->isSupplier()) {
+            $warehouses = Auth::user()->warehouses;
+        } else {
+            $warehouses = \App\Models\Warehouse::all();
+        }
+
         $query = Order::where('status', 'confirmed')
             // إخفاء الطلبات التي تم إرجاع جميع منتجاتها (لا تحتوي على منتجات قابلة للإرجاع)
             ->whereHas('items', function ($itemsQuery) {
                 $itemsQuery->where('quantity', '>', 0);
             });
+
+        // للمجهز: عرض الطلبات الموجهة له حصراً، أو الطلبات غير الموجهة التي تتبع مخازنه
+        if (Auth::user()->isSupplier()) {
+            $user = Auth::user();
+            $query->where(function($q) use ($user) {
+                $q->where('supplier_id', $user->id)
+                  ->orWhere(function($sq) use ($user) {
+                      $sq->whereNull('supplier_id')
+                         ->whereHas('items.product', function ($pq) use ($user) {
+                             $pq->whereIn('warehouse_id', $user->warehouses->pluck('id'));
+                         });
+                  });
+            });
+        }
+
+        // فلتر المخزن
+        if ($request->has('warehouse_ids')) {
+            $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+            if (!empty($selectedWarehouseIds)) {
+                $query->whereHas('items.product', function ($q) use ($selectedWarehouseIds) {
+                    $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->filled('warehouse_id')) {
+            $query->whereHas('items.product', function ($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
+            });
+        }
 
         // فلتر المندوب
         if ($request->filled('delegate_id')) {
@@ -2576,22 +2615,23 @@ class OrderController extends Controller
             $query->where('confirmed_by', $request->confirmed_by);
         }
 
-        // البحث الذكي (مطابقة تامة)
+        // البحث الذكي (مطابقة تامة أو بحث جزئي للوسيط)
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
+            $searchTerm = trim($request->search);
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_number', '=', $searchTerm)
-                    ->orWhere('customer_name', '=', $searchTerm)
-                    ->orWhere('customer_phone', '=', $searchTerm)
-                    ->orWhere('customer_social_link', '=', $searchTerm)
-                    ->orWhere('customer_address', '=', $searchTerm)
+                    ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_phone', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_social_link', 'like', "%{$searchTerm}%")
+                    ->orWhere('customer_address', 'like', "%{$searchTerm}%")
                     ->orWhere('delivery_code', '=', $searchTerm)
+                    ->orWhere('delivery_code', 'like', "%{$searchTerm}%")
                     ->orWhereHas('delegate', function ($delegateQuery) use ($searchTerm) {
-                        $delegateQuery->where('name', '=', $searchTerm)
+                        $delegateQuery->where('name', 'like', "%{$searchTerm}%")
                             ->orWhere('code', '=', $searchTerm);
                     })
                     ->orWhereHas('confirmedBy', function ($confirmedQuery) use ($searchTerm) {
-                        $confirmedQuery->where('name', '=', $searchTerm);
+                        $confirmedQuery->where('name', 'like', "%{$searchTerm}%");
                     });
             });
         }
@@ -2618,7 +2658,7 @@ class OrderController extends Controller
         $delegates = User::where('role', 'delegate')->orderBy('name')->get();
         $suppliers = User::whereIn('role', ['supplier', 'admin'])->orderBy('name')->get();
 
-        return view('admin.orders.partial-returns-index', compact('orders', 'delegates', 'suppliers'));
+        return view('admin.orders.partial-returns-index', compact('orders', 'delegates', 'suppliers', 'warehouses'));
     }
 
     /**
