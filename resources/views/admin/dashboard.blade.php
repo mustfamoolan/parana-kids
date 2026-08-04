@@ -3,11 +3,64 @@
         <!-- العنوان -->
         <h1 class="text-2xl font-bold mb-6 text-center">مرحباً {{ auth()->user()->name }}</h1>
 
+        <!-- قسم اختيار المخازن (مربعات اختيار لتصفية كاردات الإحصائيات) -->
+        @if(isset($warehouses) && count($warehouses) > 0)
+        <form method="GET" action="{{ route('admin.dashboard') }}" id="dashboardWarehouseForm" class="mb-6">
+            <div class="panel bg-gray-50 dark:bg-[#0e1726] p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <span class="text-sm font-bold text-black dark:text-white-light flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                        المخازن المصرح بها (اختر مخزن واحد أو أكثر لتصفية الإحصائيات):
+                    </span>
+                    <div class="flex items-center gap-3 text-xs">
+                        <button type="button" onclick="selectAllDashboardWarehouses(true)" class="text-primary dark:text-primary-light hover:underline font-semibold flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            تحديد الكل
+                        </button>
+                        <span class="text-gray-300 dark:text-gray-600">|</span>
+                        <button type="button" onclick="selectAllDashboardWarehouses(false)" class="text-danger dark:text-danger-light hover:underline font-semibold flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            إلغاء التحديد
+                        </button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-3" id="dashboardWarehouseCheckboxesContainer">
+                    @php
+                        $hasWarehouseIdsFilter = request()->has('warehouse_ids');
+                        $selectedWarehouseIds = $selectedWarehouseIds ?? [];
+                    @endphp
+                    @foreach($warehouses as $warehouse)
+                        @php
+                            $isChecked = !$hasWarehouseIdsFilter || in_array($warehouse->id, $selectedWarehouseIds);
+                        @endphp
+                        <label class="flex items-center gap-2 cursor-pointer bg-white dark:bg-[#1b2e4b] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-md hover:border-primary transition-colors">
+                            <input
+                                type="checkbox"
+                                name="warehouse_ids[]"
+                                value="{{ $warehouse->id }}"
+                                class="form-checkbox text-primary dashboard-warehouse-checkbox"
+                                onchange="onDashboardWarehouseChange()"
+                                {{ $isChecked ? 'checked' : '' }}
+                            >
+                            <span class="text-sm font-medium text-black dark:text-white-light">{{ $warehouse->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+        </form>
+        @endif
+
         <!-- الأزرار الرئيسية -->
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSupplier()))
             <!-- رفع وطباع طلبات الوسيط -->
-            <a href="{{ route('admin.alwaseet.print-and-upload-orders') }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.25), rgba(234, 179, 8, 0.2)) !important; border: 4px solid rgba(249, 115, 22, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3), 0 4px 6px -2px rgba(249, 115, 22, 0.2) !important;">
+            <a href="{{ route('admin.alwaseet.print-and-upload-orders', array_filter(['warehouse_ids' => request('warehouse_ids')])) }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.25), rgba(234, 179, 8, 0.2)) !important; border: 4px solid rgba(249, 115, 22, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3), 0 4px 6px -2px rgba(249, 115, 22, 0.2) !important;">
                 <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.35), rgba(234, 179, 8, 0.25)) !important; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2) !important;">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: #ea580c !important;">
                         <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -27,7 +80,7 @@
             </a>
 
             <!-- تتبع طلبات الوسيط -->
-            <a href="{{ route('admin.alwaseet.track-orders') }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2)) !important; border: 4px solid rgba(99, 102, 241, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.2) !important;">
+            <a href="{{ route('admin.alwaseet.track-orders', array_filter(['warehouse_ids' => request('warehouse_ids')])) }}" class="panel hover:shadow-xl transition-all duration-300 text-center p-6" style="background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2)) !important; border: 4px solid rgba(99, 102, 241, 0.5) !important; box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.2) !important;">
                 <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: linear-gradient(to bottom right, rgba(99, 102, 241, 0.35), rgba(139, 92, 246, 0.25)) !important; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2) !important;">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: #6366f1 !important;">
                         <path opacity="0.5" d="M12 2C8.13401 2 5 5.13401 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13401 15.866 2 12 2Z" fill="currentColor"/>
@@ -64,7 +117,7 @@
             </a>
 
             <!-- 1. الطلبات -->
-            <a href="{{ route('admin.orders.management') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
+            <a href="{{ route('admin.orders.management', array_filter(['warehouse_ids' => request('warehouse_ids')])) }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -73,15 +126,7 @@
                 <h3 class="text-lg font-bold text-primary mb-2">الطلبات</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     @php
-                        $pendingOrdersQuery = \App\Models\Order::where('status', 'pending');
-                        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-                        if (auth()->user()->isSupplier()) {
-                            $accessibleWarehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
-                            $pendingOrdersQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                            });
-                        }
-                        $pendingOrdersCount = $pendingOrdersQuery->count();
+                        $pendingOrdersCount = $pendingOrdersCount ?? 0;
                     @endphp
                     @if($pendingOrdersCount > 0)
                         <span class="badge bg-warning">{{ $pendingOrdersCount }}</span> قيد الانتظار
@@ -92,7 +137,7 @@
             </a>
 
             <!-- 1.1. الطلبات غير المقيدة -->
-            <a href="{{ route('admin.orders.pending') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
+            <a href="{{ route('admin.orders.pending', array_filter(['warehouse_ids' => request('warehouse_ids')])) }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -101,15 +146,7 @@
                 <h3 class="text-lg font-bold text-warning mb-2">الطلبات غير المقيدة</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     @php
-                        $unboundOrdersQuery = \App\Models\Order::where('status', 'pending');
-                        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-                        if (auth()->user()->isSupplier()) {
-                            $accessibleWarehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
-                            $unboundOrdersQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                            });
-                        }
-                        $unboundOrdersCount = $unboundOrdersQuery->count();
+                        $unboundOrdersCount = $unboundOrdersCount ?? 0;
                     @endphp
                     @if($unboundOrdersCount > 0)
                         <span class="badge bg-warning">{{ $unboundOrdersCount }}</span> طلب غير مقيد
@@ -120,19 +157,28 @@
             </a>
 
             <!-- 1.2. الطلبات المقيدة -->
-            <a href="{{ route('admin.orders.confirmed') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
+            <a href="{{ route('admin.orders.confirmed', array_filter(['warehouse_ids' => request('warehouse_ids')])) }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-success/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold text-success mb-2">الطلبات المقيدة</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">عرض الطلبات المقيدة</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    @php
+                        $confirmedOrdersCount = $confirmedOrdersCount ?? 0;
+                    @endphp
+                    @if($confirmedOrdersCount > 0)
+                        <span class="badge bg-success">{{ $confirmedOrdersCount }}</span> طلب مقيد
+                    @else
+                        عرض الطلبات المقيدة
+                    @endif
+                </p>
             </a>
 
             @if(auth()->user()->isAdmin() || auth()->user()->isSupplier())
             <!-- 2. الإرجاع الجزئي -->
-            <a href="{{ route('admin.orders.partial-returns.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
+            <a href="{{ route('admin.orders.partial-returns.index', array_filter(['warehouse_ids' => request('warehouse_ids')])) }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
                 <div class="w-16 h-16 mx-auto mb-4 bg-warning/20 rounded-full flex items-center justify-center">
                     <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
@@ -141,18 +187,7 @@
                 <h3 class="text-lg font-bold text-warning mb-2">الإرجاع الجزئي</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     @php
-                        $partialReturnsQuery = \App\Models\Order::where('status', 'confirmed')
-                            ->whereHas('items', function($q) {
-                                $q->where('quantity', '>', 0);
-                            });
-                        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
-                        if (auth()->user()->isSupplier()) {
-                            $accessibleWarehouseIds = auth()->user()->warehouses->pluck('id')->toArray();
-                            $partialReturnsQuery->whereHas('items.product', function($q) use ($accessibleWarehouseIds) {
-                                $q->whereIn('warehouse_id', $accessibleWarehouseIds);
-                            });
-                        }
-                        $partialReturnsCount = $partialReturnsQuery->count();
+                        $partialReturnsCount = $partialReturnsCount ?? 0;
                     @endphp
                     @if($partialReturnsCount > 0)
                         <span class="badge bg-warning">{{ $partialReturnsCount }}</span> طلب قابل للإرجاع
@@ -394,4 +429,51 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function saveDashboardWarehouseCheckboxes() {
+            const checkedCBs = document.querySelectorAll('.dashboard-warehouse-checkbox:checked');
+            const ids = Array.from(checkedCBs).map(cb => cb.value);
+            localStorage.setItem('selectedWarehouseIds_admin_dashboard', JSON.stringify(ids));
+        }
+
+        function onDashboardWarehouseChange() {
+            saveDashboardWarehouseCheckboxes();
+            const form = document.getElementById('dashboardWarehouseForm');
+            if (form) {
+                form.submit();
+            }
+        }
+
+        function selectAllDashboardWarehouses(select) {
+            const checkboxes = document.querySelectorAll('.dashboard-warehouse-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = select;
+            });
+            onDashboardWarehouseChange();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('warehouse_ids');
+
+            if (!hasUrlParams) {
+                const savedWarehouseIdsStr = localStorage.getItem('selectedWarehouseIds_admin_dashboard');
+                if (savedWarehouseIdsStr) {
+                    try {
+                        const savedIds = JSON.parse(savedWarehouseIdsStr);
+                        if (Array.isArray(savedIds)) {
+                            const savedParams = new URLSearchParams();
+                            savedIds.forEach(id => {
+                                savedParams.append('warehouse_ids[]', id);
+                            });
+                            if (savedParams.toString()) {
+                                window.location.href = '{{ route('admin.dashboard') }}?' + savedParams.toString();
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+        });
+    </script>
 </x-layout.admin>

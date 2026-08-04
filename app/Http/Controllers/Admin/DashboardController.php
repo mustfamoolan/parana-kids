@@ -19,34 +19,64 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         // عدد الرسائل غير المقروءة
         $notificationService = new NotificationService();
         $unreadMessagesCount = $notificationService->getUnreadCount(auth()->id(), 'message');
 
-        // حساب عدد الطلبات pending للرفع والطباعة (نفس منطق printAndUploadOrders)
-        $printUploadOrdersQuery = Order::where('status', 'pending');
-        
-        // للمجهز: عرض الطلبات التي تحتوي على منتجات من مخازن له صلاحية الوصول إليها
+        // جلب المخازن المصرح بها للمستخدم الحالي
         if (Auth::user()->isSupplier()) {
-            $accessibleWarehouseIds = Auth::user()->warehouses->pluck('id')->toArray();
-            
-            if (!empty($accessibleWarehouseIds)) {
-                $printUploadOrdersQuery->whereIn('id', function($subQuery) use ($accessibleWarehouseIds) {
-                    $subQuery->select('order_id')
-                        ->from('order_items')
-                        ->join('products', 'order_items.product_id', '=', 'products.id')
-                        ->whereIn('products.warehouse_id', $accessibleWarehouseIds)
-                        ->distinct();
-                });
-            } else {
-                // إذا لم يكن لديه مخازن، لا توجد طلبات
-                $printUploadOrdersQuery->whereRaw('1 = 0');
-            }
+            $warehouses = Auth::user()->warehouses;
+        } else {
+            $warehouses = Warehouse::all();
         }
-        
-        $printUploadOrdersCount = $printUploadOrdersQuery->count();
+
+        $accessibleWarehouseIds = $warehouses->pluck('id')->toArray();
+
+        $hasWarehouseIdsFilter = $request->has('warehouse_ids');
+        if ($hasWarehouseIdsFilter) {
+            $selectedWarehouseIds = array_map('intval', (array) $request->warehouse_ids);
+            $selectedWarehouseIds = array_values(array_intersect($selectedWarehouseIds, $accessibleWarehouseIds));
+        } else {
+            $selectedWarehouseIds = $accessibleWarehouseIds;
+        }
+
+        if (empty($selectedWarehouseIds)) {
+            $printUploadOrdersCount = 0;
+            $pendingOrdersCount = 0;
+            $unboundOrdersCount = 0;
+            $confirmedOrdersCount = 0;
+            $partialReturnsCount = 0;
+        } else {
+            // 1. عدد الطلبات pending للرفع والطباعة
+            $printUploadOrdersCount = Order::where('status', 'pending')
+                ->whereHas('items.product', function($q) use ($selectedWarehouseIds) {
+                    $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                })
+                ->count();
+
+            // 2. عدد الطلبات غير المقيدة (pending)
+            $pendingOrdersCount = $printUploadOrdersCount;
+            $unboundOrdersCount = $printUploadOrdersCount;
+
+            // 3. عدد الطلبات المقيدة (confirmed)
+            $confirmedOrdersCount = Order::where('status', 'confirmed')
+                ->whereHas('items.product', function($q) use ($selectedWarehouseIds) {
+                    $q->whereIn('warehouse_id', $selectedWarehouseIds);
+                })
+                ->count();
+
+            // 4. عدد طلبات الإرجاع الجزئي
+            $partialReturnsCount = Order::where('status', 'confirmed')
+                ->whereHas('items', function($q) use ($selectedWarehouseIds) {
+                    $q->where('quantity', '>', 0)
+                      ->whereHas('product', function($pq) use ($selectedWarehouseIds) {
+                          $pq->whereIn('warehouse_id', $selectedWarehouseIds);
+                      });
+                })
+                ->count();
+        }
 
         // إحصائيات المشاريع والمستثمرين (للمدير فقط)
         $projectsCount = 0;
@@ -56,7 +86,18 @@ class DashboardController extends Controller
             $investorsCount = Investor::count();
         }
 
-        return view('admin.dashboard', compact('unreadMessagesCount', 'printUploadOrdersCount', 'projectsCount', 'investorsCount'));
+        return view('admin.dashboard', compact(
+            'unreadMessagesCount',
+            'warehouses',
+            'selectedWarehouseIds',
+            'printUploadOrdersCount',
+            'pendingOrdersCount',
+            'unboundOrdersCount',
+            'confirmedOrdersCount',
+            'partialReturnsCount',
+            'projectsCount',
+            'investorsCount'
+        ));
     }
 
     /**
