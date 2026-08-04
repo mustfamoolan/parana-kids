@@ -563,8 +563,8 @@
 
             card.innerHTML = `
                 <!-- Checkbox overlay -->
-                <label class="absolute top-2 right-2 z-10 cursor-pointer">
-                    <input type="checkbox" class="product-checkbox form-checkbox text-primary w-5 h-5 rounded"
+                <label class="absolute top-3 left-3 z-10 cursor-pointer flex items-center justify-center p-1 bg-white/90 dark:bg-gray-800/90 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:scale-110 transition-transform">
+                    <input type="checkbox" class="product-checkbox form-checkbox text-primary w-6 h-6 rounded cursor-pointer"
                         data-id="${p.id}"
                         data-selling="${p.effective_price}"
                         data-purchase="${p.purchase_price || 0}"
@@ -572,7 +572,7 @@
                         ${checked ? 'checked' : ''}
                         onchange="onProductCheck(this)">
                 </label>
-                <div class="flex items-center gap-3 mb-3 pr-8">
+                <div class="flex items-center gap-3 mb-3 pl-10">
                     ${imgHtml}
                     <div class="flex-1 min-w-0">
                         <div class="font-semibold text-sm truncate">${escHtml(p.name)}</div>
