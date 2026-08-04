@@ -297,6 +297,113 @@ class WarehouseController extends Controller
     }
 
     /**
+     * Return products as JSON for infinite scroll.
+     */
+    public function getProductsJson(Request $request, Warehouse $warehouse)
+    {
+        $this->authorize('view', $warehouse);
+
+        $productsQuery = $warehouse->products()
+            ->withSum('sizes', 'quantity')
+            ->with(['primaryImage', 'sizes', 'creator', 'warehouse.activePromotion']);
+
+        if ($request->filled('gender_type')) {
+            $genderType = $request->gender_type;
+            if ($genderType == 'boys') {
+                $productsQuery->whereIn('gender_type', ['boys', 'boys_girls']);
+            } elseif ($genderType == 'girls') {
+                $productsQuery->whereIn('gender_type', ['girls', 'boys_girls']);
+            } else {
+                $productsQuery->where('gender_type', $genderType);
+            }
+        }
+
+        if ($request->filled('is_hidden')) {
+            $productsQuery->where('is_hidden', $request->is_hidden === '1' || $request->is_hidden === 'true');
+        }
+
+        if ($request->filled('has_discount')) {
+            $hasDiscount = $request->has_discount === '1' || $request->has_discount === 'true';
+            if ($hasDiscount) {
+                $productsQuery->where(function($q) {
+                    $now = now();
+                    $q->whereNotNull('discount_type')->where('discount_type', '!=', 'none')->whereNotNull('discount_value')
+                      ->where(function($dq) use ($now) {
+                          $dq->where(function($d) use ($now) { $d->whereNull('discount_start_date')->orWhere('discount_start_date', '<=', $now); })
+                             ->where(function($d) use ($now) { $d->whereNull('discount_end_date')->orWhere('discount_end_date', '>=', $now); });
+                      });
+                });
+            } else {
+                $productsQuery->where(function($q) {
+                    $q->whereNull('discount_type')->orWhere('discount_type', 'none')->orWhereNull('discount_value');
+                });
+            }
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $productsQuery->where(function($q) use ($search) {
+                $q->where('code', 'LIKE', "%{$search}%")
+                  ->orWhere('name', 'LIKE', "%{$search}%")
+                  ->orWhereHas('sizes', fn($sq) => $sq->where('size_name', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        $sortDateFilter = $request->get('sort_date', '');
+        if (in_array($sortDateFilter, ['asc', 'desc'])) {
+            $productsQuery->orderBy('products.created_at', $sortDateFilter);
+        }
+
+        $sortQuantityFilter = $request->get('sort_quantity', '');
+        if (in_array($sortQuantityFilter, ['asc', 'desc'])) {
+            $productsQuery->orderBy('sizes_sum_quantity', $sortQuantityFilter);
+        }
+
+        if (!$sortDateFilter && !$sortQuantityFilter) {
+            $productsQuery->latest('products.id');
+        }
+
+        $paginated = $productsQuery->paginate(24);
+        $activePromotion = $warehouse->getCurrentActivePromotion();
+        $isAdmin = auth()->user()->isAdmin();
+        $canSetPurchase = auth()->user()->canSetPurchasePrice();
+
+        $items = $paginated->map(function ($product) use ($activePromotion, $isAdmin, $canSetPurchase, $warehouse) {
+            $hasDiscount = $product->hasActiveDiscount();
+            $discountInfo = $hasDiscount ? $product->getDiscountInfo() : null;
+            $hasPromo = $activePromotion && $activePromotion->is_active && now()->between($activePromotion->start_date, $activePromotion->end_date);
+
+            return [
+                'id'             => $product->id,
+                'name'           => $product->name,
+                'code'           => $product->code,
+                'is_hidden'      => $product->is_hidden,
+                'has_discount'   => $hasDiscount,
+                'discount_info'  => $discountInfo,
+                'has_promo'      => $hasPromo,
+                'selling_price'  => $product->selling_price,
+                'effective_price'=> $product->effective_price,
+                'purchase_price' => $canSetPurchase ? $product->purchase_price : null,
+                'total_quantity' => $product->sizes_sum_quantity ?? $product->sizes->sum('quantity'),
+                'primary_image'  => $product->primaryImage ? $product->primaryImage->image_url : null,
+                'creator'        => $product->creator ? $product->creator->name : '',
+                'show_url'       => route('admin.warehouses.products.show', [$warehouse->id, $product->id]),
+                'edit_url'       => $isAdmin ? route('admin.warehouses.products.edit', [$warehouse->id, $product->id]) : null,
+                'toggle_hidden_url' => $isAdmin ? route('admin.warehouses.products.toggle-hidden', [$warehouse->id, $product->id]) : null,
+                'is_admin'       => $isAdmin,
+                'can_set_purchase' => $canSetPurchase,
+            ];
+        });
+
+        return response()->json([
+            'data'          => $items,
+            'current_page'  => $paginated->currentPage(),
+            'last_page'     => $paginated->lastPage(),
+            'has_more'      => $paginated->hasMorePages(),
+        ]);
+    }
+
+    /**
      * Show the form for editing the specified resource.
      */
     public function edit(Warehouse $warehouse)

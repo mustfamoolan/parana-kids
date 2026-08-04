@@ -242,6 +242,7 @@ Route::prefix('admin')->group(function () {
         ]);
         Route::get('warehouses/{warehouse}/assign-users', [AdminWarehouseController::class, 'assignUsers'])->name('admin.warehouses.assign-users');
         Route::post('warehouses/{warehouse}/update-users', [AdminWarehouseController::class, 'updateUsers'])->name('admin.warehouses.update-users');
+        Route::get('warehouses/{warehouse}/products-json', [AdminWarehouseController::class, 'getProductsJson'])->name('admin.warehouses.products-json');
 
         // Warehouse Promotion routes
         Route::get('warehouses/{warehouse}/promotion/active', [AdminWarehouseController::class, 'getActivePromotion'])->name('admin.warehouses.promotion.active');

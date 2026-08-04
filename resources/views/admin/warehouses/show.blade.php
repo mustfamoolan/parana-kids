@@ -166,19 +166,20 @@
             <!-- الإحصائيات -->
             <div>
                 <div class="panel">
-                    <div class="mb-5">
+                    <div class="mb-3 flex items-center justify-between">
                         <h6 class="text-lg font-semibold dark:text-white-light">الإحصائيات</h6>
+                        <span id="stats-mode-label" class="text-xs text-primary font-semibold hidden">مخصص للمحدد</span>
                     </div>
 
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">عدد المنتجات:</span>
-                            <span class="font-medium text-black dark:text-white">{{ $warehouse->products->count() }} منتج</span>
+                            <span id="stat-count" class="font-medium text-black dark:text-white">{{ $warehouse->products->count() }} منتج</span>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <span class="text-gray-500 dark:text-gray-400">إجمالي القطع:</span>
-                            <span class="font-medium text-black dark:text-white">{{ number_format($totalPieces) }} قطعة</span>
+                            <span id="stat-pieces" class="font-medium text-black dark:text-white">{{ number_format($totalPieces) }} قطعة</span>
                         </div>
 
                         @if(auth()->user()->isAdmin())
@@ -188,7 +189,7 @@
                                         <span class="text-gray-500 dark:text-gray-400">السعر الكلي للبيع:</span>
                                     </div>
                                     <div class="text-2xl font-bold text-black dark:text-white">
-                                        {{ number_format($totalSellingPrice, 0) }}
+                                        <span id="stat-selling">{{ number_format($totalSellingPrice, 0) }}</span>
                                         <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
                                     </div>
                                 </div>
@@ -198,22 +199,20 @@
                                         <span class="text-gray-500 dark:text-gray-400">السعر الكلي للشراء:</span>
                                     </div>
                                     <div class="text-2xl font-bold text-black dark:text-white">
-                                        {{ number_format($totalPurchasePrice, 0) }}
+                                        <span id="stat-purchase">{{ number_format($totalPurchasePrice, 0) }}</span>
                                         <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
                                     </div>
                                 </div>
 
-                                @if($totalSellingPrice > 0 && $totalPurchasePrice > 0)
-                                    <div class="mt-4 pt-4 border-t">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <span class="text-gray-500 dark:text-gray-400">الربح المتوقع:</span>
-                                        </div>
-                                        <div class="text-2xl font-bold text-black dark:text-white">
-                                            {{ number_format($totalSellingPrice - $totalPurchasePrice, 0) }}
-                                            <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
-                                        </div>
+                                <div id="stat-profit-section" class="mt-4 pt-4 border-t {{ $totalSellingPrice > 0 && $totalPurchasePrice > 0 ? '' : 'hidden' }}">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-gray-500 dark:text-gray-400">الربح المتوقع:</span>
                                     </div>
-                                @endif
+                                    <div class="text-2xl font-bold text-black dark:text-white">
+                                        <span id="stat-profit">{{ number_format($totalSellingPrice - $totalPurchasePrice, 0) }}</span>
+                                        <span class="text-sm font-normal text-gray-600 dark:text-gray-400">دينار عراقي</span>
+                                    </div>
+                                </div>
                             </div>
                         @endif
                     </div>
@@ -406,179 +405,353 @@
                 </div>
             </form>
 
-            @if($products->count() > 0)
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach($products as $product)
-                        <div class="panel" id="product-{{ $product->id }}">
-                            <div class="flex items-center gap-3 mb-3">
-                                @if($product->primaryImage)
-                                    <button type="button" onclick="openImageModal('{{ $product->primaryImage->image_url }}', '{{ $product->name }}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
-                                        <img src="{{ $product->primaryImage->image_url }}" alt="{{ $product->name }}" class="w-full h-full object-cover hover:opacity-90 cursor-pointer">
-                                    </button>
-                                @else
-                                    <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0">
-                                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                        </svg>
-                                    </div>
-                                @endif
-                                <div class="flex-1 min-w-0">
-                                    <div class="font-semibold text-sm truncate">{{ $product->name }}</div>
-                                    <div class="text-xs text-gray-500">#{{ $product->id }}</div>
-                                    <div class="mt-1 flex items-center gap-2 flex-wrap">
-                                        <span class="badge badge-outline-primary text-xs">{{ $product->code }}</span>
-                                        @if($product->is_hidden)
-                                            <span class="badge badge-danger text-xs">محجوب</span>
-                                        @endif
-                                        @if($product->hasActiveDiscount())
-                                            @php
-                                                $discountInfo = $product->getDiscountInfo();
-                                            @endphp
-                                            <span class="badge badge-warning text-xs" title="@if($discountInfo['type'] === 'percentage') تخفيض {{ number_format($discountInfo['percentage'], 1) }}% @else تخفيض {{ number_format($discountInfo['discount_amount'], 0) }} د.ع @endif">
-                                                مخفض
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="space-y-2">
-                                @if(auth()->user()->canSetPurchasePrice())
-                                    <div>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">سعر الشراء:</span>
-                                        <div>
-                                            @if($product->purchase_price)
-                                                <span class="font-medium text-info text-sm">{{ number_format($product->purchase_price, 0) }} د.ع</span>
-                                            @else
-                                                <span class="text-gray-400 text-sm">غير محدد</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endif
-                                <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">سعر البيع:</span>
-                                    <div class="font-medium text-sm">
-                                        @if($product->hasActiveDiscount())
-                                            @php
-                                                $discountInfo = $product->getDiscountInfo();
-                                            @endphp
-                                            <div class="flex flex-col gap-1">
-                                                <div>
-                                                    <span class="text-success">{{ number_format($product->effective_price, 0) }} د.ع</span>
-                                                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
-                                                </div>
-                                                <div class="text-xs text-warning">
-                                                    @if($discountInfo['type'] === 'percentage')
-                                                        تخفيض {{ number_format($discountInfo['percentage'], 1) }}%
-                                                    @else
-                                                        تخفيض {{ number_format($discountInfo['discount_amount'], 0) }} د.ع
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        @elseif($activePromotion && $activePromotion->is_active && now()->between($activePromotion->start_date, $activePromotion->end_date))
-                                            <span class="text-success">{{ number_format($product->effective_price, 0) }} د.ع</span>
-                                            <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
-                                        @else
-                                            {{ number_format($product->effective_price, 0) }} د.ع
-                                        @endif
-                                    </div>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">الكمية الإجمالية:</span>
-                                    <div><span class="badge badge-outline-success">{{ $product->total_quantity }}</span></div>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">المنشئ:</span>
-                                    <div class="text-sm">{{ $product->creator->name }}</div>
-                                </div>
-                            </div>
-                            <div class="flex gap-2 mt-3 pt-3 border-t">
-                                @can('view', $product)
-                                    <a href="{{ route('admin.warehouses.products.show', [$warehouse, $product]) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-outline-primary flex-1">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                        </svg>
-                                    </a>
-                                @endcan
-                                @can('update', $product)
-                                    <a href="{{ route('admin.warehouses.products.edit', [$warehouse, $product]) }}?back_url={{ urlencode(request()->fullUrl()) }}" class="btn btn-sm btn-outline-warning flex-1">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                        </svg>
-                                    </a>
-                                @endcan
-                            </div>
-                            @if(auth()->user()->isAdmin())
-                            <div class="flex flex-col gap-2 mt-2">
-                                <button type="button" onclick="toggleProductHidden({{ $product->id }}, {{ $product->is_hidden ? 'true' : 'false' }})"
-                                        class="btn btn-sm {{ $product->is_hidden ? 'btn-success' : 'btn-outline-danger' }} w-full">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.736m0 0L21 21"></path>
-                                    </svg>
-                                    {{ $product->is_hidden ? 'إلغاء الحجب' : 'حجب' }}
-                                </button>
-                                @if($product->hasActiveDiscount())
-                                    <div class="flex gap-2">
-                                        <button type="button" onclick="openProductDiscount{{ $product->discount_type === 'percentage' ? 'Percentage' : 'Amount' }}Modal({{ $product->id }})"
-                                                class="btn btn-sm btn-outline-warning flex-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                            تعديل
-                                        </button>
-                                        <button type="button" onclick="removeProductDiscount({{ $product->id }})"
-                                                class="btn btn-sm btn-outline-danger flex-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                            إلغاء
-                                        </button>
-                                    </div>
-                                @else
-                                    <div class="flex gap-2">
-                                        <button type="button" onclick="openProductDiscountAmountModal({{ $product->id }})"
-                                                class="btn btn-sm btn-outline-warning flex-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                            مبلغ
-                                        </button>
-                                        <button type="button" onclick="openProductDiscountPercentageModal({{ $product->id }})"
-                                                class="btn btn-sm btn-outline-success flex-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                            </svg>
-                                            نسبة
-                                        </button>
-                                    </div>
-                                @endif
-                            </div>
-                            @endif
-                        </div>
-                    @endforeach
+            @if(true)
+                <!-- شريط تحديد الكل / إلغاء -->
+                <div class="flex items-center gap-3 mb-4">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm">
+                        <input type="checkbox" id="selectAllProducts" class="form-checkbox text-primary" onchange="toggleSelectAll(this.checked)">
+                        <span class="font-medium text-black dark:text-white">تحديد الكل</span>
+                    </label>
+                    <span id="selected-count-label" class="text-xs text-gray-500 hidden"></span>
+                    <button type="button" onclick="clearSelection()" id="clear-selection-btn" class="btn btn-xs btn-outline-danger hidden">إلغاء التحديد</button>
                 </div>
 
-                <!-- Pagination -->
-                <div class="mt-6">
-                    {{ $products->links() }}
+                <!-- شبكة كاردات المنتجات (infinite scroll) -->
+                <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- تُحمّل ديناميكياً عبر JS -->
                 </div>
-            @else
-                <div class="text-center py-12">
-                    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                    </svg>
-                    @if($searchTerm || $genderTypeFilter)
-                        <p class="text-lg font-medium text-gray-500">لا توجد منتجات تطابق معايير البحث والفلترة المحددة</p>
-                        <a href="{{ route('admin.warehouses.show', $warehouse) }}" class="btn btn-outline-primary mt-4">
-                            عرض جميع المنتجات
-                        </a>
-                    @else
-                        <p class="text-lg font-medium text-gray-500">لا توجد منتجات في هذا المخزن</p>
-                    @endif
+
+                <!-- مؤشر تحميل المزيد (sentinel) -->
+                <div id="scroll-sentinel" class="flex justify-center py-6 mt-4">
+                    <div id="loading-spinner" class="hidden flex-col items-center gap-2">
+                        <svg class="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                        </svg>
+                        <span class="text-sm text-gray-500">جاري التحميل...</span>
+                    </div>
+                    <div id="no-more-label" class="hidden text-sm text-gray-400">تم عرض جميع المنتجات</div>
+                    <div id="no-products-label" class="hidden text-center py-8">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <p class="text-lg font-medium text-gray-500">لا توجد منتجات تطابق معايير البحث</p>
+                    </div>
                 </div>
             @endif
         </div>
     </div>
+
+    <!-- داتا المخزن للإحصائيات الكاملة -->
+    <script>
+        const WAREHOUSE_FULL_STATS = {
+            count: {{ $warehouse->products->count() }},
+            pieces: {{ $totalPieces }},
+            selling: {{ $totalSellingPrice }},
+            purchase: {{ $totalPurchasePrice }},
+            profit: {{ $totalSellingPrice - $totalPurchasePrice }},
+        };
+        const PRODUCTS_JSON_URL = '{{ route('admin.warehouses.products-json', $warehouse) }}';
+        const BACK_URL = encodeURIComponent(window.location.href);
+        const IS_ADMIN = {{ auth()->user()->isAdmin() ? 'true' : 'false' }};
+        const CAN_SET_PURCHASE = {{ auth()->user()->canSetPurchasePrice() ? 'true' : 'false' }};
+    </script>
+
+    <!-- Infinite Scroll + Checkbox + Stats JS -->
+    <script>
+    (function() {
+        // ---- State ----
+        let currentPage = 0;
+        let isLoading   = false;
+        let hasMore     = true;
+
+        const selectedProducts = new Map(); // id -> {selling, purchase, quantity}
+        const allLoadedProducts = new Map(); // id -> product data
+
+        // ---- DOM refs ----
+        const grid          = document.getElementById('products-grid');
+        const spinner       = document.getElementById('loading-spinner');
+        const noMoreLabel   = document.getElementById('no-more-label');
+        const noProductsLbl = document.getElementById('no-products-label');
+        const sentinel      = document.getElementById('scroll-sentinel');
+        const selectAllCb   = document.getElementById('selectAllProducts');
+        const countLabel    = document.getElementById('selected-count-label');
+        const clearBtn      = document.getElementById('clear-selection-btn');
+
+        // ---- Build URL from current query string ----
+        function buildUrl(page) {
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', page);
+            return PRODUCTS_JSON_URL + '?' + params.toString();
+        }
+
+        // ---- Render one product card ----
+        function renderCard(p) {
+            const checked = selectedProducts.has(p.id);
+            let priceHtml = '';
+            if (p.has_discount && p.discount_info) {
+                const di = p.discount_info;
+                const discLabel = di.type === 'percentage'
+                    ? `تخفيض ${parseFloat(di.percentage).toFixed(1)}%`
+                    : `تخفيض ${numberFmt(di.discount_amount)} د.ع`;
+                priceHtml = `<div class="flex flex-col gap-1">
+                    <div><span class="text-success">${numberFmt(p.effective_price)} د.ع</span>
+                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">${numberFmt(p.selling_price)}</span></div>
+                    <div class="text-xs text-warning">${discLabel}</div></div>`;
+            } else if (p.has_promo) {
+                priceHtml = `<span class="text-success">${numberFmt(p.effective_price)} د.ع</span>
+                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">${numberFmt(p.selling_price)}</span>`;
+            } else {
+                priceHtml = `${numberFmt(p.effective_price)} د.ع`;
+            }
+
+            const imgHtml = p.primary_image
+                ? `<button type="button" onclick="openImageModal('${p.primary_image}','${escHtml(p.name)}')" class="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+                    <img src="${p.primary_image}" alt="${escHtml(p.name)}" class="w-full h-full object-cover hover:opacity-90 cursor-pointer">
+                   </button>`
+                : `<div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg></div>`;
+
+            const hiddenBadge  = p.is_hidden ? `<span class="badge badge-danger text-xs">محجوب</span>` : '';
+            const discountBadge = p.has_discount ? `<span class="badge badge-warning text-xs">مخفض</span>` : '';
+
+            const purchaseHtml = CAN_SET_PURCHASE
+                ? `<div><span class="text-xs text-gray-500 dark:text-gray-400">سعر الشراء:</span>
+                    <div>${p.purchase_price ? `<span class="font-medium text-info text-sm">${numberFmt(p.purchase_price)} د.ع</span>` : `<span class="text-gray-400 text-sm">غير محدد</span>`}</div></div>` : '';
+
+            const viewBtn = p.show_url
+                ? `<a href="${p.show_url}?back_url=${BACK_URL}" class="btn btn-sm btn-outline-primary flex-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                   </a>` : '';
+
+            const editBtn = p.edit_url
+                ? `<a href="${p.edit_url}?back_url=${BACK_URL}" class="btn btn-sm btn-outline-warning flex-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                   </a>` : '';
+
+            let adminHtml = '';
+            if (IS_ADMIN && p.toggle_hidden_url) {
+                const hideBtnClass = p.is_hidden ? 'btn-success' : 'btn-outline-danger';
+                const hideBtnText  = p.is_hidden ? 'إلغاء الحجب' : 'حجب';
+                adminHtml = `<div class="flex flex-col gap-2 mt-2">
+                    <button type="button" onclick="toggleProductHidden(${p.id},${p.is_hidden})"
+                        class="btn btn-sm ${hideBtnClass} w-full" id="hide-btn-${p.id}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.736m0 0L21 21"/></svg>
+                        ${hideBtnText}
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="openProductDiscountAmountModal(${p.id})" class="btn btn-sm btn-outline-warning flex-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            مبلغ
+                        </button>
+                        <button type="button" onclick="openProductDiscountPercentageModal(${p.id})" class="btn btn-sm btn-outline-success flex-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            نسبة
+                        </button>
+                    </div>
+                </div>`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'panel relative' + (checked ? ' ring-2 ring-primary' : '');
+            card.id = 'product-' + p.id;
+            card.setAttribute('data-selling', p.effective_price);
+            card.setAttribute('data-purchase', p.purchase_price || 0);
+            card.setAttribute('data-qty', p.total_quantity || 0);
+
+            card.innerHTML = `
+                <!-- Checkbox overlay -->
+                <label class="absolute top-2 right-2 z-10 cursor-pointer">
+                    <input type="checkbox" class="product-checkbox form-checkbox text-primary w-5 h-5 rounded"
+                        data-id="${p.id}"
+                        data-selling="${p.effective_price}"
+                        data-purchase="${p.purchase_price || 0}"
+                        data-qty="${p.total_quantity || 0}"
+                        ${checked ? 'checked' : ''}
+                        onchange="onProductCheck(this)">
+                </label>
+                <div class="flex items-center gap-3 mb-3 pr-8">
+                    ${imgHtml}
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-sm truncate">${escHtml(p.name)}</div>
+                        <div class="text-xs text-gray-500">#${p.id}</div>
+                        <div class="mt-1 flex items-center gap-2 flex-wrap">
+                            <span class="badge badge-outline-primary text-xs">${escHtml(p.code)}</span>
+                            ${hiddenBadge}${discountBadge}
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    ${purchaseHtml}
+                    <div><span class="text-xs text-gray-500 dark:text-gray-400">سعر البيع:</span>
+                         <div class="font-medium text-sm">${priceHtml}</div></div>
+                    <div><span class="text-xs text-gray-500 dark:text-gray-400">الكمية الإجمالية:</span>
+                         <div><span class="badge badge-outline-success">${p.total_quantity || 0}</span></div></div>
+                    <div><span class="text-xs text-gray-500 dark:text-gray-400">المنشئ:</span>
+                         <div class="text-sm">${escHtml(p.creator)}</div></div>
+                </div>
+                <div class="flex gap-2 mt-3 pt-3 border-t">
+                    ${viewBtn}${editBtn}
+                </div>
+                ${adminHtml}`;
+
+            return card;
+        }
+
+        // ---- Load next page ----
+        async function loadMore() {
+            if (isLoading || !hasMore) return;
+            isLoading = true;
+            spinner.classList.remove('hidden');
+            spinner.classList.add('flex');
+
+            try {
+                const res  = await fetch(buildUrl(currentPage + 1));
+                const json = await res.json();
+
+                json.data.forEach(p => {
+                    allLoadedProducts.set(p.id, p);
+                    grid.appendChild(renderCard(p));
+                });
+
+                currentPage = json.current_page;
+                hasMore     = json.has_more;
+
+                if (!hasMore) {
+                    noMoreLabel.classList.remove('hidden');
+                    observer.unobserve(sentinel);
+                }
+
+                if (currentPage === 1 && json.data.length === 0) {
+                    noProductsLbl.classList.remove('hidden');
+                }
+            } catch(e) {
+                console.error('Load error', e);
+            } finally {
+                isLoading = false;
+                spinner.classList.add('hidden');
+                spinner.classList.remove('flex');
+            }
+        }
+
+        // ---- Intersection Observer ----
+        const observer = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) loadMore();
+        }, { rootMargin: '200px' });
+
+        observer.observe(sentinel);
+
+        // ---- Checkbox logic ----
+        window.onProductCheck = function(cb) {
+            const id       = parseInt(cb.dataset.id);
+            const selling  = parseFloat(cb.dataset.selling) || 0;
+            const purchase = parseFloat(cb.dataset.purchase) || 0;
+            const qty      = parseInt(cb.dataset.qty) || 0;
+            const card     = document.getElementById('product-' + id);
+
+            if (cb.checked) {
+                selectedProducts.set(id, { selling, purchase, qty });
+                card && card.classList.add('ring-2', 'ring-primary');
+            } else {
+                selectedProducts.delete(id);
+                card && card.classList.remove('ring-2', 'ring-primary');
+            }
+            updateStats();
+        };
+
+        window.toggleSelectAll = function(checked) {
+            document.querySelectorAll('.product-checkbox').forEach(cb => {
+                cb.checked = checked;
+                window.onProductCheck(cb);
+            });
+        };
+
+        window.clearSelection = function() {
+            document.querySelectorAll('.product-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            selectedProducts.clear();
+            document.querySelectorAll('[id^="product-"]').forEach(c => c.classList.remove('ring-2','ring-primary'));
+            selectAllCb.checked = false;
+            updateStats();
+        };
+
+        // ---- Update statistics panel ----
+        function updateStats() {
+            const count = selectedProducts.size;
+
+            if (count === 0) {
+                // رجوع للإحصائيات الكاملة
+                setStats(WAREHOUSE_FULL_STATS);
+                document.getElementById('stats-mode-label').classList.add('hidden');
+                countLabel.classList.add('hidden');
+                clearBtn.classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('stats-mode-label').classList.remove('hidden');
+            countLabel.textContent = `(${count} محدد)`;
+            countLabel.classList.remove('hidden');
+            clearBtn.classList.remove('hidden');
+
+            let pieces = 0, selling = 0, purchase = 0;
+            selectedProducts.forEach(p => {
+                pieces   += p.qty;
+                selling  += p.selling * p.qty;
+                purchase += p.purchase * p.qty;
+            });
+
+            setStats({ count, pieces, selling, purchase, profit: selling - purchase });
+        }
+
+        function setStats(s) {
+            el('stat-count',    s.count + ' منتج');
+            el('stat-pieces',   numberFmt(s.pieces) + ' قطعة');
+            el('stat-selling',  numberFmt(Math.round(s.selling)));
+            el('stat-purchase', numberFmt(Math.round(s.purchase)));
+            el('stat-profit',   numberFmt(Math.round(s.profit)));
+
+            const profitSection = document.getElementById('stat-profit-section');
+            if (profitSection) {
+                if (s.selling > 0 || s.purchase > 0) {
+                    profitSection.classList.remove('hidden');
+                } else {
+                    profitSection.classList.add('hidden');
+                }
+            }
+        }
+
+        function el(id, text) {
+            const e = document.getElementById(id);
+            if (e) e.textContent = text;
+        }
+
+        function numberFmt(n) {
+            return new Intl.NumberFormat('en-US').format(n || 0);
+        }
+
+        function escHtml(str) {
+            return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ---- Re-init on filter form submit (reset state) ----
+        const filterForm = document.querySelector('form[method="GET"]');
+        if (filterForm) {
+            filterForm.addEventListener('submit', () => {
+                // مسح الكاردات القديمة عند إعادة الفلترة
+                grid.innerHTML = '';
+                currentPage = 0;
+                hasMore = true;
+                noMoreLabel.classList.add('hidden');
+                noProductsLbl.classList.add('hidden');
+                selectedProducts.clear();
+                allLoadedProducts.clear();
+            });
+        }
+    })();
+    </script>
 
     <!-- Modal لتكبير الصورة -->
     <div id="imageModal" class="fixed inset-0 bg-black/80 z-[9999] hidden items-center justify-center p-4">
