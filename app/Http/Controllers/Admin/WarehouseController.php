@@ -331,25 +331,119 @@ class WarehouseController extends Controller
     {
         $this->authorize('delete', $warehouse);
 
-        // تسجيل حركات الحذف لجميع المنتجات والقياسات قبل الحذف
-        foreach ($warehouse->products as $product) {
-            foreach ($product->sizes as $size) {
-                \App\Models\ProductMovement::record([
-                    'product_id' => $product->id,
-                    'size_id' => $size->id,
-                    'warehouse_id' => $warehouse->id,
-                    'movement_type' => 'delete',
-                    'quantity' => -$size->quantity,
-                    'balance_after' => 0,
-                    'notes' => "حذف مخزن: {$warehouse->name} - منتج: {$product->name} - قياس: {$size->size_name} (كان الرصيد: {$size->quantity})",
-                ]);
-            }
+        try {
+            DB::transaction(function () use ($warehouse) {
+
+                // جلب معرّفات المنتجات التابعة للمخزن
+                $productIds = $warehouse->products()->pluck('id');
+
+                if ($productIds->isNotEmpty()) {
+                    // 1. تسجيل حركات الحذف قبل الحذف
+                    foreach ($warehouse->products()->with('sizes')->get() as $product) {
+                        foreach ($product->sizes as $size) {
+                            \App\Models\ProductMovement::record([
+                                'product_id'    => $product->id,
+                                'size_id'       => $size->id,
+                                'warehouse_id'  => $warehouse->id,
+                                'movement_type' => 'delete',
+                                'quantity'      => -$size->quantity,
+                                'balance_after' => 0,
+                                'notes'         => "\u062d\u0630\u0641 \u0645\u062e\u0632\u0646: {$warehouse->name} - \u0645\u0646\u062a\u062c: {$product->name} - \u0642\u064a\u0627\u0633: {$size->size_name} (\u0643\u0627\u0646 \u0627\u0644\u0631\u0635\u064a\u062f: {$size->quantity})",
+                            ]);
+                        }
+                    }
+
+                    // 2. جلب معرّفات الطلبات المرتبطة بمنتجات هذا المخزن
+                    $affectedOrderIds = DB::table('order_items')
+                        ->whereIn('product_id', $productIds)
+                        ->pluck('order_id')
+                        ->unique();
+
+                    // 3. حذف order_items المرتبطة بمنتجات هذا المخزن
+                    DB::table('order_items')->whereIn('product_id', $productIds)->delete();
+
+                    // 4. حذف الطلبات التي أصبحت فارغة بعد حذف items
+                    if ($affectedOrderIds->isNotEmpty()) {
+                        $ordersWithRemainingItems = DB::table('order_items')
+                            ->whereIn('order_id', $affectedOrderIds)
+                            ->pluck('order_id')
+                            ->unique();
+
+                        $ordersToDelete = $affectedOrderIds->diff($ordersWithRemainingItems);
+
+                        if ($ordersToDelete->isNotEmpty()) {
+                            DB::table('alwaseet_shipments')->whereIn('order_id', $ordersToDelete)->delete();
+                            DB::table('order_partial_returns')->whereIn('order_id', $ordersToDelete)->delete();
+                            DB::table('orders')->whereIn('id', $ordersToDelete)->delete();
+                        }
+                    }
+
+                    // 5. حذف حركات المخزن المرتبطة بالمنتجات
+                    DB::table('product_movements')->whereIn('product_id', $productIds)->delete();
+
+                    // 6. حذف صور المنتجات
+                    DB::table('product_images')->whereIn('product_id', $productIds)->delete();
+
+                    // 7. حذف قياسات المنتجات
+                    DB::table('product_sizes')->whereIn('product_id', $productIds)->delete();
+
+                    // 8. حذف روابط المنتجات إن وجدت
+                    if (DB::getSchemaBuilder()->hasTable('product_links')) {
+                        DB::table('product_links')->whereIn('product_id', $productIds)->delete();
+                    }
+
+                    // 9. حذف سجلات الأرباح المرتبطة بالمنتجات
+                    if (DB::getSchemaBuilder()->hasTable('profit_records')) {
+                        DB::table('profit_records')->whereIn('product_id', $productIds)->delete();
+                    }
+
+                    // 10. حذف الاستثمارات المرتبطة بالمنتجات
+                    if (DB::getSchemaBuilder()->hasTable('investments')) {
+                        DB::table('investments')
+                            ->where('investment_type', 'product')
+                            ->whereIn('product_id', $productIds)
+                            ->delete();
+                    }
+
+                    // 11. حذف المنتجات نفسها
+                    DB::table('products')->whereIn('id', $productIds)->delete();
+                }
+
+                // 12. حذف تخفيضات المخزن
+                DB::table('warehouse_promotions')->where('warehouse_id', $warehouse->id)->delete();
+
+                // 13. حذف استثمارات المخزن
+                if (DB::getSchemaBuilder()->hasTable('investments')) {
+                    DB::table('investments')
+                        ->where('investment_type', 'warehouse')
+                        ->where('warehouse_id', $warehouse->id)
+                        ->delete();
+                }
+
+                // 14. حذف سجلات أرباح المخزن
+                if (DB::getSchemaBuilder()->hasTable('profit_records')) {
+                    DB::table('profit_records')->where('warehouse_id', $warehouse->id)->delete();
+                }
+
+                // 15. فصل المستخدمين المرتبطين (pivot table)
+                $warehouse->users()->detach();
+
+                // 16. حذف المخزن نفسه
+                $warehouse->delete();
+            });
+
+            return redirect()->route('admin.warehouses.index')
+                            ->with('success', '\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u0645\u062e\u0632\u0646 \u0648\u062c\u0645\u064a\u0639 \u0628\u064a\u0627\u0646\u0627\u062a\u0647 \u0627\u0644\u0645\u0631\u062a\u0628\u0637\u0629 \u0628\u0646\u062c\u0627\u062d');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Warehouse delete error', [
+                'warehouse_id' => $warehouse->id,
+                'error'        => $e->getMessage(),
+            ]);
+
+            return redirect()->back()
+                            ->with('error', '\u062d\u062f\u062b \u062e\u0637\u0623 \u0623\u062b\u0646\u0627\u0621 \u062d\u0630\u0641 \u0627\u0644\u0645\u062e\u0632\u0646: ' . $e->getMessage());
         }
-
-        $warehouse->delete();
-
-        return redirect()->route('admin.warehouses.index')
-                        ->with('success', 'تم حذف المخزن بنجاح');
     }
 
     /**
