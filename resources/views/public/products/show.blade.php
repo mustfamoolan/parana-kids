@@ -440,157 +440,178 @@
                                         $youtubeId = $product->getYoutubeEmbedId();
                                     @endphp
 
-                                    <div class="product-card bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                                     <!-- ==================== 1. CARD WITH IMAGES ==================== -->
+                                     <div class="product-card bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                                         <!-- IMAGE SECTION -->
+                                         @if($imageCount > 1)
+                                             <!-- Multi-image Carousel -->
+                                             <div class="slider-wrap" id="{{ $sliderId }}-wrap">
+                                                 <!-- Discount Badge -->
+                                                 @if($hasDiscount)
+                                                     <div class="badge-discount">
+                                                         @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
+                                                     </div>
+                                                 @endif
 
-                                        @php
-                                            $totalSlides = $imageCount + ($youtubeId ? 1 : 0);
-                                        @endphp
+                                                 <div class="slider-track" id="{{ $sliderId }}-track">
+                                                     @foreach($allImages as $img)
+                                                         <div class="slide">
+                                                             <img
+                                                                 src="{{ $img->image_url }}"
+                                                                 alt="{{ $product->name }}"
+                                                                 loading="lazy"
+                                                                 onclick="openModal('{{ $img->image_url }}', '{{ addslashes($product->name) }}')"
+                                                             >
+                                                         </div>
+                                                     @endforeach
+                                                 </div>
 
-                                        <!-- ===== MEDIA SECTION (Carousel with Images + Shorts Video) ===== -->
-                                        @if($totalSlides > 1)
-                                            <!-- Multi-media Carousel (Images + Shorts Video) -->
-                                            <div class="slider-wrap" id="{{ $sliderId }}-wrap">
+                                                 <!-- Gradient -->
+                                                 <div class="img-gradient"></div>
 
-                                                <!-- Discount Badge -->
-                                                @if($hasDiscount)
-                                                    <div class="badge-discount">
-                                                        @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
-                                                    </div>
-                                                @endif
+                                                 <!-- Dots -->
+                                                 <div class="slider-dots" id="{{ $sliderId }}-dots">
+                                                     @foreach($allImages as $di => $img)
+                                                         <div class="slider-dot {{ $di === 0 ? 'active' : '' }}" onclick="goToSlide('{{ $sliderId }}', {{ $di }})"></div>
+                                                     @endforeach
+                                                 </div>
 
-                                                <div class="slider-track" id="{{ $sliderId }}-track">
-                                                    <!-- Image Slides -->
-                                                    @foreach($allImages as $img)
-                                                        <div class="slide">
-                                                            <img
-                                                                src="{{ $img->image_url }}"
-                                                                alt="{{ $product->name }}"
-                                                                loading="lazy"
-                                                                onclick="openModal('{{ $img->image_url }}', '{{ addslashes($product->name) }}')"
-                                                            >
-                                                        </div>
-                                                    @endforeach
+                                                 <!-- Arrows (RTL: prev=right, next=left) -->
+                                                 <button class="slider-arrow prev" onclick="changeSlide('{{ $sliderId }}', -1)" aria-label="التالي">
+                                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                                 </button>
+                                                 <button class="slider-arrow next" onclick="changeSlide('{{ $sliderId }}', 1)" aria-label="السابق">
+                                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                                                 </button>
+                                             </div>
 
-                                                    <!-- Shorts Video Slide -->
-                                                    @if($youtubeId)
-                                                        <div class="slide">
-                                                            <div class="slide-video-wrap bg-gray-900 text-white relative group" onclick="openVideoModal('{{ $youtubeId }}', '{{ addslashes($product->name) }}')">
-                                                                <!-- Youtube Embed Background Preview / Frame -->
-                                                                <iframe 
-                                                                    src="https://www.youtube.com/embed/{{ $youtubeId }}?autoplay=0&controls=0&rel=0&modestbranding=1" 
-                                                                    class="w-full h-full pointer-events-none opacity-80" 
-                                                                    loading="lazy"
-                                                                    frameborder="0">
-                                                                </iframe>
-                                                                <!-- Overlay Play Icon & Badge -->
-                                                                <div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-4">
-                                                                    <div class="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform">
-                                                                        <svg class="w-7 h-7 text-white rtl:rotate-180" fill="currentColor" viewBox="0 0 24 24">
-                                                                            <path d="M8 5v14l11-7z"/>
-                                                                        </svg>
-                                                                    </div>
-                                                                    <span class="mt-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs font-black text-white flex items-center gap-1.5 border border-white/20">
-                                                                        🎬 تشغيل فيديو Shorts
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    @endif
-                                                </div>
+                                         @elseif($imageCount === 1)
+                                             <!-- Single Image -->
+                                             <div class="single-img-wrap">
+                                                 @if($hasDiscount)
+                                                     <div class="badge-discount">
+                                                         @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
+                                                     </div>
+                                                 @endif
+                                                 <img
+                                                     src="{{ $allImages->first()->image_url }}"
+                                                     alt="{{ $product->name }}"
+                                                     loading="lazy"
+                                                     onclick="openModal('{{ $allImages->first()->image_url }}', '{{ addslashes($product->name) }}')"
+                                                 >
+                                                 <div class="img-gradient"></div>
+                                             </div>
 
-                                                <!-- Gradient -->
-                                                <div class="img-gradient"></div>
+                                         @else
+                                             <!-- No image placeholder -->
+                                             <div class="single-img-wrap bg-gray-100 flex items-center justify-center">
+                                                 @if($hasDiscount)
+                                                     <div class="badge-discount">
+                                                         @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
+                                                     </div>
+                                                 @endif
+                                                 <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                 </svg>
+                                             </div>
+                                         @endif
 
-                                                <!-- Dots -->
-                                                <div class="slider-dots" id="{{ $sliderId }}-dots">
-                                                    @for($i = 0; $i < $totalSlides; $i++)
-                                                        <div class="slider-dot {{ $i === 0 ? 'active' : '' }}" onclick="goToSlide('{{ $sliderId }}', {{ $i }})"></div>
-                                                    @endfor
-                                                </div>
+                                         <!-- PRODUCT INFO -->
+                                         <div class="p-4">
+                                             <span class="inline-block text-[10px] font-bold text-primary px-2.5 py-1 bg-primary/10 rounded-full border border-primary/20 uppercase tracking-tight mb-2">
+                                                 {{ $product->code }}
+                                             </span>
 
-                                                <!-- Arrows (RTL: prev=right, next=left) -->
-                                                <button class="slider-arrow prev" onclick="changeSlide('{{ $sliderId }}', -1)" aria-label="التالي">
-                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-                                                </button>
-                                                <button class="slider-arrow next" onclick="changeSlide('{{ $sliderId }}', 1)" aria-label="السابق">
-                                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
-                                                </button>
-                                            </div>
+                                             <h3 class="text-sm font-bold text-gray-800 mb-3 line-clamp-2 leading-snug">{{ $product->name }}</h3>
 
-                                        @elseif($imageCount === 1)
-                                            <!-- Single Image -->
-                                            <div class="single-img-wrap">
-                                                @if($hasDiscount)
-                                                    <div class="badge-discount">
-                                                        @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
-                                                    </div>
-                                                @endif
-                                                <img
-                                                    src="{{ $allImages->first()->image_url }}"
-                                                    alt="{{ $product->name }}"
-                                                    loading="lazy"
-                                                    onclick="openModal('{{ $allImages->first()->image_url }}', '{{ addslashes($product->name) }}')"
-                                                >
-                                                <div class="img-gradient"></div>
-                                            </div>
+                                             <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                 @if($hasDiscount)
+                                                     <span class="block text-xs font-bold" style="color:#dc2626; text-decoration:line-through; text-decoration-color:#dc2626;">
+                                                         {{ number_format($product->selling_price, 0) }} د.ع
+                                                     </span>
+                                                     <div class="flex items-baseline gap-1.5 mt-0.5">
+                                                         <span class="text-xl font-black" style="color:#16a34a;">{{ number_format($product->effective_price, 0) }}</span>
+                                                         <span class="text-xs font-bold text-gray-400">د.ع</span>
+                                                         @if($discountPercentage > 0)
+                                                             <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full" style="background:#fee2e2; color:#dc2626;">-{{ number_format($discountPercentage, 0) }}%</span>
+                                                         @endif
+                                                     </div>
+                                                 @else
+                                                     <span class="block text-[9px] text-gray-400 font-bold uppercase mb-1">السعر</span>
+                                                     <div class="flex items-baseline gap-1.5">
+                                                         <span class="text-xl font-black text-primary">{{ number_format($product->effective_price, 0) }}</span>
+                                                         <span class="text-xs font-bold text-gray-400">د.ع</span>
+                                                     </div>
+                                                 @endif
+                                             </div>
 
-                                        @else
-                                            <!-- No image placeholder -->
-                                            <div class="single-img-wrap bg-gray-100 flex items-center justify-center">
-                                                @if($hasDiscount)
-                                                    <div class="badge-discount">
-                                                        @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
-                                                    </div>
-                                                @endif
-                                                <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                </svg>
-                                            </div>
-                                        @endif
+                                             @if($imageCount > 1)
+                                                 <p class="text-[10px] text-gray-400 font-bold mt-2 text-center">
+                                                     📸 {{ $imageCount }} صور · انقر للتكبير
+                                                 </p>
+                                             @endif
+                                         </div>
+                                     </div>
 
-                                        <!-- ===== PRODUCT INFO ===== -->
-                                        <div class="p-4">
-                                            <!-- Code badge -->
-                                            <span class="inline-block text-[10px] font-bold text-primary px-2.5 py-1 bg-primary/10 rounded-full border border-primary/20 uppercase tracking-tight mb-2">
-                                                {{ $product->code }}
-                                            </span>
+                                     <!-- ==================== 2. DUPLICATE CARD WITH VIDEO (IF VIDEO EXISTS) ==================== -->
+                                     @if($youtubeId)
+                                         <div class="product-card bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden mt-6">
+                                             <!-- VIDEO SECTION (Full Embed / Shorts) -->
+                                             <div class="relative w-full overflow-hidden bg-black" style="aspect-ratio: 9 / 16; max-height: 480px;">
+                                                 @if($hasDiscount)
+                                                     <div class="badge-discount">
+                                                         @if($discountPercentage > 0) -{{ number_format($discountPercentage, 0) }}% @else تخفيض @endif
+                                                     </div>
+                                                 @endif
+                                                 <iframe 
+                                                     src="https://www.youtube.com/embed/{{ $youtubeId }}?autoplay=0&rel=0&modestbranding=1" 
+                                                     class="w-full h-full border-0" 
+                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                     allowfullscreen
+                                                     loading="lazy">
+                                                 </iframe>
+                                             </div>
 
-                                            <!-- Name -->
-                                            <h3 class="text-sm font-bold text-gray-800 mb-3 line-clamp-2 leading-snug">{{ $product->name }}</h3>
+                                             <!-- PRODUCT INFO (DUPLICATED) -->
+                                             <div class="p-4">
+                                                 <div class="flex items-center justify-between mb-2">
+                                                     <span class="inline-block text-[10px] font-bold text-primary px-2.5 py-1 bg-primary/10 rounded-full border border-primary/20 uppercase tracking-tight">
+                                                         {{ $product->code }}
+                                                     </span>
+                                                     <span class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded-full border border-red-200">
+                                                         🎬 فيديو Shorts
+                                                     </span>
+                                                 </div>
 
-                                            <!-- Price -->
-                                            <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                @if($hasDiscount)
-                                                    <!-- Old price crossed -->
-                                                    <span class="block text-xs font-bold" style="color:#dc2626; text-decoration:line-through; text-decoration-color:#dc2626;">
-                                                        {{ number_format($product->selling_price, 0) }} د.ع
-                                                    </span>
-                                                    <!-- New price -->
-                                                    <div class="flex items-baseline gap-1.5 mt-0.5">
-                                                        <span class="text-xl font-black" style="color:#16a34a;">{{ number_format($product->effective_price, 0) }}</span>
-                                                        <span class="text-xs font-bold text-gray-400">د.ع</span>
-                                                        @if($discountPercentage > 0)
-                                                            <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full" style="background:#fee2e2; color:#dc2626;">-{{ number_format($discountPercentage, 0) }}%</span>
-                                                        @endif
-                                                    </div>
-                                                @else
-                                                    <span class="block text-[9px] text-gray-400 font-bold uppercase mb-1">السعر</span>
-                                                    <div class="flex items-baseline gap-1.5">
-                                                        <span class="text-xl font-black text-primary">{{ number_format($product->effective_price, 0) }}</span>
-                                                        <span class="text-xs font-bold text-gray-400">د.ع</span>
-                                                    </div>
-                                                @endif
-                                            </div>
+                                                 <h3 class="text-sm font-bold text-gray-800 mb-3 line-clamp-2 leading-snug">{{ $product->name }}</h3>
 
-                                            <!-- Image count indicator (if multi) -->
-                                            @if($imageCount > 1)
-                                                <p class="text-[10px] text-gray-400 font-bold mt-2 text-center">
-                                                    📸 {{ $imageCount }} صور · انقر للتكبير
-                                                </p>
-                                            @endif
-                                        </div>
+                                                 <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                     @if($hasDiscount)
+                                                         <span class="block text-xs font-bold" style="color:#dc2626; text-decoration:line-through; text-decoration-color:#dc2626;">
+                                                             {{ number_format($product->selling_price, 0) }} د.ع
+                                                         </span>
+                                                         <div class="flex items-baseline gap-1.5 mt-0.5">
+                                                             <span class="text-xl font-black" style="color:#16a34a;">{{ number_format($product->effective_price, 0) }}</span>
+                                                             <span class="text-xs font-bold text-gray-400">د.ع</span>
+                                                             @if($discountPercentage > 0)
+                                                                 <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full" style="background:#fee2e2; color:#dc2626;">-{{ number_format($discountPercentage, 0) }}%</span>
+                                                             @endif
+                                                         </div>
+                                                     @else
+                                                         <span class="block text-[9px] text-gray-400 font-bold uppercase mb-1">السعر</span>
+                                                         <div class="flex items-baseline gap-1.5">
+                                                             <span class="text-xl font-black text-primary">{{ number_format($product->effective_price, 0) }}</span>
+                                                             <span class="text-xs font-bold text-gray-400">د.ع</span>
+                                                         </div>
+                                                     @endif
+                                                 </div>
 
-                                    </div>
+                                                 <p class="text-[10px] text-gray-400 font-bold mt-2 text-center">
+                                                     🎥 فيديو توضيحي شورتس للمنتج
+                                                 </p>
+                                             </div>
+                                         </div>
+                                     @endif
                                 @endforeach
                             </div>
                         </section>
