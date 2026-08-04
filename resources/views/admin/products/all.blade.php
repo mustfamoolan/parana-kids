@@ -163,7 +163,7 @@
 
         <!-- شبكة المنتجات -->
         <div id="productsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
-            @include('admin.products.partials.product-cards', ['products' => $products, 'searchedSize' => $searchedSize ?? null])
+            @include('admin.products.partials.product-cards', ['products' => $products, 'searchedSize' => $searchedSize ?? null, 'isOrderMode' => $isOrderMode ?? false])
         </div>
 
         <!-- زر تحميل المزيد -->
@@ -492,6 +492,7 @@
     <script src="/assets/js/swiper-bundle.min.js"></script>
 
     <script>
+        const isOrderMode = {{ ($isOrderMode ?? false) ? 'true' : 'false' }};
         let page = 1;
         let loading = false;
         let hasMore = {{ $products->hasMorePages() ? 'true' : 'false' }};
@@ -605,7 +606,7 @@
             document.getElementById('loadingIndicator').classList.remove('hidden');
             if (loadMoreBtn) loadMoreBtn.disabled = true;
 
-            let url = `{{ route('admin.products.index') }}?page=${page}&search=${encodeURIComponent(currentSearch)}`;
+            let url = `{{ route('admin.products.index') }}?page=${page}&search=${encodeURIComponent(currentSearch)}&order_mode=${isOrderMode ? 1 : 0}`;
             if (warehouseFilter) {
                 url += `&warehouse_id=${encodeURIComponent(warehouseFilter)}`;
             }

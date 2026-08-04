@@ -145,7 +145,7 @@ class OrderCreationController extends Controller
         session(['current_cart_id' => $cart->id]);
 
         // التوجيه لصفحة المنتجات مع إظهار رسالة
-        return redirect()->route('admin.products.index')
+        return redirect()->route('admin.products.index', ['order_mode' => 1])
                         ->with('success', 'تم بدء الطلب! الآن اختر المنتجات')
                         ->with('show_cart_info', true);
     }

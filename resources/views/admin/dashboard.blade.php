@@ -113,7 +113,18 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold text-info mb-2">المخازن</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن والمنتجات</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">إدارة المخازن</p>
+            </a>
+
+            <!-- 5. المنتجات -->
+            <a href="{{ route('admin.products.index') }}" class="panel hover:shadow-lg transition-all duration-300 text-center p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 border-2 border-secondary/20">
+                <div class="w-16 h-16 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-secondary mb-2">المنتجات</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">تصفح وعرض كافة المنتجات</p>
             </a>
 
             <!-- 1. الطلبات -->

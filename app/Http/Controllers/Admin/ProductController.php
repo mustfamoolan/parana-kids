@@ -165,22 +165,26 @@ class ProductController extends Controller
 
         $searchedSize = $searchedSize ?? null;
 
-        // جلب بيانات الكارت النشط إذا كان موجوداً
+        $isOrderMode = $request->boolean('order_mode');
+
+        // جلب بيانات الكارت النشط إذا كنا في وضع إنشاء الطلب
         $activeCart = null;
         $customerData = null;
-        $cartId = session('current_cart_id');
-        if ($cartId) {
-            $activeCart = \App\Models\Cart::with('items')->find($cartId);
-            if ($activeCart && $activeCart->created_by === auth()->id() && $activeCart->status === 'active') {
-                $customerData = [
-                    'customer_name' => $activeCart->customer_name,
-                    'customer_phone' => $activeCart->customer_phone,
-                    'customer_address' => $activeCart->customer_address,
-                    'customer_social_link' => $activeCart->customer_social_link,
-                    'notes' => $activeCart->notes,
-                ];
-            } else {
-                $activeCart = null;
+        if ($isOrderMode) {
+            $cartId = session('current_cart_id');
+            if ($cartId) {
+                $activeCart = \App\Models\Cart::with('items')->find($cartId);
+                if ($activeCart && $activeCart->created_by === auth()->id() && $activeCart->status === 'active') {
+                    $customerData = [
+                        'customer_name' => $activeCart->customer_name,
+                        'customer_phone' => $activeCart->customer_phone,
+                        'customer_address' => $activeCart->customer_address,
+                        'customer_social_link' => $activeCart->customer_social_link,
+                        'notes' => $activeCart->notes,
+                    ];
+                } else {
+                    $activeCart = null;
+                }
             }
         }
 
@@ -188,7 +192,8 @@ class ProductController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             $productsHtml = view('admin.products.partials.product-cards', [
                 'products' => $products,
-                'searchedSize' => $searchedSize
+                'searchedSize' => $searchedSize,
+                'isOrderMode' => $isOrderMode,
             ])->render();
 
             return response()->json([
@@ -199,7 +204,7 @@ class ProductController extends Controller
             ]);
         }
 
-        return view('admin.products.all', compact('products', 'warehouses', 'activeCart', 'customerData', 'searchedSize'));
+        return view('admin.products.all', compact('products', 'warehouses', 'activeCart', 'customerData', 'searchedSize', 'isOrderMode'));
     }
 
     /**

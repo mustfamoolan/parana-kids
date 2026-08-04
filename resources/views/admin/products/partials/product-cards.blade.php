@@ -88,17 +88,21 @@
                             $activePromotion = $product->warehouse->getCurrentActivePromotion();
                             $hasPromotion = $activePromotion && $activePromotion->isActive();
                             $hasProductDiscount = $product->hasActiveDiscount();
+                            $isDiscounted = $hasProductDiscount || $hasPromotion || ($product->selling_price > 0 && $product->effective_price < $product->selling_price);
                         @endphp
-                        @if($hasProductDiscount)
+                        @if($isDiscounted)
                             @php
-                                $discountInfo = $product->getDiscountInfo();
+                                $discountInfo = $hasProductDiscount ? $product->getDiscountInfo() : null;
+                                $discountPercentage = ($discountInfo && isset($discountInfo['percentage'])) 
+                                    ? $discountInfo['percentage'] 
+                                    : ($product->selling_price > 0 ? round((($product->selling_price - $product->effective_price) / $product->selling_price) * 100) : 0);
                             @endphp
                             <!-- تصميم جميل للمنتجات المخفضة -->
                             <div class="relative bg-gradient-to-br from-warning/10 to-warning/5 dark:from-warning/20 dark:to-warning/10 rounded-lg p-3 border-2 border-warning/30">
                                 <!-- Badge التخفيض في الأعلى -->
-                                <div class="absolute -top-2 -right-2 bg-warning text-white rounded-full px-3 py-1 text-xs font-bold shadow-lg z-10">
-                                    @if($discountInfo['type'] === 'percentage')
-                                        -{{ number_format($discountInfo['percentage'], 0) }}%
+                                <div class="absolute -top-2 -right-2 text-white rounded-full px-3 py-1 text-xs font-bold shadow-lg z-10" style="background-color: #ef4444 !important; color: #ffffff !important;">
+                                    @if($discountPercentage > 0)
+                                        -{{ number_format($discountPercentage, 0) }}%
                                     @else
                                         تخفيض
                                     @endif
@@ -107,39 +111,20 @@
                                 <div class="flex flex-col gap-2 mt-2">
                                     <!-- السعر الجديد -->
                                     <div class="flex items-baseline gap-2">
-                                        <span class="text-3xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
+                                        <span class="text-3xl font-bold" style="color: #16a34a !important;">{{ number_format($product->effective_price, 0) }}</span>
                                         <span class="text-sm text-gray-500">د.ع</span>
                                     </div>
 
-                                    <!-- السعر القديم -->
+                                    <!-- السعر القديم بالأحمر المشطوب -->
                                     <div class="flex items-center gap-2">
-                                        <span class="text-lg text-gray-400 line-through">{{ number_format($product->selling_price, 0) }} د.ع</span>
-                                        @if($discountInfo['type'] === 'amount')
+                                        <span class="text-lg font-bold" style="color: #dc2626 !important; text-decoration: line-through !important; text-decoration-color: #dc2626 !important;">{{ number_format($product->selling_price, 0) }} د.ع</span>
+                                        @if($discountInfo && $discountInfo['type'] === 'amount')
                                             <span class="text-xs text-warning font-semibold">
                                                 (وفرت {{ number_format($discountInfo['discount_amount'], 0) }} د.ع)
                                             </span>
                                         @endif
                                     </div>
-
-                                    <!-- تفاصيل التخفيض -->
-                                    <div class="pt-2 border-t border-warning/20">
-                                        <span class="text-xs text-warning font-semibold">
-                                            @if($discountInfo['type'] === 'percentage')
-                                                تخفيض {{ number_format($discountInfo['percentage'], 1) }}% من السعر الأصلي
-                                            @else
-                                                خصم {{ number_format($discountInfo['discount_amount'], 0) }} دينار عراقي
-                                            @endif
-                                        </span>
-                                    </div>
                                 </div>
-                            </div>
-                        @elseif($hasPromotion)
-                            <div class="flex flex-col gap-1">
-                                <div class="flex items-baseline gap-2">
-                                    <span class="text-2xl font-bold text-success">{{ number_format($product->effective_price, 0) }}</span>
-                                    <span class="text-xs text-gray-400 line-through rtl:mr-2 ltr:ml-2">{{ number_format($product->selling_price, 0) }}</span>
-                                </div>
-                                <span class="text-sm text-gray-500">دينار عراقي</span>
                             </div>
                         @else
                             <div class="flex items-baseline gap-2">
@@ -203,15 +188,28 @@
                         @endif
                     </div>
 
-                    <!-- زر إضافة -->
-                    <button type="button"
-                            onclick="openProductModal({{ $product->id }})"
-                            class="btn btn-primary w-full mt-4">
-                        <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                        إضافة للطلب
-                    </button>
+                    <!-- أزرار الإجراء حسب وضع التصفح أو إنشاء الطلب -->
+                    @if(isset($isOrderMode) && $isOrderMode)
+                        <!-- زر إضافة للطلب عند إنشاء طلب -->
+                        <button type="button"
+                                onclick="openProductModal({{ $product->id }})"
+                                class="btn btn-primary w-full mt-4">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            إضافة للطلب
+                        </button>
+                    @else
+                        <!-- عند تصفح المنتجات فقط: زر عرض التفاصيل -->
+                        <a href="{{ route('admin.warehouses.products.show', [$product->warehouse_id, $product->id]) }}"
+                           class="btn btn-outline-primary w-full mt-4">
+                            <svg class="w-4 h-4 ltr:mr-2 rtl:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            عرض التفاصيل
+                        </a>
+                    @endif
                 </div>
             </div>
         @endif
