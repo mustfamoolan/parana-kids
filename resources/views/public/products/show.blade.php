@@ -53,11 +53,16 @@
         .slider-wrap {
             position: relative;
             width: 100%;
-            /* 4:3 aspect ratio for mobile friendliness */
-            aspect-ratio: 4 / 3;
+            /* 1:1 or 4:5 aspect ratio for clear large display on mobile & desktop */
+            aspect-ratio: 1 / 1;
             overflow: hidden;
             background: #f1f5f9;
             border-radius: 1.5rem 1.5rem 0 0;
+        }
+        @media (min-width: 640px) {
+            .slider-wrap {
+                aspect-ratio: 4 / 3;
+            }
         }
         .slider-track {
             display: flex;
@@ -82,6 +87,24 @@
         }
         .product-card:hover .slide img {
             transform: scale(1.04);
+        }
+
+        /* Video Slide container inside carousel */
+        .slide-video-wrap {
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .slide-video-wrap iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            object-fit: cover;
         }
 
         /* Dots navigation */
@@ -291,49 +314,60 @@
             transform: translateY(0);
         }
 
-        /* Video Modal Overlay */
+        /* Video Modal Overlay - Shorts (9:16 Vertical Ratio) */
         #videoModal {
             position: fixed; inset: 0;
-            background: rgba(0,0,0,0.92);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 9999;
             display: none;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
-            backdrop-filter: blur(12px);
+            padding: 0.75rem;
+            backdrop-filter: blur(16px);
         }
         #videoModal.open { display: flex; }
         #videoModal .modal-video-wrap {
-            max-width: min(90vw, 800px);
+            max-width: min(90vw, 420px);
             width: 100%;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         #videoModal iframe {
             width: 100%;
-            aspect-ratio: 16 / 9;
-            border-radius: 1.5rem;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.1);
+            aspect-ratio: 9 / 16;
+            max-height: 80vh;
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 0, 0, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.15);
             display: block;
+            background: #000;
         }
         #videoModal .modal-title {
             color: #fff;
             text-align: center;
             font-weight: 900;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             margin-top: 1rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         #videoModal .modal-close {
             position: absolute;
-            top: -44px; left: 0;
-            width: 36px; height: 36px;
-            background: rgba(255,255,255,0.1);
-            border: none; border-radius: 50%;
+            top: -48px; left: 50%;
+            transform: translateX(-50%);
+            width: 40px; height: 40px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
             color: #fff; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
-        #videoModal .modal-close:hover { background: rgba(255,255,255,0.2); }
+        #videoModal .modal-close:hover { 
+            background: rgba(255,0,0,0.8);
+            transform: translateX(-50%) scale(1.1);
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -426,9 +460,13 @@
 
                                     <div class="product-card bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
 
-                                        <!-- ===== IMAGE SECTION ===== -->
-                                        @if($imageCount > 1)
-                                            <!-- Multi-image Carousel -->
+                                        @php
+                                            $totalSlides = $imageCount + ($youtubeId ? 1 : 0);
+                                        @endphp
+
+                                        <!-- ===== MEDIA SECTION (Carousel with Images + Shorts Video) ===== -->
+                                        @if($totalSlides > 1)
+                                            <!-- Multi-media Carousel (Images + Shorts Video) -->
                                             <div class="slider-wrap" id="{{ $sliderId }}-wrap">
 
                                                 <!-- Discount Badge -->
@@ -439,6 +477,7 @@
                                                 @endif
 
                                                 <div class="slider-track" id="{{ $sliderId }}-track">
+                                                    <!-- Image Slides -->
                                                     @foreach($allImages as $img)
                                                         <div class="slide">
                                                             <img
@@ -449,6 +488,32 @@
                                                             >
                                                         </div>
                                                     @endforeach
+
+                                                    <!-- Shorts Video Slide -->
+                                                    @if($youtubeId)
+                                                        <div class="slide">
+                                                            <div class="slide-video-wrap bg-gray-900 text-white relative group" onclick="openVideoModal('{{ $youtubeId }}', '{{ addslashes($product->name) }}')">
+                                                                <!-- Youtube Embed Background Preview / Frame -->
+                                                                <iframe 
+                                                                    src="https://www.youtube.com/embed/{{ $youtubeId }}?autoplay=0&controls=0&rel=0&modestbranding=1" 
+                                                                    class="w-full h-full pointer-events-none opacity-80" 
+                                                                    loading="lazy"
+                                                                    frameborder="0">
+                                                                </iframe>
+                                                                <!-- Overlay Play Icon & Badge -->
+                                                                <div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-4">
+                                                                    <div class="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform">
+                                                                        <svg class="w-7 h-7 text-white rtl:rotate-180" fill="currentColor" viewBox="0 0 24 24">
+                                                                            <path d="M8 5v14l11-7z"/>
+                                                                        </svg>
+                                                                    </div>
+                                                                    <span class="mt-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs font-black text-white flex items-center gap-1.5 border border-white/20">
+                                                                        🎬 تشغيل فيديو Shorts
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endif
                                                 </div>
 
                                                 <!-- Gradient -->
@@ -456,9 +521,9 @@
 
                                                 <!-- Dots -->
                                                 <div class="slider-dots" id="{{ $sliderId }}-dots">
-                                                    @foreach($allImages as $di => $img)
-                                                        <div class="slider-dot {{ $di === 0 ? 'active' : '' }}" onclick="goToSlide('{{ $sliderId }}', {{ $di }})"></div>
-                                                    @endforeach
+                                                    @for($i = 0; $i < $totalSlides; $i++)
+                                                        <div class="slider-dot {{ $i === 0 ? 'active' : '' }}" onclick="goToSlide('{{ $sliderId }}', {{ $i }})"></div>
+                                                    @endfor
                                                 </div>
 
                                                 <!-- Arrows (RTL: prev=right, next=left) -->
@@ -554,7 +619,7 @@
                                                             <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                                                         </svg>
                                                     </span>
-                                                    <span class="yt-text">شاهد الفيديو</span>
+                                                    <span class="yt-text">🎬 مشاهدة فيديو Shorts</span>
                                                     <span class="yt-pulse"></span>
                                                 </button>
                                             @endif
