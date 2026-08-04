@@ -574,14 +574,9 @@
 
                                              <!-- PRODUCT INFO (DUPLICATED) -->
                                              <div class="p-4">
-                                                 <div class="flex items-center justify-between mb-2">
-                                                     <span class="inline-block text-[10px] font-bold text-primary px-2.5 py-1 bg-primary/10 rounded-full border border-primary/20 uppercase tracking-tight">
-                                                         {{ $product->code }}
-                                                     </span>
-                                                     <span class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded-full border border-red-200">
-                                                         🎬 فيديو Shorts
-                                                     </span>
-                                                 </div>
+                                                 <span class="inline-block text-[10px] font-bold text-primary px-2.5 py-1 bg-primary/10 rounded-full border border-primary/20 uppercase tracking-tight mb-2">
+                                                     {{ $product->code }}
+                                                 </span>
 
                                                  <h3 class="text-sm font-bold text-gray-800 mb-3 line-clamp-2 leading-snug">{{ $product->name }}</h3>
 
@@ -605,10 +600,6 @@
                                                          </div>
                                                      @endif
                                                  </div>
-
-                                                 <p class="text-[10px] text-gray-400 font-bold mt-2 text-center">
-                                                     🎥 فيديو توضيحي شورتس للمنتج
-                                                 </p>
                                              </div>
                                          </div>
                                      @endif
