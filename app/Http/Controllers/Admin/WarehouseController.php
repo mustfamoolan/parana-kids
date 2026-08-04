@@ -496,7 +496,7 @@ class WarehouseController extends Controller
 
                     // 8. حذف روابط المنتجات إن وجدت
                     if (DB::getSchemaBuilder()->hasTable('product_links')) {
-                        DB::table('product_links')->whereIn('product_id', $productIds)->delete();
+                        DB::table('product_links')->where('warehouse_id', $warehouse->id)->delete();
                     }
 
                     // 9. حذف سجلات الأرباح المرتبطة بالمنتجات
