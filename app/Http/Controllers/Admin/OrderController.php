@@ -1175,8 +1175,15 @@ class OrderController extends Controller
                 if (!$item->product)
                     continue;
 
-                // فلتر المخزن: عرض فقط منتجات المخزن المحدد
-                if ($request->filled('warehouse_id')) {
+                // فلتر المخزن: عرض فقط منتجات المخازن المحددة
+                if ($request->has('warehouse_ids')) {
+                    $selectedWarehouseIds = array_filter((array) $request->warehouse_ids);
+                    if (!empty($selectedWarehouseIds)) {
+                        if (!in_array($item->product->warehouse_id, $selectedWarehouseIds)) {
+                            continue;
+                        }
+                    }
+                } elseif ($request->filled('warehouse_id')) {
                     if ($item->product->warehouse_id != $request->warehouse_id) {
                         continue; // تجاهل المنتجات من مخازن أخرى
                     }
