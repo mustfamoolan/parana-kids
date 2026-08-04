@@ -133,8 +133,8 @@
                         <!-- Size Section Header -->
                         <section class="mb-12 animate-fade-in">
                             <div class="relative mb-8">
-                                <div class="bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] dark:from-[#1b2e4b] dark:to-[#0e1726] rounded-2xl shadow-xl p-6 overflow-hidden">
-                                    <div class="absolute top-0 left-0 w-full h-full opacity-10">
+                                <div class="bg-[#0f2057] rounded-2xl shadow-xl p-6 overflow-hidden border-2 border-[#1e40af]">
+                                    <div class="absolute top-0 left-0 w-full h-full opacity-5">
                                         <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                                             <path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path>
                                         </svg>
@@ -142,17 +142,17 @@
                                     
                                     <div class="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
                                         <div class="flex items-center gap-5">
-                                            <div class="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
-                                                <span class="text-3xl font-black text-white text-shadow-premium">{{ $sizeName }}</span>
+                                            <div class="w-16 h-16 bg-[#1e40af] rounded-2xl flex items-center justify-center border-2 border-[#60a5fa] shadow-inner">
+                                                <span class="text-3xl font-black text-white drop-shadow-lg">{{ $sizeName }}</span>
                                             </div>
                                             <div>
-                                                <h2 class="text-2xl font-black text-white text-shadow-premium">القياس: {{ $sizeName }}</h2>
-                                                <p class="text-white/90 text-sm font-bold">مجموعة مختارة من {{ $products->count() }} قطع مميزة</p>
+                                                <h2 class="text-2xl font-black text-white drop-shadow-md">القياس: {{ $sizeName }}</h2>
+                                                <p class="text-[#bfdbfe] text-sm font-bold mt-1">مجموعة مختارة من {{ $products->count() }} قطع مميزة</p>
                                             </div>
                                         </div>
                                         
                                         <div class="flex items-center gap-2">
-                                            <span class="px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black text-white border border-white/30 text-shadow-premium">
+                                            <span class="px-4 py-2 bg-[#1e40af] rounded-full text-sm font-black text-white border-2 border-[#60a5fa]">
                                                 متوفر الآن
                                             </span>
                                         </div>
@@ -220,12 +220,20 @@
 
                                             <!-- Price Section -->
                                             <div class="bg-gray-50 dark:bg-gray-900/50 rounded-[1.5rem] p-4 border border-gray-100 dark:border-gray-800/50 transition-all group-hover:border-primary/30">
-                                                <div class="flex flex-col">
+                                                <div class="flex flex-col gap-1">
                                                     @if($hasDiscount)
-                                                        <span class="text-xs text-gray-400 line-through mb-1">{{ number_format($product->selling_price, 0) }} د.ع</span>
+                                                        <!-- السعر القديم بالأحمر مع خط -->
+                                                        <div class="flex items-baseline gap-1">
+                                                            <span class="text-base font-bold text-red-500 line-through decoration-2">{{ number_format($product->selling_price, 0) }}</span>
+                                                            <span class="text-xs font-bold text-red-400">د.ع</span>
+                                                        </div>
+                                                        <!-- السعر الجديد بعد التخفيض -->
                                                         <div class="flex items-baseline gap-2">
-                                                            <span class="text-2xl font-black text-warning">{{ number_format($product->effective_price, 0) }}</span>
-                                                            <span class="text-xs font-bold text-gray-500">د.ع</span>
+                                                            <span class="text-2xl font-black text-green-500">{{ number_format($product->effective_price, 0) }}</span>
+                                                            <span class="text-sm font-bold text-gray-500">د.ع</span>
+                                                            @if($discountInfo['type'] === 'percentage')
+                                                                <span class="text-xs font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">-{{ number_format($discountInfo['percentage'], 0) }}%</span>
+                                                            @endif
                                                         </div>
                                                     @else
                                                         <span class="text-[10px] text-gray-400 font-bold uppercase mb-1">السعر الحالي</span>
