@@ -158,8 +158,14 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                                 @foreach($products as $product)
                                     @php
-                                        $hasDiscount = $product->hasActiveDiscount();
-                                        $discountInfo = $hasDiscount ? $product->getDiscountInfo() : null;
+                                        $hasDiscount = $product->hasActiveDiscount() || ($product->selling_price > 0 && $product->effective_price < $product->selling_price);
+                                        $discountInfo = $product->hasActiveDiscount() ? $product->getDiscountInfo() : null;
+                                        $discountPercentage = 0;
+                                        if ($hasDiscount && $product->selling_price > 0) {
+                                            $discountPercentage = ($discountInfo && isset($discountInfo['percentage'])) 
+                                                ? $discountInfo['percentage'] 
+                                                : round((($product->selling_price - $product->effective_price) / $product->selling_price) * 100);
+                                        }
                                     @endphp
                                     <div class="product-card group relative bg-white dark:bg-[#0e1726] rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800/50 overflow-hidden">
                                         <!-- Image Container -->
@@ -181,8 +187,8 @@
                                             @if($hasDiscount)
                                                 <div class="absolute top-5 right-5 z-10">
                                                     <div class="bg-warning text-white font-black text-sm px-4 py-2 rounded-2xl shadow-xl transform rotate-3" style="background-color: #ef4444 !important; color: #ffffff !important;">
-                                                        @if($discountInfo['type'] === 'percentage')
-                                                            -{{ number_format($discountInfo['percentage'], 0) }}%
+                                                        @if($discountPercentage > 0)
+                                                            -{{ number_format($discountPercentage, 0) }}%
                                                         @else
                                                             تخفيض
                                                         @endif
@@ -225,8 +231,8 @@
                                                         <div class="flex items-baseline gap-2">
                                                             <span class="text-2xl font-black" style="color: #16a34a !important;">{{ number_format($product->effective_price, 0) }}</span>
                                                             <span class="text-sm font-bold text-gray-500">د.ع</span>
-                                                            @if($discountInfo['type'] === 'percentage')
-                                                                <span class="text-xs font-black px-2 py-0.5 rounded-full" style="background-color: #fee2e2 !important; color: #dc2626 !important;">-{{ number_format($discountInfo['percentage'], 0) }}%</span>
+                                                            @if($discountPercentage > 0)
+                                                                <span class="text-xs font-black px-2 py-0.5 rounded-full" style="background-color: #fee2e2 !important; color: #dc2626 !important;">-{{ number_format($discountPercentage, 0) }}%</span>
                                                             @endif
                                                         </div>
                                                     @else
